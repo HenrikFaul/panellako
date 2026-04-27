@@ -1,0 +1,8 @@
+OPTIONAL: ezt csak akkor használd, ha nem akarod tailwind.config.ts-ben bővíteni a brand palettát.
+Ebben az esetben az app/globals.css ::selection blokkja legyen:
+
+::selection {
+  @apply bg-teal-100 text-teal-900;
+}
+
+A javasolt megoldás viszont a mellékelt tailwind.config.ts feltöltése, mert a komponensek sok brand-* osztályt használnak.
