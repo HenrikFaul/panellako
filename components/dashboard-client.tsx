@@ -28,7 +28,6 @@ import {
   TicketCheck,
   UserCog,
   UserRound,
-  UsersRound,
   Vote,
   Wrench
 } from 'lucide-react';
