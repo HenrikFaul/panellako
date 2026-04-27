@@ -30,6 +30,8 @@ Másold az `.env.example` fájlt `.env.local` néven:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://wzromwxpjlyrqbdiapep.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+NEXT_PUBLIC_AWS_LOCATION_API_KEY=...
+NEXT_PUBLIC_AWS_LOCATION_REGION=eu-north-1
 ```
 
 > Ha nincs Supabase kulcs, az app mock adatokkal és demo űrlap-mentéssel fut.
