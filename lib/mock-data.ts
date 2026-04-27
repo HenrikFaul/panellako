@@ -1,4 +1,20 @@
-import { DocumentItem, FinanceItem, MeetingItem, NewsItem, Ticket } from './types';
+import {
+  DocumentItem,
+  FinanceItem,
+  MeetingItem,
+  MeterReading,
+  NewsItem,
+  NotificationItem,
+  Ticket,
+  UserProfile
+} from './types';
+
+export const mockCurrentUser: UserProfile = {
+  id: 'u1',
+  full_name: 'Minta Mária',
+  email: 'maria@example.com',
+  role: 'lako'
+};
 
 export const mockNews: NewsItem[] = [
   {
@@ -6,14 +22,27 @@ export const mockNews: NewsItem[] = [
     title: 'Kazán éves felülvizsgálat – május 4.',
     content: 'A karbantartó 08:00 és 12:00 között dolgozik. Kérjük a kazánház megközelíthetőségét biztosítani.',
     target_group: 'Minden lakó',
-    created_at: '2026-04-20'
+    created_at: '2026-04-20',
+    created_by_name: 'Közös képviselő'
   },
   {
     id: 'n2',
     title: 'Közgyűlési meghívó feltöltve',
     content: 'A 2026. május 15-i közgyűlés napirendje és mellékletei elérhetőek a Dokumentumok modulban.',
     target_group: 'Tulajdonosok',
-    created_at: '2026-04-18'
+    created_at: '2026-04-18',
+    created_by_name: 'Közös képviselő'
+  }
+];
+
+export const mockNotifications: NotificationItem[] = [
+  {
+    id: 'nt1',
+    title: 'Csőtörés miatti vízszünet',
+    message: 'A B lépcsőházban 14:00-16:00 között vízszünet várható.',
+    channel: 'app',
+    audience: 'B lépcsőház lakói',
+    created_at: '2026-04-26T08:10:00Z'
   }
 ];
 
@@ -35,6 +64,17 @@ export const mockTickets: Ticket[] = [
     priority: 'kozepes',
     location: 'A lépcsőház lift',
     due_date: null
+  }
+];
+
+export const mockMeterReadings: MeterReading[] = [
+  {
+    id: 'mr1',
+    meter_type: 'viz',
+    value: 128.4,
+    reading_date: '2026-04-25',
+    unit_label: 'A/12',
+    reported_by_name: 'Minta Mária'
   }
 ];
 
