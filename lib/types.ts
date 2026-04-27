@@ -27,6 +27,7 @@ export interface NotificationItem {
   channel: 'app' | 'email';
   audience: string;
   created_at: string;
+  read_at?: string | null;
 }
 
 export interface Ticket {
@@ -59,6 +60,8 @@ export interface DocumentItem {
   version: string;
   uploaded_at: string;
   file_url: string;
+  visibility?: string;
+  acknowledged_at?: string | null;
 }
 
 export interface FinanceItem {
@@ -75,4 +78,50 @@ export interface MeetingItem {
   scheduled_at: string;
   status: 'tervezett' | 'lezart';
   resolution_count: number;
+  agenda_preview?: string;
+}
+
+export interface UnitItem {
+  id: string;
+  unit_label: string;
+  owner_name: string;
+  unit_type: 'Lakas' | 'Tarolo' | 'Garazs' | 'Uzlethelyiseg' | string;
+  area_m2: number;
+  ownership_share: number;
+  balance_amount: number;
+  has_water_meter?: boolean;
+}
+
+export interface VendorItem {
+  id: string;
+  name: string;
+  category: string;
+  contact: string;
+  sla_hours: number;
+}
+
+export interface WorkOrderItem {
+  id: string;
+  ticket_title: string;
+  vendor_name: string;
+  status: 'tervezett' | 'kikuldve' | 'folyamatban' | 'lezarva';
+  due_date: string;
+  cost_estimate: number;
+}
+
+export interface KnowledgeBaseArticle {
+  id: string;
+  title: string;
+  topic: string;
+  body: string;
+  audience: string;
+}
+
+export interface AuditLogItem {
+  id: string;
+  actor_name: string;
+  action_type: string;
+  entity_type: string;
+  entity_label: string;
+  created_at: string;
 }

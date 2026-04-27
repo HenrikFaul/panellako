@@ -20,3 +20,17 @@
 ### Changed
 - Dashboard adatlekérés kiterjesztve notifications és meter_readings táblákra.
 - README frissítve az új funkciókhoz és backend-séma tartalomhoz.
+
+## 2026-04-27 (Feature refresh + AWS Location fix)
+### Added
+- Új server-side AWS Location proxy route: `app/api/location/autocomplete/route.ts`.
+- OnlineHáz-szerű albetét táblázat kereséssel, terület/tulajdoni hányad/egyenleg/vízóra adatokkal.
+- Bővített dashboard: teendők, gyors műveletek, ticket queue, dokumentum olvasottság, pénzügyi progress, mérőóra lista, közgyűlés/szavazás előkészítés, vendor/work order workflow, tudásbázis és audit napló.
+- Új mock adatok a vendorokhoz, work orderekhez, tudásbázishoz, audit loghoz és albetétekhez.
+- Supabase séma bővítése: document acknowledgements, agenda items, resolutions, votes, vendors, work_orders, knowledge_base_articles, audit_logs és új albetét mezők.
+
+### Changed
+- A címkereső többé nem client-side `process.env.NEXT_PUBLIC_AWS_LOCATION_API_KEY` változóból olvas, hanem a Next.js API route-on keresztül server-side env-et használ.
+- Supabase auth kliens `persistSession`, `autoRefreshToken` és `detectSessionInUrl` beállítást kapott a magic link flow stabilizálására.
+- Login oldal modernebb UX-et és explicit redirect cél visszajelzést kapott.
+- Dashboard vizuális szerkezete modern sidebar + card layout irányba frissült regresszió nélkül: a korábbi profil, ticket, meter, hírek, dokumentum, pénzügy és közgyűlés funkciók megmaradtak.

@@ -1,24 +1,51 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
 import {
+  AlertTriangle,
   BellRing,
+  BookOpen,
+  Building2,
   CalendarDays,
+  CheckCircle2,
+  ChevronRight,
   CircleDollarSign,
+  ClipboardCheck,
   FileText,
   Gauge,
+  Home,
+  Layers3,
+  LifeBuoy,
   LogOut,
-  Megaphone,
   MapPin,
+  Megaphone,
+  MessageSquare,
+  Search,
   ShieldCheck,
   Siren,
+  Sparkles,
   TicketCheck,
   UserCog,
   UserRound,
+  UsersRound,
+  Vote,
   Wrench
 } from 'lucide-react';
-import { Role, Ticket } from '@/lib/types';
+import {
+  AuditLogItem,
+  DocumentItem,
+  FinanceItem,
+  KnowledgeBaseArticle,
+  MeetingItem,
+  MeterReading,
+  NotificationItem,
+  Role,
+  Ticket,
+  UnitItem,
+  VendorItem,
+  WorkOrderItem
+} from '@/lib/types';
 import { hasSupabaseConfig, supabase } from '@/lib/supabase';
 
 type DashboardData = {
@@ -34,24 +61,17 @@ type DashboardData = {
     category?: string;
     source_label?: string;
   }>;
-  notifications: Array<{ id: string; title: string; message: string; audience: string; channel: string; created_at: string }>;
-  tickets: Array<{
-    id: string;
-    title: string;
-    description: string;
-    status: Ticket['status'];
-    priority: Ticket['priority'];
-    location: string;
-    due_date: string | null;
-    submitted_by?: string;
-    unit_label?: string;
-    created_at?: string;
-    updated_at?: string;
-  }>;
-  meterReadings: Array<{ id: string; meter_type: string; value: number; reading_date: string; unit_label: string }>;
-  documents: Array<{ id: string; title: string; category: string; version: string; uploaded_at: string }>;
-  finances: Array<{ id: string; period: string; expected_amount: number; paid_amount: number; due_date: string }>;
-  meetings: Array<{ id: string; title: string; scheduled_at: string; resolution_count: number }>;
+  notifications: NotificationItem[];
+  tickets: Ticket[];
+  meterReadings: MeterReading[];
+  documents: DocumentItem[];
+  finances: FinanceItem[];
+  meetings: MeetingItem[];
+  units: UnitItem[];
+  vendors: VendorItem[];
+  workOrders: WorkOrderItem[];
+  kbArticles: KnowledgeBaseArticle[];
+  auditLogs: AuditLogItem[];
 };
 
 const roleLabels: Record<Role, string> = {
@@ -71,12 +91,35 @@ const newsCategoryLabels: Record<string, string> = {
   egyeb: 'Egyéb'
 };
 
-function formatDate(value: string) {
+const navigation = [
+  { href: '#overview', label: 'Áttekintő', icon: Home },
+  { href: '#tasks', label: 'Teendők', icon: ClipboardCheck },
+  { href: '#tickets', label: 'Bejelentések', icon: TicketCheck },
+  { href: '#units', label: 'Albetétek', icon: Building2 },
+  { href: '#documents', label: 'Dokumentumok', icon: FileText },
+  { href: '#finances', label: 'Pénzügyek', icon: CircleDollarSign },
+  { href: '#meters', label: 'Mérőórák', icon: Gauge },
+  { href: '#meetings', label: 'Közgyűlések', icon: CalendarDays },
+  { href: '#knowledge', label: 'Tudásbázis', icon: BookOpen },
+  { href: '#audit', label: 'Audit napló', icon: ShieldCheck }
+];
+
+function formatDate(value?: string | null) {
+  if (!value) {
+    return '-';
+  }
   return new Intl.DateTimeFormat('hu-HU', { dateStyle: 'medium' }).format(new Date(value));
 }
 
-function formatDateTime(value: string) {
+function formatDateTime(value?: string | null) {
+  if (!value) {
+    return '-';
+  }
   return new Intl.DateTimeFormat('hu-HU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+}
+
+function formatCurrency(value: number | string | null | undefined) {
+  return `${Number(value ?? 0).toLocaleString('hu-HU')} Ft`;
 }
 
 function previewText(text: string) {
@@ -84,18 +127,86 @@ function previewText(text: string) {
   return sentences.endsWith('.') ? sentences : `${sentences}.`;
 }
 
+function numberOrZero(value: number | string | null | undefined) {
+  return Number(value ?? 0);
+}
+
+function SectionCard({ id, title, icon, children, action }: { id?: string; title: string; icon: ReactNode; children: ReactNode; action?: ReactNode }) {
+  return (
+    <section id={id} className="rounded-[1.75rem] border border-white/70 bg-white/90 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
+          <span className="rounded-2xl bg-brand-50 p-2 text-brand-700">{icon}</span>
+          {title}
+        </h2>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function MetricCard({ title, value, subtitle, icon, tone = 'brand' }: { title: string; value: string; subtitle: string; icon: ReactNode; tone?: 'brand' | 'amber' | 'slate' | 'violet' }) {
+  const toneClass = {
+    brand: 'from-brand-600 to-cyan-500 text-white',
+    amber: 'from-amber-500 to-orange-500 text-white',
+    slate: 'from-slate-900 to-slate-700 text-white',
+    violet: 'from-violet-600 to-fuchsia-500 text-white'
+  }[tone];
+
+  return (
+    <article className={`rounded-[1.5rem] bg-gradient-to-br ${toneClass} p-5 shadow-lg shadow-slate-200/70`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium opacity-85">{title}</p>
+          <p className="mt-2 text-3xl font-black tracking-tight">{value}</p>
+        </div>
+        <span className="rounded-2xl bg-white/18 p-3">{icon}</span>
+      </div>
+      <p className="mt-4 text-xs font-medium opacity-85">{subtitle}</p>
+    </article>
+  );
+}
+
+function StatusBadge({ status }: { status: Ticket['status'] | WorkOrderItem['status'] | MeetingItem['status'] }) {
+  const classes: Record<string, string> = {
+    uj: 'bg-sky-50 text-sky-700 ring-sky-100',
+    folyamatban: 'bg-amber-50 text-amber-700 ring-amber-100',
+    varakozik: 'bg-violet-50 text-violet-700 ring-violet-100',
+    lezarva: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+    tervezett: 'bg-sky-50 text-sky-700 ring-sky-100',
+    kikuldve: 'bg-indigo-50 text-indigo-700 ring-indigo-100',
+    lezart: 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+  };
+
+  return <span className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${classes[status] ?? classes.uj}`}>{status}</span>;
+}
+
+function PriorityBadge({ priority }: { priority: Ticket['priority'] }) {
+  const classes: Record<Ticket['priority'], string> = {
+    alacsony: 'bg-slate-100 text-slate-700',
+    kozepes: 'bg-cyan-50 text-cyan-700',
+    magas: 'bg-amber-50 text-amber-700',
+    kritikus: 'bg-rose-50 text-rose-700'
+  };
+
+  return <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${classes[priority]}`}>{priority}</span>;
+}
+
 export default function DashboardClient({ data }: { data: DashboardData }) {
   const [ticketSaved, setTicketSaved] = useState(false);
   const [meterSaved, setMeterSaved] = useState(false);
   const [noticeSaved, setNoticeSaved] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
   const [tickets, setTickets] = useState(data.tickets);
   const [expandedNews, setExpandedNews] = useState<string[]>([]);
   const [ticketFilter, setTicketFilter] = useState<Ticket['status'] | 'osszes'>('osszes');
+  const [documentFilter, setDocumentFilter] = useState('osszes');
+  const [unitSearch, setUnitSearch] = useState('');
 
   const [name, setName] = useState(data.currentUser.full_name);
   const [unit, setUnit] = useState('');
   const [address, setAddress] = useState('');
-  const [profileSaved, setProfileSaved] = useState(false);
   const [addressQuery, setAddressQuery] = useState('');
   const [addressOptions, setAddressOptions] = useState<string[]>([]);
   const [addressError, setAddressError] = useState('');
@@ -105,13 +216,18 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [ticketDescription, setTicketDescription] = useState('');
   const [ticketLocation, setTicketLocation] = useState('');
   const [ticketPriority, setTicketPriority] = useState<Ticket['priority']>('kozepes');
-
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const isManager = useMemo(() => ['kozos_kepviselo', 'megbizott'].includes(data.currentUser.role), [data.currentUser.role]);
+  const isAdminLike = useMemo(() => ['kozos_kepviselo', 'megbizott', 'bizottsag', 'konyvelo'].includes(data.currentUser.role), [data.currentUser.role]);
 
-  const totalDue = data.finances.reduce((acc, item) => acc + Number(item.expected_amount ?? 0), 0);
-  const totalPaid = data.finances.reduce((acc, item) => acc + Number(item.paid_amount ?? 0), 0);
+  const totalDue = data.finances.reduce((acc, item) => acc + numberOrZero(item.expected_amount), 0);
+  const totalPaid = data.finances.reduce((acc, item) => acc + numberOrZero(item.paid_amount), 0);
+  const arrears = Math.max(totalDue - totalPaid, 0);
+  const openTicketCount = tickets.filter((ticket) => ticket.status !== 'lezarva').length;
+  const unreadNotificationCount = data.notifications.filter((notification) => !notification.read_at).length;
+  const totalArea = data.units.reduce((acc, item) => acc + numberOrZero(item.area_m2), 0);
+  const totalOwnershipShare = data.units.reduce((acc, item) => acc + numberOrZero(item.ownership_share), 0);
 
   useEffect(() => {
     if (!hasSupabaseConfig || !supabase) {
@@ -138,44 +254,26 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       return;
     }
 
-    const apiKey = process.env.NEXT_PUBLIC_AWS_LOCATION_API_KEY || process.env.VITE_AWS_LOCATION_API_KEY;
-    const region = process.env.NEXT_PUBLIC_AWS_LOCATION_REGION || process.env.VITE_AWS_LOCATION_REGION || 'eu-north-1';
-
-    if (!apiKey) {
-      setAddressError('AWS Location API kulcs hiányzik.');
-      setAddressOptions([]);
-      return;
-    }
-
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       setIsAddressLoading(true);
       setAddressError('');
 
       try {
-        const response = await fetch(
-          `https://places.geo.${region}.amazonaws.com/v2/autocomplete?query=${encodeURIComponent(addressQuery)}&maxResults=6&language=hu`,
-          {
-            method: 'GET',
-            headers: {
-              'X-Amz-Api-Key': apiKey
-            },
-            signal: controller.signal
-          }
-        );
+        const response = await fetch(`/api/location/autocomplete?q=${encodeURIComponent(addressQuery)}`, {
+          method: 'GET',
+          signal: controller.signal
+        });
+
+        const payload = await response.json();
 
         if (!response.ok) {
-          setAddressError('Címkeresés most nem elérhető.');
+          setAddressError(payload?.message || 'Címkeresés most nem elérhető.');
           setAddressOptions([]);
           return;
         }
 
-        const payload = await response.json();
-        const labels = (payload?.ResultItems ?? [])
-          .map((item: { Title?: string; Address?: { Label?: string } }) => item.Address?.Label || item.Title)
-          .filter((label: string | undefined): label is string => Boolean(label));
-
-        setAddressOptions(labels);
+        setAddressOptions(payload.suggestions ?? []);
       } catch {
         if (!controller.signal.aborted) {
           setAddressError('Címkeresés hiba történt.');
@@ -201,11 +299,37 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     return tickets.filter((ticket) => ticket.status === ticketFilter);
   }, [ticketFilter, tickets]);
 
+  const documentCategories = useMemo(() => ['osszes', ...Array.from(new Set(data.documents.map((document) => document.category)))], [data.documents]);
+  const visibleDocuments = useMemo(() => {
+    if (documentFilter === 'osszes') {
+      return data.documents;
+    }
+
+    return data.documents.filter((document) => document.category === documentFilter);
+  }, [data.documents, documentFilter]);
+
+  const visibleUnits = useMemo(() => {
+    const normalized = unitSearch.trim().toLowerCase();
+    if (!normalized) {
+      return data.units;
+    }
+
+    return data.units.filter((unitItem) => `${unitItem.unit_label} ${unitItem.owner_name} ${unitItem.unit_type}`.toLowerCase().includes(normalized));
+  }, [data.units, unitSearch]);
+
+  const tasks = useMemo(() => {
+    return [
+      { id: 'task-1', title: 'Új hibabejelentések triage', meta: `${tickets.filter((ticket) => ticket.status === 'uj').length} új ticket`, tone: 'bg-sky-50 text-sky-700' },
+      { id: 'task-2', title: 'Lejárt közös költség ellenőrzés', meta: formatCurrency(arrears), tone: 'bg-amber-50 text-amber-700' },
+      { id: 'task-3', title: 'Közgyűlési dokumentumok olvasottsága', meta: `${data.documents.filter((document) => !document.acknowledged_at).length} nyitott visszaigazolás`, tone: 'bg-violet-50 text-violet-700' }
+    ];
+  }, [arrears, data.documents, tickets]);
+
   const submitTicket = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const now = new Date().toISOString();
 
-    const newTicket: DashboardData['tickets'][number] = {
+    const newTicket: Ticket = {
       id: `ticket-${now}`,
       title: ticketTitle,
       description: ticketDescription,
@@ -242,250 +366,444 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   };
 
   return (
-    <main className="mx-auto max-w-7xl space-y-8 px-4 py-8 md:px-8">
-      <section className="rounded-2xl bg-gradient-to-r from-brand-700 to-brand-500 p-6 text-white shadow-lg md:p-8">
-        <div className="flex flex-col gap-3">
-          <p className="text-sm font-semibold uppercase tracking-wide text-white/80">PanelLakó – MVP+</p>
-          <h1 className="text-2xl font-bold md:text-4xl">Digitális működési központ társasházaknak</h1>
-          <p className="max-w-3xl text-sm text-white/90 md:text-base">
-            Jogosultságkezelés, belépés, hibabejelentés, vízóra bejelentés, célzott értesítések és visszakövethető ügykezelés.
-          </p>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-white/90">
-            <span className="rounded-full bg-white/20 px-3 py-1">Adatforrás: {data.source === 'supabase' ? 'Supabase' : 'Mock'}</span>
-            <span className="rounded-full bg-white/20 px-3 py-1">Aktív szerepkör: {roleLabels[data.currentUser.role]}</span>
-            {isLoggedIn ? (
-              <button
-                className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 font-semibold text-brand-700"
-                onClick={async () => {
-                  if (supabase) {
-                    await supabase.auth.signOut();
-                  }
-                  setIsLoggedIn(false);
-                }}
-                type="button"
-              >
-                <LogOut size={14} /> Kijelentkezés
-              </button>
-            ) : (
-              <Link className="rounded-full bg-white px-3 py-1 font-semibold text-brand-700" href="/login">
-                Bejelentkezés
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#ccfbf1_0,#f8fafc_30%,#eef2ff_100%)] text-slate-900">
+      <div className="grid min-h-screen lg:grid-cols-[280px_1fr]">
+        <aside className="hidden border-r border-white/50 bg-slate-950 text-slate-200 shadow-2xl lg:block">
+          <div className="sticky top-0 flex h-screen flex-col p-5">
+            <div className="mb-8 flex items-center gap-3">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-brand-500 to-sky-500 text-white shadow-lg shadow-brand-900/30">
+                <Building2 size={24} />
+              </div>
+              <div>
+                <p className="text-lg font-black tracking-tight text-white">PanelLakó</p>
+                <p className="text-xs text-slate-400">Társasházi operációs központ</p>
+              </div>
+            </div>
+
+            <nav className="space-y-1">
+              {navigation.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <a key={item.href} href={item.href} className="flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white">
+                    <Icon size={18} />
+                    {item.label}
+                  </a>
+                );
+              })}
+            </nav>
+
+            <div className="mt-auto rounded-3xl bg-white/8 p-4 ring-1 ring-white/10">
+              <p className="text-xs uppercase tracking-wide text-slate-400">Aktív szerepkör</p>
+              <p className="mt-1 font-bold text-white">{roleLabels[data.currentUser.role]}</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                {(['lako', 'megbizott', 'kozos_kepviselo'] as Role[]).map((role) => (
+                  <Link key={role} href={`/?role=${role}`} className="rounded-full bg-white/10 px-2.5 py-1 text-slate-200 hover:bg-white/20">
+                    {roleLabels[role]}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <main className="space-y-6 px-4 py-5 md:px-8 lg:px-10">
+          <header className="flex flex-col gap-4 rounded-[2rem] border border-white/70 bg-white/80 p-4 shadow-[0_18px_70px_rgba(15,23,42,0.08)] backdrop-blur md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-500">Teszt3</p>
+              <h1 className="text-2xl font-black tracking-tight text-slate-950 md:text-3xl">Ház kiválasztása</h1>
+              <p className="mt-1 text-sm text-slate-500">Adatforrás: {data.source === 'supabase' ? 'Supabase' : 'Mock/demo'} · Modern lakói és képviselői működés egy felületen.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-2.5 text-slate-400" size={18} />
+                <input className="w-56 rounded-2xl border border-slate-200 bg-white px-10 py-2 text-sm outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100" placeholder="Keresés..." />
+              </div>
+              <Link className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-slate-300 transition hover:-translate-y-0.5" href="/login">
+                {isLoggedIn ? 'Session aktív' : 'Belépés'}
               </Link>
-            )}
-          </div>
-        </div>
-      </section>
+              {isLoggedIn ? (
+                <button
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:border-brand-300"
+                  onClick={async () => {
+                    if (supabase) {
+                      await supabase.auth.signOut();
+                    }
+                    setIsLoggedIn(false);
+                  }}
+                  type="button"
+                >
+                  <LogOut size={16} /> Kijelentkezés
+                </button>
+              ) : null}
+            </div>
+          </header>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold"><UserRound size={18} className="text-brand-600" /> Profil adatok</h2>
-        <form
-          className="space-y-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setProfileSaved(true);
-          }}
-        >
-          <div className="grid gap-3 md:grid-cols-2">
-            <input
-              required
-              className="rounded-lg border border-slate-200 px-3 py-2"
-              placeholder="Teljes név"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <input
-              className="rounded-lg border border-slate-200 px-3 py-2"
-              placeholder="Lakás (opcionális, pl. A/12)"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-            />
-          </div>
+          <section id="overview" className="overflow-hidden rounded-[2rem] bg-slate-950 text-white shadow-2xl shadow-slate-300/60">
+            <div className="grid gap-6 p-6 md:grid-cols-[1.35fr_0.65fr] md:p-8">
+              <div>
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-brand-100 ring-1 ring-white/10">
+                  <Sparkles size={14} /> MVP+ feature refresh
+                </div>
+                <h2 className="max-w-3xl text-3xl font-black tracking-tight md:text-5xl">Fiatalos, gyors és átlátható társasházi app.</h2>
+                <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300 md:text-base">
+                  A korábbi modulok megtartása mellett bekerült az OnlineHáz-szerű albetét táblázat, ticket/work order workflow, dokumentum olvasottság, közgyűlés/szavazás előkészítés, tudásbázis és audit napló.
+                </p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <a href="#tickets" className="rounded-2xl bg-brand-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-950/20 hover:bg-brand-400">Új bejelentés</a>
+                  <a href="#units" className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 hover:bg-slate-100">Albetétek nézete</a>
+                </div>
+              </div>
+              <div className="rounded-[1.5rem] bg-white/10 p-5 ring-1 ring-white/10">
+                <p className="text-sm font-bold text-brand-100">Feature lefedettség</p>
+                <div className="mt-4 space-y-3 text-sm text-slate-200">
+                  {['Hírek + push/email koncepció', 'Ticketing + SLA + vendor', 'Dokumentumtár + read receipt', 'Pénzügy + hátraléklista', 'Közgyűlés + szavazás előkészítés'].map((item) => (
+                    <div key={item} className="flex items-center gap-2"><CheckCircle2 className="text-brand-300" size={16} /> {item}</div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
 
-          <div className="rounded-lg border border-slate-200 p-3">
-            <label className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700"><MapPin size={14} className="text-brand-600" /> Cím (AWS Location)</label>
-            <input
-              className="w-full rounded-lg border border-slate-200 px-3 py-2"
-              placeholder="Kezdj el címet írni (min. 3 karakter)"
-              value={addressQuery}
-              onChange={(e) => {
-                setAddressQuery(e.target.value);
-                setAddress(e.target.value);
-              }}
-            />
-            {isAddressLoading ? <p className="mt-2 text-xs text-slate-500">Címek keresése...</p> : null}
-            {addressError ? <p className="mt-2 text-xs text-amber-700">{addressError}</p> : null}
-            {addressOptions.length > 0 ? (
-              <ul className="mt-2 space-y-1 rounded-lg border border-slate-100 bg-slate-50 p-2">
-                {addressOptions.map((option) => (
-                  <li key={option}>
-                    <button
-                      className="w-full rounded-md px-2 py-1 text-left text-sm hover:bg-white"
-                      type="button"
-                      onClick={() => {
-                        setAddress(option);
-                        setAddressQuery(option);
-                        setAddressOptions([]);
-                      }}
-                    >
-                      {option}
-                    </button>
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard title="Nyitott ügyek" value={String(openTicketCount)} subtitle="Ticketek, SLA és felelős kijelölés" icon={<Wrench size={24} />} />
+            <MetricCard title="Hátralék" value={formatCurrency(arrears)} subtitle="Lakói pénzügyi átláthatóság" icon={<CircleDollarSign size={24} />} tone="amber" />
+            <MetricCard title="Olvasatlan értesítés" value={String(unreadNotificationCount)} subtitle="Push/e-mail és olvasottsági visszajelzés" icon={<BellRing size={24} />} tone="violet" />
+            <MetricCard title="Albetétek" value={String(data.units.length)} subtitle={`${totalArea} m² · ${totalOwnershipShare} tulajdoni hányad`} icon={<Layers3 size={24} />} tone="slate" />
+          </section>
+
+          <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+            <SectionCard id="profile" title="Profil adatok és címkereső" icon={<UserRound size={18} />}>
+              <form
+                className="space-y-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  setProfileSaved(true);
+                }}
+              >
+                <div className="grid gap-3 md:grid-cols-2">
+                  <input required className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100" placeholder="Teljes név" value={name} onChange={(e) => setName(e.target.value)} />
+                  <input className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100" placeholder="Lakás (pl. A/12)" value={unit} onChange={(e) => setUnit(e.target.value)} />
+                </div>
+
+                <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4">
+                  <label className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-700"><MapPin size={16} className="text-brand-600" /> Címkeresés AWS Location proxyval</label>
+                  <input
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                    placeholder="Kezdj el címet írni (min. 3 karakter)"
+                    value={addressQuery}
+                    onChange={(e) => {
+                      setAddressQuery(e.target.value);
+                      setAddress(e.target.value);
+                    }}
+                  />
+                  {isAddressLoading ? <p className="mt-2 text-xs text-slate-500">Címek keresése...</p> : null}
+                  {addressError ? <p className="mt-2 rounded-2xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">{addressError}</p> : null}
+                  {addressOptions.length > 0 ? (
+                    <ul className="mt-3 space-y-1 rounded-2xl border border-slate-100 bg-white p-2 shadow-sm">
+                      {addressOptions.map((option) => (
+                        <li key={option}>
+                          <button
+                            className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-brand-50 hover:text-brand-800"
+                            type="button"
+                            onClick={() => {
+                              setAddress(option);
+                              setAddressQuery(option);
+                              setAddressOptions([]);
+                            }}
+                          >
+                            {option}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {address ? <p className="mt-2 text-xs text-slate-600">Kiválasztott cím: {address}</p> : null}
+                </div>
+
+                <button className="rounded-2xl bg-brand-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-100 hover:bg-brand-700">Profil mentése</button>
+                {profileSaved ? <p className="text-sm font-semibold text-emerald-700">Profiladatok mentve demo módban.</p> : null}
+              </form>
+            </SectionCard>
+
+            <SectionCard id="tasks" title="Teendők és gyors műveletek" icon={<ClipboardCheck size={18} />}>
+              <div className="grid gap-3 md:grid-cols-3">
+                {tasks.map((task) => (
+                  <article key={task.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+                    <div className={`mb-3 inline-flex rounded-full px-3 py-1 text-xs font-black ${task.tone}`}>{task.meta}</div>
+                    <p className="font-bold text-slate-950">{task.title}</p>
+                    <button className="mt-4 inline-flex items-center gap-1 text-xs font-black text-brand-700" type="button">Megnyitás <ChevronRight size={14} /></button>
+                  </article>
+                ))}
+              </div>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-3">
+                <a className="rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white" href="#tickets">Ticket queue</a>
+                <a className="rounded-2xl bg-brand-600 px-4 py-3 text-center text-sm font-black text-white" href="#documents">Dokumentumtár</a>
+                <a className="rounded-2xl bg-white px-4 py-3 text-center text-sm font-black text-slate-800 ring-1 ring-slate-200" href="#meetings">Közgyűlés</a>
+              </div>
+            </SectionCard>
+          </section>
+
+          <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+            <SectionCard id="tickets" title="Hibabejelentés és ticketing" icon={<Siren size={18} />}>
+              <form className="space-y-3" onSubmit={submitTicket}>
+                <input required className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100" placeholder="Rövid cím" value={ticketTitle} onChange={(e) => setTicketTitle(e.target.value)} />
+                <textarea required className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100" placeholder="Leírás, fotó/melléklet helye későbbi storage integrációhoz" rows={3} value={ticketDescription} onChange={(e) => setTicketDescription(e.target.value)} />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input required className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100" placeholder="Helyszín (pl. A/12 vagy lépcsőház)" value={ticketLocation} onChange={(e) => setTicketLocation(e.target.value)} />
+                  <select className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100" value={ticketPriority} onChange={(e) => setTicketPriority(e.target.value as Ticket['priority'])}>
+                    <option value="kozepes">közepes</option>
+                    <option value="magas">magas</option>
+                    <option value="kritikus">kritikus</option>
+                    <option value="alacsony">alacsony</option>
+                  </select>
+                </div>
+                <button className="rounded-2xl bg-brand-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-100 hover:bg-brand-700">Bejelentés rögzítése</button>
+                {ticketSaved ? <p className="text-sm font-semibold text-emerald-700">A ticket mentése demo módban sikeres, megjelent a listában.</p> : null}
+              </form>
+            </SectionCard>
+
+            <SectionCard
+              title="Ticket queue"
+              icon={<TicketCheck size={18} />}
+              action={
+                <select className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold" value={ticketFilter} onChange={(e) => setTicketFilter(e.target.value as Ticket['status'] | 'osszes')}>
+                  <option value="osszes">Összes</option>
+                  <option value="uj">Új</option>
+                  <option value="folyamatban">Folyamatban</option>
+                  <option value="varakozik">Várakozik</option>
+                  <option value="lezarva">Lezárva</option>
+                </select>
+              }
+            >
+              <div className="space-y-3">
+                {visibleTickets.map((ticket) => (
+                  <article key={ticket.id} className="rounded-3xl border border-slate-100 bg-slate-50/70 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="font-black text-slate-950">{ticket.title}</p>
+                        <p className="mt-1 text-sm text-slate-600">{ticket.description}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2"><StatusBadge status={ticket.status} /><PriorityBadge priority={ticket.priority} /></div>
+                    </div>
+                    <p className="mt-3 text-xs font-medium text-slate-500">Helyszín: {ticket.location} · Beküldte: {ticket.submitted_by || 'Ismeretlen'} {ticket.unit_label ? `(${ticket.unit_label})` : ''} · Frissítve: {formatDateTime(ticket.updated_at)}</p>
+                    {isManager ? (
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                        <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold hover:border-brand-400" onClick={() => updateTicketStatus(ticket.id, 'folyamatban')} type="button">Folyamatban</button>
+                        <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold hover:border-violet-400" onClick={() => updateTicketStatus(ticket.id, 'varakozik')} type="button">Várakozik</button>
+                        <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold hover:border-emerald-400" onClick={() => updateTicketStatus(ticket.id, 'lezarva')} type="button">Lezárás</button>
+                      </div>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            </SectionCard>
+          </section>
+
+          <SectionCard id="units" title="Albetétek – OnlineHáz-szerű táblázatos master data" icon={<Building2 size={18} />} action={<input value={unitSearch} onChange={(e) => setUnitSearch(e.target.value)} className="rounded-2xl border border-slate-200 px-4 py-2 text-sm" placeholder="Albetét / tulajdonos keresés" />}>
+            <div className="mb-4 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-bold text-slate-600">
+              Az összes albetét területe: {totalArea} m², tulajdoni hányada: {totalOwnershipShare}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
+                    <th className="px-3 py-3">Cím</th>
+                    <th className="px-3 py-3">Tulajdonos</th>
+                    <th className="px-3 py-3">Típus</th>
+                    <th className="px-3 py-3">Σm²</th>
+                    <th className="px-3 py-3">ΣTh</th>
+                    <th className="px-3 py-3">Egyenleg</th>
+                    <th className="px-3 py-3">Vízóra</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {visibleUnits.map((unitItem) => (
+                    <tr key={unitItem.id} className="hover:bg-brand-50/50">
+                      <td className="px-3 py-4 font-bold text-slate-800">{unitItem.unit_label}</td>
+                      <td className="px-3 py-4 text-slate-600">{unitItem.owner_name}</td>
+                      <td className="px-3 py-4 text-slate-600">{unitItem.unit_type}</td>
+                      <td className="px-3 py-4 text-slate-600">{numberOrZero(unitItem.area_m2)} m²</td>
+                      <td className="px-3 py-4 text-slate-600">{numberOrZero(unitItem.ownership_share)}</td>
+                      <td className={`px-3 py-4 font-bold ${numberOrZero(unitItem.balance_amount) < 0 ? 'text-rose-600' : 'text-emerald-700'}`}>{formatCurrency(unitItem.balance_amount)}</td>
+                      <td className="px-3 py-4">{unitItem.has_water_meter ? <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700">igen</span> : <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">nem</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </SectionCard>
+
+          <section className="grid gap-6 xl:grid-cols-3">
+            <SectionCard id="documents" title="Dokumentumtár" icon={<FileText size={18} />} action={<select value={documentFilter} onChange={(e) => setDocumentFilter(e.target.value)} className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-semibold">{documentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select>}>
+              <div className="space-y-3">
+                {visibleDocuments.map((item) => (
+                  <article key={item.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-black text-slate-950">{item.title}</p>
+                        <p className="mt-1 text-xs font-medium text-slate-500">{item.category} · {item.version} · {formatDate(item.uploaded_at)} · {item.visibility || 'Mindenki'}</p>
+                      </div>
+                      {item.acknowledged_at ? <CheckCircle2 className="text-emerald-500" size={18} /> : <AlertTriangle className="text-amber-500" size={18} />}
+                    </div>
+                    <button className="mt-3 rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white" type="button">Megnyitás</button>
+                  </article>
+                ))}
+              </div>
+            </SectionCard>
+
+            <SectionCard id="finances" title="Pénzügyi átláthatóság" icon={<CircleDollarSign size={18} />}>
+              <p className="mb-4 text-sm text-slate-500">Összesen: {formatCurrency(totalDue)} · Befizetve: {formatCurrency(totalPaid)} · Hátralék: {formatCurrency(arrears)}</p>
+              <div className="mb-4 h-3 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-cyan-400" style={{ width: `${Math.min((totalPaid / Math.max(totalDue, 1)) * 100, 100)}%` }} />
+              </div>
+              <ul className="space-y-2 text-sm">
+                {data.finances.map((entry) => (
+                  <li key={entry.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                    <p className="font-bold text-slate-900">{entry.period}</p>
+                    <p className="text-slate-500">Esedékes: {formatCurrency(entry.expected_amount)} · Befizetve: {formatCurrency(entry.paid_amount)} · Határidő: {formatDate(entry.due_date)}</p>
                   </li>
                 ))}
               </ul>
-            ) : null}
-            {address ? <p className="mt-2 text-xs text-slate-600">Kiválasztott cím: {address}</p> : null}
-          </div>
+            </SectionCard>
 
-          <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">Profil mentése</button>
-          {profileSaved ? <p className="text-sm text-emerald-700">Profiladatok mentve (demo).</p> : null}
-        </form>
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="mb-2 flex items-center gap-2 text-sm font-semibold"><ShieldCheck size={16} className="text-brand-600" /> Szerepkör teszt (demo)</div>
-        <div className="flex flex-wrap gap-2 text-sm">
-          {(['lako', 'megbizott', 'kozos_kepviselo'] as Role[]).map((role) => (
-            <Link key={role} href={`/?role=${role}`} className="rounded-full border border-slate-200 px-3 py-1 hover:border-brand-500 hover:text-brand-700">
-              {roleLabels[role]}
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><div className="mb-2 flex items-center gap-2 text-brand-600"><BellRing size={18} /> Hírek</div><p className="text-2xl font-bold">{data.news.length}</p></article>
-        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><div className="mb-2 flex items-center gap-2 text-brand-600"><Wrench size={18} /> Ticketek</div><p className="text-2xl font-bold">{tickets.length}</p></article>
-        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><div className="mb-2 flex items-center gap-2 text-brand-600"><Gauge size={18} /> Óraállások</div><p className="text-2xl font-bold">{data.meterReadings.length}</p></article>
-        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><div className="mb-2 flex items-center gap-2 text-brand-600"><CircleDollarSign size={18} /> Pénzügyek</div><p className="text-2xl font-bold">{((totalPaid / Math.max(totalDue, 1)) * 100).toFixed(0)}%</p></article>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-2">
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold"><Siren size={18} className="text-brand-600" /> Új hibabejelentés</h2>
-          <form className="space-y-3" onSubmit={submitTicket}>
-            <input required className="w-full rounded-lg border border-slate-200 px-3 py-2" placeholder="Rövid cím" value={ticketTitle} onChange={(e) => setTicketTitle(e.target.value)} />
-            <textarea required className="w-full rounded-lg border border-slate-200 px-3 py-2" placeholder="Leírás" rows={3} value={ticketDescription} onChange={(e) => setTicketDescription(e.target.value)} />
-            <div className="grid gap-3 sm:grid-cols-2">
-              <input required className="rounded-lg border border-slate-200 px-3 py-2" placeholder="Helyszín (pl. A/12)" value={ticketLocation} onChange={(e) => setTicketLocation(e.target.value)} />
-              <select className="rounded-lg border border-slate-200 px-3 py-2" value={ticketPriority} onChange={(e) => setTicketPriority(e.target.value as Ticket['priority'])}><option value="kozepes">közepes</option><option value="magas">magas</option><option value="kritikus">kritikus</option><option value="alacsony">alacsony</option></select>
-            </div>
-            <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">Bejelentés rögzítése</button>
-            {ticketSaved ? <p className="text-sm text-emerald-700">A ticket mentése demo módban sikeres, megjelent a ticketek listában.</p> : null}
-          </form>
-        </article>
-
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold"><Gauge size={18} className="text-brand-600" /> Óraállás bejelentése</h2>
-          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); setMeterSaved(true); }}>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <select className="rounded-lg border border-slate-200 px-3 py-2"><option>viz</option><option>gaz</option><option>villany</option></select>
-              <input type="number" step="0.01" required className="rounded-lg border border-slate-200 px-3 py-2" placeholder="Érték" />
-            </div>
-            <input type="date" required className="w-full rounded-lg border border-slate-200 px-3 py-2" />
-            <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Óraállás elküldése</button>
-            {meterSaved ? <p className="text-sm text-emerald-700">Óraállás rögzítve (demo).</p> : null}
-          </form>
-        </article>
-
-        {isManager ? (
-          <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold"><Megaphone size={18} className="text-brand-600" /> Célzott értesítés kiküldése (képviselő/megbízott)</h2>
-            <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); setNoticeSaved(true); }}>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <input required className="rounded-lg border border-slate-200 px-3 py-2" placeholder="Értesítés címe" />
-                <input required className="rounded-lg border border-slate-200 px-3 py-2" placeholder="Célcsoport (pl. B lépcsőház)" />
-              </div>
-              <textarea required className="w-full rounded-lg border border-slate-200 px-3 py-2" rows={3} placeholder="Üzenet" />
-              <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">Kiküldés</button>
-              {noticeSaved ? <p className="text-sm text-emerald-700">Értesítés mentve és kiküldésre jelölve (demo).</p> : null}
-            </form>
-          </article>
-        ) : null}
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-3">
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold"><BellRing size={18} className="text-brand-600" /> Hírfolyam</h2>
-          <ul className="space-y-3">
-            {data.news.map((item) => {
-              const expanded = expandedNews.includes(item.id);
-              return (
-                <li key={item.id} className="rounded-lg border border-slate-100 p-3">
-                  <p className="font-semibold">{item.title}</p>
-                  <p className="mt-1 text-sm text-slate-600">{expanded ? item.content : previewText(item.content)}</p>
-                  <p className="mt-2 text-xs text-slate-400">
-                    {newsCategoryLabels[item.category || 'egyeb']} • {item.source_label || item.created_by_name || 'Ismeretlen forrás'} • {formatDateTime(item.created_at)}
-                  </p>
-                  <button
-                    type="button"
-                    className="mt-2 text-xs font-semibold text-brand-700 hover:underline"
-                    onClick={() => {
-                      setExpandedNews((prev) => (prev.includes(item.id) ? prev.filter((newsId) => newsId !== item.id) : [...prev, item.id]));
-                    }}
-                  >
-                    {expanded ? 'Összecsukás' : 'Teljes hír megnyitása'}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </article>
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold"><UserCog size={18} className="text-brand-600" /> Értesítési napló</h2>
-          <ul className="space-y-3">{data.notifications.map((item) => <li key={item.id} className="rounded-lg border border-slate-100 p-3"><p className="font-semibold">{item.title}</p><p className="text-sm text-slate-600">{item.message}</p><p className="mt-1 text-xs text-slate-400">{item.audience} • {item.channel} • {formatDateTime(item.created_at)}</p></li>)}</ul>
-        </article>
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold"><FileText size={18} className="text-brand-600" /> Dokumentumok</h2>
-          <ul className="space-y-2">{data.documents.map((item) => <li key={item.id} className="rounded-lg border border-slate-100 p-3 text-sm"><p className="font-semibold">{item.title}</p><p className="text-slate-500">{item.category} • {item.version} • {formatDate(item.uploaded_at)}</p></li>)}</ul>
-        </article>
-      </section>
-
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 text-lg font-semibold"><TicketCheck size={18} className="text-brand-600" /> Ticketek menü</h2>
-          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm" value={ticketFilter} onChange={(e) => setTicketFilter(e.target.value as Ticket['status'] | 'osszes')}>
-            <option value="osszes">Összes</option>
-            <option value="uj">Új</option>
-            <option value="folyamatban">Folyamatban</option>
-            <option value="varakozik">Várakozik</option>
-            <option value="lezarva">Lezárva</option>
-          </select>
-        </div>
-
-        <ul className="space-y-3">
-          {visibleTickets.map((ticket) => (
-            <li key={ticket.id} className="rounded-lg border border-slate-100 p-3">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="font-semibold">{ticket.title}</p>
-                  <p className="text-sm text-slate-600">{ticket.description}</p>
+            <SectionCard id="meters" title="Mérőóra diktálás" icon={<Gauge size={18} />}>
+              <form className="mb-4 space-y-3" onSubmit={(e) => { e.preventDefault(); setMeterSaved(true); }}>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <select className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"><option>viz</option><option>gaz</option><option>villany</option></select>
+                  <input type="number" step="0.01" required className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Érték" />
                 </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{ticket.status}</span>
-              </div>
-              <p className="mt-2 text-xs text-slate-500">Prioritás: {ticket.priority} • Helyszín: {ticket.location}</p>
-              <p className="text-xs text-slate-500">Beküldte: {ticket.submitted_by || 'Ismeretlen'} {ticket.unit_label ? `(${ticket.unit_label})` : ''} • Frissítve: {ticket.updated_at ? formatDateTime(ticket.updated_at) : '-'}</p>
-              {isManager ? (
-                <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                  <button className="rounded-md border border-slate-200 px-2 py-1 hover:border-brand-400" onClick={() => updateTicketStatus(ticket.id, 'folyamatban')} type="button">Folyamatban</button>
-                  <button className="rounded-md border border-slate-200 px-2 py-1 hover:border-brand-400" onClick={() => updateTicketStatus(ticket.id, 'varakozik')} type="button">Várakozik</button>
-                  <button className="rounded-md border border-slate-200 px-2 py-1 hover:border-emerald-400" onClick={() => updateTicketStatus(ticket.id, 'lezarva')} type="button">Lezárás</button>
-                </div>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      </section>
+                <input type="date" required className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm" />
+                <button className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-black text-white hover:bg-slate-700">Óraállás elküldése</button>
+                {meterSaved ? <p className="text-sm font-semibold text-emerald-700">Óraállás rögzítve demo módban.</p> : null}
+              </form>
+              <ul className="space-y-2 text-sm">
+                {data.meterReadings.map((reading) => <li key={reading.id} className="rounded-2xl bg-slate-50 p-3"><b>{reading.unit_label}</b> · {reading.meter_type} · {reading.value} · {formatDate(reading.reading_date)}</li>)}
+              </ul>
+            </SectionCard>
+          </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold"><CalendarDays size={18} className="text-brand-600" /> Közgyűlések</h2>
-          <ul className="space-y-2 text-sm">{data.meetings.map((meeting) => <li key={meeting.id} className="rounded-lg border border-slate-100 p-3"><p className="font-semibold">{meeting.title}</p><p className="text-slate-500">{formatDate(meeting.scheduled_at)} • határozatok: {meeting.resolution_count}</p></li>)}</ul>
-        </article>
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold"><CircleDollarSign size={18} className="text-brand-600" /> Közös költség</h2>
-          <p className="mb-4 text-sm text-slate-500">Összesen: {totalDue.toLocaleString('hu-HU')} Ft • Befizetve: {totalPaid.toLocaleString('hu-HU')} Ft</p>
-          <ul className="space-y-2 text-sm">{data.finances.map((entry) => <li key={entry.id} className="rounded-lg border border-slate-100 p-3"><p className="font-semibold">{entry.period}</p><p className="text-slate-500">Esedékes: {Number(entry.expected_amount).toLocaleString('hu-HU')} Ft • Befizetve: {Number(entry.paid_amount).toLocaleString('hu-HU')} Ft • Határidő: {formatDate(entry.due_date)}</p></li>)}</ul>
-        </article>
-      </section>
-    </main>
+          <section className="grid gap-6 xl:grid-cols-2">
+            <SectionCard id="meetings" title="Közgyűlés, határozatok és szavazás" icon={<Vote size={18} />}>
+              <div className="space-y-3">
+                {data.meetings.map((meeting) => (
+                  <article key={meeting.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="font-black text-slate-950">{meeting.title}</p>
+                        <p className="mt-1 text-sm text-slate-500">{formatDateTime(meeting.scheduled_at)} · határozatok: {meeting.resolution_count}</p>
+                        {meeting.agenda_preview ? <p className="mt-2 text-sm text-slate-600">Napirend: {meeting.agenda_preview}</p> : null}
+                      </div>
+                      <StatusBadge status={meeting.status} />
+                    </div>
+                    <div className="mt-3 grid gap-2 text-xs font-bold sm:grid-cols-3">
+                      <button className="rounded-xl bg-brand-50 px-3 py-2 text-brand-700" type="button">Meghívó</button>
+                      <button className="rounded-xl bg-violet-50 px-3 py-2 text-violet-700" type="button">Szavazás</button>
+                      <button className="rounded-xl bg-slate-100 px-3 py-2 text-slate-700" type="button">Határozatok</button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Vendor / work order workflow" icon={<LifeBuoy size={18} />}>
+              <div className="mb-4 grid gap-3 md:grid-cols-3">
+                {data.vendors.map((vendor) => (
+                  <article key={vendor.id} className="rounded-3xl bg-slate-50 p-4">
+                    <p className="font-black text-slate-950">{vendor.name}</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">{vendor.category}</p>
+                    <p className="mt-2 text-xs text-slate-500">SLA: {vendor.sla_hours} óra</p>
+                  </article>
+                ))}
+              </div>
+              <div className="space-y-2">
+                {data.workOrders.map((workOrder) => (
+                  <article key={workOrder.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-3 text-sm">
+                    <div>
+                      <p className="font-bold text-slate-900">{workOrder.ticket_title}</p>
+                      <p className="text-slate-500">{workOrder.vendor_name} · {formatDate(workOrder.due_date)} · {formatCurrency(workOrder.cost_estimate)}</p>
+                    </div>
+                    <StatusBadge status={workOrder.status} />
+                  </article>
+                ))}
+              </div>
+            </SectionCard>
+          </section>
+
+          <section className="grid gap-6 xl:grid-cols-3">
+            <SectionCard title="Hírfolyam" icon={<BellRing size={18} />}>
+              <ul className="space-y-3">
+                {data.news.map((item) => {
+                  const expanded = expandedNews.includes(item.id);
+                  return (
+                    <li key={item.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+                      <p className="font-black text-slate-950">{item.title}</p>
+                      <p className="mt-1 text-sm text-slate-600">{expanded ? item.content : previewText(item.content)}</p>
+                      <p className="mt-2 text-xs text-slate-400">{newsCategoryLabels[item.category || 'egyeb']} · {item.source_label || item.created_by_name || 'Ismeretlen forrás'} · {formatDateTime(item.created_at)}</p>
+                      <button type="button" className="mt-2 text-xs font-black text-brand-700 hover:underline" onClick={() => setExpandedNews((prev) => (prev.includes(item.id) ? prev.filter((newsId) => newsId !== item.id) : [...prev, item.id]))}>
+                        {expanded ? 'Összecsukás' : 'Teljes hír megnyitása'}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </SectionCard>
+
+            <SectionCard title="Értesítési napló" icon={<UserCog size={18} />}>
+              <ul className="space-y-3">
+                {data.notifications.map((item) => <li key={item.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm"><div className="flex items-start justify-between gap-3"><p className="font-black text-slate-950">{item.title}</p>{item.read_at ? <CheckCircle2 className="text-emerald-500" size={16} /> : <span className="rounded-full bg-rose-50 px-2 py-1 text-xs font-bold text-rose-700">új</span>}</div><p className="mt-1 text-sm text-slate-600">{item.message}</p><p className="mt-2 text-xs text-slate-400">{item.audience} · {item.channel} · {formatDateTime(item.created_at)}</p></li>)}
+              </ul>
+            </SectionCard>
+
+            <SectionCard id="knowledge" title="Tudásbázis / kihez forduljak?" icon={<BookOpen size={18} />}>
+              <ul className="space-y-3">
+                {data.kbArticles.map((article) => (
+                  <li key={article.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+                    <p className="text-xs font-black uppercase tracking-wide text-brand-700">{article.topic}</p>
+                    <p className="mt-1 font-black text-slate-950">{article.title}</p>
+                    <p className="mt-1 text-sm text-slate-600">{article.body}</p>
+                    <p className="mt-2 text-xs text-slate-400">Célcsoport: {article.audience}</p>
+                  </li>
+                ))}
+              </ul>
+            </SectionCard>
+          </section>
+
+          <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+            {isAdminLike ? (
+              <SectionCard title="Célzott kommunikáció / hírküldés" icon={<Megaphone size={18} />}>
+                <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); setNoticeSaved(true); }}>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input required className="rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Értesítés címe" />
+                    <input required className="rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Célcsoport (pl. B lépcsőház)" />
+                  </div>
+                  <textarea required className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" rows={4} placeholder="Üzenet" />
+                  <button className="rounded-2xl bg-brand-600 px-5 py-3 text-sm font-black text-white hover:bg-brand-700">Kiküldés előkészítése</button>
+                  {noticeSaved ? <p className="text-sm font-semibold text-emerald-700">Értesítés mentve és kiküldésre jelölve demo módban.</p> : null}
+                </form>
+              </SectionCard>
+            ) : (
+              <SectionCard title="Lakói kapcsolat" icon={<MessageSquare size={18} />}>
+                <p className="text-sm leading-6 text-slate-600">Lakói szerepkörben a célzott kommunikáció olvasási és visszajelzési nézete látszik. Képviselői vagy megbízotti szerepkörre váltva megjelenik a hírküldő űrlap is.</p>
+              </SectionCard>
+            )}
+
+            <SectionCard id="audit" title="Audit napló" icon={<ShieldCheck size={18} />}>
+              <div className="space-y-3">
+                {data.auditLogs.map((log) => (
+                  <article key={log.id} className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3 text-sm">
+                    <div className="mt-1 rounded-full bg-brand-100 p-2 text-brand-700"><ShieldCheck size={14} /></div>
+                    <div>
+                      <p className="font-bold text-slate-950">{log.actor_name} · {log.action_type}</p>
+                      <p className="text-slate-500">{log.entity_type}: {log.entity_label} · {formatDateTime(log.created_at)}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </SectionCard>
+          </section>
+        </main>
+      </div>
+    </div>
   );
 }
