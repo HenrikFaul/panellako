@@ -443,10 +443,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-brand-100 ring-1 ring-white/10">
                   <Sparkles size={14} /> MVP+ feature refresh
                 </div>
-                <h2 className="max-w-3xl text-3xl font-black tracking-tight md:text-5xl">Fiatalos, gyors és átlátható társasházi app.</h2>
-                <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300 md:text-base">
-                  A korábbi modulok megtartása mellett bekerült az OnlineHáz-szerű albetét táblázat, ticket/work order workflow, dokumentum olvasottság, közgyűlés/szavazás előkészítés, tudásbázis és audit napló.
-                </p>
+                <h2 className="max-w-3xl text-3xl font-black tracking-tight md:text-5xl">Panellakó, a társasházi app.</h2>
+              
                 <div className="mt-6 flex flex-wrap gap-3">
                   <a href="#tickets" className="rounded-2xl bg-brand-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-950/20 hover:bg-brand-400">Új bejelentés</a>
                   <a href="#units" className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 hover:bg-slate-100">Albetétek nézete</a>
