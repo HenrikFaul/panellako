@@ -20,18 +20,32 @@ export const mockNews: NewsItem[] = [
   {
     id: 'n1',
     title: 'Kazán éves felülvizsgálat – május 4.',
-    content: 'A karbantartó 08:00 és 12:00 között dolgozik. Kérjük a kazánház megközelíthetőségét biztosítani.',
+    content: 'A karbantartó 08:00 és 12:00 között dolgozik. Kérjük a kazánház megközelíthetőségét biztosítani. A melegvíz-szolgáltatás időszakosan szünetelhet.',
     target_group: 'Minden lakó',
-    created_at: '2026-04-20',
-    created_by_name: 'Közös képviselő'
+    created_at: '2026-04-20T08:00:00Z',
+    created_by_name: 'Közös képviselő',
+    category: 'uzemeltetes',
+    source_label: 'PanelLakó társasházi közlöny'
   },
   {
     id: 'n2',
     title: 'Közgyűlési meghívó feltöltve',
-    content: 'A 2026. május 15-i közgyűlés napirendje és mellékletei elérhetőek a Dokumentumok modulban.',
+    content: 'A 2026. május 15-i közgyűlés napirendje és mellékletei elérhetőek a Dokumentumok modulban. Kérjük, olvassák át a költségvetési mellékletet is.',
     target_group: 'Tulajdonosok',
-    created_at: '2026-04-18',
-    created_by_name: 'Közös képviselő'
+    created_at: '2026-04-18T16:30:00Z',
+    created_by_name: 'Közös képviselő',
+    category: 'tarsashazi_kozlony',
+    source_label: 'Társasházi közlöny'
+  },
+  {
+    id: 'n3',
+    title: 'Kerületi lomtalanítás időpontja',
+    content: 'A XIII. kerületben a következő lomtalanítás 2026. május 26-án lesz. A kihelyezés szabályairól részletes tájékoztatás a kerületi oldalon olvasható.',
+    target_group: 'Minden lakó',
+    created_at: '2026-04-17T12:20:00Z',
+    created_by_name: 'Önkormányzati hírfigyelő',
+    category: 'keruleti_hir',
+    source_label: 'XIII. kerületi önkormányzat'
   }
 ];
 
@@ -43,6 +57,22 @@ export const mockNotifications: NotificationItem[] = [
     channel: 'app',
     audience: 'B lépcsőház lakói',
     created_at: '2026-04-26T08:10:00Z'
+  },
+  {
+    id: 'nt2',
+    title: 'Lakói visszajelzés: kapu nehezen záródik',
+    message: 'Szabó András (A/9) jelezte, hogy az utcafronti kapu rugója gyengült.',
+    channel: 'app',
+    audience: 'Közös képviselő + műszaki megbízott',
+    created_at: '2026-04-25T18:45:00Z'
+  },
+  {
+    id: 'nt3',
+    title: 'Közös képviselői emlékeztető',
+    message: 'Május 2-ig kérjük beküldeni a vízóra állásokat az elszámoláshoz.',
+    channel: 'email',
+    audience: 'Minden lakó',
+    created_at: '2026-04-24T07:30:00Z'
   }
 ];
 
@@ -54,7 +84,11 @@ export const mockTickets: Ticket[] = [
     status: 'folyamatban',
     priority: 'magas',
     location: 'B lépcsőház, 3. emelet',
-    due_date: '2026-04-30'
+    due_date: '2026-04-30',
+    submitted_by: 'Varga Lilla',
+    unit_label: 'B/32',
+    created_at: '2026-04-22T09:00:00Z',
+    updated_at: '2026-04-26T11:00:00Z'
   },
   {
     id: 't2',
@@ -63,7 +97,11 @@ export const mockTickets: Ticket[] = [
     status: 'uj',
     priority: 'kozepes',
     location: 'A lépcsőház lift',
-    due_date: null
+    due_date: null,
+    submitted_by: 'Minta Mária',
+    unit_label: 'A/12',
+    created_at: '2026-04-24T14:10:00Z',
+    updated_at: '2026-04-24T14:10:00Z'
   }
 ];
 

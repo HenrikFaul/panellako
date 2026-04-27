@@ -7,6 +7,8 @@ export interface UserProfile {
   role: Role;
 }
 
+export type NewsCategory = 'tarsashazi_kozlony' | 'keruleti_hir' | 'uzemeltetes' | 'biztonsag' | 'egyeb';
+
 export interface NewsItem {
   id: string;
   title: string;
@@ -14,6 +16,8 @@ export interface NewsItem {
   target_group: string;
   created_at: string;
   created_by_name?: string;
+  category?: NewsCategory;
+  source_label?: string;
 }
 
 export interface NotificationItem {
@@ -33,6 +37,10 @@ export interface Ticket {
   priority: 'alacsony' | 'kozepes' | 'magas' | 'kritikus';
   location: string;
   due_date: string | null;
+  submitted_by?: string;
+  unit_label?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface MeterReading {
