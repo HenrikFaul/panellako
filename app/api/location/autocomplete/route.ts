@@ -5,13 +5,10 @@ export const dynamic = 'force-dynamic';
 
 type MatchType = 'exact' | 'house' | 'street' | 'settlement' | 'fuzzy' | 'reverse';
 
-// These SUPABASE_* values intentionally point to the separate GeoData project,
-// not the app's own Panellakó backend (NEXT_PUBLIC_SUPABASE_URL / NEXT_SUPABASE_*).
 const geodataSupabaseUrl = process.env.SUPABASE_URL;
 const geodataSupabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 const addressSchema = process.env.SUPABASE_ADDRESS_SCHEMA || 'public';
 const addressTable = process.env.SUPABASE_ADDRESS_TABLE || 'osm_addresses';
-
 const hasSupabaseConfig = Boolean(geodataSupabaseUrl && geodataSupabaseKey);
 
 const supabase = hasSupabaseConfig
@@ -72,7 +69,7 @@ const SELECT_COLUMNS = [
 ].join(',');
 
 const GENERIC_ADDRESS_WORDS = new Set([
-  'utca', 'u', 'ut', 'út', 'ter', 'tér', 'koz', 'köz', 'korut', 'körút', 'krt', 'krt.', 'sor', 'setany', 'sétány',
+  'utca', 'u', 'ut', 'út', 'ter', 'tér', 'koz', 'köz', 'korut', 'körút', 'krt', 'sor', 'setany', 'sétány',
   'lakotelep', 'lakótelep', 'dulo', 'dűlő', 'park', 'part', 'rakpart', 'fasor', 'lejto', 'lejtő', 'orszag', 'ország',
   'magyarorszag', 'magyarország', 'hu', 'hungary', 'emelet', 'ajtó', 'ajto'
 ]);
@@ -88,17 +85,9 @@ function safeDecode(value: string) {
       const decoded = decodeURIComponent(current.replace(/%(?![0-9a-fA-F]{2})/g, '%25'));
       if (decoded === current) break;
       current = decoded;
-    } catch {
-      break;
-    }
+    } catch { break; }
   }
-  return current
-    .replace(/%20/gi, ' ')
-    .replace(/%2c/gi, ',')
-    .replace(/%40/gi, '@')
-    .replace(/%/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return current.replace(/%20/gi, ' ').replace(/%2c/gi, ',').replace(/%40/gi, '@').replace(/%/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 function cleanPart(value?: string | number | null) {
@@ -110,12 +99,7 @@ function stripDiacritics(value: string) {
 }
 
 function normalizeText(value: string) {
-  return stripDiacritics(safeDecode(value))
-    .toLowerCase()
-    .replace(/[.,;:()[\]{}]/g, ' ')
-    .replace(/[/-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return stripDiacritics(safeDecode(value)).toLowerCase().replace(/[.,;:()[\]{}]/g, ' ').replace(/[/-]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 function normalizeToken(token: string) {
@@ -163,31 +147,14 @@ function rowSearchText(row: OsmAddressRow) {
 }
 
 function tokenize(rawQuery: string) {
-  const rawTokens = safeDecode(rawQuery)
-    .toLowerCase()
-    .replace(/[.,;:()[\]{}]/g, ' ')
-    .split(/\s+/)
-    .map((token) => token.trim())
-    .filter(Boolean)
-    .slice(0, 12);
-  const normalizedTokens = rawTokens.map(normalizeToken).filter((token) => token.length > 0);
+  const rawTokens = safeDecode(rawQuery).toLowerCase().replace(/[.,;:()[\]{}]/g, ' ').split(/\s+/).map((token) => token.trim()).filter(Boolean).slice(0, 12);
+  const normalizedTokens = rawTokens.map(normalizeToken).filter(Boolean);
   const houseNumber = [...normalizedTokens].reverse().find((token) => /^\d+[a-z]?$/i.test(token)) || null;
   const postcode = normalizedTokens.find((token) => /^\d{4}$/.test(token)) || null;
   const cityTokens = normalizedTokens.filter((token) => token === 'budapest' || token === 'bp' || token === 'pest');
   const streetTypeTokens = normalizedTokens.filter((token) => GENERIC_ADDRESS_WORDS.has(token));
-  const importantTextTokens = normalizedTokens.filter(
-    (token) => token.length > 1 && !GENERIC_ADDRESS_WORDS.has(token) && !/^\d+[a-z]?$/i.test(token) && !/^\d{4}$/.test(token)
-  );
-  return {
-    rawTokens,
-    normalizedTokens,
-    houseNumber,
-    postcode,
-    cityTokens,
-    streetTypeTokens,
-    importantTextTokens,
-    normalizedQuery: normalizedTokens.join(' ')
-  };
+  const importantTextTokens = normalizedTokens.filter((token) => token.length > 1 && !GENERIC_ADDRESS_WORDS.has(token) && !/^\d+[a-z]?$/i.test(token) && !/^\d{4}$/.test(token));
+  return { rawTokens, normalizedTokens, houseNumber, postcode, cityTokens, streetTypeTokens, importantTextTokens, normalizedQuery: normalizedTokens.join(' ') };
 }
 
 function levenshtein(a: string, b: string) {
@@ -198,9 +165,7 @@ function levenshtein(a: string, b: string) {
   const current = Array.from({ length: b.length + 1 }, () => 0);
   for (let i = 0; i < a.length; i += 1) {
     current[0] = i + 1;
-    for (let j = 0; j < b.length; j += 1) {
-      current[j + 1] = Math.min(current[j] + 1, previous[j + 1] + 1, previous[j] + (a[i] === b[j] ? 0 : 1));
-    }
+    for (let j = 0; j < b.length; j += 1) current[j + 1] = Math.min(current[j] + 1, previous[j + 1] + 1, previous[j] + (a[i] === b[j] ? 0 : 1));
     previous.splice(0, previous.length, ...current);
   }
   return previous[b.length];
@@ -209,13 +174,7 @@ function levenshtein(a: string, b: string) {
 function tokenMatches(token: string, text: string) {
   if (!token) return false;
   if (text.includes(token)) return true;
-  const words = text.split(' ').filter(Boolean);
-  return words.some((word) => {
-    if (word.startsWith(token) || token.startsWith(word)) return true;
-    if (token.length >= 5 && word.length >= 5 && levenshtein(token, word) <= 1) return true;
-    if (token.length >= 7 && word.length >= 7 && levenshtein(token, word) <= 2) return true;
-    return false;
-  });
+  return text.split(' ').filter(Boolean).some((word) => word.startsWith(token) || token.startsWith(word) || (token.length >= 5 && word.length >= 5 && levenshtein(token, word) <= 1) || (token.length >= 7 && word.length >= 7 && levenshtein(token, word) <= 2));
 }
 
 function houseNumberMatches(queryHouse: string | null, rowHouse: string) {
@@ -235,67 +194,54 @@ function scoreAddress(row: OsmAddressRow, rawQuery: string) {
   const street = normalizeText(getStreet(row));
   const postcode = normalizeText(cleanPart(row.postcode));
   const rowHouseNumber = normalizeText(getHouseNumber(row));
-
   let score = 0;
   let matchType: MatchType = 'fuzzy';
-
-  if (labelText === parsed.normalizedQuery || searchable === parsed.normalizedQuery) {
-    score += 8000;
-    matchType = 'exact';
-  }
-
+  if (labelText === parsed.normalizedQuery || searchable === parsed.normalizedQuery) { score += 8000; matchType = 'exact'; }
   if (parsed.postcode && postcode === parsed.postcode) score += 1200;
   if (parsed.cityTokens.length && settlement === 'budapest') score += 850;
-
   const missingImportantTokens = parsed.importantTextTokens.filter((token) => !tokenMatches(token, searchable));
   if (missingImportantTokens.length) score -= missingImportantTokens.length * 2500;
-
   for (const token of parsed.importantTextTokens) {
-    if (street === token) {
-      score += 1800;
-      matchType = 'street';
-    } else if (street.startsWith(token)) {
-      score += 1400;
-      matchType = 'street';
-    } else if (tokenMatches(token, street)) {
-      score += 950;
-      matchType = 'street';
-    } else if (tokenMatches(token, settlement)) {
-      score += 500;
-      matchType = 'settlement';
-    } else if (tokenMatches(token, searchable)) {
-      score += 300;
-    }
+    if (street === token) { score += 1800; matchType = 'street'; }
+    else if (street.startsWith(token)) { score += 1400; matchType = 'street'; }
+    else if (tokenMatches(token, street)) { score += 950; matchType = 'street'; }
+    else if (tokenMatches(token, settlement)) { score += 500; matchType = 'settlement'; }
+    else if (tokenMatches(token, searchable)) score += 300;
   }
-
   if (parsed.importantTextTokens.length > 1 && missingImportantTokens.length === 0) score += 2500;
   if (parsed.importantTextTokens.length && parsed.importantTextTokens.every((token) => tokenMatches(token, street))) score += 2200;
-
   if (parsed.houseNumber) {
-    if (houseNumberMatches(parsed.houseNumber, rowHouseNumber)) {
-      score += 1800;
-      matchType = 'house';
-    } else {
-      score -= 1800;
-    }
+    if (houseNumberMatches(parsed.houseNumber, rowHouseNumber)) { score += 1800; matchType = 'house'; }
+    else score -= 1800;
   }
-
   if (parsed.streetTypeTokens.length && parsed.streetTypeTokens.some((token) => tokenMatches(token, street))) score += 350;
   if (street && rowHouseNumber) score += 250;
   if (!rowHouseNumber && parsed.houseNumber) score -= 1200;
   if (!cleanPart(row.postcode)) score -= 150;
   if (cleanPart(row.geometry_type).toLowerCase() !== 'point') score -= 50;
-
-  const confidence = Math.max(0, Math.min(0.99, score / 9500));
-  return { score, confidence, matchType };
+  return { score, confidence: Math.max(0, Math.min(0.99, score / 9500)), matchType };
 }
 
 function escapeIlike(value: string) {
   return value.replace(/[\\%_]/g, (char) => `\\${char}`).replace(/[(),]/g, ' ').replace(/\s+/g, ' ').trim();
 }
+function uniqueValues(values: string[]) { return [...new Set(values.map((value) => value.trim()).filter(Boolean))]; }
 
-function uniqueValues(values: string[]) {
-  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+function buildHungarianAccentVariants(term: string) {
+  const normalized = stripDiacritics(safeDecode(term)).toLowerCase();
+  if (!normalized || normalized.length > 24) return [term];
+  const alternatives: Record<string, string[]> = { a: ['a', 'á'], e: ['e', 'é'], i: ['i', 'í'], o: ['o', 'ó', 'ö', 'ő'], u: ['u', 'ú', 'ü', 'ű'] };
+  let variants = [''];
+  for (const char of normalized) {
+    const chars = alternatives[char] || [char];
+    const next: string[] = [];
+    for (const prefix of variants) {
+      for (const candidate of chars) next.push(prefix + candidate);
+      if (next.length >= 80) break;
+    }
+    variants = next.slice(0, 80);
+  }
+  return uniqueValues([term, normalized, ...variants]).slice(0, 80);
 }
 
 function buildSearchTerms(rawQuery: string) {
@@ -304,46 +250,26 @@ function buildSearchTerms(rawQuery: string) {
   const normalizedTokens = parsed.importantTextTokens;
   const rawPhrase = rawTokens.join(' ');
   const normalizedPhrase = normalizedTokens.join(' ');
-
-  // Never use only broad city/generic terms as the DB prefilter, otherwise PostgREST returns the first random Budapest rows.
-  const candidateTerms = uniqueValues([
-    rawPhrase,
-    normalizedPhrase,
-    ...rawTokens,
-    ...normalizedTokens,
-    parsed.postcode || '',
-    parsed.houseNumber && normalizedTokens.length === 0 ? parsed.houseNumber : ''
-  ]).filter((term) => term.length >= 2 && term !== 'budapest');
-
-  return candidateTerms.slice(0, 10);
+  return uniqueValues([rawPhrase, normalizedPhrase, ...rawTokens, ...normalizedTokens, parsed.postcode || '', parsed.houseNumber && normalizedTokens.length === 0 ? parsed.houseNumber : ''])
+    .filter((term) => term.length >= 2 && term !== 'budapest')
+    .slice(0, 8);
 }
 
 function buildEncodedVariants(term: string) {
   const decoded = safeDecode(term);
-  const variants = [decoded, stripDiacritics(decoded), decoded.replace(/\s+/g, '%20%'), decoded.replace(/\s+/g, '%20'), stripDiacritics(decoded).replace(/\s+/g, '%20%')];
-  return uniqueValues(variants).filter((variant) => variant.length >= 2);
+  const accentVariants = buildHungarianAccentVariants(decoded);
+  const variants = accentVariants.flatMap((variant) => [variant, stripDiacritics(variant), variant.replace(/\s+/g, '%20%'), variant.replace(/\s+/g, '%20'), stripDiacritics(variant).replace(/\s+/g, '%20%')]);
+  return uniqueValues(variants).filter((variant) => variant.length >= 2).slice(0, 120);
 }
 
 function buildOrFilters(searchTerms: string[]) {
   const fields = ['display_name', 'name', 'postcode', 'city', 'town', 'village', 'municipality', 'district', 'suburb', 'neighbourhood', 'hamlet', 'place', 'street', 'street_name', 'house_number', 'housenumber', 'conscriptionnumber'];
-  return searchTerms.flatMap((term) => buildEncodedVariants(term).flatMap((variant) => fields.map((field) => `${field}.ilike.%${escapeIlike(variant)}%`)));
+  return searchTerms.flatMap((term) => buildEncodedVariants(term).flatMap((variant) => fields.map((field) => `${field}.ilike.%${escapeIlike(variant)}%`))).slice(0, 180);
 }
 
 function toSuggestion(row: OsmAddressRow, rawQuery: string): AddressSuggestion {
   const scored = scoreAddress(row, rawQuery);
-  return {
-    id: String(row.id || row.external_id || makeLabel(row)),
-    label: makeLabel(row),
-    countryCode: cleanPart(row.country_code || row.country || 'HU').toUpperCase(),
-    postcode: cleanPart(row.postcode),
-    settlement: getSettlement(row),
-    street: getStreet(row),
-    houseNumber: getHouseNumber(row),
-    lat: row.lat,
-    lon: row.lon,
-    confidence: Number(scored.confidence.toFixed(2)),
-    matchType: scored.matchType
-  };
+  return { id: String(row.id || row.external_id || makeLabel(row)), label: makeLabel(row), countryCode: cleanPart(row.country_code || row.country || 'HU').toUpperCase(), postcode: cleanPart(row.postcode), settlement: getSettlement(row), street: getStreet(row), houseNumber: getHouseNumber(row), lat: row.lat, lon: row.lon, confidence: Number(scored.confidence.toFixed(2)), matchType: scored.matchType };
 }
 
 function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -357,25 +283,9 @@ function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
 
 async function reverseLookup(lat: number, lon: number) {
   if (!supabase) return [];
-  const latDelta = 0.02;
-  const lonDelta = 0.03;
-  const { data, error } = await supabase
-    .from(addressTable)
-    .select(SELECT_COLUMNS)
-    .not('lat', 'is', null)
-    .not('lon', 'is', null)
-    .gte('lat', lat - latDelta)
-    .lte('lat', lat + latDelta)
-    .gte('lon', lon - lonDelta)
-    .lte('lon', lon + lonDelta)
-    .limit(80);
-
+  const { data, error } = await supabase.from(addressTable).select(SELECT_COLUMNS).not('lat', 'is', null).not('lon', 'is', null).gte('lat', lat - 0.02).lte('lat', lat + 0.02).gte('lon', lon - 0.03).lte('lon', lon + 0.03).limit(80);
   if (error) throw error;
-  return ((data ?? []) as unknown as OsmAddressRow[])
-    .map((row) => ({ row, distance: row.lat !== null && row.lon !== null ? distanceKm(lat, lon, row.lat, row.lon) : Number.POSITIVE_INFINITY }))
-    .sort((a, b) => a.distance - b.distance)
-    .slice(0, 8)
-    .map(({ row, distance }) => ({ ...toSuggestion(row, ''), matchType: 'reverse' as MatchType, confidence: Number(Math.max(0, 1 - distance / 3).toFixed(2)) }));
+  return ((data ?? []) as unknown as OsmAddressRow[]).map((row) => ({ row, distance: row.lat !== null && row.lon !== null ? distanceKm(lat, lon, row.lat, row.lon) : Number.POSITIVE_INFINITY })).sort((a, b) => a.distance - b.distance).slice(0, 8).map(({ row, distance }) => ({ ...toSuggestion(row, ''), matchType: 'reverse' as MatchType, confidence: Number(Math.max(0, 1 - distance / 3).toFixed(2)) }));
 }
 
 export async function GET(request: NextRequest) {
@@ -385,13 +295,7 @@ export async function GET(request: NextRequest) {
   const lon = Number(request.nextUrl.searchParams.get('lon'));
 
   if (!hasSupabaseConfig || !supabase) {
-    return NextResponse.json(
-      {
-        error: 'GEODATA_SUPABASE_CONFIG_MISSING',
-        message: 'Hiányzik a GeoData Supabase konfiguráció. Állítsd be: SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY. A NEXT_PUBLIC_SUPABASE_URL a Panellakó saját backendjéhez tartozik, ezt a címkereső nem használja.'
-      },
-      { status: 503 }
-    );
+    return NextResponse.json({ error: 'GEODATA_SUPABASE_CONFIG_MISSING', message: 'Hiányzik a GeoData Supabase konfiguráció. Állítsd be: SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY. A NEXT_PUBLIC_SUPABASE_URL a Panellakó saját backendjéhez tartozik, ezt a címkereső nem használja.' }, { status: 503 });
   }
 
   if (!rawQuery && Number.isFinite(lat) && Number.isFinite(lon)) {
@@ -407,51 +311,29 @@ export async function GET(request: NextRequest) {
 
   try {
     const searchTerms = buildSearchTerms(rawQuery);
-
     if (searchTerms.length === 0) return NextResponse.json({ suggestions: [], results: [] });
 
-    // Preferred path: install supabase/geodata_address_search.sql in the GeoData project.
-    // It searches decoded + unaccented address text in Postgres, so accentless and fuzzy queries work too.
-    const rpcResult = await supabase.rpc('search_osm_addresses', { search_query: rawQuery, result_limit: 600 });
+    let data: OsmAddressRow[] | null = null;
+    let error: { message: string } | null = null;
 
-    let data = rpcResult.data as unknown as OsmAddressRow[] | null;
-    let error = rpcResult.error;
+    if (process.env.GEODATA_USE_RPC === 'true') {
+      const rpcResult = await supabase.rpc('search_osm_addresses', { search_query: rawQuery, result_limit: 120 });
+      data = rpcResult.data as unknown as OsmAddressRow[] | null;
+      error = rpcResult.error;
+    }
 
-    // Backward-compatible fallback if the SQL helper has not been installed yet.
-    if (error && /function .*search_osm_addresses|Could not find the function|schema cache/i.test(error.message)) {
-      const restResult = await supabase
-        .from(addressTable)
-        .select(SELECT_COLUMNS)
-        .or(buildOrFilters(searchTerms).join(','))
-        .limit(600);
-
+    if (!data || error) {
+      const restResult = await supabase.from(addressTable).select(SELECT_COLUMNS).or(buildOrFilters(searchTerms).join(',')).limit(220);
       data = restResult.data as unknown as OsmAddressRow[] | null;
       error = restResult.error;
     }
 
     if (error) {
       const looksLikeSchemaCacheIssue = /schema cache|Could not find the table/i.test(error.message);
-      return NextResponse.json(
-        {
-          error: 'SUPABASE_QUERY_FAILED',
-          message: 'Az adatbázisos címkeresés nem elérhető.',
-          details: error.message,
-          hint: looksLikeSchemaCacheIssue
-            ? `A ${addressSchema}.${addressTable} tábla vagy a search_osm_addresses RPC nem látszik a GeoData Supabase PostgREST schema cache-ben. Ellenőrizd, hogy a SUPABASE_URL tényleg a GeoData projektre mutat, majd futtasd: NOTIFY pgrst, 'reload schema';`
-            : undefined
-        },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'SUPABASE_QUERY_FAILED', message: 'Az adatbázisos címkeresés nem elérhető.', details: error.message, hint: looksLikeSchemaCacheIssue ? `A ${addressSchema}.${addressTable} tábla nem látszik a GeoData Supabase PostgREST schema cache-ben. Ellenőrizd, hogy a SUPABASE_URL tényleg a GeoData projektre mutat, majd futtasd: NOTIFY pgrst, 'reload schema';` : undefined }, { status: 500 });
     }
 
-    const ranked = ((data ?? []) as unknown as OsmAddressRow[])
-      .map((row) => {
-        const scored = scoreAddress(row, rawQuery);
-        return { row, ...scored };
-      })
-      .filter((item) => Boolean(makeLabel(item.row)) && item.score > 0)
-      .sort((a, b) => b.score - a.score || makeLabel(a.row).localeCompare(makeLabel(b.row), 'hu'));
-
+    const ranked = (data ?? []).map((row) => ({ row, ...scoreAddress(row, rawQuery) })).filter((item) => Boolean(makeLabel(item.row)) && item.score > 0).sort((a, b) => b.score - a.score || makeLabel(a.row).localeCompare(makeLabel(b.row), 'hu'));
     const seen = new Set<string>();
     const results: AddressSuggestion[] = [];
     for (const item of ranked) {
@@ -465,12 +347,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ suggestions: results.map((item) => item.label), results });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: 'SUPABASE_AUTOCOMPLETE_ERROR',
-        message: error instanceof Error ? error.message : 'Ismeretlen Supabase címkeresési hiba.'
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'SUPABASE_AUTOCOMPLETE_ERROR', message: error instanceof Error ? error.message : 'Ismeretlen Supabase címkeresési hiba.' }, { status: 500 });
   }
 }
