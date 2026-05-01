@@ -371,7 +371,7 @@ async function reverseLookup(lat: number, lon: number) {
     .limit(80);
 
   if (error) throw error;
-  return ((data ?? []) as OsmAddressRow[])
+  return ((data ?? []) as unknown as OsmAddressRow[])
     .map((row) => ({ row, distance: row.lat !== null && row.lon !== null ? distanceKm(lat, lon, row.lat, row.lon) : Number.POSITIVE_INFINITY }))
     .sort((a, b) => a.distance - b.distance)
     .slice(0, 8)
@@ -414,7 +414,7 @@ export async function GET(request: NextRequest) {
     // It searches decoded + unaccented address text in Postgres, so accentless and fuzzy queries work too.
     const rpcResult = await supabase.rpc('search_osm_addresses', { search_query: rawQuery, result_limit: 600 });
 
-    let data = rpcResult.data as OsmAddressRow[] | null;
+    let data = rpcResult.data as unknown as OsmAddressRow[] | null;
     let error = rpcResult.error;
 
     // Backward-compatible fallback if the SQL helper has not been installed yet.
@@ -425,7 +425,7 @@ export async function GET(request: NextRequest) {
         .or(buildOrFilters(searchTerms).join(','))
         .limit(600);
 
-      data = restResult.data as OsmAddressRow[] | null;
+      data = restResult.data as unknown as OsmAddressRow[] | null;
       error = restResult.error;
     }
 
@@ -444,7 +444,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const ranked = ((data ?? []) as OsmAddressRow[])
+    const ranked = ((data ?? []) as unknown as OsmAddressRow[])
       .map((row) => {
         const scored = scoreAddress(row, rawQuery);
         return { row, ...scored };
