@@ -3,16 +3,19 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const addressSchema = process.env.SUPABASE_ADDRESS_SCHEMA || 'public';
-const addressTable = process.env.SUPABASE_ADDRESS_TABLE || 'osm_addresses';
+const geodataSupabaseUrl = process.env.GEODATA_SUPABASE_URL || process.env.SUPABASE_URL;
+const geodataSupabaseKey =
+  process.env.GEODATA_SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.GEODATA_SUPABASE_ANON_KEY ||
+  process.env.SUPABASE_ANON_KEY;
+const addressSchema = process.env.GEODATA_SUPABASE_ADDRESS_SCHEMA || process.env.SUPABASE_ADDRESS_SCHEMA || 'public';
+const addressTable = process.env.GEODATA_SUPABASE_ADDRESS_TABLE || process.env.SUPABASE_ADDRESS_TABLE || 'osm_addresses';
 
-const hasSupabaseConfig = Boolean(supabaseUrl && supabaseKey);
+const hasSupabaseConfig = Boolean(geodataSupabaseUrl && geodataSupabaseKey);
 
 const supabase = hasSupabaseConfig
-  ? createClient(supabaseUrl!, supabaseKey!, {
+  ? createClient(geodataSupabaseUrl!, geodataSupabaseKey!, {
       auth: {
         persistSession: false,
         autoRefreshToken: false
@@ -27,6 +30,8 @@ type OsmAddressRow = {
   display_name: string | null;
   street: string | null;
   street_name: string | null;
+  street_type: string | null;
+  street_type_normalized: string | null;
   house_number: string | null;
   housenumber: string | null;
   city: string | null;
@@ -36,6 +41,8 @@ type OsmAddressRow = {
   district: string | null;
   suburb: string | null;
   postcode: string | null;
+  lat: number | null;
+  lon: number | null;
 };
 
 function normalizeText(value: string) {
@@ -47,15 +54,24 @@ function normalizeText(value: string) {
     .trim();
 }
 
+function getSettlement(row: OsmAddressRow) {
+  return row.city || row.town || row.village || row.municipality || row.suburb || row.district;
+}
+
+function getStreet(row: OsmAddressRow) {
+  const street = row.street_name || row.street;
+  const streetType = row.street_type_normalized || row.street_type;
+
+  if (!street) return '';
+  if (!streetType || normalizeText(street).endsWith(normalizeText(streetType))) return street;
+
+  return `${street} ${streetType}`;
+}
+
 function makeLabel(row: OsmAddressRow) {
   return (
     row.display_name ||
-    [
-      row.postcode,
-      row.city || row.town || row.village || row.municipality,
-      row.street_name || row.street,
-      row.house_number || row.housenumber
-    ]
+    [row.postcode, getSettlement(row), getStreet(row), row.house_number || row.housenumber]
       .filter(Boolean)
       .join(' ')
   );
@@ -99,25 +115,34 @@ export async function GET(request: NextRequest) {
   if (!hasSupabaseConfig || !supabase) {
     return NextResponse.json(
       {
-        error: 'SUPABASE_CONFIG_MISSING',
+        error: 'GEODATA_SUPABASE_CONFIG_MISSING',
         message:
-          'Hiányzik a Supabase konfiguráció. Állítsd be: SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (ajánlott), vagy NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY.'
+          'Hiányzik a GeoData Supabase konfiguráció. A címkereső szándékosan nem a Panellakó saját NEXT_PUBLIC/NEXT_SUPABASE backendjét használja. Állítsd be: GEODATA_SUPABASE_URL + GEODATA_SUPABASE_SERVICE_ROLE_KEY, vagy SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY.'
       },
       { status: 503 }
     );
   }
 
   const safeQuery = toIlikeTerm(rawQuery);
+
+  if (!safeQuery) {
+    return NextResponse.json({ suggestions: [] });
+  }
+
   const tokens = normalizedQuery.split(' ').filter((token) => token.length > 1).slice(0, 5);
 
   const orFilters = [
     `display_name.ilike.%${safeQuery}%`,
     `street.ilike.%${safeQuery}%`,
     `street_name.ilike.%${safeQuery}%`,
+    `street_type.ilike.%${safeQuery}%`,
+    `street_type_normalized.ilike.%${safeQuery}%`,
     `city.ilike.%${safeQuery}%`,
     `town.ilike.%${safeQuery}%`,
     `village.ilike.%${safeQuery}%`,
     `municipality.ilike.%${safeQuery}%`,
+    `district.ilike.%${safeQuery}%`,
+    `suburb.ilike.%${safeQuery}%`,
     `postcode.ilike.%${safeQuery}%`,
     `house_number.ilike.%${safeQuery}%`,
     `housenumber.ilike.%${safeQuery}%`
@@ -130,13 +155,15 @@ export async function GET(request: NextRequest) {
     orFilters.push(`city.ilike.%${token}%`);
     orFilters.push(`town.ilike.%${token}%`);
     orFilters.push(`village.ilike.%${token}%`);
+    orFilters.push(`municipality.ilike.%${token}%`);
+    orFilters.push(`postcode.ilike.%${token}%`);
   }
 
   try {
     const { data, error } = await supabase
       .from(addressTable)
       .select(
-        'display_name,street,street_name,house_number,housenumber,city,town,village,municipality,district,suburb,postcode'
+        'display_name,street,street_name,street_type,street_type_normalized,house_number,housenumber,city,town,village,municipality,district,suburb,postcode,lat,lon'
       )
       .or(orFilters.join(','))
       .limit(40);
@@ -146,11 +173,11 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json(
         {
-          error: 'SUPABASE_QUERY_FAILED',
-          message: 'Az adatbázisos címkeresés nem elérhető.',
+          error: 'GEODATA_SUPABASE_QUERY_FAILED',
+          message: 'Az adatbázisos címkeresés nem elérhető a GeoData Supabase projektből.',
           details: error.message,
           hint: looksLikeSchemaCacheIssue
-            ? `A ${addressSchema}.${addressTable} tábla nem látszik a PostgREST schema cache-ben az aktuális API kulccsal/projekttel. Ellenőrizd, hogy a Vercel env a megfelelő Supabase projektre mutat (SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL), és hogy a tábla elérhető az adott role számára (RLS/policy vagy service role kulcs).`
+            ? `A ${addressSchema}.${addressTable} tábla nem látszik a GeoData Supabase PostgREST schema cache-ben az aktuális API kulccsal/projekttel. Ellenőrizd, hogy a címkereső env a GeoData projektre mutat: GEODATA_SUPABASE_URL/SUPABASE_URL = https://buuoyyfzincmbxafvihc.supabase.co. Ez az endpoint nem használhatja a Panellakó saját NEXT_PUBLIC_SUPABASE_URL backendjét.`
             : undefined
         },
         { status: 500 }
@@ -174,8 +201,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       {
-        error: 'SUPABASE_AUTOCOMPLETE_ERROR',
-        message: error instanceof Error ? error.message : 'Ismeretlen Supabase címkeresési hiba.'
+        error: 'GEODATA_SUPABASE_AUTOCOMPLETE_ERROR',
+        message: error instanceof Error ? error.message : 'Ismeretlen GeoData Supabase címkeresési hiba.'
       },
       { status: 500 }
     );
