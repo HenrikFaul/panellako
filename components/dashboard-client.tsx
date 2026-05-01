@@ -483,10 +483,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 </div>
 
                 <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4">
-                  <label className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-700"><MapPin size={16} className="text-brand-600" /> Címkeresés AWS Location proxyval</label>
+                  <label className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-700"><MapPin size={16} className="text-brand-600" /> Címkeresés saját GeoData adatbázisból</label>
                   <input
                     className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
-                    placeholder="Kezdj el címet írni (min. 3 karakter)"
+                    placeholder="Kezdj el címet írni (pl. Budapest Gidófalvy Lajos utca 9)"
                     value={addressQuery}
                     onChange={(e) => {
                       setAddressQuery(e.target.value);
