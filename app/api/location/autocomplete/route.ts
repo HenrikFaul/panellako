@@ -3,16 +3,22 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const addressSchema = process.env.SUPABASE_ADDRESS_SCHEMA || 'public';
+const addressTable = process.env.SUPABASE_ADDRESS_TABLE || 'osm_addresses';
 
-const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
+const hasSupabaseConfig = Boolean(supabaseUrl && supabaseKey);
 
 const supabase = hasSupabaseConfig
-  ? createClient(supabaseUrl!, supabaseAnonKey!, {
+  ? createClient(supabaseUrl!, supabaseKey!, {
       auth: {
         persistSession: false,
         autoRefreshToken: false
+      },
+      db: {
+        schema: addressSchema
       }
     })
   : null;
@@ -59,19 +65,23 @@ function toIlikeTerm(value: string) {
   return value.replace(/[%,()]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function scoreSuggestion(label: string, query: string, tokens: string[]) {
   const normalizedLabel = normalizeText(label);
 
   if (normalizedLabel === query) return 1200;
   if (normalizedLabel.startsWith(query)) return 1000;
 
-  const fullWord = new RegExp(`\\b${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+  const fullWord = new RegExp(`\\b${escapeRegExp(query)}`);
   if (fullWord.test(normalizedLabel)) return 900;
 
   let score = 0;
   for (const token of tokens) {
     if (normalizedLabel.startsWith(token)) score += 120;
-    else if (new RegExp(`\\b${token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(normalizedLabel)) score += 80;
+    else if (new RegExp(`\\b${escapeRegExp(token)}`).test(normalizedLabel)) score += 80;
     else if (normalizedLabel.includes(token)) score += 45;
   }
 
@@ -91,7 +101,7 @@ export async function GET(request: NextRequest) {
       {
         error: 'SUPABASE_CONFIG_MISSING',
         message:
-          'Hiányzik a Supabase konfiguráció. Állítsd be a NEXT_PUBLIC_SUPABASE_URL és NEXT_PUBLIC_SUPABASE_ANON_KEY változókat.'
+          'Hiányzik a Supabase konfiguráció. Állítsd be: SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (ajánlott), vagy NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY.'
       },
       { status: 503 }
     );
@@ -124,7 +134,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const { data, error } = await supabase
-      .from('osm_addresses')
+      .from(addressTable)
       .select(
         'display_name,street,street_name,house_number,housenumber,city,town,village,municipality,district,suburb,postcode'
       )
@@ -132,17 +142,22 @@ export async function GET(request: NextRequest) {
       .limit(40);
 
     if (error) {
+      const looksLikeSchemaCacheIssue = /schema cache|Could not find the table/i.test(error.message);
+
       return NextResponse.json(
         {
           error: 'SUPABASE_QUERY_FAILED',
           message: 'Az adatbázisos címkeresés nem elérhető.',
-          details: error.message
+          details: error.message,
+          hint: looksLikeSchemaCacheIssue
+            ? `A ${addressSchema}.${addressTable} tábla nem látszik a PostgREST schema cache-ben az aktuális API kulccsal/projekttel. Ellenőrizd, hogy a Vercel env a megfelelő Supabase projektre mutat (SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL), és hogy a tábla elérhető az adott role számára (RLS/policy vagy service role kulcs).`
+            : undefined
         },
         { status: 500 }
       );
     }
 
-    const ranked = (data ?? [])
+    const ranked = ((data ?? []) as OsmAddressRow[])
       .map((row) => {
         const label = makeLabel(row);
         return {
