@@ -65,19 +65,23 @@ function toIlikeTerm(value: string) {
   return value.replace(/[%,()]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function scoreSuggestion(label: string, query: string, tokens: string[]) {
   const normalizedLabel = normalizeText(label);
 
   if (normalizedLabel === query) return 1200;
   if (normalizedLabel.startsWith(query)) return 1000;
 
-  const fullWord = new RegExp(`\\b${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+  const fullWord = new RegExp(`\\b${escapeRegExp(query)}`);
   if (fullWord.test(normalizedLabel)) return 900;
 
   let score = 0;
   for (const token of tokens) {
     if (normalizedLabel.startsWith(token)) score += 120;
-    else if (new RegExp(`\\b${token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(normalizedLabel)) score += 80;
+    else if (new RegExp(`\\b${escapeRegExp(token)}`).test(normalizedLabel)) score += 80;
     else if (normalizedLabel.includes(token)) score += 45;
   }
 
@@ -153,7 +157,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const ranked = (data ?? [])
+    const ranked = ((data ?? []) as OsmAddressRow[])
       .map((row) => {
         const label = makeLabel(row);
         return {
