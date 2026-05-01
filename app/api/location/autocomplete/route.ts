@@ -222,7 +222,7 @@ function houseNumberMatches(queryHouse: string | null, rowHouse: string) {
   if (!queryHouse) return true;
   if (!rowHouse) return false;
   const queryNumber = queryHouse.match(/\d+/)?.[0];
-  const rowNumbers = rowHouse.match(/\d+/g) || [];
+  const rowNumbers: string[] = rowHouse.match(/\d+/g) ?? [];
   return rowHouse === queryHouse || Boolean(queryNumber && rowNumbers.includes(queryNumber));
 }
 
