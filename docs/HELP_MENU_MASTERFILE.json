@@ -1,0 +1,216 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-05-15",
+  "repository": "HenrikFaul/panellako",
+  "product": "PanelLakó",
+  "description": "Machine-readable manifest for PanelLakó Help Menu frontend component",
+
+  "documents": [
+    {
+      "id": "doc-index",
+      "file": "docs/DOC_INDEX.md",
+      "title": "Documentation Index",
+      "description": "Entry point and navigation guide to all PanelLakó documentation",
+      "audience": ["all"],
+      "confidence": "high"
+    },
+    {
+      "id": "tech-arch",
+      "file": "docs/TECHNICAL_ARCHITECTURE.md",
+      "title": "Technical Architecture",
+      "description": "Stack, data flow, auth, deployment, database architecture",
+      "audience": ["engineer", "devops"],
+      "confidence": "high"
+    },
+    {
+      "id": "feature-catalog",
+      "file": "docs/FEATURE_CATALOG.md",
+      "title": "Feature Catalog",
+      "description": "All 11 product features with status, routes, and role access",
+      "audience": ["engineer", "pm"],
+      "confidence": "high"
+    },
+    {
+      "id": "nav-tree",
+      "file": "docs/NAVIGATION_TREE.md",
+      "title": "Navigation Tree",
+      "description": "Sidebar navigation, hash routing, role visibility",
+      "audience": ["engineer", "designer"],
+      "confidence": "high"
+    },
+    {
+      "id": "role-permission",
+      "file": "docs/ROLE_PERMISSION_MATRIX.md",
+      "title": "Role & Permission Matrix",
+      "description": "Which of the six roles can perform which actions",
+      "audience": ["pm", "qa", "engineer"],
+      "confidence": "high"
+    },
+    {
+      "id": "user-manual",
+      "file": "docs/USER_MANUAL.md",
+      "title": "User Manual",
+      "description": "Step-by-step task guide for all six user personas",
+      "audience": ["end-user", "support"],
+      "confidence": "medium-high"
+    },
+    {
+      "id": "business-ref",
+      "file": "docs/BUSINESS_SYSTEM_REFERENCE.md",
+      "title": "Business System Reference",
+      "description": "Business rules, SLA definitions, Hungarian legal references",
+      "audience": ["pm", "legal", "compliance"],
+      "confidence": "medium"
+    },
+    {
+      "id": "process-flows",
+      "file": "docs/PROCESS_FLOWS.md",
+      "title": "Process Flows",
+      "description": "Mermaid diagrams for key workflows",
+      "audience": ["engineer", "qa"],
+      "confidence": "high"
+    },
+    {
+      "id": "data-flow",
+      "file": "docs/DATA_FLOW_AND_ENTITY_REFERENCE.md",
+      "title": "Data Flow & Entity Reference",
+      "description": "All database tables, relationships, RLS status",
+      "audience": ["engineer", "dba"],
+      "confidence": "high"
+    },
+    {
+      "id": "change-intel",
+      "file": "docs/CHANGE_INTELLIGENCE_APPENDIX.md",
+      "title": "Change Intelligence Appendix",
+      "description": "Recent sprint changes, regression risks, pending blockers",
+      "audience": ["engineer", "qa"],
+      "confidence": "high"
+    },
+    {
+      "id": "doc-gen-report",
+      "file": "docs/DOC_GENERATION_REPORT.md",
+      "title": "Documentation Generation Report",
+      "description": "Confidence levels, evidence gaps, recommendations",
+      "audience": ["engineer", "architect"],
+      "confidence": "high"
+    }
+  ],
+
+  "navigationIndex": {
+    "#overview": { "label": "Áttekintő", "roles": ["all"], "icon": "Home" },
+    "#tasks": { "label": "Teendők", "roles": ["all"], "icon": "ClipboardCheck" },
+    "#tickets": { "label": "Bejelentések", "roles": ["all"], "icon": "TicketCheck" },
+    "#units": { "label": "Albetétek", "roles": ["all"], "icon": "Building2" },
+    "#documents": { "label": "Dokumentumok", "roles": ["all"], "icon": "FileText" },
+    "#finances": { "label": "Pénzügyek", "roles": ["all"], "icon": "CircleDollarSign" },
+    "#meters": { "label": "Mérőórák", "roles": ["all"], "icon": "Gauge" },
+    "#meetings": { "label": "Közgyűlések", "roles": ["all"], "icon": "CalendarDays" },
+    "#knowledge": { "label": "Tudásbázis", "roles": ["all"], "icon": "BookOpen" },
+    "#audit": { "label": "Audit napló", "roles": ["kozos_kepviselo","megbizott","bizottsag","konyvelo"], "icon": "ShieldCheck" }
+  },
+
+  "featureIndex": {
+    "tickets": {
+      "label": "Hibabejelentés",
+      "route": "#tickets",
+      "serverAction": "app/actions/tickets.ts",
+      "roles_create": ["all"],
+      "roles_update": ["kozos_kepviselo", "megbizott"],
+      "statuses": ["uj", "folyamatban", "varakozik", "lezarva"],
+      "priorities": ["alacsony", "kozepes", "magas", "kritikus"]
+    },
+    "meter_readings": {
+      "label": "Mérőóra diktálás",
+      "route": "#meters",
+      "serverAction": "app/actions/meter-readings.ts",
+      "roles_create": ["lako", "tulajdonos", "kozos_kepviselo", "megbizott"],
+      "meter_types": ["viz", "gaz", "villany"]
+    },
+    "announcements": {
+      "label": "Hírfolyam / Értesítés",
+      "route": "#",
+      "serverAction": "app/actions/announcements.ts",
+      "roles_create": ["kozos_kepviselo", "megbizott"],
+      "roles_read": ["all"],
+      "categories": ["tarsashazi_kozlony", "keruleti_hir", "uzemeltetes", "biztonsag", "egyeb"]
+    },
+    "documents": {
+      "label": "Dokumentumtár",
+      "route": "#documents",
+      "serverAction": "app/actions/documents.ts",
+      "roles_read": ["all"],
+      "roles_ack": ["all"],
+      "roles_upload": ["kozos_kepviselo", "megbizott"]
+    },
+    "finances": {
+      "label": "Pénzügyi áttekintő",
+      "route": "#finances",
+      "roles_read": ["all"],
+      "db_table": "finance_entries"
+    },
+    "units": {
+      "label": "Albetétek",
+      "route": "#units",
+      "roles_read": ["all"],
+      "db_table": "units",
+      "searchable": true
+    },
+    "meetings": {
+      "label": "Közgyűlések",
+      "route": "#meetings",
+      "roles_read": ["all"],
+      "roles_create": ["kozos_kepviselo", "megbizott"],
+      "statuses": ["tervezett", "lezart"]
+    },
+    "vendors_workorders": {
+      "label": "Vendor / Work Order",
+      "route": "#",
+      "roles_read": ["kozos_kepviselo", "megbizott", "bizottsag", "konyvelo"],
+      "roles_create": ["kozos_kepviselo", "megbizott"]
+    },
+    "knowledge_base": {
+      "label": "Tudásbázis",
+      "route": "#knowledge",
+      "roles_read": ["all"]
+    },
+    "audit_log": {
+      "label": "Audit napló",
+      "route": "#audit",
+      "roles_read": ["kozos_kepviselo", "megbizott", "bizottsag", "konyvelo"]
+    }
+  },
+
+  "roleIndex": {
+    "lako": { "label": "Lakó", "can_manage": false, "primary_features": ["tickets", "meter_readings", "documents", "announcements"] },
+    "tulajdonos": { "label": "Tulajdonos", "can_manage": false, "primary_features": ["tickets", "documents", "finances", "units"] },
+    "kozos_kepviselo": { "label": "Közös képviselő", "can_manage": true, "primary_features": ["all"] },
+    "megbizott": { "label": "Megbízott", "can_manage": true, "primary_features": ["all"] },
+    "bizottsag": { "label": "Bizottsági tag", "can_manage": false, "primary_features": ["finances", "vendors_workorders", "audit_log"] },
+    "konyvelo": { "label": "Könyvelő", "can_manage": false, "primary_features": ["finances", "audit_log"] }
+  },
+
+  "entityIndex": {
+    "profiles": { "table": "profiles", "purpose": "User identity and role" },
+    "buildings": { "table": "buildings", "purpose": "Building master data" },
+    "units": { "table": "units", "purpose": "Apartment/unit registry" },
+    "tickets": { "table": "tickets", "purpose": "Fault reports and issue tracking" },
+    "meter_readings": { "table": "meter_readings", "purpose": "Utility meter submissions" },
+    "documents": { "table": "documents", "purpose": "Document library" },
+    "meetings": { "table": "meetings", "purpose": "Assembly events" }
+  },
+
+  "uiHints": {
+    "primary_color": "#1D4ED8",
+    "sidebar_width": "280px",
+    "layout": "sidebar + main content",
+    "mobile": "sidebar hidden on mobile (lg:block)",
+    "font_weight_headings": "font-black",
+    "card_border_radius": "rounded-[1.75rem]"
+  },
+
+  "usageInstructions": {
+    "help_menu_frontend": "Read this JSON at docs/HELP_MENU_MASTERFILE.json. Use 'documents' for file links, 'navigationIndex' for sidebar items, 'featureIndex' for feature-level help, 'roleIndex' for role-based help filtering.",
+    "update_policy": "Regenerate this file when new features are added, routes change, or role permissions change.",
+    "source_of_truth": "ROLE_PERMISSION_MATRIX.md for permissions; FEATURE_CATALOG.md for feature status"
+  }
+}

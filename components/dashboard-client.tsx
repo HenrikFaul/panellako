@@ -45,7 +45,11 @@ import {
   VendorItem,
   WorkOrderItem
 } from '@/lib/types';
-import { hasSupabaseConfig, supabase } from '@/lib/supabase';
+import { createClient, hasSupabaseConfig } from '@/lib/supabase/browser';
+import { createTicket as createTicketAction, updateTicketStatus as updateTicketStatusAction } from '@/app/actions/tickets';
+import { submitMeterReading as submitMeterReadingAction } from '@/app/actions/meter-readings';
+import { createAnnouncement as createAnnouncementAction } from '@/app/actions/announcements';
+import { acknowledgeDocument as acknowledgeDocumentAction } from '@/app/actions/documents';
 
 type DashboardData = {
   source: string;
@@ -229,16 +233,19 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const totalOwnershipShare = data.units.reduce((acc, item) => acc + numberOrZero(item.ownership_share), 0);
 
   useEffect(() => {
-    if (!hasSupabaseConfig || !supabase) {
+    if (!hasSupabaseConfig) {
       return;
     }
 
-    supabase.auth.getSession().then(({ data: sessionData }) => {
-      setIsLoggedIn(Boolean(sessionData.session));
+    const supabase = createClient();
+
+    // getUser() hits the server — always accurate (never stale cache)
+    supabase.auth.getUser().then(({ data }) => {
+      setIsLoggedIn(Boolean(data.user));
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsLoggedIn(Boolean(session));
+      setIsLoggedIn(Boolean(session?.user));
     });
 
     return () => {
@@ -324,12 +331,13 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     ];
   }, [arrears, data.documents, tickets]);
 
-  const submitTicket = (event: FormEvent<HTMLFormElement>) => {
+  const submitTicket = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const now = new Date().toISOString();
 
-    const newTicket: Ticket = {
-      id: `ticket-${now}`,
+    // Optimistic local update for snappy UX
+    const optimisticTicket: Ticket = {
+      id: `optimistic-${now}`,
       title: ticketTitle,
       description: ticketDescription,
       status: 'uj',
@@ -341,27 +349,38 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       created_at: now,
       updated_at: now
     };
+    setTickets((prev) => [optimisticTicket, ...prev]);
 
-    setTickets((prev) => [newTicket, ...prev]);
-    setTicketSaved(true);
+    const result = await createTicketAction({
+      title: ticketTitle,
+      description: ticketDescription,
+      location: ticketLocation,
+      priority: ticketPriority,
+      submitted_by: name,
+      unit_label: unit || undefined
+    });
+
+    if (result.success) {
+      setTicketSaved(true);
+    }
+
     setTicketTitle('');
     setTicketDescription('');
     setTicketLocation('');
     setTicketPriority('kozepes');
   };
 
-  const updateTicketStatus = (ticketId: string, nextStatus: Ticket['status']) => {
+  const updateTicketStatus = async (ticketId: string, nextStatus: Ticket['status']) => {
+    // Optimistic update
     setTickets((prev) =>
       prev.map((ticket) =>
         ticket.id === ticketId
-          ? {
-              ...ticket,
-              status: nextStatus,
-              updated_at: new Date().toISOString()
-            }
+          ? { ...ticket, status: nextStatus, updated_at: new Date().toISOString() }
           : ticket
       )
     );
+
+    await updateTicketStatusAction(ticketId, nextStatus);
   };
 
   return (
@@ -424,9 +443,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 <button
                   className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:border-brand-300"
                   onClick={async () => {
-                    if (supabase) {
-                      await supabase.auth.signOut();
-                    }
+                    const supabase = createClient();
+                    await supabase.auth.signOut();
                     setIsLoggedIn(false);
                   }}
                   type="button"
@@ -643,7 +661,18 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       </div>
                       {item.acknowledged_at ? <CheckCircle2 className="text-emerald-500" size={18} /> : <AlertTriangle className="text-amber-500" size={18} />}
                     </div>
-                    <button className="mt-3 rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white" type="button">Megnyitás</button>
+                    <div className="mt-3 flex gap-2">
+                      <button className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white" type="button">Megnyitás</button>
+                      {!item.acknowledged_at && (
+                        <button
+                          className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white hover:bg-emerald-700"
+                          type="button"
+                          onClick={() => acknowledgeDocumentAction(item.id)}
+                        >
+                          Elolvasva
+                        </button>
+                      )}
+                    </div>
                   </article>
                 ))}
               </div>
@@ -665,14 +694,23 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </SectionCard>
 
             <SectionCard id="meters" title="Mérőóra diktálás" icon={<Gauge size={18} />}>
-              <form className="mb-4 space-y-3" onSubmit={(e) => { e.preventDefault(); setMeterSaved(true); }}>
+              <form className="mb-4 space-y-3" onSubmit={async (e) => {
+                e.preventDefault();
+                const form = e.currentTarget;
+                const meterType = (form.elements.namedItem('meter_type') as HTMLSelectElement).value as 'viz' | 'gaz' | 'villany';
+                const value = parseFloat((form.elements.namedItem('meter_value') as HTMLInputElement).value);
+                const readingDate = (form.elements.namedItem('reading_date') as HTMLInputElement).value;
+                await submitMeterReadingAction({ meter_type: meterType, value, reading_date: readingDate, unit_label: unit || undefined });
+                setMeterSaved(true);
+                form.reset();
+              }}>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <select className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"><option>viz</option><option>gaz</option><option>villany</option></select>
-                  <input type="number" step="0.01" required className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Érték" />
+                  <select name="meter_type" className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"><option value="viz">víz</option><option value="gaz">gáz</option><option value="villany">villany</option></select>
+                  <input name="meter_value" type="number" step="0.01" required className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Érték" />
                 </div>
-                <input type="date" required className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm" />
+                <input name="reading_date" type="date" required className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm" />
                 <button className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-black text-white hover:bg-slate-700">Óraállás elküldése</button>
-                {meterSaved ? <p className="text-sm font-semibold text-emerald-700">Óraállás rögzítve demo módban.</p> : null}
+                {meterSaved ? <p className="text-sm font-semibold text-emerald-700">Óraállás rögzítve.</p> : null}
               </form>
               <ul className="space-y-2 text-sm">
                 {data.meterReadings.map((reading) => <li key={reading.id} className="rounded-2xl bg-slate-50 p-3"><b>{reading.unit_label}</b> · {reading.meter_type} · {reading.value} · {formatDate(reading.reading_date)}</li>)}
@@ -769,14 +807,23 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
             {isAdminLike ? (
               <SectionCard title="Célzott kommunikáció / hírküldés" icon={<Megaphone size={18} />}>
-                <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); setNoticeSaved(true); }}>
+                <form className="space-y-3" onSubmit={async (e) => {
+                  e.preventDefault();
+                  const form = e.currentTarget;
+                  const title = (form.elements.namedItem('notice_title') as HTMLInputElement).value;
+                  const audience = (form.elements.namedItem('notice_audience') as HTMLInputElement).value;
+                  const message = (form.elements.namedItem('notice_message') as HTMLTextAreaElement).value;
+                  await createAnnouncementAction({ title, content: message, target_group: audience });
+                  setNoticeSaved(true);
+                  form.reset();
+                }}>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <input required className="rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Értesítés címe" />
-                    <input required className="rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Célcsoport (pl. B lépcsőház)" />
+                    <input name="notice_title" required className="rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Értesítés címe" />
+                    <input name="notice_audience" required className="rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Célcsoport (pl. B lépcsőház)" />
                   </div>
-                  <textarea required className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" rows={4} placeholder="Üzenet" />
+                  <textarea name="notice_message" required className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" rows={4} placeholder="Üzenet" />
                   <button className="rounded-2xl bg-brand-600 px-5 py-3 text-sm font-black text-white hover:bg-brand-700">Kiküldés előkészítése</button>
-                  {noticeSaved ? <p className="text-sm font-semibold text-emerald-700">Értesítés mentve és kiküldésre jelölve demo módban.</p> : null}
+                  {noticeSaved ? <p className="text-sm font-semibold text-emerald-700">Értesítés elküldve.</p> : null}
                 </form>
               </SectionCard>
             ) : (

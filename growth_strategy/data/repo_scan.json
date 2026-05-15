@@ -1,0 +1,88 @@
+{
+  "scanned_at": "2026-05-15T21:34:21.156207",
+  "scan_root": "/home/user/panellako",
+  "total_files": 235,
+  "total_loc": 2099,
+  "languages": [
+    {
+      "language": "TypeScript (TSX)",
+      "files": 6,
+      "loc": 924
+    },
+    {
+      "language": "TypeScript",
+      "files": 6,
+      "loc": 824
+    },
+    {
+      "language": "SQL",
+      "files": 1,
+      "loc": 310
+    },
+    {
+      "language": "JavaScript",
+      "files": 3,
+      "loc": 41
+    },
+    {
+      "language": "Markdown",
+      "files": 209,
+      "loc": 0
+    },
+    {
+      "language": ".ps1",
+      "files": 5,
+      "loc": 0
+    },
+    {
+      "language": "JSON",
+      "files": 3,
+      "loc": 0
+    },
+    {
+      "language": ".txt",
+      "files": 1,
+      "loc": 0
+    },
+    {
+      "language": "CSS",
+      "files": 1,
+      "loc": 0
+    }
+  ],
+  "detected_stack": [
+    "Node.js/npm",
+    "Tailwind CSS",
+    "TypeScript"
+  ],
+  "detected_manifests": [
+    "tailwind.config.js",
+    "package.json",
+    "tsconfig.json"
+  ],
+  "dependency_hints": [
+    {
+      "manifest": "package.json",
+      "name": "panellako",
+      "version": "0.1.0",
+      "dep_count": 6,
+      "dev_dep_count": 9,
+      "top_deps": [
+        "@supabase/supabase-js",
+        "clsx",
+        "lucide-react",
+        "next",
+        "react",
+        "react-dom"
+      ]
+    }
+  ],
+  "git": {
+    "first_commit": "2026-05-15T23:16:31+02:00",
+    "last_commit": "2026-05-15T23:16:31+02:00",
+    "commit_count": 30,
+    "contributor_count": 0,
+    "branch": "claude/setup-project-structure-O56pg",
+    "remote_url": "http://local_proxy@127.0.0.1:33491/git/HenrikFaul/panellako"
+  }
+}
