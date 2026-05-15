@@ -444,11 +444,11 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#ccfbf1_0,#f8fafc_30%,#eef2ff_100%)] text-slate-900">
       <div className="grid min-h-screen lg:grid-cols-[280px_1fr]">
         <aside className="hidden border-r border-slate-800/60 bg-slate-950 text-slate-200 shadow-2xl lg:block">
-          <div className="sticky top-0 flex h-screen flex-col overflow-hidden">
+          <div className="relative sticky top-0 flex h-screen flex-col overflow-hidden">
 
             {/* KOMMAND OVERLAY */}
             {kommandOpen && (
-              <div className="absolute inset-0 z-50 flex flex-col bg-slate-950/98 p-4">
+              <div className="absolute inset-0 z-50 flex flex-col bg-slate-950 p-4">
                 <div className="flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-black px-3 py-2.5 ring-2 ring-emerald-500/15 shadow-lg shadow-emerald-900/20">
                   <span className="select-none font-mono text-base text-emerald-400">›</span>
                   <input
@@ -546,7 +546,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </div>
 
               {/* SIGNAL NAV */}
-              <nav className="flex-1 space-y-0.5 overflow-y-auto">
+              <nav className="sidebar-scroll flex-1 space-y-0.5 overflow-y-auto">
                 {signalNav.map((item) => {
                   const Icon = item.icon;
                   const hasCritical = item.critical > 0;

@@ -1,2 +1,1 @@
-*.pdf
-!.gitignore
+# output directory — PDFs are committed intentionally
