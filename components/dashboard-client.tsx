@@ -35,6 +35,7 @@ import {
   X
 } from 'lucide-react';
 import {
+  AiCategory,
   AuditLogItem,
   DocumentItem,
   FinanceItem,
@@ -49,7 +50,7 @@ import {
   WorkOrderItem
 } from '@/lib/types';
 import { createClient, hasSupabaseConfig } from '@/lib/supabase/browser';
-import { createTicket as createTicketAction, updateTicketStatus as updateTicketStatusAction } from '@/app/actions/tickets';
+import { createTicket as createTicketAction, updateTicketStatus as updateTicketStatusAction, updateTicketAiOverride as updateTicketAiOverrideAction } from '@/app/actions/tickets';
 import { submitMeterReading as submitMeterReadingAction } from '@/app/actions/meter-readings';
 import { createAnnouncement as createAnnouncementAction } from '@/app/actions/announcements';
 import { acknowledgeDocument as acknowledgeDocumentAction, uploadDocument as uploadDocumentAction, getDocumentSignedUrl as getDocumentSignedUrlAction } from '@/app/actions/documents';
@@ -201,6 +202,79 @@ function PriorityBadge({ priority }: { priority: Ticket['priority'] }) {
   return <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${classes[priority]}`}>{priority}</span>;
 }
 
+// ─── AI Triage UI Components ──────────────────────────────────────────────────
+
+const AI_CATEGORY_LABELS: Record<AiCategory, string> = {
+  plumbing: 'Vízvezeték',
+  electrical: 'Elektromos',
+  structural: 'Szerkezeti',
+  common_area: 'Közös terület',
+  emergency: 'Vészhelyzet',
+  hvac: 'Fűtés/légk.',
+  elevator: 'Lift',
+  other: 'Egyéb',
+};
+
+const AI_CATEGORY_COLORS: Record<AiCategory, string> = {
+  plumbing: 'bg-sky-50 text-sky-700 ring-sky-200',
+  electrical: 'bg-amber-50 text-amber-700 ring-amber-200',
+  structural: 'bg-stone-50 text-stone-700 ring-stone-200',
+  common_area: 'bg-violet-50 text-violet-700 ring-violet-200',
+  emergency: 'bg-rose-50 text-rose-700 ring-rose-200',
+  hvac: 'bg-orange-50 text-orange-700 ring-orange-200',
+  elevator: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
+  other: 'bg-slate-100 text-slate-600 ring-slate-200',
+};
+
+function AiUrgencyBadge({ urgency }: { urgency: number | null | undefined }) {
+  if (urgency === null || urgency === undefined) {
+    return (
+      <span className="inline-flex animate-pulse items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-400 ring-1 ring-slate-200">
+        <span className="h-2 w-2 rounded-full bg-slate-300" />
+        AI...
+      </span>
+    );
+  }
+  let colorClass: string;
+  let label: string;
+  if (urgency <= 4) {
+    colorClass = 'bg-emerald-50 text-emerald-700 ring-emerald-200';
+    label = `AI ${urgency}`;
+  } else if (urgency <= 7) {
+    colorClass = 'bg-amber-50 text-amber-700 ring-amber-200';
+    label = `AI ${urgency}`;
+  } else {
+    colorClass = 'bg-rose-50 text-rose-700 ring-rose-200';
+    label = `AI ${urgency}!`;
+  }
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${colorClass}`}>
+      <Sparkles size={10} />
+      {label}
+    </span>
+  );
+}
+
+function AiCategoryChip({ category }: { category: AiCategory | string | null | undefined }) {
+  if (!category) return null;
+  const safeCategory = (Object.keys(AI_CATEGORY_LABELS).includes(category) ? category : 'other') as AiCategory;
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${AI_CATEGORY_COLORS[safeCategory]}`}>
+      {AI_CATEGORY_LABELS[safeCategory]}
+    </span>
+  );
+}
+
+function AiTriagePendingSkeleton() {
+  return (
+    <div className="mt-2 flex animate-pulse items-center gap-2">
+      <div className="h-5 w-16 rounded-full bg-slate-100" />
+      <div className="h-5 w-20 rounded-full bg-slate-100" />
+      <div className="h-4 w-32 rounded bg-slate-100" />
+    </div>
+  );
+}
+
 export default function DashboardClient({ data }: { data: DashboardData }) {
   const [ticketSaved, setTicketSaved] = useState(false);
   const [meterSaved, setMeterSaved] = useState(false);
@@ -232,6 +306,12 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [uploadError, setUploadError] = useState('');
   const [kommandOpen, setKommandOpen] = useState(false);
   const [kommandQuery, setKommandQuery] = useState('');
+
+  // AI override modal state
+  const [overrideTicketId, setOverrideTicketId] = useState<string | null>(null);
+  const [overrideUrgency, setOverrideUrgency] = useState<number>(5);
+  const [overrideCategory, setOverrideCategory] = useState<string>('other');
+  const [overrideSaving, setOverrideSaving] = useState(false);
 
   const isManager = useMemo(() => ['kozos_kepviselo', 'megbizott'].includes(data.currentUser.role), [data.currentUser.role]);
   const isAdminLike = useMemo(() => ['kozos_kepviselo', 'megbizott', 'bizottsag', 'konyvelo'].includes(data.currentUser.role), [data.currentUser.role]);
@@ -444,6 +524,37 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     const result = await updateTicketStatusAction(ticketId, nextStatus);
     if (!result.success) {
       setTickets(previousTickets);
+    }
+  };
+
+  const handleAiOverrideClick = (ticketId: string) => {
+    const ticket = tickets.find((t) => t.id === ticketId);
+    if (!ticket) return;
+    setOverrideTicketId(ticketId);
+    setOverrideUrgency(ticket.ai_urgency ?? 5);
+    setOverrideCategory(ticket.ai_category ?? 'other');
+  };
+
+  const submitAiOverride = async () => {
+    if (!overrideTicketId) return;
+    setOverrideSaving(true);
+    try {
+      const result = await updateTicketAiOverrideAction(overrideTicketId, {
+        ai_category: overrideCategory as AiCategory,
+        ai_urgency: overrideUrgency,
+      });
+      if (result.success) {
+        setTickets((prev) =>
+          prev.map((t) =>
+            t.id === overrideTicketId
+              ? { ...t, ai_category: overrideCategory as AiCategory, ai_urgency: overrideUrgency, ai_override: true }
+              : t
+          )
+        );
+        setOverrideTicketId(null);
+      }
+    } finally {
+      setOverrideSaving(false);
     }
   };
 
@@ -780,25 +891,63 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               }
             >
               <div className="space-y-3">
-                {visibleTickets.map((ticket) => (
-                  <article key={ticket.id} className="rounded-3xl border border-slate-100 bg-slate-50/70 p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="font-black text-slate-950">{ticket.title}</p>
-                        <p className="mt-1 text-sm text-slate-600">{ticket.description}</p>
+                {visibleTickets.map((ticket) => {
+                  const isAiPending = ticket.ai_triage_at === null || ticket.ai_triage_at === undefined;
+                  const isAiOverridden = ticket.ai_override === true;
+                  const isHighUrgency = typeof ticket.ai_urgency === 'number' && ticket.ai_urgency >= 8;
+                  return (
+                    <article
+                      key={ticket.id}
+                      className={`rounded-3xl border p-4 transition-colors ${isHighUrgency ? 'border-rose-200 bg-rose-50/60' : 'border-slate-100 bg-slate-50/70'}`}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-black text-slate-950">{ticket.title}</p>
+                          {ticket.ai_summary_hu ? (
+                            <p className="mt-1 text-sm italic text-slate-600">{ticket.ai_summary_hu}</p>
+                          ) : (
+                            <p className="mt-1 text-sm text-slate-600">{ticket.description}</p>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <StatusBadge status={ticket.status} />
+                          <PriorityBadge priority={ticket.priority} />
+                          <AiUrgencyBadge urgency={ticket.ai_urgency} />
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-2"><StatusBadge status={ticket.status} /><PriorityBadge priority={ticket.priority} /></div>
-                    </div>
-                    <p className="mt-3 text-xs font-medium text-slate-500">Helyszín: {ticket.location} · Beküldte: {ticket.submitted_by || 'Ismeretlen'} {ticket.unit_label ? `(${ticket.unit_label})` : ''} · Frissítve: {formatDateTime(ticket.updated_at)}</p>
-                    {isManager ? (
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                        <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold hover:border-brand-400" onClick={() => updateTicketStatus(ticket.id, 'folyamatban')} type="button">Folyamatban</button>
-                        <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold hover:border-violet-400" onClick={() => updateTicketStatus(ticket.id, 'varakozik')} type="button">Várakozik</button>
-                        <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold hover:border-emerald-400" onClick={() => updateTicketStatus(ticket.id, 'lezarva')} type="button">Lezárás</button>
-                      </div>
-                    ) : null}
-                  </article>
-                ))}
+                      {isAiPending ? (
+                        <AiTriagePendingSkeleton />
+                      ) : (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <AiCategoryChip category={ticket.ai_category} />
+                          {ticket.ai_vendor_suggestion ? (
+                            <span className="text-xs text-slate-500">{ticket.ai_vendor_suggestion}</span>
+                          ) : null}
+                          {isAiOverridden ? (
+                            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-600 ring-1 ring-violet-200">Manuálisan módosítva</span>
+                          ) : (
+                            <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-600 ring-1 ring-emerald-200">
+                              <Sparkles size={9} />AI triázs
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <p className="mt-3 text-xs font-medium text-slate-500">
+                        Helyszín: {ticket.location} · Beküldte: {ticket.submitted_by || 'Ismeretlen'}{ticket.unit_label ? ` (${ticket.unit_label})` : ''} · Frissítve: {formatDateTime(ticket.updated_at)}
+                      </p>
+                      {isManager ? (
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                          <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold hover:border-brand-400" onClick={() => updateTicketStatus(ticket.id, 'folyamatban')} type="button">Folyamatban</button>
+                          <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold hover:border-violet-400" onClick={() => updateTicketStatus(ticket.id, 'varakozik')} type="button">Várakozik</button>
+                          <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold hover:border-emerald-400" onClick={() => updateTicketStatus(ticket.id, 'lezarva')} type="button">Lezárás</button>
+                          {!isAiPending ? (
+                            <button className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 font-bold text-violet-700 hover:border-violet-400" onClick={() => handleAiOverrideClick(ticket.id)} type="button">AI módosítás</button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </article>
+                  );
+                })}
               </div>
             </SectionCard>
           </section>
@@ -1130,6 +1279,69 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </section>
         </main>
       </div>
+
+      {/* AI Override Modal */}
+      {overrideTicketId ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+            <h3 className="mb-4 flex items-center gap-2 text-lg font-black text-slate-900">
+              <Sparkles size={18} className="text-violet-600" />
+              AI triázs módosítása
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-700">Kategória</label>
+                <select
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+                  value={overrideCategory}
+                  onChange={(e) => setOverrideCategory(e.target.value)}
+                >
+                  <option value="plumbing">Vízvezeték</option>
+                  <option value="electrical">Elektromos</option>
+                  <option value="structural">Szerkezeti</option>
+                  <option value="common_area">Közös terület</option>
+                  <option value="emergency">Vészhelyzet</option>
+                  <option value="hvac">Fűtés / Légkond.</option>
+                  <option value="elevator">Lift</option>
+                  <option value="other">Egyéb</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-700">Sürgősség: {overrideUrgency}/10</label>
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  value={overrideUrgency}
+                  onChange={(e) => setOverrideUrgency(Number(e.target.value))}
+                  className="w-full accent-violet-600"
+                />
+                <div className="mt-1 flex justify-between text-xs text-slate-400">
+                  <span>1 — Rutinkarbantartás</span>
+                  <span>10 — Életveszély</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button
+                className="flex-1 rounded-2xl bg-violet-600 px-4 py-3 text-sm font-black text-white hover:bg-violet-700 disabled:opacity-50"
+                onClick={submitAiOverride}
+                disabled={overrideSaving}
+                type="button"
+              >
+                {overrideSaving ? 'Mentés...' : 'Mentés'}
+              </button>
+              <button
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                onClick={() => setOverrideTicketId(null)}
+                type="button"
+              >
+                Mégse
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

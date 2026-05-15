@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-05-15 — v0.3.2 AI hibabejelentés triázs — claude-haiku-4-5 (Initiative #7)
+
+### Added
+- **`supabase/functions/triage-ticket/index.ts`**: Supabase Edge Function — hungarian-language fault ticket triage. Anthropic `claude-haiku-4-5-20251001` modelel kategorizál (8 típus), 1–10 sürgősségi pontot, vendor javaslatot és egymonatos összefoglalót ad vissza JSON-ban. 15 mp timeout, JSON parser fallback, graceful fail ha `ANTHROPIC_API_KEY` nincs beállítva.
+- **`app/actions/tickets.ts`**: `createTicket` mostantól fire-and-forget módon meghívja a triage Edge Functiont. Új `updateTicketAiOverride` Server Action manager AI-felülbíráláshoz.
+- **`lib/types.ts`**: `Ticket` interface bővítve AI mezőkkel: `ai_category`, `ai_urgency`, `ai_vendor_suggestion`, `ai_summary_hu`, `ai_triage_at`, `ai_override`. Új `AiCategory` union type.
+- **`supabase/schema.sql`**: 6 AI oszlop a `tickets` táblán, 2 index (pending triage, urgency sorrendhez).
+- **`components/dashboard-client.tsx`**: `AiUrgencyBadge`, `AiCategoryChip`, `AiTriagePendingSkeleton` komponensek. Ticket kártyák mostantól AI sürgősséget, kategóriát, vendor javaslatot, AI összefoglalót mutatnak. Kritikus ticket (urgency ≥ 8) rose kerettel emelkedik ki. Manager "AI módosítás" modal — kategória + sürgősség felülbírálása.
+- **`tsconfig.json`**: `supabase/functions/` kizárva a Next.js TypeScript ellenőrzésből (Deno runtime).
+
+### Deployment note
+Az Edge Function csak a Supabase dashboardon beállított `ANTHROPIC_API_KEY` secret esetén triázsol — hiánya esetén a ticket `ai_triage_at = null` állapotban marad (pending skeleton jelenik meg). Deploy: `supabase functions deploy triage-ticket --no-verify-jwt`.
+
 ## 2026-05-15 — v0.3.1 Dokumentum feltöltés Supabase Storage (Initiative #3)
 
 ### Added

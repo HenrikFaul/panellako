@@ -30,6 +30,16 @@ export interface NotificationItem {
   read_at?: string | null;
 }
 
+export type AiCategory =
+  | 'plumbing'
+  | 'electrical'
+  | 'structural'
+  | 'common_area'
+  | 'emergency'
+  | 'hvac'
+  | 'elevator'
+  | 'other';
+
 export interface Ticket {
   id: string;
   title: string;
@@ -42,6 +52,13 @@ export interface Ticket {
   unit_label?: string;
   created_at?: string;
   updated_at?: string;
+  // AI triage fields — null until Edge Function completes
+  ai_category?: AiCategory | null;
+  ai_urgency?: number | null;
+  ai_vendor_suggestion?: string | null;
+  ai_summary_hu?: string | null;
+  ai_triage_at?: string | null;
+  ai_override?: boolean | null;
 }
 
 export interface MeterReading {

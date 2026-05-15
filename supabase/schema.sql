@@ -338,3 +338,14 @@ create policy "Authenticated update resolutions" on resolutions for update using
 -- Unique constraint for votes upsert (required for onConflict to work)
 alter table votes drop constraint if exists votes_resolution_voter_unique;
 alter table votes add constraint votes_resolution_voter_unique unique (resolution_id, voter_profile_id);
+
+-- Initiative #7: AI triage columns on tickets
+alter table tickets add column if not exists ai_category text;
+alter table tickets add column if not exists ai_urgency integer check (ai_urgency >= 1 and ai_urgency <= 10);
+alter table tickets add column if not exists ai_vendor_suggestion text;
+alter table tickets add column if not exists ai_summary_hu text;
+alter table tickets add column if not exists ai_triage_at timestamptz;
+alter table tickets add column if not exists ai_override boolean not null default false;
+
+create index if not exists idx_tickets_ai_triage_at on tickets (ai_triage_at) where ai_triage_at is null;
+create index if not exists idx_tickets_ai_urgency on tickets (ai_urgency desc) where ai_urgency is not null;
