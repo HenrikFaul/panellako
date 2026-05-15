@@ -56,6 +56,7 @@ import { createAnnouncement as createAnnouncementAction } from '@/app/actions/an
 import { acknowledgeDocument as acknowledgeDocumentAction, uploadDocument as uploadDocumentAction, getDocumentSignedUrl as getDocumentSignedUrlAction } from '@/app/actions/documents';
 import { updateWorkOrderStatus as updateWorkOrderStatusAction } from '@/app/actions/work-orders';
 import { submitVote as submitVoteAction } from '@/app/actions/votes';
+import { createCharge as createChargeAction, recordPayment as recordPaymentAction } from '@/app/actions/finance';
 
 type DashboardData = {
   source: string;
@@ -306,6 +307,13 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [uploadError, setUploadError] = useState('');
   const [kommandOpen, setKommandOpen] = useState(false);
   const [kommandQuery, setKommandQuery] = useState('');
+
+  // Finance state
+  const [showChargeForm, setShowChargeForm] = useState(false);
+  const [chargeStatus, setChargeStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+  const [chargeError, setChargeError] = useState('');
+  const [showPaymentForm, setShowPaymentForm] = useState<string | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
 
   // AI override modal state
   const [overrideTicketId, setOverrideTicketId] = useState<string | null>(null);
@@ -1086,18 +1094,90 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </div>
             </SectionCard>
 
-            <SectionCard id="finances" title="Pénzügyi átláthatóság" icon={<CircleDollarSign size={18} />}>
-              <p className="mb-4 text-sm text-slate-500">Összesen: {formatCurrency(totalDue)} · Befizetve: {formatCurrency(totalPaid)} · Hátralék: {formatCurrency(arrears)}</p>
+            <SectionCard id="finances" title="Pénzügyi átláthatóság" icon={<CircleDollarSign size={18} />} action={
+              isAdminLike ? (
+                <button
+                  type="button"
+                  onClick={() => { setShowChargeForm((v) => !v); setChargeStatus('idle'); setChargeError(''); }}
+                  className="rounded-2xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700"
+                >
+                  + Terhelés rögzítése
+                </button>
+              ) : undefined
+            }>
+              <p className="mb-4 text-sm text-slate-500">Összesen: {formatCurrency(totalDue)} · Befizetve: {formatCurrency(totalPaid)} · Hátralék: <span className={arrears > 0 ? 'font-bold text-rose-600' : 'text-emerald-700'}>{formatCurrency(arrears)}</span></p>
               <div className="mb-4 h-3 overflow-hidden rounded-full bg-slate-100">
                 <div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-cyan-400" style={{ width: `${Math.min((totalPaid / Math.max(totalDue, 1)) * 100, 100)}%` }} />
               </div>
+
+              {/* Charge generation form */}
+              {isAdminLike && showChargeForm && (
+                <form
+                  className="mb-4 space-y-3 rounded-2xl border border-brand-100 bg-brand-50/60 p-4"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const fd = new FormData(e.currentTarget);
+                    setChargeStatus('saving');
+                    setChargeError('');
+                    const result = await createChargeAction({
+                      buildingId: (fd.get('building_id') as string) || 'global',
+                      period: fd.get('period') as string,
+                      chargePerUnit: parseFloat(fd.get('charge_per_unit') as string),
+                      dueDate: fd.get('due_date') as string,
+                      description: (fd.get('description') as string) || undefined,
+                    });
+                    if (result.success) {
+                      setChargeStatus('done');
+                      (e.target as HTMLFormElement).reset();
+                    } else {
+                      setChargeStatus('error');
+                      setChargeError(result.error ?? 'Ismeretlen hiba');
+                    }
+                  }}
+                >
+                  <p className="text-xs font-bold text-brand-800">Közös költség terhelés — összes albetétnek</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input name="period" type="month" required className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Időszak (YYYY-MM)" />
+                    <input name="charge_per_unit" type="number" min={1} max={10000000} required className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Összeg (Ft/albetét)" />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input name="due_date" type="date" required className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" />
+                    <input name="description" className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Leírás (opcionális)" />
+                  </div>
+                  <input name="building_id" type="hidden" value="" />
+                  <button type="submit" disabled={chargeStatus === 'saving'} className="rounded-2xl bg-brand-600 px-4 py-2 text-sm font-black text-white hover:bg-brand-700 disabled:opacity-50">
+                    {chargeStatus === 'saving' ? 'Rögzítés...' : 'Terhelés rögzítése'}
+                  </button>
+                  {chargeStatus === 'done' && <p className="text-sm font-semibold text-emerald-700">Terhelés rögzítve.</p>}
+                  {chargeStatus === 'error' && <p className="text-sm font-semibold text-rose-600">{chargeError}</p>}
+                </form>
+              )}
+
               <ul className="space-y-2 text-sm">
-                {data.finances.map((entry) => (
-                  <li key={entry.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                    <p className="font-bold text-slate-900">{entry.period}</p>
-                    <p className="text-slate-500">Esedékes: {formatCurrency(entry.expected_amount)} · Befizetve: {formatCurrency(entry.paid_amount)} · Határidő: {formatDate(entry.due_date)}</p>
-                  </li>
-                ))}
+                {data.finances.map((entry) => {
+                  const isCharge = !entry.entry_type || entry.entry_type === 'charge';
+                  const isPayment = entry.entry_type === 'payment';
+                  return (
+                    <li key={entry.id} className={`rounded-2xl border p-3 ${isPayment ? 'border-emerald-100 bg-emerald-50/60' : 'border-slate-100 bg-slate-50'}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-bold text-slate-900">{entry.description ?? entry.period}</p>
+                          {isCharge && <p className="text-slate-500">Esedékes: {formatCurrency(entry.expected_amount)} · Befizetve: {formatCurrency(entry.paid_amount)} · Határidő: {formatDate(entry.due_date)}</p>}
+                          {isPayment && <p className="text-emerald-700 font-semibold">+{formatCurrency(entry.paid_amount)} befizetés{entry.payment_reference ? ` · Ref: ${entry.payment_reference}` : ''}</p>}
+                        </div>
+                        {isCharge && isAdminLike && (
+                          <button
+                            type="button"
+                            onClick={() => setShowPaymentForm(entry.id)}
+                            className="rounded-xl border border-emerald-200 bg-white px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 shrink-0"
+                          >
+                            Befizetés
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </SectionCard>
 
@@ -1279,6 +1359,51 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </section>
         </main>
       </div>
+
+      {/* Payment Recording Modal */}
+      {showPaymentForm ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+            <h3 className="mb-4 text-lg font-black text-slate-900 flex items-center gap-2">
+              <CircleDollarSign size={18} className="text-emerald-600" />
+              Befizetés rögzítése
+            </h3>
+            <form
+              className="space-y-3"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                setPaymentStatus('saving');
+                const entry = data.finances.find((f) => f.id === showPaymentForm);
+                const result = await recordPaymentAction({
+                  unitId: entry?.unit_id ?? '',
+                  amount: parseFloat(fd.get('amount') as string),
+                  paymentDate: fd.get('payment_date') as string,
+                  reference: (fd.get('reference') as string) || undefined,
+                });
+                if (result.success) {
+                  setPaymentStatus('done');
+                  setShowPaymentForm(null);
+                } else {
+                  setPaymentStatus('error');
+                }
+              }}
+            >
+              <input name="amount" type="number" min={1} max={10000000} required className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Összeg (Ft)" />
+              <input name="payment_date" type="date" required className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
+              <input name="reference" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Banki hivatkozás (opcionális)" />
+              <div className="flex gap-3 mt-4">
+                <button type="submit" disabled={paymentStatus === 'saving'} className="flex-1 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white hover:bg-emerald-700 disabled:opacity-50">
+                  {paymentStatus === 'saving' ? 'Mentés...' : 'Befizetés rögzítése'}
+                </button>
+                <button type="button" onClick={() => { setShowPaymentForm(null); setPaymentStatus('idle'); }} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">
+                  Mégse
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
 
       {/* AI Override Modal */}
       {overrideTicketId ? (

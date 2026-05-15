@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-05-15 — v0.3.4 Pénzügyi főkönyv + hátralék automatizáció (Initiative #8)
+
+### Added
+- **`app/actions/finance.ts`**: Teljes pénzügyi Server Action réteg — `createCharge` (tömeges egyenletes terhelés az épület összes albetétjének), `recordPayment` (befizetés rögzítés payment típusú bejegyzésként), `getArrearsReport` (hátralék riport per épület), `getUnitFinanceHistory` (albetét-szintű pénzügyi előzmény). Duplikáció-ellenőrzés, összeg/dátum/periódus validáció.
+- **`supabase/schema.sql`**: `finance_entries` tábla bővítve: `payment_date`, `payment_reference`, `created_by`, `description`, `entry_type` (charge/payment/adjustment/opening_balance). `unit_balance_view`, `building_arrears_view` nézetek. `sync_unit_balance` trigger (automatikusan frissíti `units.balance_amount`). 4 teljesítmény index.
+- **`lib/types.ts`**: `FinanceItem` interface bővítve; új `FinanceEntryType` union type.
+- **`components/dashboard-client.tsx`**: Terhelés rögzítési form (manager/könyvelő), befizetés rögzítési modal, fizetési bejegyzések zöld kiemelése, hátralék kiemelése rose színnel.
+
 ## 2026-05-15 — v0.3.3 E-mail értesítési rendszer via Resend (Initiative #10)
 
 ### Added

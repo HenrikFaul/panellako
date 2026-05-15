@@ -84,12 +84,20 @@ export interface DocumentItem {
   acknowledged_at?: string | null;
 }
 
+export type FinanceEntryType = 'charge' | 'payment' | 'adjustment' | 'opening_balance';
+
 export interface FinanceItem {
   id: string;
+  unit_id?: string;
   period: string;
   expected_amount: number;
   paid_amount: number;
   due_date: string;
+  entry_type?: FinanceEntryType;
+  description?: string;
+  payment_date?: string | null;
+  payment_reference?: string | null;
+  created_by?: string | null;
 }
 
 export interface MeetingItem {

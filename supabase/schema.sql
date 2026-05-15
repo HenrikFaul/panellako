@@ -339,6 +339,88 @@ create policy "Authenticated update resolutions" on resolutions for update using
 alter table votes drop constraint if exists votes_resolution_voter_unique;
 alter table votes add constraint votes_resolution_voter_unique unique (resolution_id, voter_profile_id);
 
+-- Initiative #8: Financial ledger enhancements
+alter table finance_entries
+  add column if not exists payment_date timestamptz,
+  add column if not exists payment_reference text,
+  add column if not exists created_by uuid references profiles(id) on delete set null,
+  add column if not exists description text,
+  add column if not exists entry_type text not null default 'charge'
+    check (entry_type in ('charge', 'payment', 'adjustment', 'opening_balance'));
+
+create index if not exists idx_finance_entries_unit_period on finance_entries (unit_id, period);
+create index if not exists idx_finance_entries_unit_id on finance_entries (unit_id);
+create index if not exists idx_finance_entries_entry_type on finance_entries (entry_type);
+create index if not exists idx_units_balance_amount on units (balance_amount) where balance_amount < 0;
+
+drop view if exists unit_balance_view;
+create view unit_balance_view as
+select
+  u.id as unit_id,
+  u.building_id,
+  u.unit_label,
+  u.owner_name,
+  u.unit_type,
+  u.balance_amount as cached_balance,
+  coalesce(sum(case when fe.entry_type in ('charge','opening_balance') then fe.expected_amount else 0 end), 0) as total_charged,
+  coalesce(sum(case when fe.entry_type = 'payment' then fe.paid_amount else 0 end), 0) as total_paid,
+  coalesce(sum(
+    case
+      when fe.entry_type in ('charge','opening_balance') then fe.expected_amount
+      when fe.entry_type = 'payment' then -fe.paid_amount
+      when fe.entry_type = 'adjustment' then fe.expected_amount - fe.paid_amount
+      else 0
+    end
+  ), 0) as computed_balance,
+  count(fe.id) as entry_count
+from units u
+left join finance_entries fe on fe.unit_id = u.id
+group by u.id, u.building_id, u.unit_label, u.owner_name, u.unit_type, u.balance_amount;
+
+drop view if exists building_arrears_view;
+create view building_arrears_view as
+select
+  ubv.building_id,
+  b.name as building_name,
+  ubv.unit_id,
+  ubv.unit_label,
+  ubv.owner_name,
+  ubv.total_charged,
+  ubv.total_paid,
+  ubv.computed_balance,
+  (select max(fe2.due_date) from finance_entries fe2 where fe2.unit_id = ubv.unit_id and fe2.entry_type = 'charge') as latest_due_date
+from unit_balance_view ubv
+join buildings b on b.id = ubv.building_id
+where ubv.computed_balance > 0
+order by ubv.computed_balance desc;
+
+drop policy if exists "Finance managers can insert finance entries" on finance_entries;
+drop policy if exists "Finance managers can update finance entries" on finance_entries;
+create policy "Finance managers can insert finance entries" on finance_entries for insert with check (true);
+create policy "Finance managers can update finance entries" on finance_entries for update using (true) with check (true);
+
+create or replace function sync_unit_balance()
+returns trigger language plpgsql as $$
+declare v_computed_balance numeric(12,2);
+begin
+  select coalesce(sum(
+    case
+      when entry_type in ('charge','opening_balance') then expected_amount
+      when entry_type = 'payment' then -paid_amount
+      when entry_type = 'adjustment' then expected_amount - paid_amount
+      else 0
+    end
+  ), 0) into v_computed_balance from finance_entries where unit_id = new.unit_id;
+  update units set balance_amount = v_computed_balance where id = new.unit_id;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_sync_unit_balance on finance_entries;
+create trigger trg_sync_unit_balance
+  after insert or update on finance_entries
+  for each row execute function sync_unit_balance();
+
 -- Initiative #10: Email notification preferences on profiles
 alter table profiles add column if not exists notifications_email boolean not null default true;
 alter table profiles add column if not exists notifications_statutory_email boolean not null default true;
