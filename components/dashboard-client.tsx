@@ -53,6 +53,8 @@ import { createTicket as createTicketAction, updateTicketStatus as updateTicketS
 import { submitMeterReading as submitMeterReadingAction } from '@/app/actions/meter-readings';
 import { createAnnouncement as createAnnouncementAction } from '@/app/actions/announcements';
 import { acknowledgeDocument as acknowledgeDocumentAction } from '@/app/actions/documents';
+import { updateWorkOrderStatus as updateWorkOrderStatusAction } from '@/app/actions/work-orders';
+import { submitVote as submitVoteAction } from '@/app/actions/votes';
 
 type DashboardData = {
   source: string;
@@ -912,11 +914,19 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       </div>
                       <StatusBadge status={meeting.status} />
                     </div>
-                    <div className="mt-3 grid gap-2 text-xs font-bold sm:grid-cols-3">
-                      <button className="rounded-xl bg-brand-50 px-3 py-2 text-brand-700" type="button">Meghívó</button>
-                      <button className="rounded-xl bg-violet-50 px-3 py-2 text-violet-700" type="button">Szavazás</button>
-                      <button className="rounded-xl bg-slate-100 px-3 py-2 text-slate-700" type="button">Határozatok</button>
-                    </div>
+                    {meeting.status === 'tervezett' && (
+                      <div className="mt-3 grid gap-2 text-xs font-bold sm:grid-cols-3">
+                        <button className="rounded-xl bg-brand-50 px-3 py-2 text-brand-700" type="button">Meghívó</button>
+                        <button
+                          type="button"
+                          className="rounded-xl bg-violet-50 px-3 py-2 text-violet-700 hover:bg-violet-100"
+                          onClick={() => alert('Szavazáshoz válasszon határozatot a közgyűlés részletes nézetéből.')}
+                        >
+                          Szavazás
+                        </button>
+                        <button className="rounded-xl bg-slate-100 px-3 py-2 text-slate-700" type="button">Határozatok</button>
+                      </div>
+                    )}
                   </article>
                 ))}
               </div>
@@ -939,7 +949,22 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       <p className="font-bold text-slate-900">{workOrder.ticket_title}</p>
                       <p className="text-slate-500">{workOrder.vendor_name} · {formatDate(workOrder.due_date)} · {formatCurrency(workOrder.cost_estimate)}</p>
                     </div>
-                    <StatusBadge status={workOrder.status} />
+                    {isManager ? (
+                      <select
+                        defaultValue={workOrder.status}
+                        onChange={async (e) => {
+                          await updateWorkOrderStatusAction(workOrder.id, e.target.value as WorkOrderItem['status']);
+                        }}
+                        className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      >
+                        <option value="tervezett">Tervezett</option>
+                        <option value="kikuldve">Kiküldve</option>
+                        <option value="folyamatban">Folyamatban</option>
+                        <option value="lezarva">Lezárva</option>
+                      </select>
+                    ) : (
+                      <StatusBadge status={workOrder.status} />
+                    )}
                   </article>
                 ))}
               </div>

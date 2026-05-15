@@ -308,3 +308,29 @@ create policy "Public insert meter readings" on meter_readings for insert with c
 create policy "Manager insert announcements" on announcements for insert with check (true);
 create policy "Manager insert notifications" on notifications for insert with check (true);
 create policy "Public insert audit logs" on audit_logs for insert with check (true);
+
+-- Previously missing INSERT policies
+drop policy if exists "Authenticated insert documents" on documents;
+drop policy if exists "Authenticated insert document acknowledgements" on document_acknowledgements;
+drop policy if exists "Authenticated insert finance entries" on finance_entries;
+drop policy if exists "Authenticated insert votes" on votes;
+drop policy if exists "Authenticated insert work orders" on work_orders;
+
+create policy "Authenticated insert documents" on documents for insert with check (true);
+create policy "Authenticated insert document acknowledgements" on document_acknowledgements for insert with check (true);
+create policy "Authenticated insert finance entries" on finance_entries for insert with check (true);
+create policy "Authenticated insert votes" on votes for insert with check (true);
+create policy "Authenticated insert work orders" on work_orders for insert with check (true);
+
+-- Previously missing UPDATE policies
+drop policy if exists "Authenticated update tickets" on tickets;
+drop policy if exists "Authenticated update notifications" on notifications;
+drop policy if exists "Authenticated update document acknowledgements" on document_acknowledgements;
+drop policy if exists "Authenticated update work orders" on work_orders;
+drop policy if exists "Authenticated update resolutions" on resolutions;
+
+create policy "Authenticated update tickets" on tickets for update using (true) with check (true);
+create policy "Authenticated update notifications" on notifications for update using (true) with check (true);
+create policy "Authenticated update document acknowledgements" on document_acknowledgements for update using (true) with check (true);
+create policy "Authenticated update work orders" on work_orders for update using (true) with check (true);
+create policy "Authenticated update resolutions" on resolutions for update using (true) with check (true);
