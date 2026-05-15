@@ -339,6 +339,11 @@ create policy "Authenticated update resolutions" on resolutions for update using
 alter table votes drop constraint if exists votes_resolution_voter_unique;
 alter table votes add constraint votes_resolution_voter_unique unique (resolution_id, voter_profile_id);
 
+-- Initiative #10: Email notification preferences on profiles
+alter table profiles add column if not exists notifications_email boolean not null default true;
+alter table profiles add column if not exists notifications_statutory_email boolean not null default true;
+alter table profiles add column if not exists unsubscribe_token uuid default gen_random_uuid();
+
 -- Initiative #7: AI triage columns on tickets
 alter table tickets add column if not exists ai_category text;
 alter table tickets add column if not exists ai_urgency integer check (ai_urgency >= 1 and ai_urgency <= 10);

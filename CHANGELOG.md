@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-05-15 — v0.3.3 E-mail értesítési rendszer via Resend (Initiative #10)
+
+### Added
+- **`lib/email.ts`**: Központi e-mail küldő modul Resend SDK-val. `sendEmail` (single), `sendBulkEmail` (batch, rate-limit-aware chunking), `renderEmailTemplate`, `generateUnsubscribeUrl`. Graceful fallback (console log) ha `RESEND_API_KEY` nincs beállítva.
+- **`lib/email-templates/announcement.tsx`**: React Email komponens hirdetményekhez — PanelLakó branded HTML email, kategória badge, CTA gomb, leiratkozás link.
+- **`lib/email-templates/ticket-update.tsx`**: React Email komponens ticket státuszfrissítési értesítőhöz — régi→új státusz megjelenítés.
+- **`app/api/email/unsubscribe/route.ts`**: GET endpoint egykulcsos leiratkozáshoz — `unsubscribe_token` UUID alapján frissíti a `profiles.notifications_email = false` értékét.
+- **`app/actions/announcements.ts`**: `createAnnouncement` mostantól fire-and-forget módon e-mailt küld az épület összes opt-in lakójának hirdetmény létrehozásakor.
+- **`supabase/schema.sql`**: `profiles` tábla bővítve: `notifications_email`, `notifications_statutory_email`, `unsubscribe_token` oszlopok.
+- **`lib/types.ts`**: `UserProfile` interface bővítve e-mail preference mezőkkel.
+- `@react-email/components`, `@react-email/render` csomagok telepítve.
+
+### Pre-condition
+`RESEND_API_KEY=re_xxx` beállítása `.env.local`-ban és Vercel-en. A `panellako.hu` domain verifikálása a Resend dashboardon.
+
 ## 2026-05-15 — v0.3.2 AI hibabejelentés triázs — claude-haiku-4-5 (Initiative #7)
 
 ### Added

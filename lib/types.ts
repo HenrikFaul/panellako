@@ -5,6 +5,9 @@ export interface UserProfile {
   full_name: string;
   email: string;
   role: Role;
+  notifications_email?: boolean;
+  notifications_statutory_email?: boolean;
+  unsubscribe_token?: string;
 }
 
 export type NewsCategory = 'tarsashazi_kozlony' | 'keruleti_hir' | 'uzemeltetes' | 'biztonsag' | 'egyeb';
