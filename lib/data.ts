@@ -13,7 +13,8 @@ import {
   mockVendors,
   mockWorkOrders
 } from './mock-data';
-import { hasSupabaseConfig, supabase } from './supabase';
+import { createClient } from './supabase/server';
+import { hasSupabaseConfig } from './supabase';
 import { Role } from './types';
 
 export async function getDashboardData(role: Role = 'lako') {
@@ -34,9 +35,11 @@ export async function getDashboardData(role: Role = 'lako') {
     auditLogs: mockAuditLogs
   };
 
-  if (!hasSupabaseConfig || !supabase) {
+  if (!hasSupabaseConfig) {
     return fallback;
   }
+
+  const supabase = createClient();
 
   const [news, notifications, tickets, meterReadings, documents, finances, meetings, units, vendors, workOrders, kbArticles, auditLogs] = await Promise.all([
     supabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(5),

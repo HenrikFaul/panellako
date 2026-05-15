@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-05-15 — v0.2.1 Server Action sémaillesztési javítások + optimista rollback
+
+### Fixed
+- **`app/actions/documents.ts`**: `document_acknowledgements` upsert `acknowledged_at` → `viewed_at` (séma oszlopnév helyreállítva; a korábbi verzió silently misfired).
+- **`app/actions/meter-readings.ts`**: `submitted_at` mező eltávolítva — ez az oszlop nem létezik a `meter_readings` sémában (`created_at` default now() kezeli).
+- **`app/actions/documents.ts`**: `uploaded_by` mező eltávolítva a `createDocument` insertből — nem létező sémaoszlop.
+- **`components/dashboard-client.tsx`**: Optimista rollback implementálva:
+  - Ticket létrehozásnál: ha a Server Action sikertelensége esetén az optimista ticket visszavonásra kerül (`filter` a temp id alapján), a form reset csak sikeresnél fut le.
+  - Ticket státusz frissítésnél: ha a `updateTicketStatusAction` sikertelenül tér vissza, a korábbi `tickets` állapot visszaáll.
+
+---
+
+## 2026-05-15 — v0.2.0 SSR Auth + Server Actions + Analízis sprint
+
+### Added
+- **SSR Auth hardening** (`middleware.ts`, `lib/supabase/server.ts`, `lib/supabase/browser.ts`): cookie-alapú munkamenet, `getUser()` az összes auth kritikus ponton — `getSession()` eltávolítva az egész kódbázisból.
+- **@supabase/ssr** csomag: Next.js App Router kompatibilis SSR Supabase kliens.
+- **Server Actions réteg** (`app/actions/`): `tickets.ts`, `meter-readings.ts`, `announcements.ts`, `notifications.ts`, `documents.ts` — az összes mutáció valós Supabase írást hajt végre `revalidatePath('/')` frissítéssel.
+- **Optimista UI frissítések** ticket létrehozásnál és státusz változtatásnál — gyors UX, szerver szinkron a háttérben.
+- **Dokumentum visszaigazolás gomb** (`acknowledgeDocument` Server Action bekötve) — `document_acknowledgements` táblába ír.
+- **Resend** e-mail csomag telepítve (kész az e-mail értesítési sprint folytatásához).
+- **Valuation + Growth Strategy PDF-ek** (`growth_strategy/output/`, `valuation/output/`): 4 PDF, EN+HU, teljes PanelLakó-specifikus tartalommal.
+- **Growth Strategy elemzés**: 10 rangsorolt kezdeményezés, valódi ROI tartományokkal és implementációs promptokkal.
+- **docs/** rendszer generálva a doc creation toolkit alapján.
+
+### Changed
+- `lib/data.ts`: szerver-oldali `createClient()` hívás (`@supabase/ssr`) a kliens-oldali `supabase` singleton helyett.
+- `components/dashboard-client.tsx`: auth ellenőrzés `getUser()`-re váltva, mutációk Server Action hívásokra bekötve, kijelentkezés gomb `createClient()` alapú.
+- Mérőóra és értesítés form: `name` attribútumok hozzáadva, Server Action bekötve.
+
+### Infrastructure
+- Baseline valuation: **€180k–€420k** (pre-revenue MVP+)
+- Target valuation post-10 initiatives: **€2.1M–€5.8M**
+
 ## 2026-04-27
 ### Added
 - Elkészült a PanelLakó MVP Next.js + Tailwind alapú webalkalmazás fő dashboard felülete.
