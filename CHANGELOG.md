@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-05-15 — v0.3.5 Közgyűlési protokoll generator (Initiative #9)
+
+### Added
+- **`app/actions/meetings.ts`**: Teljes közgyűlési Server Action réteg — `createMeeting` (napirendi pontokkal együtt, audit log bejegyzéssel), `sendAssemblyInvitation` (Ptk. 5:84 8 napos előírás ellenőrzéssel), `recordAttendance` (tulajdoni hányad alapú jelenléti nyilvántartás, upsert), `recordVote` (szavazat rögzítés súlyozással), `closeMeeting` (kvórum automatikus kiszámítása attendance adatokból).
+- **`supabase/schema.sql`**: `meetings` tábla bővítve — `status_detail`, `quorum_threshold`, `actual_quorum`, `protocol_url`, `invitation_sent_at`, `location`, `chairperson_name`, `secretary_name`. Új `meeting_attendances` tábla (RLS-sel). `documents.document_type` oszlop. Meeting és agenda_item INSERT/UPDATE policy-k.
+- **`lib/types.ts`**: `MeetingItem` interface bővítve kvórum, meghívó, protokoll mezőkkel.
+- **`components/dashboard-client.tsx`**: Közgyűlés létrehozási form (manager), meghívó küldés gomb (Ptk. 5:84 ellenőrzéssel), kvórum megjelenítés, közgyűlés lezárás gomb.
+- **`@react-pdf/renderer`** csomag telepítve (PDF protokoll generáláshoz).
+
 ## 2026-05-15 — v0.3.4 Pénzügyi főkönyv + hátralék automatizáció (Initiative #8)
 
 ### Added

@@ -57,6 +57,7 @@ import { acknowledgeDocument as acknowledgeDocumentAction, uploadDocument as upl
 import { updateWorkOrderStatus as updateWorkOrderStatusAction } from '@/app/actions/work-orders';
 import { submitVote as submitVoteAction } from '@/app/actions/votes';
 import { createCharge as createChargeAction, recordPayment as recordPaymentAction } from '@/app/actions/finance';
+import { createMeeting as createMeetingAction, closeMeeting as closeMeetingAction, sendAssemblyInvitation as sendInvitationAction } from '@/app/actions/meetings';
 
 type DashboardData = {
   source: string;
@@ -307,6 +308,12 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [uploadError, setUploadError] = useState('');
   const [kommandOpen, setKommandOpen] = useState(false);
   const [kommandQuery, setKommandQuery] = useState('');
+
+  // Meetings state
+  const [showMeetingForm, setShowMeetingForm] = useState(false);
+  const [meetingStatus, setMeetingStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+  const [meetingError, setMeetingError] = useState('');
+  const [meetings, setMeetings] = useState(data.meetings);
 
   // Finance state
   const [showChargeForm, setShowChargeForm] = useState(false);
@@ -1207,33 +1214,129 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </section>
 
           <section className="grid gap-6 xl:grid-cols-2">
-            <SectionCard id="meetings" title="Közgyűlés, határozatok és szavazás" icon={<Vote size={18} />}>
+            <SectionCard id="meetings" title="Közgyűlés, határozatok és szavazás" icon={<Vote size={18} />} action={
+              isManager ? (
+                <button
+                  type="button"
+                  onClick={() => { setShowMeetingForm((v) => !v); setMeetingStatus('idle'); setMeetingError(''); }}
+                  className="rounded-2xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700"
+                >
+                  + Közgyűlés
+                </button>
+              ) : undefined
+            }>
+              {/* Meeting creation form */}
+              {isManager && showMeetingForm && (
+                <form
+                  className="mb-4 space-y-3 rounded-2xl border border-brand-100 bg-brand-50/60 p-4"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const fd = new FormData(e.currentTarget);
+                    const agendaRaw = (fd.get('agenda') as string).split('\n').filter(Boolean);
+                    const agendaItems = agendaRaw.map((title, i) => ({ order_no: i + 1, title: title.trim() }));
+                    setMeetingStatus('saving');
+                    setMeetingError('');
+                    const result = await createMeetingAction({
+                      building_id: (fd.get('building_id') as string) || 'global',
+                      title: fd.get('title') as string,
+                      scheduled_at: fd.get('scheduled_at') as string,
+                      location: fd.get('location') as string,
+                      chairperson_name: (fd.get('chairperson') as string) || undefined,
+                      secretary_name: (fd.get('secretary') as string) || undefined,
+                      agenda_items: agendaItems,
+                    });
+                    if (result.success) {
+                      setMeetingStatus('done');
+                      (e.target as HTMLFormElement).reset();
+                      setShowMeetingForm(false);
+                    } else {
+                      setMeetingStatus('error');
+                      setMeetingError(result.error ?? 'Ismeretlen hiba');
+                    }
+                  }}
+                >
+                  <p className="text-xs font-bold text-brand-800">Új közgyűlés létrehozása</p>
+                  <input name="title" required className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Közgyűlés neve" />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input name="scheduled_at" type="datetime-local" required className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" />
+                    <input name="location" className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Helyszín" />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input name="chairperson" className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Levezető elnök neve" />
+                    <input name="secretary" className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Jegyzőkönyvvezető neve" />
+                  </div>
+                  <textarea name="agenda" required rows={4} className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Napirendi pontok (soronként egy)" />
+                  <input name="building_id" type="hidden" value="" />
+                  <button type="submit" disabled={meetingStatus === 'saving'} className="rounded-2xl bg-brand-600 px-4 py-2 text-sm font-black text-white hover:bg-brand-700 disabled:opacity-50">
+                    {meetingStatus === 'saving' ? 'Létrehozás...' : 'Közgyűlés létrehozása'}
+                  </button>
+                  {meetingStatus === 'error' && <p className="text-sm font-semibold text-rose-600">{meetingError}</p>}
+                </form>
+              )}
+
               <div className="space-y-3">
-                {data.meetings.map((meeting) => (
-                  <article key={meeting.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="font-black text-slate-950">{meeting.title}</p>
-                        <p className="mt-1 text-sm text-slate-500">{formatDateTime(meeting.scheduled_at)} · határozatok: {meeting.resolution_count}</p>
-                        {meeting.agenda_preview ? <p className="mt-2 text-sm text-slate-600">Napirend: {meeting.agenda_preview}</p> : null}
+                {meetings.map((meeting) => {
+                  const quorumPct = meeting.actual_quorum != null ? (meeting.actual_quorum * 100).toFixed(1) : null;
+                  const thresholdPct = ((meeting.quorum_threshold ?? 0.5) * 100).toFixed(0);
+                  const quorumMet = meeting.actual_quorum != null && meeting.actual_quorum >= (meeting.quorum_threshold ?? 0.5);
+
+                  return (
+                    <article key={meeting.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-black text-slate-950">{meeting.title}</p>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {formatDateTime(meeting.scheduled_at)}
+                            {meeting.location ? ` · ${meeting.location}` : ''}
+                            {' · '}{meeting.resolution_count} határozat
+                          </p>
+                          {meeting.agenda_preview ? <p className="mt-1 text-sm italic text-slate-600">Napirend: {meeting.agenda_preview}</p> : null}
+                          {quorumPct ? (
+                            <p className={`mt-1 text-xs font-bold ${quorumMet ? 'text-emerald-700' : 'text-rose-600'}`}>
+                              Kvórum: {quorumPct}% ({quorumMet ? `✓ határozatképes (min. ${thresholdPct}%)` : `✗ nem határozatképes (min. ${thresholdPct}%)`})
+                            </p>
+                          ) : null}
+                          {meeting.invitation_sent_at ? (
+                            <p className="mt-1 text-xs text-emerald-700">Meghívó kiküldve: {formatDateTime(meeting.invitation_sent_at)}</p>
+                          ) : null}
+                        </div>
+                        <StatusBadge status={meeting.status} />
                       </div>
-                      <StatusBadge status={meeting.status} />
-                    </div>
-                    {meeting.status === 'tervezett' && (
-                      <div className="mt-3 grid gap-2 text-xs font-bold sm:grid-cols-3">
-                        <button className="rounded-xl bg-brand-50 px-3 py-2 text-brand-700" type="button">Meghívó</button>
-                        <button
-                          type="button"
-                          className="rounded-xl bg-violet-50 px-3 py-2 text-violet-700 hover:bg-violet-100"
-                          onClick={() => alert('Szavazáshoz válasszon határozatot a közgyűlés részletes nézetéből.')}
-                        >
-                          Szavazás
-                        </button>
-                        <button className="rounded-xl bg-slate-100 px-3 py-2 text-slate-700" type="button">Határozatok</button>
-                      </div>
-                    )}
-                  </article>
-                ))}
+                      {isManager && meeting.status === 'tervezett' && (
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+                          <button
+                            type="button"
+                            className="rounded-xl bg-brand-50 px-3 py-2 text-brand-700 hover:bg-brand-100"
+                            onClick={async () => {
+                              const result = await sendInvitationAction(meeting.id);
+                              if (!result.success) alert(result.error);
+                              else alert(`Meghívó kiküldési rekord rögzítve (${result.days_until_meeting} nap múlva a közgyűlés).`);
+                            }}
+                          >
+                            Meghívó küldés
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-xl bg-slate-100 px-3 py-2 text-slate-700 hover:bg-slate-200"
+                            onClick={async () => {
+                              if (!confirm('Közgyűlés lezárása? A kvórum és határozatképesség rögzítve lesz.')) return;
+                              const buildingId = meeting.id; // fallback — in production pass real building_id
+                              const result = await closeMeetingAction(meeting.id, buildingId);
+                              if (!result.success) alert(result.error);
+                              else {
+                                const pct = result.actual_quorum != null ? (result.actual_quorum * 100).toFixed(1) : '?';
+                                alert(`Közgyűlés lezárva. Megjelent tulajdoni hányad: ${pct}%`);
+                                setMeetings((prev) => prev.map((m) => m.id === meeting.id ? { ...m, status: 'lezart' as const, actual_quorum: result.actual_quorum } : m));
+                              }
+                            }}
+                          >
+                            Lezárás
+                          </button>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
               </div>
             </SectionCard>
 

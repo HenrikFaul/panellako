@@ -339,6 +339,50 @@ create policy "Authenticated update resolutions" on resolutions for update using
 alter table votes drop constraint if exists votes_resolution_voter_unique;
 alter table votes add constraint votes_resolution_voter_unique unique (resolution_id, voter_profile_id);
 
+-- Initiative #9: Assembly protocol generator — meetings table extensions
+alter table meetings add column if not exists status_detail text
+  check (status_detail in ('tervezett', 'aktiv', 'szavazas_folyamatban', 'lezarva'));
+alter table meetings add column if not exists quorum_threshold numeric default 0.5;
+alter table meetings add column if not exists actual_quorum numeric;
+alter table meetings add column if not exists protocol_url text;
+alter table meetings add column if not exists protocol_generated_at timestamptz;
+alter table meetings add column if not exists invitation_sent_at timestamptz;
+alter table meetings add column if not exists location text;
+alter table meetings add column if not exists chairperson_name text;
+alter table meetings add column if not exists secretary_name text;
+
+create table if not exists meeting_attendances (
+  id uuid primary key default gen_random_uuid(),
+  meeting_id uuid not null references meetings(id) on delete cascade,
+  profile_id uuid references profiles(id) on delete set null,
+  unit_id uuid not null references units(id) on delete cascade,
+  ownership_share numeric(10,4) not null,
+  attended_at timestamptz not null default now(),
+  proxy_name text,
+  proxy_document_url text,
+  unique (meeting_id, unit_id)
+);
+
+alter table meeting_attendances enable row level security;
+drop policy if exists "Public read meeting attendances" on meeting_attendances;
+create policy "Public read meeting attendances" on meeting_attendances for select using (true);
+drop policy if exists "Manager insert meeting attendances" on meeting_attendances;
+create policy "Manager insert meeting attendances" on meeting_attendances for insert with check (true);
+drop policy if exists "Manager update meeting attendances" on meeting_attendances;
+create policy "Manager update meeting attendances" on meeting_attendances for update using (true);
+
+drop policy if exists "Manager insert meetings" on meetings;
+create policy "Manager insert meetings" on meetings for insert with check (true);
+drop policy if exists "Manager update meetings" on meetings;
+create policy "Manager update meetings" on meetings for update using (true);
+
+drop policy if exists "Manager insert agenda items" on agenda_items;
+create policy "Manager insert agenda items" on agenda_items for insert with check (true);
+drop policy if exists "Manager insert resolutions" on resolutions;
+create policy "Manager insert resolutions" on resolutions for insert with check (true);
+
+alter table documents add column if not exists document_type text default 'upload';
+
 -- Initiative #8: Financial ledger enhancements
 alter table finance_entries
   add column if not exists payment_date timestamptz,

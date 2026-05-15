@@ -105,8 +105,15 @@ export interface MeetingItem {
   title: string;
   scheduled_at: string;
   status: 'tervezett' | 'lezart';
+  status_detail?: string;
   resolution_count: number;
   agenda_preview?: string;
+  location?: string;
+  actual_quorum?: number | null;
+  quorum_threshold?: number;
+  invitation_sent_at?: string | null;
+  protocol_url?: string | null;
+  protocol_generated_at?: string | null;
 }
 
 export interface UnitItem {
