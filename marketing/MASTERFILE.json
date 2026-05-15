@@ -1,0 +1,172 @@
+{
+  "domain": "marketing",
+  "version": "2.0",
+  "lastUpdated": "2026-05-12",
+  "purpose": "Routes all marketing-related AI work for Effectime. Read SYSTEM.md first, then use this file to identify which specialist file handles a specific task.",
+  "globalController": "marketing/SYSTEM.md",
+  "strategyEntry": "marketing/strategy/marketing_master_controller.md",
+  "marketingValuesFolder": "marketing/marketing_values/",
+  "sections": [
+    {
+      "name": "strategy",
+      "purpose": "Positioning, GTM, channels, offer strategy, founder-led growth",
+      "recommendedAgent": "Claude strategy / reasoning agent",
+      "controller": "marketing/strategy/marketing_master_controller.md",
+      "files": [
+        "marketing/strategy/marketing_master_controller.md",
+        "marketing/strategy/positioning_masterprompt.md",
+        "marketing/strategy/go_to_market_masterprompt.md",
+        "marketing/strategy/channel_strategy_masterprompt.md",
+        "marketing/strategy/pricing_and_offer_masterprompt.md",
+        "marketing/strategy/founder_led_marketing_masterprompt.md"
+      ]
+    },
+    {
+      "name": "research",
+      "purpose": "Market research, competitor analysis, ICP/persona definition, pain mapping, JTBD",
+      "recommendedAgent": "Claude research / reasoning agent",
+      "files": [
+        "marketing/research/market_research_masterprompt.md",
+        "marketing/research/competitor_messaging_analysis.md",
+        "marketing/research/icp_persona_builder.md",
+        "marketing/research/objections_and_pains.md",
+        "marketing/research/jobs_to_be_done_research.md"
+      ]
+    },
+    {
+      "name": "messaging",
+      "purpose": "Brand messaging, value propositions, feature-to-outcome translation, proof assets, narrative",
+      "recommendedAgent": "Claude writing / content agent",
+      "files": [
+        "marketing/messaging/brand_messaging_framework.md",
+        "marketing/messaging/homepage_messaging.md",
+        "marketing/messaging/feature_to_outcome_translation.md",
+        "marketing/messaging/value_prop_builder.md",
+        "marketing/messaging/proof_and_trust_assets.md",
+        "marketing/messaging/narrative_house.md"
+      ]
+    },
+    {
+      "name": "content",
+      "purpose": "Founder content, SEO articles, case studies, LinkedIn posts, email nurture, webinars, sales enablement content",
+      "recommendedAgent": "Claude writing / content agent",
+      "controller": "marketing/content/content_engine_controller.md",
+      "files": [
+        "marketing/content/content_engine_controller.md",
+        "marketing/content/linkedin_content_masterprompt.md",
+        "marketing/content/founder_post_masterprompt.md",
+        "marketing/content/seo_article_masterprompt.md",
+        "marketing/content/case_study_masterprompt.md",
+        "marketing/content/email_nurture_masterprompt.md",
+        "marketing/content/webinar_masterprompt.md",
+        "marketing/content/sales_enablement_content.md"
+      ]
+    },
+    {
+      "name": "campaigns",
+      "purpose": "Campaign architecture, LinkedIn ads, retargeting, events, guerrilla, product launches",
+      "recommendedAgent": "Claude campaign strategist agent",
+      "controller": "marketing/campaigns/campaign_architecture_masterprompt.md",
+      "files": [
+        "marketing/campaigns/campaign_architecture_masterprompt.md",
+        "marketing/campaigns/linkedin_ads_masterprompt.md",
+        "marketing/campaigns/retargeting_masterprompt.md",
+        "marketing/campaigns/event_based_marketing.md",
+        "marketing/campaigns/guerilla_marketing_masterprompt.md",
+        "marketing/campaigns/launch_campaign_masterprompt.md"
+      ]
+    },
+    {
+      "name": "visual",
+      "purpose": "Visual brand system, website art direction, ad creatives, social visuals, case study visuals, infographics",
+      "recommendedAgent": "Claude design / UX / web agent",
+      "controller": "marketing/visual/visual_direction_controller.md",
+      "files": [
+        "marketing/visual/visual_direction_controller.md",
+        "marketing/visual/brand_visual_system.md",
+        "marketing/visual/website_art_direction.md",
+        "marketing/visual/ad_creative_prompt_library.md",
+        "marketing/visual/social_visual_prompt_library.md",
+        "marketing/visual/case_study_visuals.md",
+        "marketing/visual/infographic_prompt_library.md"
+      ]
+    },
+    {
+      "name": "website",
+      "purpose": "Homepage, landing pages, solution pages, industry pages, comparison pages, conversion copy",
+      "recommendedAgent": "Claude writing / web agent",
+      "controller": "marketing/website/conversion_copy_controller.md",
+      "files": [
+        "marketing/website/homepage_masterprompt.md",
+        "marketing/website/landing_page_masterprompt.md",
+        "marketing/website/solution_pages_masterprompt.md",
+        "marketing/website/industry_pages_masterprompt.md",
+        "marketing/website/comparison_pages_masterprompt.md",
+        "marketing/website/conversion_copy_controller.md"
+      ]
+    },
+    {
+      "name": "sales",
+      "purpose": "Sales deck, one-pager, demo scripts, objection handling, proposals",
+      "recommendedAgent": "Claude writing / sales agent",
+      "files": [
+        "marketing/sales/sales_deck_masterprompt.md",
+        "marketing/sales/one_pager_masterprompt.md",
+        "marketing/sales/demo_script_masterprompt.md",
+        "marketing/sales/objection_handling_masterprompt.md",
+        "marketing/sales/proposal_masterprompt.md"
+      ]
+    },
+    {
+      "name": "analytics",
+      "purpose": "Measurement framework, funnel KPIs, attribution, experiment backlog",
+      "recommendedAgent": "Claude strategy / analytics agent",
+      "files": [
+        "marketing/analytics/measurement_framework.md",
+        "marketing/analytics/funnel_kpi_masterprompt.md",
+        "marketing/analytics/attribution_notes.md",
+        "marketing/analytics/experiment_backlog_masterprompt.md"
+      ]
+    },
+    {
+      "name": "governance",
+      "purpose": "Terminology guardrails, content quality checklist, visual quality checklist, brand safety, localization rules",
+      "recommendedAgent": "Claude review / governance agent",
+      "files": [
+        "marketing/governance/terminology_and_positioning_guardrails.md",
+        "marketing/governance/content_quality_checklist.md",
+        "marketing/governance/visual_quality_checklist.md",
+        "marketing/governance/brand_safety_rules.md",
+        "marketing/governance/localization_marketing_rules.md"
+      ]
+    },
+    {
+      "name": "marketing_values",
+      "purpose": "Per-feature marketing impact log. One file per product release documenting marketable outcomes, claim types, content angles, and persona relevance. Bridge between product development and marketing.",
+      "recommendedAgent": "Claude content / strategy agent",
+      "namingConvention": "YYYYMMDD_vX.Y.Z_feature-slug_marketing_value.md",
+      "readBy": ["content agents", "campaign agents", "messaging agents"],
+      "note": "New file must be created alongside every versioning/*.md delivery artifact."
+    }
+  ],
+  "workflow": [
+    "1. Read SYSTEM.md for doctrine and routing",
+    "2. Read relevant marketing_values/ entries for current product capabilities",
+    "3. Use strategy/ files to define or confirm positioning",
+    "4. Use research/ files to ground messaging in real audience insight",
+    "5. Use messaging/ files to build the message architecture",
+    "6. Use content/ files to produce written assets",
+    "7. Use visual/ files for design direction and AI image prompts",
+    "8. Use website/ files for conversion-focused copy",
+    "9. Use campaigns/ files for demand generation planning",
+    "10. Use sales/ files for pipeline-accelerating materials",
+    "11. Use analytics/ files to define and track performance",
+    "12. Use governance/ files to review all outputs before publishing"
+  ],
+  "agentRouting": {
+    "strategy": "Claude strategy / reasoning agent",
+    "copy": "Claude writing / content agent",
+    "design": "Claude design / UX / web agent",
+    "repoWriter": "Claude repo writing agent — reads outputs from other agents and writes library files"
+  }
+}
