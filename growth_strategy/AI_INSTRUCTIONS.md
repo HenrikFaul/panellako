@@ -239,6 +239,99 @@ Output lands in `growth_strategy/output/`:
 
 ---
 
+## 6.5 · Generate Markdown reports (run after PDFs)
+
+For every language you generated a PDF, also produce a Markdown twin. The MD
+files are committed to the repo so that humans and AI agents can read the
+reports without a PDF viewer.
+
+### Output files
+
+| File | Content |
+|---|---|
+| `growth_strategy/output/valuation-report-en.md` | Full EN valuation report in Markdown |
+| `growth_strategy/output/valuation-report-hu.md` | Full HU valuation report in Markdown |
+| `growth_strategy/output/growth-strategy-en.md` | Full EN growth strategy report in Markdown |
+| `growth_strategy/output/growth-strategy-hu.md` | Full HU growth strategy report in Markdown |
+
+### Markdown generation rules
+
+1. Use the **same JSON data files** you already filled in — do not invent new content.
+2. Every section becomes a `##` heading; every subsection a `###` heading.
+3. Render all tables as GitHub-flavored Markdown tables.
+4. Bold key figures (`**€180k–€420k**`, `**1,050 h**`, etc.) as they appear in the JSON.
+5. Include KPI blocks as a table.
+6. Include callouts as blockquotes (`>`).
+7. Each initiative in the growth report must include: title, value range, 3 description paragraphs, implementation steps (numbered list), metrics table, and the regen prompt as a fenced code block.
+8. Produce one `.md` file per language per report type — same 4 files as the PDFs.
+
+---
+
+## 7 · Generate development prompts for each growth initiative
+
+After the reports are generated, produce one ultra-detailed development prompt
+for **every initiative** in the growth strategy report. These prompts are
+ready to be pasted directly into an AI coding assistant (Claude Code, Cursor,
+Windsurf, etc.) to implement the initiative end-to-end.
+
+### Output location
+
+```
+growth_strategy/output/dev_prompts/
+├── 01_supabase-data-writes.md
+├── 02_ssr-auth-hardening.md
+├── 03_storage-document-upload.md
+├── 04_saas-billing-stripe.md
+├── 05_multi-building-dashboard.md
+├── 06_mobile-pwa-push.md
+├── 07_ai-ticket-triage.md
+├── 08_financial-ledger.md
+├── 09_assembly-protocol-generator.md
+├── 10_email-notification-resend.md
+└── README.md
+```
+
+### Mandatory structure for each prompt file
+
+Each file must be **at least 22,000 characters**. Shorter prompts are
+incomplete — the goal is a prompt thorough enough that an AI coding
+agent can implement the feature with zero follow-up questions.
+
+Every prompt must include, in order:
+
+1. **Initiative header** — title, value range, business case (3–5 sentences)
+2. **Codebase context** — current file tree of relevant files, current state
+   of the relevant source files (what exists, what is missing, what is wrong)
+3. **Pre-conditions** — what must be true before starting (env vars set,
+   packages installed, schema applied, etc.)
+4. **Phase 1: Database changes** — complete SQL migration with `ALTER TABLE /
+   CREATE TABLE / CREATE POLICY` statements ready to paste into Supabase SQL editor
+5. **Phase 2: Server-side** — complete TypeScript code for all Server Actions
+   and/or API routes, with full error handling, `revalidatePath`, and auth checks
+6. **Phase 3: Client-side integration** — complete diff-style description of
+   component changes, with full replacement code blocks for modified sections
+7. **Phase 4: Configuration** — env vars, external service setup steps (with URLs),
+   any `next.config.mjs` / middleware changes required
+8. **Phase 5: Testing** — step-by-step smoke test script the developer can
+   follow manually; plus recommended automated test cases
+9. **Error handling & edge cases** — at least 6 specific failure scenarios
+   and how the code handles each
+10. **Integration with other initiatives** — how this initiative connects to
+    others in the report; which ones depend on it; which ones it depends on
+11. **Rollback plan** — how to safely undo if the implementation goes wrong
+12. **Definition of done** — a concrete checklist (≥10 items) of what "done" means
+
+### Quality bar
+
+- Reference **real file paths** from this repo (e.g. `app/actions/tickets.ts`,
+  `lib/data.ts`, `supabase/schema.sql`).
+- Include **complete, runnable code** — not pseudocode, not stubs.
+- Every code block must be valid TypeScript / SQL.
+- Do not repeat the same paragraph twice.
+- Use real package names, versions, and API surfaces.
+
+---
+
 ## 7 · Verify before finishing
 
 - [ ] Both scripts ran with **no errors**; four PDFs exist in `output/`.
