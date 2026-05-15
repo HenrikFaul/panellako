@@ -14,7 +14,7 @@ export async function acknowledgeDocument(documentId: string) {
   const { error } = await supabase
     .from('document_acknowledgements')
     .upsert(
-      { document_id: documentId, profile_id: user.id, acknowledged_at: new Date().toISOString() },
+      { document_id: documentId, profile_id: user.id, viewed_at: new Date().toISOString() },
       { onConflict: 'document_id,profile_id' }
     );
 
@@ -51,9 +51,7 @@ export async function createDocument(input: CreateDocumentInput) {
       file_url: input.file_url,
       version: input.version ?? '1.0',
       visibility: input.visibility ?? 'Mindenki',
-      building_id: input.building_id ?? null,
-      uploaded_by: user.id,
-      uploaded_at: new Date().toISOString()
+      building_id: input.building_id ?? null
     })
     .select()
     .single();

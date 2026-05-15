@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-05-15 — v0.2.1 Server Action sémaillesztési javítások + optimista rollback
+
+### Fixed
+- **`app/actions/documents.ts`**: `document_acknowledgements` upsert `acknowledged_at` → `viewed_at` (séma oszlopnév helyreállítva; a korábbi verzió silently misfired).
+- **`app/actions/meter-readings.ts`**: `submitted_at` mező eltávolítva — ez az oszlop nem létezik a `meter_readings` sémában (`created_at` default now() kezeli).
+- **`app/actions/documents.ts`**: `uploaded_by` mező eltávolítva a `createDocument` insertből — nem létező sémaoszlop.
+- **`components/dashboard-client.tsx`**: Optimista rollback implementálva:
+  - Ticket létrehozásnál: ha a Server Action sikertelensége esetén az optimista ticket visszavonásra kerül (`filter` a temp id alapján), a form reset csak sikeresnél fut le.
+  - Ticket státusz frissítésnél: ha a `updateTicketStatusAction` sikertelenül tér vissza, a korábbi `tickets` állapot visszaáll.
+
+---
+
 ## 2026-05-15 — v0.2.0 SSR Auth + Server Actions + Analízis sprint
 
 ### Added

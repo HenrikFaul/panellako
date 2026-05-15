@@ -53,6 +53,20 @@
 
 ---
 
+## Critical Bugs Identified During Documentation
+
+The following issues were found by cross-referencing source files during doc generation:
+
+| Bug | Severity | Files | Description |
+|-----|----------|-------|-------------|
+| document_acknowledgements column mismatch | High | `app/actions/documents.ts` line 17, `supabase/schema.sql` line 140 | Action sends `acknowledged_at`; schema column is `viewed_at`. Upsert likely fails silently or inserts into wrong column. |
+| meter_readings missing column | Medium | `app/actions/meter-readings.ts` line 31 | Action inserts `submitted_at` which does not exist in the `meter_readings` schema. |
+| documents missing uploaded_by column | Medium | `app/actions/documents.ts` line 55 | Action inserts `uploaded_by` which does not exist in the `documents` schema. |
+| building_id never set on writes | Medium | All Server Actions | `building_id` passed as `undefined` / `null` in all `createTicket`, `submitMeterReading`, `createAnnouncement`, `createDocument`, `createNotification` calls — no building scope on any writes. |
+| Optimistic rollback not implemented | Medium | `components/dashboard-client.tsx` | If `createTicket` Server Action fails, the optimistic ticket stays visible — no rollback. |
+
+---
+
 ## Recommendations
 
 1. **Immediately:** Add E2E test for the magic link → dashboard flow to detect regressions

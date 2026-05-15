@@ -27,8 +27,7 @@ export async function submitMeterReading(input: SubmitMeterReadingInput) {
       unit_id: input.unit_id ?? null,
       unit_label: input.unit_label ?? null,
       building_id: input.building_id ?? null,
-      reported_by: user?.id ?? null,
-      submitted_at: new Date().toISOString()
+      reported_by: user?.id ?? null
     })
     .select()
     .single();

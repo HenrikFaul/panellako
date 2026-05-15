@@ -362,16 +362,18 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
     if (result.success) {
       setTicketSaved(true);
+      setTicketTitle('');
+      setTicketDescription('');
+      setTicketLocation('');
+      setTicketPriority('kozepes');
+    } else {
+      // Roll back optimistic insert on failure
+      setTickets((prev) => prev.filter((t) => t.id !== optimisticTicket.id));
     }
-
-    setTicketTitle('');
-    setTicketDescription('');
-    setTicketLocation('');
-    setTicketPriority('kozepes');
   };
 
   const updateTicketStatus = async (ticketId: string, nextStatus: Ticket['status']) => {
-    // Optimistic update
+    const previousTickets = tickets;
     setTickets((prev) =>
       prev.map((ticket) =>
         ticket.id === ticketId
@@ -380,7 +382,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       )
     );
 
-    await updateTicketStatusAction(ticketId, nextStatus);
+    const result = await updateTicketStatusAction(ticketId, nextStatus);
+    if (!result.success) {
+      setTickets(previousTickets);
+    }
   };
 
   return (

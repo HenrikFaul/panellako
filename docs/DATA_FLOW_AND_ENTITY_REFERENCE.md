@@ -171,3 +171,39 @@ All data is fetched server-side in `lib/data.ts` using `createClient()` from `@s
 | auditLogs | audit_logs | 10 | created_at DESC |
 
 **Note:** Data is currently fetched without `building_id` filter — all records for the authenticated user's buildings. Multi-building scoping is a pending task.
+
+---
+
+## Known Schema / Action Mismatches
+
+The following discrepancies were identified by cross-referencing `supabase/schema.sql` against the Server Actions in `app/actions/`:
+
+| Issue | Schema column | Action field | File | Risk |
+|-------|--------------|--------------|------|------|
+| document_acknowledgements field name | `viewed_at` (schema line 140) | `acknowledged_at` (action line 17) | `app/actions/documents.ts` | High — upsert may silently insert unrecognized column or fail |
+| meter_readings submitted_at | Column not in schema | `submitted_at` (action line 31) | `app/actions/meter-readings.ts` | Medium — column may not exist in DB |
+| documents uploaded_by | Column not in schema | `uploaded_by` (action line 55) | `app/actions/documents.ts` | Medium — column may not exist in DB |
+| building_id scope | All tables scoped by building_id | `null` passed in all Server Actions | All action files | Medium — writes have no building scope |
+| finance table name | `finance_entries` | TypeScript type named `FinanceItem`, queried as `finance_entries` | `lib/data.ts` | Low — consistent at runtime |
+
+---
+
+## RLS Policy Detail (from `supabase/schema.sql`)
+
+All 19 tables have RLS enabled. Current policy set is MVP-grade:
+
+```sql
+-- All tables: open SELECT
+create policy "Public read <table>" on <table> for select using (true);
+
+-- Five tables: open INSERT
+create policy "Public insert tickets" on tickets for insert with check (true);
+create policy "Public insert meter readings" on meter_readings for insert with check (true);
+create policy "Manager insert announcements" on announcements for insert with check (true);
+create policy "Manager insert notifications" on notifications for insert with check (true);
+create policy "Public insert audit logs" on audit_logs for insert with check (true);
+```
+
+Schema comment: _"Demo policies: MVP gyors indulás. Élesben scope-alapú membership policy-re kell szigorítani."_
+
+**Translation:** "Demo policies for fast MVP start. In production, must be tightened to membership-scoped policies."
