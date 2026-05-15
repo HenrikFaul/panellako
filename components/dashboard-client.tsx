@@ -52,7 +52,7 @@ import { createClient, hasSupabaseConfig } from '@/lib/supabase/browser';
 import { createTicket as createTicketAction, updateTicketStatus as updateTicketStatusAction } from '@/app/actions/tickets';
 import { submitMeterReading as submitMeterReadingAction } from '@/app/actions/meter-readings';
 import { createAnnouncement as createAnnouncementAction } from '@/app/actions/announcements';
-import { acknowledgeDocument as acknowledgeDocumentAction } from '@/app/actions/documents';
+import { acknowledgeDocument as acknowledgeDocumentAction, uploadDocument as uploadDocumentAction, getDocumentSignedUrl as getDocumentSignedUrlAction } from '@/app/actions/documents';
 import { updateWorkOrderStatus as updateWorkOrderStatusAction } from '@/app/actions/work-orders';
 import { submitVote as submitVoteAction } from '@/app/actions/votes';
 
@@ -225,6 +225,11 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [ticketLocation, setTicketLocation] = useState('');
   const [ticketPriority, setTicketPriority] = useState<Ticket['priority']>('kozepes');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Document upload state
+  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
+  const [uploadError, setUploadError] = useState('');
   const [kommandOpen, setKommandOpen] = useState(false);
   const [kommandQuery, setKommandQuery] = useState('');
 
@@ -833,7 +838,65 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </SectionCard>
 
           <section className="grid gap-6 xl:grid-cols-3">
-            <SectionCard id="documents" title="Dokumentumtár" icon={<FileText size={18} />} action={<select value={documentFilter} onChange={(e) => setDocumentFilter(e.target.value)} className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-semibold">{documentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select>}>
+            <SectionCard id="documents" title="Dokumentumtár" icon={<FileText size={18} />} action={
+              <div className="flex items-center gap-2">
+                <select value={documentFilter} onChange={(e) => setDocumentFilter(e.target.value)} className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-semibold">
+                  {documentCategories.map((category) => <option key={category} value={category}>{category}</option>)}
+                </select>
+                {isManager && (
+                  <button
+                    type="button"
+                    onClick={() => setShowUploadForm((v) => !v)}
+                    className="rounded-2xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700"
+                  >
+                    + Feltöltés
+                  </button>
+                )}
+              </div>
+            }>
+              {/* Manager upload form */}
+              {isManager && showUploadForm && (
+                <form
+                  className="mb-4 rounded-2xl border border-brand-100 bg-brand-50 p-4"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setUploadStatus('uploading');
+                    setUploadError('');
+                    const fd = new FormData(e.currentTarget);
+                    const result = await uploadDocumentAction(fd);
+                    if (result.success) {
+                      setUploadStatus('done');
+                      setShowUploadForm(false);
+                      (e.target as HTMLFormElement).reset();
+                      setTimeout(() => setUploadStatus('idle'), 2000);
+                    } else {
+                      setUploadStatus('error');
+                      setUploadError(result.error ?? 'Ismeretlen hiba');
+                    }
+                  }}
+                >
+                  <p className="mb-3 text-sm font-bold text-brand-800">Dokumentum feltöltése</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input required name="title" placeholder="Cím *" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+                    <input required name="category" placeholder="Kategória *" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+                    <input name="version" placeholder="Verzió (pl. 1.0)" defaultValue="1.0" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+                    <select name="visibility" className="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                      <option value="Mindenki">Mindenki</option>
+                      <option value="Tulajdonosok">Tulajdonosok</option>
+                      <option value="Kezelők">Kezelők</option>
+                    </select>
+                  </div>
+                  <input required name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" className="mt-3 block w-full text-sm text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-brand-600 file:px-3 file:py-2 file:text-xs file:font-bold file:text-white hover:file:bg-brand-700" />
+                  {uploadError && <p className="mt-2 text-xs text-rose-600">{uploadError}</p>}
+                  <div className="mt-3 flex gap-2">
+                    <button type="submit" disabled={uploadStatus === 'uploading'} className="rounded-xl bg-brand-600 px-4 py-2 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-50">
+                      {uploadStatus === 'uploading' ? 'Feltöltés…' : 'Feltöltés'}
+                    </button>
+                    <button type="button" onClick={() => setShowUploadForm(false)} className="rounded-xl bg-slate-100 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200">Mégse</button>
+                  </div>
+                </form>
+              )}
+              {uploadStatus === 'done' && <p className="mb-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700">✓ Dokumentum sikeresen feltöltve</p>}
               <div className="space-y-3">
                 {visibleDocuments.map((item) => (
                   <article key={item.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
@@ -845,7 +908,20 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       {item.acknowledged_at ? <CheckCircle2 className="text-emerald-500" size={18} /> : <AlertTriangle className="text-amber-500" size={18} />}
                     </div>
                     <div className="mt-3 flex gap-2">
-                      <button className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white" type="button">Megnyitás</button>
+                      <button
+                        className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white hover:bg-slate-700"
+                        type="button"
+                        onClick={async () => {
+                          const result = await getDocumentSignedUrlAction(item.file_url);
+                          if (result.success && result.url) {
+                            window.open(result.url, '_blank', 'noopener,noreferrer');
+                          } else {
+                            alert(result.error ?? 'Nem sikerült megnyitni a dokumentumot.');
+                          }
+                        }}
+                      >
+                        Megnyitás
+                      </button>
                       {!item.acknowledged_at && (
                         <button
                           className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white hover:bg-emerald-700"

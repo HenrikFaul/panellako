@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-05-15 — v0.3.1 Dokumentum feltöltés Supabase Storage (Initiative #3)
+
+### Added
+- **`app/actions/documents.ts`**: `uploadDocument(formData)` Server Action — MIME validáció (PDF/JPG/PNG/DOC/XLS), 10 MB méretlimit, Supabase Storage feltöltés `documents` bucketbe, storage path tárolás `file_url`-ben, rollback DB hiba esetén.
+- **`app/actions/documents.ts`**: `getDocumentSignedUrl(filePath)` Server Action — 1 órás lejáratú signed URL generálás; legacy http(s) URL-ek változatlanul kerülnek vissza.
+- **`components/dashboard-client.tsx`**: Dokumentum feltöltési form (manager-only) — cím, kategória, verzió, láthatóság, fájl input; feltöltés állapot visszajelzés (feltöltés folyamatban / feltöltve / hiba).
+- **`components/dashboard-client.tsx`**: "Megnyitás" gomb — signed URL alapú dokumentummegnyitás új lapon.
+
+### Fixed
+- **`supabase/schema.sql`**: `votes` tábla egyedi constraint hozzáadva (`resolution_id, voter_profile_id`) — az `submitVote` upsert `onConflict` clauseja enélkül futásidőben hibával tér vissza.
+
 ## 2026-05-15 — v0.3.0 Növekedési sprint #1 — Teljes Supabase írási réteg (Initiative #1)
 
 ### Added

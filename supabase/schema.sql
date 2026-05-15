@@ -334,3 +334,7 @@ create policy "Authenticated update notifications" on notifications for update u
 create policy "Authenticated update document acknowledgements" on document_acknowledgements for update using (true) with check (true);
 create policy "Authenticated update work orders" on work_orders for update using (true) with check (true);
 create policy "Authenticated update resolutions" on resolutions for update using (true) with check (true);
+
+-- Unique constraint for votes upsert (required for onConflict to work)
+alter table votes drop constraint if exists votes_resolution_voter_unique;
+alter table votes add constraint votes_resolution_voter_unique unique (resolution_id, voter_profile_id);
