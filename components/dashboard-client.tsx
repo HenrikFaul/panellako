@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
 import {
+  Activity,
   AlertTriangle,
   BellRing,
   BookOpen,
@@ -25,11 +26,13 @@ import {
   ShieldCheck,
   Siren,
   Sparkles,
+  Terminal,
   TicketCheck,
   UserCog,
   UserRound,
   Vote,
-  Wrench
+  Wrench,
+  X
 } from 'lucide-react';
 import {
   AuditLogItem,
@@ -220,6 +223,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [ticketLocation, setTicketLocation] = useState('');
   const [ticketPriority, setTicketPriority] = useState<Ticket['priority']>('kozepes');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [kommandOpen, setKommandOpen] = useState(false);
+  const [kommandQuery, setKommandQuery] = useState('');
 
   const isManager = useMemo(() => ['kozos_kepviselo', 'megbizott'].includes(data.currentUser.role), [data.currentUser.role]);
   const isAdminLike = useMemo(() => ['kozos_kepviselo', 'megbizott', 'bizottsag', 'konyvelo'].includes(data.currentUser.role), [data.currentUser.role]);
@@ -231,6 +236,53 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const unreadNotificationCount = data.notifications.filter((notification) => !notification.read_at).length;
   const totalArea = data.units.reduce((acc, item) => acc + numberOrZero(item.area_m2), 0);
   const totalOwnershipShare = data.units.reduce((acc, item) => acc + numberOrZero(item.ownership_share), 0);
+
+  // === HÁZ RADAR: building health score ===
+  const criticalTickets = tickets.filter((t) => t.priority === 'kritikus' && t.status !== 'lezarva').length;
+  const highTickets = tickets.filter((t) => t.priority === 'magas' && t.status !== 'lezarva').length;
+  const unacknowledgedDocs = data.documents.filter((d) => !d.acknowledged_at).length;
+  const upcomingMeetings = data.meetings.filter((m) => m.status === 'tervezett').length;
+  const buildingHealth = Math.max(0, Math.min(100,
+    100
+    - criticalTickets * 20
+    - highTickets * 8
+    - Math.min(openTicketCount * 3, 15)
+    - (arrears > 100000 ? 15 : arrears > 50000 ? 8 : 0)
+    - Math.min(unreadNotificationCount * 3, 12)
+  ));
+
+  // === SIGNAL NAV: nav items with live counts ===
+  const signalNav = [
+    { href: '#overview', label: 'Áttekintő', icon: Home, count: 0, critical: 0 },
+    { href: '#tasks', label: 'Teendők', icon: ClipboardCheck, count: openTicketCount + unreadNotificationCount, critical: criticalTickets },
+    { href: '#tickets', label: 'Bejelentések', icon: TicketCheck, count: openTicketCount, critical: criticalTickets },
+    { href: '#units', label: 'Albetétek', icon: Building2, count: 0, critical: 0 },
+    { href: '#documents', label: 'Dokumentumok', icon: FileText, count: unacknowledgedDocs, critical: 0 },
+    { href: '#finances', label: 'Pénzügyek', icon: CircleDollarSign, count: arrears > 0 ? 1 : 0, critical: arrears > 100000 ? 1 : 0 },
+    { href: '#meters', label: 'Mérőórák', icon: Gauge, count: 0, critical: 0 },
+    { href: '#meetings', label: 'Közgyűlések', icon: CalendarDays, count: upcomingMeetings, critical: 0 },
+    { href: '#knowledge', label: 'Tudásbázis', icon: BookOpen, count: 0, critical: 0 },
+    ...(isAdminLike ? [{ href: '#audit', label: 'Audit napló', icon: ShieldCheck, count: 0, critical: 0 }] : []),
+  ];
+
+  // === KOMMAND: searchable command palette items ===
+  const kommandItems = useMemo(() => [
+    ...navigation.map((n) => ({ id: `nav-${n.href}`, type: 'nav', label: n.label, href: n.href, meta: '' })),
+    ...tickets.slice(0, 6).map((t) => ({ id: `t-${t.id}`, type: 'ügy', label: t.title, href: '#tickets', meta: t.status })),
+    ...data.documents.slice(0, 4).map((d) => ({ id: `d-${d.id}`, type: 'dok', label: d.title, href: '#documents', meta: d.category })),
+  ], [tickets, data.documents]);
+
+  const kommandResults = kommandQuery.trim()
+    ? kommandItems.filter((i) => i.label.toLowerCase().includes(kommandQuery.toLowerCase()))
+    : kommandItems;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setKommandOpen(false); setKommandQuery(''); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   useEffect(() => {
     if (!hasSupabaseConfig) {
@@ -391,39 +443,163 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#ccfbf1_0,#f8fafc_30%,#eef2ff_100%)] text-slate-900">
       <div className="grid min-h-screen lg:grid-cols-[280px_1fr]">
-        <aside className="hidden border-r border-white/50 bg-slate-950 text-slate-200 shadow-2xl lg:block">
-          <div className="sticky top-0 flex h-screen flex-col p-5">
-            <div className="mb-8 flex items-center gap-3">
-              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-brand-500 to-sky-500 text-white shadow-lg shadow-brand-900/30">
-                <Building2 size={24} />
-              </div>
-              <div>
-                <p className="text-lg font-black tracking-tight text-white">PanelLakó</p>
-                <p className="text-xs text-slate-400">Társasházi operációs központ</p>
-              </div>
-            </div>
+        <aside className="hidden border-r border-slate-800/60 bg-slate-950 text-slate-200 shadow-2xl lg:block">
+          <div className="sticky top-0 flex h-screen flex-col overflow-hidden">
 
-            <nav className="space-y-1">
-              {navigation.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <a key={item.href} href={item.href} className="flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white">
-                    <Icon size={18} />
-                    {item.label}
-                  </a>
-                );
-              })}
-            </nav>
+            {/* KOMMAND OVERLAY */}
+            {kommandOpen && (
+              <div className="absolute inset-0 z-50 flex flex-col bg-slate-950/98 p-4">
+                <div className="flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-black px-3 py-2.5 ring-2 ring-emerald-500/15 shadow-lg shadow-emerald-900/20">
+                  <span className="select-none font-mono text-base text-emerald-400">›</span>
+                  <input
+                    autoFocus
+                    className="flex-1 bg-transparent font-mono text-sm text-emerald-300 outline-none placeholder:text-emerald-900"
+                    placeholder="parancs vagy keresés..."
+                    value={kommandQuery}
+                    onChange={(e) => setKommandQuery(e.target.value)}
+                  />
+                  <button onClick={() => { setKommandOpen(false); setKommandQuery(''); }} className="rounded p-0.5 hover:bg-emerald-500/10">
+                    <X size={13} className="text-slate-600 transition-colors hover:text-emerald-400" />
+                  </button>
+                </div>
+                <div className="mt-3 flex-1 space-y-0.5 overflow-y-auto">
+                  {kommandResults.length === 0 && (
+                    <p className="py-6 text-center font-mono text-xs text-slate-700">nincs találat</p>
+                  )}
+                  {kommandResults.map((item) => (
+                    <a
+                      key={item.id}
+                      href={item.href}
+                      onClick={() => { setKommandOpen(false); setKommandQuery(''); }}
+                      className="group flex items-center gap-2.5 rounded-lg px-3 py-2.5 transition-colors hover:bg-emerald-500/10"
+                    >
+                      <span className="w-6 shrink-0 text-center font-mono text-[10px] text-emerald-800 transition-colors group-hover:text-emerald-500">{item.type}</span>
+                      <span className="flex-1 truncate text-sm text-slate-400 transition-colors group-hover:text-white">{item.label}</span>
+                      {item.meta && <span className="shrink-0 rounded-full bg-slate-900 px-1.5 py-0.5 text-[10px] text-slate-600">{item.meta}</span>}
+                    </a>
+                  ))}
+                </div>
+                <p className="mt-3 select-none text-center font-mono text-[10px] text-slate-800">ESC bezár</p>
+              </div>
+            )}
 
-            <div className="mt-auto rounded-3xl bg-white/8 p-4 ring-1 ring-white/10">
-              <p className="text-xs uppercase tracking-wide text-slate-400">Aktív szerepkör</p>
-              <p className="mt-1 font-bold text-white">{roleLabels[data.currentUser.role]}</p>
-              <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                {(['lako', 'megbizott', 'kozos_kepviselo'] as Role[]).map((role) => (
-                  <Link key={role} href={`/?role=${role}`} className="rounded-full bg-white/10 px-2.5 py-1 text-slate-200 hover:bg-white/20">
-                    {roleLabels[role]}
-                  </Link>
-                ))}
+            <div className="flex h-full flex-col p-4">
+
+              {/* LOGO */}
+              <div className="mb-4 flex items-center gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-sky-500 text-white shadow-lg shadow-brand-900/30">
+                  <Building2 size={20} />
+                </div>
+                <div>
+                  <p className="text-base font-black tracking-tight text-white">PanelLakó</p>
+                  <p className="text-[11px] text-slate-600">Operációs központ</p>
+                </div>
+              </div>
+
+              {/* HÁZ RADAR */}
+              <div className="mb-4 rounded-2xl border border-slate-800/80 bg-black/40 p-3.5">
+                <div className="mb-2.5 flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Ház Radar</span>
+                  <Activity size={11} className="text-slate-700" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="relative h-16 w-16 shrink-0">
+                    <svg viewBox="0 0 64 64" className="h-full w-full -rotate-90">
+                      <circle cx="32" cy="32" r="24" fill="none" stroke="#0f172a" strokeWidth="6" />
+                      <circle
+                        cx="32" cy="32" r="24"
+                        fill="none"
+                        stroke={buildingHealth > 75 ? '#10b981' : buildingHealth > 45 ? '#f59e0b' : '#ef4444'}
+                        strokeWidth="6"
+                        strokeLinecap="round"
+                        strokeDasharray={`${(buildingHealth / 100) * 150.8} 150.8`}
+                        className="transition-all duration-1000"
+                        style={{ filter: `drop-shadow(0 0 4px ${buildingHealth > 75 ? '#10b98166' : buildingHealth > 45 ? '#f59e0b66' : '#ef444466'})` }}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className={`text-base font-black tabular-nums leading-none ${buildingHealth > 75 ? 'text-emerald-400' : buildingHealth > 45 ? 'text-amber-400' : 'text-rose-400'}`}>
+                        {buildingHealth}
+                      </span>
+                      <span className="mt-0.5 text-[9px] text-slate-700">/ 100</span>
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    {[
+                      { label: 'Ügyek', val: openTicketCount, max: 10, bar: 'bg-sky-500' },
+                      { label: 'Hátralék', val: arrears > 0 ? 1 : 0, max: 1, bar: 'bg-amber-500' },
+                      { label: 'Értesítés', val: unreadNotificationCount, max: 8, bar: 'bg-violet-500' },
+                    ].map((sig) => (
+                      <div key={sig.label} className="flex items-center gap-2">
+                        <span className="w-12 shrink-0 text-[10px] text-slate-700">{sig.label}</span>
+                        <div className="h-1 flex-1 overflow-hidden rounded-full bg-slate-800">
+                          <div
+                            className={`h-full rounded-full transition-all duration-700 ${sig.bar}`}
+                            style={{ width: `${Math.min((sig.val / sig.max) * 100, 100)}%` }}
+                          />
+                        </div>
+                        <span className="w-3 shrink-0 text-right text-[10px] tabular-nums text-slate-700">{sig.val}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* SIGNAL NAV */}
+              <nav className="flex-1 space-y-0.5 overflow-y-auto">
+                {signalNav.map((item) => {
+                  const Icon = item.icon;
+                  const hasCritical = item.critical > 0;
+                  const hasActivity = item.count > 0;
+                  return (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      className="group relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all hover:bg-white/8 hover:text-white"
+                    >
+                      {hasCritical && (
+                        <span className="absolute left-1.5 top-1/2 h-3.5 w-0.5 -translate-y-1/2 animate-pulse rounded-full bg-rose-500" />
+                      )}
+                      <Icon
+                        size={15}
+                        className={hasCritical ? 'text-rose-400' : hasActivity ? 'text-slate-300' : 'text-slate-700'}
+                      />
+                      <span className={hasCritical ? 'text-slate-300' : hasActivity ? 'text-slate-400' : 'text-slate-700'}>
+                        {item.label}
+                      </span>
+                      {hasActivity && (
+                        <span className={`ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-black tabular-nums ${hasCritical ? 'bg-rose-500/15 text-rose-400' : 'bg-white/8 text-slate-500'}`}>
+                          {item.count}
+                        </span>
+                      )}
+                    </a>
+                  );
+                })}
+              </nav>
+
+              {/* KOMMAND LAUNCHER */}
+              <div className="mt-3">
+                <button
+                  onClick={() => setKommandOpen(true)}
+                  className="group flex w-full items-center gap-2.5 rounded-xl border border-slate-800 bg-black/30 px-3 py-2.5 text-left transition-all hover:border-emerald-500/30 hover:bg-emerald-500/5"
+                >
+                  <Terminal size={12} className="shrink-0 text-slate-700 transition-colors group-hover:text-emerald-500" />
+                  <span className="font-mono text-xs text-slate-700 transition-colors group-hover:text-emerald-500">parancs / ugrás</span>
+                  <span className="ml-auto rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[10px] text-slate-700">›_</span>
+                </button>
+              </div>
+
+              {/* ROLE PANEL */}
+              <div className="mt-3 rounded-2xl border border-slate-800/60 bg-black/30 p-3.5">
+                <p className="text-[10px] uppercase tracking-widest text-slate-700">Aktív szerepkör</p>
+                <p className="mt-1 text-sm font-bold text-white">{roleLabels[data.currentUser.role]}</p>
+                <div className="mt-2.5 flex flex-wrap gap-1.5 text-xs">
+                  {(['lako', 'megbizott', 'kozos_kepviselo'] as Role[]).map((role) => (
+                    <Link key={role} href={`/?role=${role}`} className="rounded-full bg-slate-900 px-2.5 py-1 text-slate-500 transition hover:bg-slate-800 hover:text-slate-300">
+                      {roleLabels[role]}
+                    </Link>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
