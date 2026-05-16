@@ -156,65 +156,154 @@ function previewText(text: string) {
   return sentences.endsWith('.') ? sentences : `${sentences}.`;
 }
 
-// ─── Ticket Activity Heatmap (35 days) ────────────────────────────────────────
-function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string }> }) {
+// ─── Ticket Activity Heatmap (35 days, week-aligned) ──────────────────────────
+const HU_MONTHS = ['jan.','feb.','már.','ápr.','máj.','jún.','júl.','aug.','szept.','okt.','nov.','dec.'];
+
+function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; title?: string }> }) {
+  const [hovered, setHovered] = useState<string | null>(null);
+
   const today = new Date();
   today.setHours(23, 59, 59, 999);
 
-  // Build a map: 'YYYY-MM-DD' → count
+  // Build maps: 'YYYY-MM-DD' → count and → title list
   const countMap = new Map<string, number>();
+  const titleMap = new Map<string, string[]>();
   for (const t of tickets) {
     if (!t.created_at) continue;
     const d = new Date(t.created_at);
     const key = d.toISOString().slice(0, 10);
     countMap.set(key, (countMap.get(key) ?? 0) + 1);
+    if (t.title) {
+      const prev = titleMap.get(key) ?? [];
+      titleMap.set(key, [...prev, t.title]);
+    }
   }
 
-  // Build last 35 days grid (7 cols × 5 rows, Mon→Sun)
-  const cells: Array<{ key: string; count: number; label: string }> = [];
-  for (let i = 34; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
+  // Align grid to Mon-Sun weeks. Find Monday of current week.
+  const dow = today.getDay(); // 0=Sun
+  const daysFromMon = dow === 0 ? 6 : dow - 1;
+  const thisMon = new Date(today);
+  thisMon.setDate(today.getDate() - daysFromMon);
+  thisMon.setHours(0, 0, 0, 0);
+
+  // Start 4 weeks before this Monday = 5 full weeks
+  const startDate = new Date(thisMon);
+  startDate.setDate(thisMon.getDate() - 28);
+
+  const cells: Array<{ key: string; count: number; date: Date; isFuture: boolean }> = [];
+  for (let i = 0; i < 35; i++) {
+    const d = new Date(startDate);
+    d.setDate(startDate.getDate() + i);
     const key = d.toISOString().slice(0, 10);
-    cells.push({ key, count: countMap.get(key) ?? 0, label: key });
+    cells.push({ key, count: countMap.get(key) ?? 0, date: d, isFuture: d > today });
   }
 
-  const maxCount = Math.max(1, ...cells.map((c) => c.count));
+  const maxCount = Math.max(1, ...cells.filter(c => !c.isFuture).map(c => c.count));
 
-  function cellColor(count: number) {
-    if (count === 0) return 'bg-white/5';
+  function cellColor(count: number, isFuture: boolean) {
+    if (isFuture) return 'bg-white/3 opacity-30';
+    if (count === 0) return 'bg-white/[0.06]';
     const intensity = count / maxCount;
-    if (intensity < 0.25) return 'bg-rose-900/60';
-    if (intensity < 0.5) return 'bg-rose-700/70';
-    if (intensity < 0.75) return 'bg-rose-500/80';
-    return 'bg-rose-400';
+    if (intensity < 0.2)  return 'bg-rose-950/70';
+    if (intensity < 0.4)  return 'bg-rose-800/75';
+    if (intensity < 0.65) return 'bg-rose-600/80';
+    if (intensity < 0.85) return 'bg-rose-500';
+    return 'bg-rose-400 shadow-[0_0_6px_rgba(251,113,133,0.7)]';
+  }
+
+  // Build week row labels showing "máj. 12" for each Monday
+  const weeks: Array<{ monday: Date; label: string }> = [];
+  for (let w = 0; w < 5; w++) {
+    const mon = new Date(startDate);
+    mon.setDate(startDate.getDate() + w * 7);
+    weeks.push({
+      monday: mon,
+      label: `${HU_MONTHS[mon.getMonth()]} ${mon.getDate()}`,
+    });
   }
 
   const DAYS = ['H', 'K', 'Sz', 'Cs', 'P', 'Szo', 'V'];
 
+  function formatDate(d: Date) {
+    return `${d.getFullYear()}. ${HU_MONTHS[d.getMonth()]} ${d.getDate()}.`;
+  }
+
+  const hoveredTitles = hovered ? (titleMap.get(hovered) ?? []) : [];
+  const hoveredCount  = hovered ? (countMap.get(hovered) ?? 0) : 0;
+  const hoveredCell   = hovered ? cells.find(c => c.key === hovered) : undefined;
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="relative flex flex-col h-full select-none">
       <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">35 napos aktivitás</p>
-      {/* Day labels */}
-      <div className="mb-1 grid grid-cols-7 gap-1">
-        {DAYS.map((d) => (
-          <span key={d} className="text-center text-[9px] text-slate-700 font-semibold">{d}</span>
-        ))}
+
+      <div className="flex gap-2">
+        {/* Week row labels */}
+        <div className="flex flex-col gap-1.5 pt-5">
+          {weeks.map((w) => (
+            <div key={w.monday.toISOString()} className="h-7 flex items-center">
+              <span className="text-[8px] text-slate-700 whitespace-nowrap leading-none">{w.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Grid */}
+        <div className="flex-1">
+          {/* Day-of-week headers */}
+          <div className="mb-1.5 grid grid-cols-7 gap-1.5">
+            {DAYS.map((d) => (
+              <span key={d} className="text-center text-[9px] text-slate-600 font-bold">{d}</span>
+            ))}
+          </div>
+
+          {/* 5 × 7 cells */}
+          <div className="grid grid-cols-7 gap-1.5">
+            {cells.map((cell) => (
+              <div
+                key={cell.key}
+                onMouseEnter={() => setHovered(cell.key)}
+                onMouseLeave={() => setHovered(null)}
+                className={`h-7 w-full rounded transition-all cursor-default relative ${cellColor(cell.count, cell.isFuture)}`}
+              >
+                {/* Day-of-month marker for 1st of month */}
+                {cell.date.getDate() === 1 && (
+                  <span className="absolute bottom-0.5 right-1 text-[7px] text-white/50 font-bold leading-none">
+                    {HU_MONTHS[cell.date.getMonth()]}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
-      {/* Cells */}
-      <div className="grid grid-cols-7 gap-1">
-        {cells.map((cell) => (
-          <div
-            key={cell.key}
-            title={`${cell.label}: ${cell.count} bejelentés`}
-            className={`h-4 w-4 rounded-sm transition-all ${cellColor(cell.count)} cursor-default`}
-          />
-        ))}
-      </div>
+
+      {/* Hover tooltip */}
+      {hovered && hoveredCell && (
+        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 w-56 rounded-2xl bg-slate-900 border border-white/10 shadow-2xl p-3 pointer-events-none">
+          <p className="text-[10px] font-bold text-slate-300 mb-1">{formatDate(hoveredCell.date)}</p>
+          {hoveredCell.isFuture ? (
+            <p className="text-[10px] text-slate-600 italic">jövőbeli nap</p>
+          ) : hoveredCount === 0 ? (
+            <p className="text-[10px] text-slate-600">Nincs aktivitás</p>
+          ) : (
+            <>
+              <p className="text-[10px] text-rose-400 font-semibold mb-1.5">{hoveredCount} bejelentés</p>
+              <ul className="space-y-0.5">
+                {hoveredTitles.slice(0, 5).map((title, i) => (
+                  <li key={i} className="text-[10px] text-slate-400 truncate">· {title}</li>
+                ))}
+                {hoveredTitles.length > 5 && (
+                  <li className="text-[9px] text-slate-600">+ {hoveredTitles.length - 5} további…</li>
+                )}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Legend */}
-      <div className="mt-2 flex items-center gap-1.5">
+      <div className="mt-3 flex items-center gap-1.5">
         <span className="text-[9px] text-slate-700">kevés</span>
-        {['bg-white/5','bg-rose-900/60','bg-rose-700/70','bg-rose-500/80','bg-rose-400'].map((c, i) => (
+        {['bg-white/[0.06]','bg-rose-950/70','bg-rose-800/75','bg-rose-600/80','bg-rose-500','bg-rose-400'].map((c, i) => (
           <div key={i} className={`h-3 w-3 rounded-sm ${c}`} />
         ))}
         <span className="text-[9px] text-slate-700">sok</span>
@@ -932,12 +1021,12 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     <ChevronRight size={11} className="text-slate-400 flex-shrink-0" />
                   </Link>
                   <h1 className="text-2xl font-black tracking-tight text-slate-950 md:text-3xl">{data.buildingName}</h1>
-                  <p className="mt-1 text-sm text-slate-500">{data.buildingAddress} · Adatforrás: {data.source === 'supabase' ? 'Supabase' : 'Mock/demo'}</p>
+                  <p className="mt-1 text-sm text-slate-500">{data.buildingAddress}</p>
                 </>
               ) : (
                 <>
                   <h1 className="text-2xl font-black tracking-tight text-slate-950 md:text-3xl">PanelLakó</h1>
-                  <p className="mt-1 text-sm text-slate-500">Adatforrás: {data.source === 'supabase' ? 'Supabase' : 'Mock/demo'} · Modern lakói és képviselői működés egy felületen.</p>
+                  <p className="mt-1 text-sm text-slate-500">Modern lakói és képviselői működés egy felületen.</p>
                 </>
               )}
             </div>
@@ -1019,13 +1108,13 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               {/* Right: weather + ticket heatmap side by side */}
               <div className="flex gap-0 border-l border-white/10">
 
-                {/* Weather panel */}
-                <div className="w-48 shrink-0 border-r border-white/10 p-4">
+                {/* Weather panel — compact */}
+                <div className="w-36 shrink-0 border-r border-white/10 p-3">
                   <WeatherWidget />
                 </div>
 
-                {/* Ticket activity heatmap */}
-                <div className="p-4">
+                {/* Ticket activity heatmap — larger */}
+                <div className="p-4 min-w-[340px]">
                   <TicketHeatmap tickets={tickets} />
                 </div>
 

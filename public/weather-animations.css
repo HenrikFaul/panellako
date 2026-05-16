@@ -1,0 +1,188 @@
+/* =========================================================
+   PANELLAKÓ — Spectacular Weather Animations
+   ========================================================= */
+
+/* ── Sun ──────────────────────────────────────────────── */
+@keyframes sun-core-pulse {
+  0%, 100% { r: 14; opacity: 1; }
+  50%       { r: 15.5; opacity: 0.92; }
+}
+@keyframes sun-glow-expand {
+  0%, 100% { r: 20; opacity: 0.18; }
+  50%       { r: 24; opacity: 0.32; }
+}
+@keyframes sun-corona-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes sun-rays-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes sun-rays-counter {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+@keyframes lens-flare-orbit {
+  from { transform: rotate(0deg) translateX(30px) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(30px) rotate(-360deg); }
+}
+@keyframes lens-flare-pulse {
+  0%, 100% { opacity: 0.4; transform: rotate(0deg) translateX(30px) rotate(0deg) scale(1); }
+  50%       { opacity: 0.9; transform: rotate(180deg) translateX(30px) rotate(-180deg) scale(1.4); }
+}
+
+/* ── Rain ────────────────────────────────────────────── */
+@keyframes raindrop-fall-1 {
+  0%   { transform: translate(0, -20px); opacity: 0; }
+  10%  { opacity: 0.9; }
+  90%  { opacity: 0.7; }
+  100% { transform: translate(-6px, 38px); opacity: 0; }
+}
+@keyframes raindrop-fall-2 {
+  0%   { transform: translate(0, -20px); opacity: 0; }
+  12%  { opacity: 0.8; }
+  88%  { opacity: 0.6; }
+  100% { transform: translate(-4px, 36px); opacity: 0; }
+}
+@keyframes raindrop-fall-3 {
+  0%   { transform: translate(0, -20px); opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 0.5; }
+  100% { transform: translate(-8px, 40px); opacity: 0; }
+}
+@keyframes splash {
+  0%   { transform: scale(0); opacity: 0.8; }
+  60%  { transform: scale(1.2); opacity: 0.4; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+@keyframes cloud-breathe {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50%       { transform: scale(1.03) translateY(-1px); }
+}
+@keyframes cloud-darken {
+  0%, 100% { opacity: 0.88; }
+  50%       { opacity: 1; }
+}
+
+/* ── Storm ───────────────────────────────────────────── */
+@keyframes storm-cloud-churn {
+  0%   { transform: scale(1)   translateX(0); }
+  25%  { transform: scale(1.02) translateX(-2px); }
+  50%  { transform: scale(1.04) translateX(1px); }
+  75%  { transform: scale(1.01) translateX(-1px); }
+  100% { transform: scale(1)   translateX(0); }
+}
+@keyframes lightning-flash {
+  0%,  40%, 44%, 80%, 84%, 100% { opacity: 0; }
+  41%, 43%                       { opacity: 1; }
+  81%, 83%                       { opacity: 0.7; }
+}
+@keyframes lightning-branch {
+  0%,  38%, 46%, 78%, 86%, 100% { opacity: 0; }
+  40%, 44%                       { opacity: 0.8; }
+  80%, 84%                       { opacity: 0.5; }
+}
+@keyframes screen-flash {
+  0%,  40%, 44%, 100% { opacity: 0; }
+  41%                  { opacity: 0.22; }
+  42%                  { opacity: 0; }
+  43%                  { opacity: 0.15; }
+}
+@keyframes storm-rain-fall {
+  0%   { transform: translate(0, -14px); opacity: 0; }
+  12%  { opacity: 0.85; }
+  88%  { opacity: 0.6; }
+  100% { transform: translate(-10px, 34px); opacity: 0; }
+}
+
+/* ── Snow ────────────────────────────────────────────── */
+@keyframes snowflake-fall-slow {
+  0%   { transform: translate(0, -10px) rotate(0deg); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 0.7; }
+  100% { transform: translate(8px, 38px) rotate(270deg); opacity: 0; }
+}
+@keyframes snowflake-fall-med {
+  0%   { transform: translate(0, -8px) rotate(0deg); opacity: 0; }
+  8%   { opacity: 0.9; }
+  92%  { opacity: 0.5; }
+  100% { transform: translate(-6px, 36px) rotate(180deg); opacity: 0; }
+}
+@keyframes snowflake-fall-fast {
+  0%   { transform: translate(0, -6px) rotate(0deg); opacity: 0; }
+  6%   { opacity: 1; }
+  94%  { opacity: 0.4; }
+  100% { transform: translate(4px, 34px) rotate(360deg); opacity: 0; }
+}
+@keyframes snow-drift {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(6px); }
+}
+
+/* ── Fog ─────────────────────────────────────────────── */
+@keyframes fog-drift-right {
+  0%, 100% { transform: translateX(-4px); opacity: 0.55; }
+  50%       { transform: translateX(8px); opacity: 0.75; }
+}
+@keyframes fog-drift-left {
+  0%, 100% { transform: translateX(4px); opacity: 0.45; }
+  50%       { transform: translateX(-7px); opacity: 0.65; }
+}
+@keyframes fog-fade {
+  0%, 100% { opacity: 0.35; }
+  50%       { opacity: 0.6; }
+}
+
+/* ── Night/Moon ──────────────────────────────────────── */
+@keyframes moon-glow {
+  0%, 100% { filter: drop-shadow(0 0 4px #c7d2fe); }
+  50%       { filter: drop-shadow(0 0 10px #a5b4fc); }
+}
+@keyframes star-twinkle-a {
+  0%, 100% { opacity: 0.2; transform: scale(0.7); }
+  50%       { opacity: 1;   transform: scale(1.3); }
+}
+@keyframes star-twinkle-b {
+  0%, 100% { opacity: 0.5; transform: scale(0.9); }
+  50%       { opacity: 0.1; transform: scale(0.6); }
+}
+@keyframes star-shoot {
+  0%   { transform: translate(0, 0) scaleX(1); opacity: 0; }
+  5%   { opacity: 1; }
+  30%  { transform: translate(40px, 20px) scaleX(3); opacity: 0.8; }
+  50%  { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+/* ── Partly Cloudy ───────────────────────────────────── */
+@keyframes pc-sun-peek {
+  0%, 100% { transform: translate(-3px, 2px) scale(0.92); }
+  50%       { transform: translate(2px, -2px) scale(1); }
+}
+@keyframes pc-cloud-float {
+  0%, 100% { transform: translateX(0) translateY(0); }
+  33%       { transform: translateX(3px) translateY(-1px); }
+  66%       { transform: translateX(-2px) translateY(1px); }
+}
+@keyframes pc-sun-rays {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ── Utility ─────────────────────────────────────────── */
+.wx-sun-rays    { animation: sun-rays-rotate    10s linear infinite; transform-origin: 36px 36px; }
+.wx-sun-counter { animation: sun-rays-counter   16s linear infinite; transform-origin: 36px 36px; }
+.wx-sun-corona  { animation: sun-corona-rotate  24s linear infinite; transform-origin: 36px 36px; }
+.wx-sun-glow    { animation: sun-glow-expand     3s ease-in-out infinite; transform-origin: 36px 36px; }
+.wx-cloud       { animation: cloud-breathe       4s ease-in-out infinite; }
+.wx-cloud-dark  { animation: cloud-darken        3s ease-in-out infinite; }
+.wx-storm-cloud { animation: storm-cloud-churn   5s ease-in-out infinite; transform-origin: center; }
+.wx-lightning   { animation: lightning-flash      3s ease-in-out infinite; }
+.wx-lightning-b { animation: lightning-branch     3s ease-in-out infinite 0.08s; }
+.wx-screen-f    { animation: screen-flash         3s ease-in-out infinite; }
+.wx-snow-drift  { animation: snow-drift           6s ease-in-out infinite; }
+.wx-moon        { animation: moon-glow            3s ease-in-out infinite; }
+.wx-pc-sun      { animation: pc-sun-peek          5s ease-in-out infinite; transform-origin: 22px 24px; }
+.wx-pc-rays     { animation: pc-sun-rays         12s linear infinite;     transform-origin: 22px 24px; }
+.wx-pc-cloud    { animation: pc-cloud-float       6s ease-in-out infinite; }
