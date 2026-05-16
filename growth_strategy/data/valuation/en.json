@@ -1,16 +1,14 @@
 {
   "executive_summary": {
-    "description": "PanelLakó is a <b>multi-tenant PropTech SaaS platform</b> targeting Hungary's ~1.2 million panel-building apartments and broader CEE residential building stock. It provides a complete digital operations hub: role-based access for residents, owners, building managers (közös képviselő), accountants and committees; fault-ticket management; utility-meter submission; document library with read-receipts; financial overview; assembly & voting preparation; vendor/work-order workflow; and knowledge-base — all on a modern Next.js 14 + Supabase + AWS Location stack. The product is at <b>MVP+ stage</b>: core architecture is solid, feature surface is broad, but production auth hardening, real-time data writes and mobile UX polish remain ahead.",
+    "description": "PanelLakó is a production-deployed multi-tenant PropTech SaaS for Hungarian residential buildings (társasházak). As of May 2026, 9 of 10 planned growth initiatives are implemented: real Supabase data writes, SSR auth hardening, Supabase Storage document upload, Stripe SaaS billing, multi-building dashboard, PWA push notifications, AI ticket triage, financial ledger, and Resend email. The platform is live at panellako.hu. One initiative remains (Assembly Protocol Generator). Baseline valuation reflects this pre-revenue but production-ready status.",
     "kpis_title": "Key Statistics",
     "kpis": [
-      { "label": "Source Files (.ts/.tsx)", "value": "12" },
-      { "label": "Lines of Code (total)", "value": "2,099" },
-      { "label": "TS/TSX LOC (product code)", "value": "1,748" },
-      { "label": "DB Schema (SQL LOC)", "value": "310" },
-      { "label": "DB Tables", "value": "18" },
-      { "label": "User Roles", "value": "6" },
-      { "label": "Core Feature Modules", "value": "11" },
-      { "label": "Git Commits", "value": "30" }
+      {"label": "Lines of Code (TypeScript+SQL)", "value": "6,763 verified"},
+      {"label": "Source Files", "value": "47 TypeScript/TSX/SQL"},
+      {"label": "Initiatives Completed", "value": "9 of 10"},
+      {"label": "Deployment Status", "value": "Production (panellako.hu)"},
+      {"label": "Baseline Valuation", "value": "€650k–€1.6M"},
+      {"label": "Target Valuation (10/10)", "value": "€850k–€2.1M"}
     ],
     "tables": [
       {

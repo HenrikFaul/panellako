@@ -1,32 +1,37 @@
 {
-  "scanned_at": "2026-05-15T21:34:21.156207",
+  "scanned_at": "2026-05-16T08:46:16.440971",
   "scan_root": "/home/user/panellako",
-  "total_files": 235,
-  "total_loc": 2099,
+  "total_files": 311,
+  "total_loc": 7819,
   "languages": [
     {
-      "language": "TypeScript (TSX)",
-      "files": 6,
-      "loc": 924
+      "language": "TypeScript",
+      "files": 28,
+      "loc": 3332
     },
     {
-      "language": "TypeScript",
-      "files": 6,
-      "loc": 824
+      "language": "TypeScript (TSX)",
+      "files": 13,
+      "loc": 2772
     },
     {
       "language": "SQL",
-      "files": 1,
-      "loc": 310
+      "files": 6,
+      "loc": 1659
     },
     {
       "language": "JavaScript",
-      "files": 3,
-      "loc": 41
+      "files": 6,
+      "loc": 56
     },
     {
       "language": "Markdown",
-      "files": 209,
+      "files": 244,
+      "loc": 0
+    },
+    {
+      "language": "JSON",
+      "files": 5,
       "loc": 0
     },
     {
@@ -35,17 +40,22 @@
       "loc": 0
     },
     {
-      "language": "JSON",
-      "files": 3,
-      "loc": 0
-    },
-    {
       "language": ".txt",
       "files": 1,
       "loc": 0
     },
     {
+      "language": ".tsbuildinfo",
+      "files": 1,
+      "loc": 0
+    },
+    {
       "language": "CSS",
+      "files": 1,
+      "loc": 0
+    },
+    {
+      "language": ".svg",
       "files": 1,
       "loc": 0
     }
@@ -65,24 +75,33 @@
       "manifest": "package.json",
       "name": "panellako",
       "version": "0.1.0",
-      "dep_count": 6,
-      "dev_dep_count": 9,
+      "dep_count": 15,
+      "dev_dep_count": 10,
       "top_deps": [
+        "@react-email/components",
+        "@react-email/render",
+        "@react-pdf/renderer",
+        "@stripe/stripe-js",
+        "@supabase/ssr",
         "@supabase/supabase-js",
         "clsx",
         "lucide-react",
         "next",
+        "next-pwa",
         "react",
-        "react-dom"
+        "react-dom",
+        "resend",
+        "stripe",
+        "web-push"
       ]
     }
   ],
   "git": {
-    "first_commit": "2026-05-15T23:16:31+02:00",
-    "last_commit": "2026-05-15T23:16:31+02:00",
-    "commit_count": 30,
+    "first_commit": "2026-05-16T08:22:21+00:00",
+    "last_commit": "2026-05-16T08:22:21+00:00",
+    "commit_count": 62,
     "contributor_count": 0,
     "branch": "claude/setup-project-structure-O56pg",
-    "remote_url": "http://local_proxy@127.0.0.1:33491/git/HenrikFaul/panellako"
+    "remote_url": "http://local_proxy@127.0.0.1:33891/git/HenrikFaul/panellako"
   }
 }

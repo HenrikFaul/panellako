@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-05-16 — v0.5.2 Közgyűlési Segéd — Assembly Protocol Generator (Initiative #9)
+
+### Added
+- **`supabase/functions/generate-assembly-protocol/index.ts`**: Deno Edge Function — Közgyűlési Jegyzőkönyv PDF generálás. Lekérdezi a meeting, épület, agenda_items, resolutions, meeting_attendances, és units adatokat. Kiszámítja a kvórumot (jelenlevő tulajdoni hányad / összes tulajdoni hányad). A4 PDF-et generál (`pdf-lib@1.17.1` via esm.sh) 6 szakasszal: Épület adatai, Közgyűlés adatai, Határozatképesség, Jelenlévők listája, Napirendi pontok + határozatok, Aláírások. Magyar karakterek ASCII transliterálása (Helvetica font korlátai). Feltölti a `documents` Supabase Storage bucket-be (`assembly-protocols/{building_id}/{meeting_id}.pdf`). Frissíti a `meetings.protocol_url` és `meetings.protocol_generated_at` mezőket. Naplóz az `audit_logs` táblába.
+- **`components/meeting-detail-panel.tsx`**: Slide-over panel komponens — kvórum progress bar, jelenlét rögzítés/törlés unit-onként (kattintásra), napirendi pontok + határozatok szavazási UI, manager akciók (meghívó küldés 8 napos Ptk. 5:84 ellenőrzéssel, közgyűlés lezárása, PDF generálás, letöltés).
+- **`app/actions/meetings.ts`** — új server actionök: `addResolution`, `updateResolutionOutcome`, `removeAttendance`, `getMeetingWithDetails`, `generateProtocolManually`. `closeMeeting` kiegészítve: tüzeli az edge function-t fire-and-forget módon.
+- **`supabase/migrations/20260516_assembly_protocol_policies.sql`**: Hiányzó INSERT/UPDATE/DELETE RLS policy-k: meetings, agenda_items, resolutions, votes, meeting_attendances.
+- **`app/api/storage-signed-url/route.ts`**: GET endpoint — Supabase Storage signed URL generálás (`?path=...&bucket=...`), 10 perces lejárat. PDF letöltéshez.
+
+### Changed
+- **`components/dashboard-client.tsx`**: Meeting kártya — clickable title + "Részletek / Jelenlét" gomb → megnyitja a `MeetingDetailPanel`-t. `closeMeetingAction` helyes `data.buildingId` átadással (volt: `meeting.id` bugfix). `MeetingDetailPanel` megjelenítése + loading state.
+
+### Deployment note
+1. Edge Function deploy: `supabase functions deploy generate-assembly-protocol`
+2. Supabase SQL Editorban: `supabase/migrations/20260516_assembly_protocol_policies.sql` futtatni
+3. Storage bucket: `documents` bucket-nek public/private beállítása megléte szükséges
+
 ## 2026-05-16 — v0.5.1 SSR Auth hardening + Landing page (Initiative #2) + RLS fix (Initiative #1)
 
 ### Changed

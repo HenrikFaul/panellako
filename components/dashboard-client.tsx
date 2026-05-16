@@ -57,7 +57,8 @@ import { acknowledgeDocument as acknowledgeDocumentAction, uploadDocument as upl
 import { updateWorkOrderStatus as updateWorkOrderStatusAction } from '@/app/actions/work-orders';
 // votes action imported on-demand in the votes tab handler
 import { createCharge as createChargeAction, recordPayment as recordPaymentAction } from '@/app/actions/finance';
-import { createMeeting as createMeetingAction, closeMeeting as closeMeetingAction, sendAssemblyInvitation as sendInvitationAction } from '@/app/actions/meetings';
+import { createMeeting as createMeetingAction, closeMeeting as closeMeetingAction, sendAssemblyInvitation as sendInvitationAction, getMeetingWithDetails } from '@/app/actions/meetings';
+import MeetingDetailPanel from '@/components/meeting-detail-panel';
 
 type DashboardData = {
   source: string;
@@ -322,6 +323,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [meetingStatus, setMeetingStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
   const [meetingError, setMeetingError] = useState('');
   const [meetings, setMeetings] = useState(data.meetings);
+  const [selectedMeeting, setSelectedMeeting] = useState<MeetingItem | null>(null);
+  const [meetingPanelData, setMeetingPanelData] = useState<Awaited<ReturnType<typeof getMeetingWithDetails>> | null>(null);
+  const [meetingPanelLoading, setMeetingPanelLoading] = useState(false);
 
   // Finance state
   const [showChargeForm, setShowChargeForm] = useState(false);
@@ -374,6 +378,21 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     { href: '#knowledge', label: 'Tudásbázis', icon: BookOpen, count: 0, critical: 0 },
     ...(isAdminLike ? [{ href: '#audit', label: 'Audit napló', icon: ShieldCheck, count: 0, critical: 0 }] : []),
   ];
+
+  const handleOpenMeeting = async (meeting: MeetingItem) => {
+    setSelectedMeeting(meeting);
+    setMeetingPanelLoading(true);
+    const details = await getMeetingWithDetails(meeting.id);
+    setMeetingPanelData(details);
+    setMeetingPanelLoading(false);
+  };
+
+  const handleRefreshMeetingPanel = async () => {
+    if (!selectedMeeting) return;
+    const details = await getMeetingWithDetails(selectedMeeting.id);
+    setMeetingPanelData(details);
+    setMeetings((prev) => prev.map((m) => m.id === selectedMeeting.id && details.meeting ? { ...m, ...details.meeting } : m));
+  };
 
   // === KOMMAND: searchable command palette items ===
   const kommandItems = useMemo(() => [
@@ -1383,7 +1402,13 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     <article key={meeting.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
-                          <p className="font-black text-slate-950">{meeting.title}</p>
+                          <button
+                            type="button"
+                            className="text-left font-black text-slate-950 hover:text-brand-700"
+                            onClick={() => handleOpenMeeting(meeting)}
+                          >
+                            {meeting.title}
+                          </button>
                           <p className="mt-1 text-sm text-slate-500">
                             {formatDateTime(meeting.scheduled_at)}
                             {meeting.location ? ` · ${meeting.location}` : ''}
@@ -1401,38 +1426,46 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                         </div>
                         <StatusBadge status={meeting.status} />
                       </div>
-                      {isManager && meeting.status === 'tervezett' && (
-                        <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
-                          <button
-                            type="button"
-                            className="rounded-xl bg-brand-50 px-3 py-2 text-brand-700 hover:bg-brand-100"
-                            onClick={async () => {
-                              const result = await sendInvitationAction(meeting.id);
-                              if (!result.success) alert(result.error);
-                              else alert(`Meghívó kiküldési rekord rögzítve (${result.days_until_meeting} nap múlva a közgyűlés).`);
-                            }}
-                          >
-                            Meghívó küldés
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-xl bg-slate-100 px-3 py-2 text-slate-700 hover:bg-slate-200"
-                            onClick={async () => {
-                              if (!confirm('Közgyűlés lezárása? A kvórum és határozatképesség rögzítve lesz.')) return;
-                              const buildingId = meeting.id; // fallback — in production pass real building_id
-                              const result = await closeMeetingAction(meeting.id, buildingId);
-                              if (!result.success) alert(result.error);
-                              else {
-                                const pct = result.actual_quorum != null ? (result.actual_quorum * 100).toFixed(1) : '?';
-                                alert(`Közgyűlés lezárva. Megjelent tulajdoni hányad: ${pct}%`);
-                                setMeetings((prev) => prev.map((m) => m.id === meeting.id ? { ...m, status: 'lezart' as const, actual_quorum: result.actual_quorum } : m));
-                              }
-                            }}
-                          >
-                            Lezárás
-                          </button>
-                        </div>
-                      )}
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+                        <button
+                          type="button"
+                          className="rounded-xl bg-brand-600 px-3 py-2 text-white hover:bg-brand-700"
+                          onClick={() => handleOpenMeeting(meeting)}
+                        >
+                          Részletek / Jelenlét
+                        </button>
+                        {isManager && meeting.status === 'tervezett' && (
+                          <>
+                            <button
+                              type="button"
+                              className="rounded-xl bg-brand-50 px-3 py-2 text-brand-700 hover:bg-brand-100"
+                              onClick={async () => {
+                                const result = await sendInvitationAction(meeting.id);
+                                if (!result.success) alert(result.error);
+                                else alert(`Meghívó kiküldési rekord rögzítve (${result.days_until_meeting} nap múlva a közgyűlés).`);
+                              }}
+                            >
+                              Meghívó küldés
+                            </button>
+                            <button
+                              type="button"
+                              className="rounded-xl bg-slate-100 px-3 py-2 text-slate-700 hover:bg-slate-200"
+                              onClick={async () => {
+                                if (!confirm('Közgyűlés lezárása? A kvórum és határozatképesség rögzítve lesz.')) return;
+                                const result = await closeMeetingAction(meeting.id, data.buildingId ?? '');
+                                if (!result.success) alert(result.error);
+                                else {
+                                  const pct = result.actual_quorum != null ? (result.actual_quorum * 100).toFixed(1) : '?';
+                                  alert(`Közgyűlés lezárva. Megjelent tulajdoni hányad: ${pct}%`);
+                                  setMeetings((prev) => prev.map((m) => m.id === meeting.id ? { ...m, status: 'lezart' as const, actual_quorum: result.actual_quorum } : m));
+                                }
+                              }}
+                            >
+                              Lezárás
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </article>
                   );
                 })}
@@ -1669,6 +1702,26 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </div>
         </div>
       ) : null}
+      {selectedMeeting && (
+        meetingPanelLoading ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+            <div className="rounded-2xl bg-white px-8 py-6 text-sm font-semibold text-slate-700 shadow-2xl">Betöltés...</div>
+          </div>
+        ) : meetingPanelData ? (
+          <MeetingDetailPanel
+            meeting={{ ...selectedMeeting, ...meetingPanelData.meeting }}
+            buildingId={data.buildingId ?? ''}
+            units={data.units}
+            attendances={meetingPanelData.attendances}
+            agendaItems={meetingPanelData.agenda_items}
+            resolutions={meetingPanelData.resolutions}
+            isManager={isManager}
+            supabaseUrl={process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}
+            onClose={() => { setSelectedMeeting(null); setMeetingPanelData(null); }}
+            onRefresh={handleRefreshMeetingPanel}
+          />
+        ) : null
+      )}
     </div>
   );
 }
