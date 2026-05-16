@@ -5,16 +5,16 @@ import type { WeatherResult } from '@/app/api/weather/route';
 
 type WeatherType = 'sunny' | 'clear_night' | 'partly_cloudy' | 'cloudy' | 'rain' | 'storm' | 'snow' | 'fog';
 
-function getWeatherType(icon: number, isDay: boolean): WeatherType {
-  if (icon >= 1 && icon <= 5) return isDay ? 'sunny' : 'clear_night';
-  if (icon >= 6 && icon <= 8) return 'partly_cloudy';
-  if (icon === 11) return 'fog';
-  if ((icon >= 12 && icon <= 14) || (icon >= 18 && icon <= 21)) return 'rain';
-  if (icon >= 15 && icon <= 17) return 'storm';
-  if ((icon >= 22 && icon <= 29) || icon >= 43) return 'snow';
-  if (icon >= 33 && icon <= 37) return isDay ? 'partly_cloudy' : 'clear_night';
-  if (icon >= 38 && icon <= 40) return 'cloudy';
-  if (icon >= 41 && icon <= 42) return 'rain';
+// Maps WMO weather codes (Open-Meteo) → internal WeatherType
+function getWeatherType(wmo: number, isDay: boolean): WeatherType {
+  if (wmo === 0 || wmo === 1)                     return isDay ? 'sunny' : 'clear_night';
+  if (wmo === 2)                                   return 'partly_cloudy';
+  if (wmo === 3)                                   return 'cloudy';
+  if (wmo === 45 || wmo === 48)                    return 'fog';
+  if (wmo >= 51 && wmo <= 67)                      return 'rain';
+  if ((wmo >= 71 && wmo <= 77) || wmo === 85 || wmo === 86) return 'snow';
+  if (wmo >= 80 && wmo <= 82)                      return 'rain';
+  if (wmo === 95 || wmo === 96 || wmo === 99)      return 'storm';
   return 'cloudy';
 }
 
