@@ -74,6 +74,7 @@ export async function getDashboardData(role: Role = 'lako', buildingId?: string)
     meterReadings,
     documents,
     docAcks,
+    annReads,
     meetings,
     units,
     vendors,
@@ -82,15 +83,19 @@ export async function getDashboardData(role: Role = 'lako', buildingId?: string)
     auditLogs,
     profileResult
   ] = await Promise.all([
-    scoped(supabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(5)),
+    scoped(supabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(10)),
     scoped(supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(8)),
     scoped(supabase.from('tickets').select('*').order('created_at', { ascending: false }).limit(12)),
     scoped(supabase.from('meter_readings').select('*').order('reading_date', { ascending: false }).limit(8)),
     scoped(supabase.from('documents').select('*').order('uploaded_at', { ascending: false }).limit(10)),
-    // Per-user acknowledgement status — only fetch if user is authenticated
+    // Per-user document acknowledgements
     user
       ? supabase.from('document_acknowledgements').select('document_id, viewed_at').eq('profile_id', user.id)
       : Promise.resolve({ data: [] as { document_id: string; viewed_at: string }[] }),
+    // Per-user announcement reads
+    user
+      ? supabase.from('announcement_reads').select('announcement_id, read_at').eq('profile_id', user.id)
+      : Promise.resolve({ data: [] as { announcement_id: string; read_at: string }[] }),
     scoped(supabase.from('meetings').select('*').order('scheduled_at', { ascending: false }).limit(6)),
     unitsQuery,
     scoped(supabase.from('vendors').select('*').limit(8)),
@@ -122,17 +127,26 @@ export async function getDashboardData(role: Role = 'lako', buildingId?: string)
     financesData = fe;
   }
 
-  // Build acknowledgement lookup: document_id → viewed_at timestamp
+  // Build acknowledgement lookup: document_id → viewed_at
   const ackMap = new Map<string, string>();
   for (const ack of (docAcks.data ?? [])) {
     ackMap.set(ack.document_id, ack.viewed_at);
   }
-
-  // Merge per-user acknowledged_at into each document row
   const rawDocuments = documents.data ?? [];
   const mergedDocuments = rawDocuments.map((doc: { id: string; [key: string]: unknown }) => ({
     ...doc,
     acknowledged_at: ackMap.get(doc.id) ?? null
+  }));
+
+  // Build announcement read lookup: announcement_id → read_at
+  const annReadMap = new Map<string, string>();
+  for (const r of (annReads.data ?? [])) {
+    annReadMap.set(r.announcement_id, r.read_at);
+  }
+  const rawNews = news.data ?? [];
+  const mergedNews = rawNews.map((item: { id: string; [key: string]: unknown }) => ({
+    ...item,
+    read_at: annReadMap.get(item.id) ?? null,
   }));
 
   const currentUser = profileResult.data
@@ -147,7 +161,7 @@ export async function getDashboardData(role: Role = 'lako', buildingId?: string)
   return {
     source: 'supabase',
     currentUser,
-    news: news.data?.length ? news.data : mockNews,
+    news: mergedNews.length ? mergedNews : mockNews,
     notifications: notifications.data?.length ? notifications.data : mockNotifications,
     tickets: tickets.data?.length ? tickets.data : mockTickets,
     meterReadings: meterReadings.data?.length ? meterReadings.data : mockMeterReadings,
