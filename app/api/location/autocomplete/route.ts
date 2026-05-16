@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 type MatchType = 'exact' | 'house' | 'street' | 'settlement' | 'fuzzy' | 'reverse';
 
 const geodataSupabaseUrl = process.env.SUPABASE_URL;
-const geodataSupabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+const geodataSupabaseKey = process.env.GEODATA_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 const addressSchema = process.env.SUPABASE_ADDRESS_SCHEMA || 'public';
 const addressTable = process.env.SUPABASE_ADDRESS_TABLE || 'osm_addresses';
 const hasSupabaseConfig = Boolean(geodataSupabaseUrl && geodataSupabaseKey);
