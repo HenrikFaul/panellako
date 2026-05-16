@@ -3,7 +3,19 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 
-export async function acknowledgeDocument(documentId: string) {
+const STORAGE_BUCKET = 'documents';
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
+export async function acknowledgeDocument(documentId: string, buildingId?: string) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -22,7 +34,7 @@ export async function acknowledgeDocument(documentId: string) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath('/');
+  revalidatePath(buildingId ? `/w/${buildingId}` : '/');
   return { success: true };
 }
 
@@ -60,6 +72,90 @@ export async function createDocument(input: CreateDocumentInput) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath('/');
+  revalidatePath(input.building_id ? `/w/${input.building_id}` : '/');
   return { success: true, data };
+}
+
+export async function uploadDocument(formData: FormData) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: 'Nem vagy bejelentkezve' };
+  }
+
+  const file = formData.get('file') as File | null;
+  const title = (formData.get('title') as string | null)?.trim();
+  const category = (formData.get('category') as string | null)?.trim();
+  const version = (formData.get('version') as string | null)?.trim() || '1.0';
+  const visibility = (formData.get('visibility') as string | null)?.trim() || 'Mindenki';
+  const buildingId = (formData.get('building_id') as string | null)?.trim() || null;
+
+  if (!file || !title || !category) {
+    return { success: false, error: 'Kötelező mezők: fájl, cím, kategória' };
+  }
+
+  if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+    return { success: false, error: 'Nem engedélyezett fájltípus. Csak PDF, JPG, PNG, DOC, DOCX, XLS, XLSX.' };
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    return { success: false, error: 'A fájl mérete nem haladhatja meg a 10 MB-ot.' };
+  }
+
+  // Build a clean storage path: <building_id|global>/<timestamp>_<sanitized_filename>
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/__+/g, '_');
+  const storagePath = `${buildingId ?? 'global'}/${Date.now()}_${safeName}`;
+
+  const bytes = await file.arrayBuffer();
+  const { error: uploadError } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(storagePath, bytes, { contentType: file.type, upsert: false });
+
+  if (uploadError) {
+    return { success: false, error: `Feltöltési hiba: ${uploadError.message}` };
+  }
+
+  // Store the storage path in file_url (signed URL generated on demand)
+  const { error: dbError } = await supabase.from('documents').insert({
+    title,
+    category,
+    file_url: storagePath,
+    version,
+    visibility,
+    building_id: buildingId,
+  });
+
+  if (dbError) {
+    // Rollback orphaned file
+    await supabase.storage.from(STORAGE_BUCKET).remove([storagePath]);
+    return { success: false, error: `Adatbázis hiba: ${dbError.message}` };
+  }
+
+  revalidatePath(buildingId ? `/w/${buildingId}` : '/');
+  return { success: true };
+}
+
+export async function getDocumentSignedUrl(filePath: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: 'Nem vagy bejelentkezve', url: null };
+  }
+
+  // If it's already a full URL (mock data / legacy), return as-is
+  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+    return { success: true, url: filePath };
+  }
+
+  const { data, error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .createSignedUrl(filePath, 3600); // 1-hour expiry
+
+  if (error) {
+    return { success: false, error: error.message, url: null };
+  }
+
+  return { success: true, url: data.signedUrl };
 }

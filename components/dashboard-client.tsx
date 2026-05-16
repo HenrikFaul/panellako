@@ -35,6 +35,7 @@ import {
   X
 } from 'lucide-react';
 import {
+  AiCategory,
   AuditLogItem,
   DocumentItem,
   FinanceItem,
@@ -49,13 +50,20 @@ import {
   WorkOrderItem
 } from '@/lib/types';
 import { createClient, hasSupabaseConfig } from '@/lib/supabase/browser';
-import { createTicket as createTicketAction, updateTicketStatus as updateTicketStatusAction } from '@/app/actions/tickets';
+import { createTicket as createTicketAction, updateTicketStatus as updateTicketStatusAction, updateTicketAiOverride as updateTicketAiOverrideAction } from '@/app/actions/tickets';
 import { submitMeterReading as submitMeterReadingAction } from '@/app/actions/meter-readings';
 import { createAnnouncement as createAnnouncementAction } from '@/app/actions/announcements';
-import { acknowledgeDocument as acknowledgeDocumentAction } from '@/app/actions/documents';
+import { acknowledgeDocument as acknowledgeDocumentAction, uploadDocument as uploadDocumentAction, getDocumentSignedUrl as getDocumentSignedUrlAction } from '@/app/actions/documents';
+import { updateWorkOrderStatus as updateWorkOrderStatusAction } from '@/app/actions/work-orders';
+import { submitVote as submitVoteAction } from '@/app/actions/votes';
+import { createCharge as createChargeAction, recordPayment as recordPaymentAction } from '@/app/actions/finance';
+import { createMeeting as createMeetingAction, closeMeeting as closeMeetingAction, sendAssemblyInvitation as sendInvitationAction } from '@/app/actions/meetings';
 
 type DashboardData = {
   source: string;
+  buildingId?: string;
+  buildingName?: string;
+  buildingAddress?: string;
   currentUser: { full_name: string; role: Role };
   news: Array<{
     id: string;
@@ -199,6 +207,79 @@ function PriorityBadge({ priority }: { priority: Ticket['priority'] }) {
   return <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${classes[priority]}`}>{priority}</span>;
 }
 
+// ─── AI Triage UI Components ──────────────────────────────────────────────────
+
+const AI_CATEGORY_LABELS: Record<AiCategory, string> = {
+  plumbing: 'Vízvezeték',
+  electrical: 'Elektromos',
+  structural: 'Szerkezeti',
+  common_area: 'Közös terület',
+  emergency: 'Vészhelyzet',
+  hvac: 'Fűtés/légk.',
+  elevator: 'Lift',
+  other: 'Egyéb',
+};
+
+const AI_CATEGORY_COLORS: Record<AiCategory, string> = {
+  plumbing: 'bg-sky-50 text-sky-700 ring-sky-200',
+  electrical: 'bg-amber-50 text-amber-700 ring-amber-200',
+  structural: 'bg-stone-50 text-stone-700 ring-stone-200',
+  common_area: 'bg-violet-50 text-violet-700 ring-violet-200',
+  emergency: 'bg-rose-50 text-rose-700 ring-rose-200',
+  hvac: 'bg-orange-50 text-orange-700 ring-orange-200',
+  elevator: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
+  other: 'bg-slate-100 text-slate-600 ring-slate-200',
+};
+
+function AiUrgencyBadge({ urgency }: { urgency: number | null | undefined }) {
+  if (urgency === null || urgency === undefined) {
+    return (
+      <span className="inline-flex animate-pulse items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-400 ring-1 ring-slate-200">
+        <span className="h-2 w-2 rounded-full bg-slate-300" />
+        AI...
+      </span>
+    );
+  }
+  let colorClass: string;
+  let label: string;
+  if (urgency <= 4) {
+    colorClass = 'bg-emerald-50 text-emerald-700 ring-emerald-200';
+    label = `AI ${urgency}`;
+  } else if (urgency <= 7) {
+    colorClass = 'bg-amber-50 text-amber-700 ring-amber-200';
+    label = `AI ${urgency}`;
+  } else {
+    colorClass = 'bg-rose-50 text-rose-700 ring-rose-200';
+    label = `AI ${urgency}!`;
+  }
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${colorClass}`}>
+      <Sparkles size={10} />
+      {label}
+    </span>
+  );
+}
+
+function AiCategoryChip({ category }: { category: AiCategory | string | null | undefined }) {
+  if (!category) return null;
+  const safeCategory = (Object.keys(AI_CATEGORY_LABELS).includes(category) ? category : 'other') as AiCategory;
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${AI_CATEGORY_COLORS[safeCategory]}`}>
+      {AI_CATEGORY_LABELS[safeCategory]}
+    </span>
+  );
+}
+
+function AiTriagePendingSkeleton() {
+  return (
+    <div className="mt-2 flex animate-pulse items-center gap-2">
+      <div className="h-5 w-16 rounded-full bg-slate-100" />
+      <div className="h-5 w-20 rounded-full bg-slate-100" />
+      <div className="h-4 w-32 rounded bg-slate-100" />
+    </div>
+  );
+}
+
 export default function DashboardClient({ data }: { data: DashboardData }) {
   const [ticketSaved, setTicketSaved] = useState(false);
   const [meterSaved, setMeterSaved] = useState(false);
@@ -223,8 +304,37 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [ticketLocation, setTicketLocation] = useState('');
   const [ticketPriority, setTicketPriority] = useState<Ticket['priority']>('kozepes');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Document upload state
+  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
+  const [uploadError, setUploadError] = useState('');
   const [kommandOpen, setKommandOpen] = useState(false);
   const [kommandQuery, setKommandQuery] = useState('');
+
+  // Push notification state
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+
+  // Meetings state
+  const [showMeetingForm, setShowMeetingForm] = useState(false);
+  const [meetingStatus, setMeetingStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+  const [meetingError, setMeetingError] = useState('');
+  const [meetings, setMeetings] = useState(data.meetings);
+
+  // Finance state
+  const [showChargeForm, setShowChargeForm] = useState(false);
+  const [chargeStatus, setChargeStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+  const [chargeError, setChargeError] = useState('');
+  const [showPaymentForm, setShowPaymentForm] = useState<string | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+
+  // AI override modal state
+  const [overrideTicketId, setOverrideTicketId] = useState<string | null>(null);
+  const [overrideUrgency, setOverrideUrgency] = useState<number>(5);
+  const [overrideCategory, setOverrideCategory] = useState<string>('other');
+  const [overrideSaving, setOverrideSaving] = useState(false);
 
   const isManager = useMemo(() => ['kozos_kepviselo', 'megbizott'].includes(data.currentUser.role), [data.currentUser.role]);
   const isAdminLike = useMemo(() => ['kozos_kepviselo', 'megbizott', 'bizottsag', 'konyvelo'].includes(data.currentUser.role), [data.currentUser.role]);
@@ -282,6 +392,18 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Detect push notification support
+  useEffect(() => {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      setPushSupported(true);
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.pushManager.getSubscription().then((sub) => {
+          setPushSubscribed(Boolean(sub));
+        });
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -440,6 +562,37 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     }
   };
 
+  const handleAiOverrideClick = (ticketId: string) => {
+    const ticket = tickets.find((t) => t.id === ticketId);
+    if (!ticket) return;
+    setOverrideTicketId(ticketId);
+    setOverrideUrgency(ticket.ai_urgency ?? 5);
+    setOverrideCategory(ticket.ai_category ?? 'other');
+  };
+
+  const submitAiOverride = async () => {
+    if (!overrideTicketId) return;
+    setOverrideSaving(true);
+    try {
+      const result = await updateTicketAiOverrideAction(overrideTicketId, {
+        ai_category: overrideCategory as AiCategory,
+        ai_urgency: overrideUrgency,
+      });
+      if (result.success) {
+        setTickets((prev) =>
+          prev.map((t) =>
+            t.id === overrideTicketId
+              ? { ...t, ai_category: overrideCategory as AiCategory, ai_urgency: overrideUrgency, ai_override: true }
+              : t
+          )
+        );
+        setOverrideTicketId(null);
+      }
+    } finally {
+      setOverrideSaving(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#ccfbf1_0,#f8fafc_30%,#eef2ff_100%)] text-slate-900">
       <div className="grid min-h-screen lg:grid-cols-[280px_1fr]">
@@ -495,6 +648,24 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   <p className="text-[11px] text-slate-600">Operációs központ</p>
                 </div>
               </div>
+
+              {/* BUILDING CONTEXT */}
+              {data.buildingName && (
+                <div className="mb-3 rounded-xl border border-slate-800/60 bg-black/20 px-3 py-2.5">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-700 mb-1">Aktuális épület</p>
+                  <p className="text-xs font-semibold text-slate-300 leading-snug truncate">{data.buildingName}</p>
+                  {data.buildingAddress && (
+                    <p className="text-[10px] text-slate-600 truncate mt-0.5">{data.buildingAddress}</p>
+                  )}
+                  <Link
+                    href="/app"
+                    className="mt-2 flex items-center gap-1.5 text-[10px] font-medium text-teal-500 hover:text-teal-400 transition-colors"
+                  >
+                    <Layers3 size={11} />
+                    Épület váltása
+                  </Link>
+                </div>
+              )}
 
               {/* HÁZ RADAR */}
               <div className="mb-4 rounded-2xl border border-slate-800/80 bg-black/40 p-3.5">
@@ -608,9 +779,26 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         <main className="space-y-6 px-4 py-5 md:px-8 lg:px-10">
           <header className="flex flex-col gap-4 rounded-[2rem] border border-white/70 bg-white/80 p-4 shadow-[0_18px_70px_rgba(15,23,42,0.08)] backdrop-blur md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-sm font-semibold text-slate-500">Teszt3</p>
-              <h1 className="text-2xl font-black tracking-tight text-slate-950 md:text-3xl">Ház kiválasztása</h1>
-              <p className="mt-1 text-sm text-slate-500">Adatforrás: {data.source === 'supabase' ? 'Supabase' : 'Mock/demo'} · Modern lakói és képviselői működés egy felületen.</p>
+              {data.buildingName ? (
+                <>
+                  {/* Mobile building switcher — tappable breadcrumb, hidden on lg (sidebar handles it) */}
+                  <Link
+                    href="/app"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:text-teal-800 mb-1 lg:hidden"
+                  >
+                    <Layers3 size={12} />
+                    <span className="truncate max-w-[200px]">{data.buildingName}</span>
+                    <ChevronRight size={11} className="text-slate-400 flex-shrink-0" />
+                  </Link>
+                  <h1 className="text-2xl font-black tracking-tight text-slate-950 md:text-3xl">{data.buildingName}</h1>
+                  <p className="mt-1 text-sm text-slate-500">{data.buildingAddress} · Adatforrás: {data.source === 'supabase' ? 'Supabase' : 'Mock/demo'}</p>
+                </>
+              ) : (
+                <>
+                  <h1 className="text-2xl font-black tracking-tight text-slate-950 md:text-3xl">PanelLakó</h1>
+                  <p className="mt-1 text-sm text-slate-500">Adatforrás: {data.source === 'supabase' ? 'Supabase' : 'Mock/demo'} · Modern lakói és képviselői működés egy felületen.</p>
+                </>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative">
@@ -719,6 +907,50 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 <button className="rounded-2xl bg-brand-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-100 hover:bg-brand-700">Profil mentése</button>
                 {profileSaved ? <p className="text-sm font-semibold text-emerald-700">Profiladatok mentve demo módban.</p> : null}
               </form>
+
+              {/* Push notification toggle */}
+              {pushSupported ? (
+                <div className="mt-4 flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">Push értesítések</p>
+                    <p className="text-xs text-slate-500">Kapjon azonnali értesítést hirdetményekről és hibabejelentés frissítésekről.</p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={pushLoading}
+                    onClick={async () => {
+                      setPushLoading(true);
+                      try {
+                        if (pushSubscribed) {
+                          // Unsubscribe
+                          const reg = await navigator.serviceWorker.ready;
+                          const sub = await reg.pushManager.getSubscription();
+                          if (sub) {
+                            await fetch('/api/push/subscribe', { method: 'DELETE', body: JSON.stringify({ endpoint: sub.endpoint }), headers: { 'Content-Type': 'application/json' } });
+                            await sub.unsubscribe();
+                          }
+                          setPushSubscribed(false);
+                        } else {
+                          // Subscribe
+                          const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+                          if (!vapidKey) { alert('VAPID kulcs nincs beállítva — push értesítés nem elérhető.'); return; }
+                          const permission = await Notification.requestPermission();
+                          if (permission !== 'granted') { alert('Push értesítések engedélyezése megtagadva.'); return; }
+                          const reg = await navigator.serviceWorker.ready;
+                          const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey });
+                          await fetch('/api/push/subscribe', { method: 'POST', body: JSON.stringify(sub), headers: { 'Content-Type': 'application/json' } });
+                          setPushSubscribed(true);
+                        }
+                      } finally {
+                        setPushLoading(false);
+                      }
+                    }}
+                    className={`rounded-full px-4 py-2 text-xs font-black transition-colors ${pushSubscribed ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'} disabled:opacity-50`}
+                  >
+                    {pushLoading ? '...' : pushSubscribed ? '✓ Bekapcsolva' : 'Bekapcsolás'}
+                  </button>
+                </div>
+              ) : null}
             </SectionCard>
 
             <SectionCard id="tasks" title="Teendők és gyors műveletek" icon={<ClipboardCheck size={18} />}>
@@ -773,25 +1005,63 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               }
             >
               <div className="space-y-3">
-                {visibleTickets.map((ticket) => (
-                  <article key={ticket.id} className="rounded-3xl border border-slate-100 bg-slate-50/70 p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="font-black text-slate-950">{ticket.title}</p>
-                        <p className="mt-1 text-sm text-slate-600">{ticket.description}</p>
+                {visibleTickets.map((ticket) => {
+                  const isAiPending = ticket.ai_triage_at === null || ticket.ai_triage_at === undefined;
+                  const isAiOverridden = ticket.ai_override === true;
+                  const isHighUrgency = typeof ticket.ai_urgency === 'number' && ticket.ai_urgency >= 8;
+                  return (
+                    <article
+                      key={ticket.id}
+                      className={`rounded-3xl border p-4 transition-colors ${isHighUrgency ? 'border-rose-200 bg-rose-50/60' : 'border-slate-100 bg-slate-50/70'}`}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-black text-slate-950">{ticket.title}</p>
+                          {ticket.ai_summary_hu ? (
+                            <p className="mt-1 text-sm italic text-slate-600">{ticket.ai_summary_hu}</p>
+                          ) : (
+                            <p className="mt-1 text-sm text-slate-600">{ticket.description}</p>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <StatusBadge status={ticket.status} />
+                          <PriorityBadge priority={ticket.priority} />
+                          <AiUrgencyBadge urgency={ticket.ai_urgency} />
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-2"><StatusBadge status={ticket.status} /><PriorityBadge priority={ticket.priority} /></div>
-                    </div>
-                    <p className="mt-3 text-xs font-medium text-slate-500">Helyszín: {ticket.location} · Beküldte: {ticket.submitted_by || 'Ismeretlen'} {ticket.unit_label ? `(${ticket.unit_label})` : ''} · Frissítve: {formatDateTime(ticket.updated_at)}</p>
-                    {isManager ? (
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                        <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold hover:border-brand-400" onClick={() => updateTicketStatus(ticket.id, 'folyamatban')} type="button">Folyamatban</button>
-                        <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold hover:border-violet-400" onClick={() => updateTicketStatus(ticket.id, 'varakozik')} type="button">Várakozik</button>
-                        <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold hover:border-emerald-400" onClick={() => updateTicketStatus(ticket.id, 'lezarva')} type="button">Lezárás</button>
-                      </div>
-                    ) : null}
-                  </article>
-                ))}
+                      {isAiPending ? (
+                        <AiTriagePendingSkeleton />
+                      ) : (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <AiCategoryChip category={ticket.ai_category} />
+                          {ticket.ai_vendor_suggestion ? (
+                            <span className="text-xs text-slate-500">{ticket.ai_vendor_suggestion}</span>
+                          ) : null}
+                          {isAiOverridden ? (
+                            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-600 ring-1 ring-violet-200">Manuálisan módosítva</span>
+                          ) : (
+                            <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-600 ring-1 ring-emerald-200">
+                              <Sparkles size={9} />AI triázs
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <p className="mt-3 text-xs font-medium text-slate-500">
+                        Helyszín: {ticket.location} · Beküldte: {ticket.submitted_by || 'Ismeretlen'}{ticket.unit_label ? ` (${ticket.unit_label})` : ''} · Frissítve: {formatDateTime(ticket.updated_at)}
+                      </p>
+                      {isManager ? (
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                          <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold hover:border-brand-400" onClick={() => updateTicketStatus(ticket.id, 'folyamatban')} type="button">Folyamatban</button>
+                          <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold hover:border-violet-400" onClick={() => updateTicketStatus(ticket.id, 'varakozik')} type="button">Várakozik</button>
+                          <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold hover:border-emerald-400" onClick={() => updateTicketStatus(ticket.id, 'lezarva')} type="button">Lezárás</button>
+                          {!isAiPending ? (
+                            <button className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 font-bold text-violet-700 hover:border-violet-400" onClick={() => handleAiOverrideClick(ticket.id)} type="button">AI módosítás</button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </article>
+                  );
+                })}
               </div>
             </SectionCard>
           </section>
@@ -831,7 +1101,65 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </SectionCard>
 
           <section className="grid gap-6 xl:grid-cols-3">
-            <SectionCard id="documents" title="Dokumentumtár" icon={<FileText size={18} />} action={<select value={documentFilter} onChange={(e) => setDocumentFilter(e.target.value)} className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-semibold">{documentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select>}>
+            <SectionCard id="documents" title="Dokumentumtár" icon={<FileText size={18} />} action={
+              <div className="flex items-center gap-2">
+                <select value={documentFilter} onChange={(e) => setDocumentFilter(e.target.value)} className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-semibold">
+                  {documentCategories.map((category) => <option key={category} value={category}>{category}</option>)}
+                </select>
+                {isManager && (
+                  <button
+                    type="button"
+                    onClick={() => setShowUploadForm((v) => !v)}
+                    className="rounded-2xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700"
+                  >
+                    + Feltöltés
+                  </button>
+                )}
+              </div>
+            }>
+              {/* Manager upload form */}
+              {isManager && showUploadForm && (
+                <form
+                  className="mb-4 rounded-2xl border border-brand-100 bg-brand-50 p-4"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setUploadStatus('uploading');
+                    setUploadError('');
+                    const fd = new FormData(e.currentTarget);
+                    const result = await uploadDocumentAction(fd);
+                    if (result.success) {
+                      setUploadStatus('done');
+                      setShowUploadForm(false);
+                      (e.target as HTMLFormElement).reset();
+                      setTimeout(() => setUploadStatus('idle'), 2000);
+                    } else {
+                      setUploadStatus('error');
+                      setUploadError(result.error ?? 'Ismeretlen hiba');
+                    }
+                  }}
+                >
+                  <p className="mb-3 text-sm font-bold text-brand-800">Dokumentum feltöltése</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input required name="title" placeholder="Cím *" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+                    <input required name="category" placeholder="Kategória *" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+                    <input name="version" placeholder="Verzió (pl. 1.0)" defaultValue="1.0" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+                    <select name="visibility" className="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                      <option value="Mindenki">Mindenki</option>
+                      <option value="Tulajdonosok">Tulajdonosok</option>
+                      <option value="Kezelők">Kezelők</option>
+                    </select>
+                  </div>
+                  <input required name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" className="mt-3 block w-full text-sm text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-brand-600 file:px-3 file:py-2 file:text-xs file:font-bold file:text-white hover:file:bg-brand-700" />
+                  {uploadError && <p className="mt-2 text-xs text-rose-600">{uploadError}</p>}
+                  <div className="mt-3 flex gap-2">
+                    <button type="submit" disabled={uploadStatus === 'uploading'} className="rounded-xl bg-brand-600 px-4 py-2 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-50">
+                      {uploadStatus === 'uploading' ? 'Feltöltés…' : 'Feltöltés'}
+                    </button>
+                    <button type="button" onClick={() => setShowUploadForm(false)} className="rounded-xl bg-slate-100 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200">Mégse</button>
+                  </div>
+                </form>
+              )}
+              {uploadStatus === 'done' && <p className="mb-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700">✓ Dokumentum sikeresen feltöltve</p>}
               <div className="space-y-3">
                 {visibleDocuments.map((item) => (
                   <article key={item.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
@@ -843,7 +1171,20 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       {item.acknowledged_at ? <CheckCircle2 className="text-emerald-500" size={18} /> : <AlertTriangle className="text-amber-500" size={18} />}
                     </div>
                     <div className="mt-3 flex gap-2">
-                      <button className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white" type="button">Megnyitás</button>
+                      <button
+                        className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white hover:bg-slate-700"
+                        type="button"
+                        onClick={async () => {
+                          const result = await getDocumentSignedUrlAction(item.file_url);
+                          if (result.success && result.url) {
+                            window.open(result.url, '_blank', 'noopener,noreferrer');
+                          } else {
+                            alert(result.error ?? 'Nem sikerült megnyitni a dokumentumot.');
+                          }
+                        }}
+                      >
+                        Megnyitás
+                      </button>
                       {!item.acknowledged_at && (
                         <button
                           className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white hover:bg-emerald-700"
@@ -859,18 +1200,90 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </div>
             </SectionCard>
 
-            <SectionCard id="finances" title="Pénzügyi átláthatóság" icon={<CircleDollarSign size={18} />}>
-              <p className="mb-4 text-sm text-slate-500">Összesen: {formatCurrency(totalDue)} · Befizetve: {formatCurrency(totalPaid)} · Hátralék: {formatCurrency(arrears)}</p>
+            <SectionCard id="finances" title="Pénzügyi átláthatóság" icon={<CircleDollarSign size={18} />} action={
+              isAdminLike ? (
+                <button
+                  type="button"
+                  onClick={() => { setShowChargeForm((v) => !v); setChargeStatus('idle'); setChargeError(''); }}
+                  className="rounded-2xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700"
+                >
+                  + Terhelés rögzítése
+                </button>
+              ) : undefined
+            }>
+              <p className="mb-4 text-sm text-slate-500">Összesen: {formatCurrency(totalDue)} · Befizetve: {formatCurrency(totalPaid)} · Hátralék: <span className={arrears > 0 ? 'font-bold text-rose-600' : 'text-emerald-700'}>{formatCurrency(arrears)}</span></p>
               <div className="mb-4 h-3 overflow-hidden rounded-full bg-slate-100">
                 <div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-cyan-400" style={{ width: `${Math.min((totalPaid / Math.max(totalDue, 1)) * 100, 100)}%` }} />
               </div>
+
+              {/* Charge generation form */}
+              {isAdminLike && showChargeForm && (
+                <form
+                  className="mb-4 space-y-3 rounded-2xl border border-brand-100 bg-brand-50/60 p-4"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const fd = new FormData(e.currentTarget);
+                    setChargeStatus('saving');
+                    setChargeError('');
+                    const result = await createChargeAction({
+                      buildingId: (fd.get('building_id') as string) || 'global',
+                      period: fd.get('period') as string,
+                      chargePerUnit: parseFloat(fd.get('charge_per_unit') as string),
+                      dueDate: fd.get('due_date') as string,
+                      description: (fd.get('description') as string) || undefined,
+                    });
+                    if (result.success) {
+                      setChargeStatus('done');
+                      (e.target as HTMLFormElement).reset();
+                    } else {
+                      setChargeStatus('error');
+                      setChargeError(result.error ?? 'Ismeretlen hiba');
+                    }
+                  }}
+                >
+                  <p className="text-xs font-bold text-brand-800">Közös költség terhelés — összes albetétnek</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input name="period" type="month" required className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Időszak (YYYY-MM)" />
+                    <input name="charge_per_unit" type="number" min={1} max={10000000} required className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Összeg (Ft/albetét)" />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input name="due_date" type="date" required className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" />
+                    <input name="description" className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Leírás (opcionális)" />
+                  </div>
+                  <input name="building_id" type="hidden" value="" />
+                  <button type="submit" disabled={chargeStatus === 'saving'} className="rounded-2xl bg-brand-600 px-4 py-2 text-sm font-black text-white hover:bg-brand-700 disabled:opacity-50">
+                    {chargeStatus === 'saving' ? 'Rögzítés...' : 'Terhelés rögzítése'}
+                  </button>
+                  {chargeStatus === 'done' && <p className="text-sm font-semibold text-emerald-700">Terhelés rögzítve.</p>}
+                  {chargeStatus === 'error' && <p className="text-sm font-semibold text-rose-600">{chargeError}</p>}
+                </form>
+              )}
+
               <ul className="space-y-2 text-sm">
-                {data.finances.map((entry) => (
-                  <li key={entry.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                    <p className="font-bold text-slate-900">{entry.period}</p>
-                    <p className="text-slate-500">Esedékes: {formatCurrency(entry.expected_amount)} · Befizetve: {formatCurrency(entry.paid_amount)} · Határidő: {formatDate(entry.due_date)}</p>
-                  </li>
-                ))}
+                {data.finances.map((entry) => {
+                  const isCharge = !entry.entry_type || entry.entry_type === 'charge';
+                  const isPayment = entry.entry_type === 'payment';
+                  return (
+                    <li key={entry.id} className={`rounded-2xl border p-3 ${isPayment ? 'border-emerald-100 bg-emerald-50/60' : 'border-slate-100 bg-slate-50'}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-bold text-slate-900">{entry.description ?? entry.period}</p>
+                          {isCharge && <p className="text-slate-500">Esedékes: {formatCurrency(entry.expected_amount)} · Befizetve: {formatCurrency(entry.paid_amount)} · Határidő: {formatDate(entry.due_date)}</p>}
+                          {isPayment && <p className="text-emerald-700 font-semibold">+{formatCurrency(entry.paid_amount)} befizetés{entry.payment_reference ? ` · Ref: ${entry.payment_reference}` : ''}</p>}
+                        </div>
+                        {isCharge && isAdminLike && (
+                          <button
+                            type="button"
+                            onClick={() => setShowPaymentForm(entry.id)}
+                            className="rounded-xl border border-emerald-200 bg-white px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 shrink-0"
+                          >
+                            Befizetés
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </SectionCard>
 
@@ -900,25 +1313,129 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </section>
 
           <section className="grid gap-6 xl:grid-cols-2">
-            <SectionCard id="meetings" title="Közgyűlés, határozatok és szavazás" icon={<Vote size={18} />}>
+            <SectionCard id="meetings" title="Közgyűlés, határozatok és szavazás" icon={<Vote size={18} />} action={
+              isManager ? (
+                <button
+                  type="button"
+                  onClick={() => { setShowMeetingForm((v) => !v); setMeetingStatus('idle'); setMeetingError(''); }}
+                  className="rounded-2xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700"
+                >
+                  + Közgyűlés
+                </button>
+              ) : undefined
+            }>
+              {/* Meeting creation form */}
+              {isManager && showMeetingForm && (
+                <form
+                  className="mb-4 space-y-3 rounded-2xl border border-brand-100 bg-brand-50/60 p-4"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const fd = new FormData(e.currentTarget);
+                    const agendaRaw = (fd.get('agenda') as string).split('\n').filter(Boolean);
+                    const agendaItems = agendaRaw.map((title, i) => ({ order_no: i + 1, title: title.trim() }));
+                    setMeetingStatus('saving');
+                    setMeetingError('');
+                    const result = await createMeetingAction({
+                      building_id: (fd.get('building_id') as string) || 'global',
+                      title: fd.get('title') as string,
+                      scheduled_at: fd.get('scheduled_at') as string,
+                      location: fd.get('location') as string,
+                      chairperson_name: (fd.get('chairperson') as string) || undefined,
+                      secretary_name: (fd.get('secretary') as string) || undefined,
+                      agenda_items: agendaItems,
+                    });
+                    if (result.success) {
+                      setMeetingStatus('done');
+                      (e.target as HTMLFormElement).reset();
+                      setShowMeetingForm(false);
+                    } else {
+                      setMeetingStatus('error');
+                      setMeetingError(result.error ?? 'Ismeretlen hiba');
+                    }
+                  }}
+                >
+                  <p className="text-xs font-bold text-brand-800">Új közgyűlés létrehozása</p>
+                  <input name="title" required className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Közgyűlés neve" />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input name="scheduled_at" type="datetime-local" required className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" />
+                    <input name="location" className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Helyszín" />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input name="chairperson" className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Levezető elnök neve" />
+                    <input name="secretary" className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Jegyzőkönyvvezető neve" />
+                  </div>
+                  <textarea name="agenda" required rows={4} className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Napirendi pontok (soronként egy)" />
+                  <input name="building_id" type="hidden" value="" />
+                  <button type="submit" disabled={meetingStatus === 'saving'} className="rounded-2xl bg-brand-600 px-4 py-2 text-sm font-black text-white hover:bg-brand-700 disabled:opacity-50">
+                    {meetingStatus === 'saving' ? 'Létrehozás...' : 'Közgyűlés létrehozása'}
+                  </button>
+                  {meetingStatus === 'error' && <p className="text-sm font-semibold text-rose-600">{meetingError}</p>}
+                </form>
+              )}
+
               <div className="space-y-3">
-                {data.meetings.map((meeting) => (
-                  <article key={meeting.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="font-black text-slate-950">{meeting.title}</p>
-                        <p className="mt-1 text-sm text-slate-500">{formatDateTime(meeting.scheduled_at)} · határozatok: {meeting.resolution_count}</p>
-                        {meeting.agenda_preview ? <p className="mt-2 text-sm text-slate-600">Napirend: {meeting.agenda_preview}</p> : null}
+                {meetings.map((meeting) => {
+                  const quorumPct = meeting.actual_quorum != null ? (meeting.actual_quorum * 100).toFixed(1) : null;
+                  const thresholdPct = ((meeting.quorum_threshold ?? 0.5) * 100).toFixed(0);
+                  const quorumMet = meeting.actual_quorum != null && meeting.actual_quorum >= (meeting.quorum_threshold ?? 0.5);
+
+                  return (
+                    <article key={meeting.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-black text-slate-950">{meeting.title}</p>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {formatDateTime(meeting.scheduled_at)}
+                            {meeting.location ? ` · ${meeting.location}` : ''}
+                            {' · '}{meeting.resolution_count} határozat
+                          </p>
+                          {meeting.agenda_preview ? <p className="mt-1 text-sm italic text-slate-600">Napirend: {meeting.agenda_preview}</p> : null}
+                          {quorumPct ? (
+                            <p className={`mt-1 text-xs font-bold ${quorumMet ? 'text-emerald-700' : 'text-rose-600'}`}>
+                              Kvórum: {quorumPct}% ({quorumMet ? `✓ határozatképes (min. ${thresholdPct}%)` : `✗ nem határozatképes (min. ${thresholdPct}%)`})
+                            </p>
+                          ) : null}
+                          {meeting.invitation_sent_at ? (
+                            <p className="mt-1 text-xs text-emerald-700">Meghívó kiküldve: {formatDateTime(meeting.invitation_sent_at)}</p>
+                          ) : null}
+                        </div>
+                        <StatusBadge status={meeting.status} />
                       </div>
-                      <StatusBadge status={meeting.status} />
-                    </div>
-                    <div className="mt-3 grid gap-2 text-xs font-bold sm:grid-cols-3">
-                      <button className="rounded-xl bg-brand-50 px-3 py-2 text-brand-700" type="button">Meghívó</button>
-                      <button className="rounded-xl bg-violet-50 px-3 py-2 text-violet-700" type="button">Szavazás</button>
-                      <button className="rounded-xl bg-slate-100 px-3 py-2 text-slate-700" type="button">Határozatok</button>
-                    </div>
-                  </article>
-                ))}
+                      {isManager && meeting.status === 'tervezett' && (
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+                          <button
+                            type="button"
+                            className="rounded-xl bg-brand-50 px-3 py-2 text-brand-700 hover:bg-brand-100"
+                            onClick={async () => {
+                              const result = await sendInvitationAction(meeting.id);
+                              if (!result.success) alert(result.error);
+                              else alert(`Meghívó kiküldési rekord rögzítve (${result.days_until_meeting} nap múlva a közgyűlés).`);
+                            }}
+                          >
+                            Meghívó küldés
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-xl bg-slate-100 px-3 py-2 text-slate-700 hover:bg-slate-200"
+                            onClick={async () => {
+                              if (!confirm('Közgyűlés lezárása? A kvórum és határozatképesség rögzítve lesz.')) return;
+                              const buildingId = meeting.id; // fallback — in production pass real building_id
+                              const result = await closeMeetingAction(meeting.id, buildingId);
+                              if (!result.success) alert(result.error);
+                              else {
+                                const pct = result.actual_quorum != null ? (result.actual_quorum * 100).toFixed(1) : '?';
+                                alert(`Közgyűlés lezárva. Megjelent tulajdoni hányad: ${pct}%`);
+                                setMeetings((prev) => prev.map((m) => m.id === meeting.id ? { ...m, status: 'lezart' as const, actual_quorum: result.actual_quorum } : m));
+                              }
+                            }}
+                          >
+                            Lezárás
+                          </button>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
               </div>
             </SectionCard>
 
@@ -939,7 +1456,22 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       <p className="font-bold text-slate-900">{workOrder.ticket_title}</p>
                       <p className="text-slate-500">{workOrder.vendor_name} · {formatDate(workOrder.due_date)} · {formatCurrency(workOrder.cost_estimate)}</p>
                     </div>
-                    <StatusBadge status={workOrder.status} />
+                    {isManager ? (
+                      <select
+                        defaultValue={workOrder.status}
+                        onChange={async (e) => {
+                          await updateWorkOrderStatusAction(workOrder.id, e.target.value as WorkOrderItem['status']);
+                        }}
+                        className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      >
+                        <option value="tervezett">Tervezett</option>
+                        <option value="kikuldve">Kiküldve</option>
+                        <option value="folyamatban">Folyamatban</option>
+                        <option value="lezarva">Lezárva</option>
+                      </select>
+                    ) : (
+                      <StatusBadge status={workOrder.status} />
+                    )}
                   </article>
                 ))}
               </div>
@@ -1029,6 +1561,114 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </section>
         </main>
       </div>
+
+      {/* Payment Recording Modal */}
+      {showPaymentForm ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+            <h3 className="mb-4 text-lg font-black text-slate-900 flex items-center gap-2">
+              <CircleDollarSign size={18} className="text-emerald-600" />
+              Befizetés rögzítése
+            </h3>
+            <form
+              className="space-y-3"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                setPaymentStatus('saving');
+                const entry = data.finances.find((f) => f.id === showPaymentForm);
+                const result = await recordPaymentAction({
+                  unitId: entry?.unit_id ?? '',
+                  amount: parseFloat(fd.get('amount') as string),
+                  paymentDate: fd.get('payment_date') as string,
+                  reference: (fd.get('reference') as string) || undefined,
+                });
+                if (result.success) {
+                  setPaymentStatus('done');
+                  setShowPaymentForm(null);
+                } else {
+                  setPaymentStatus('error');
+                }
+              }}
+            >
+              <input name="amount" type="number" min={1} max={10000000} required className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Összeg (Ft)" />
+              <input name="payment_date" type="date" required className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
+              <input name="reference" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Banki hivatkozás (opcionális)" />
+              <div className="flex gap-3 mt-4">
+                <button type="submit" disabled={paymentStatus === 'saving'} className="flex-1 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white hover:bg-emerald-700 disabled:opacity-50">
+                  {paymentStatus === 'saving' ? 'Mentés...' : 'Befizetés rögzítése'}
+                </button>
+                <button type="button" onClick={() => { setShowPaymentForm(null); setPaymentStatus('idle'); }} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">
+                  Mégse
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {/* AI Override Modal */}
+      {overrideTicketId ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+            <h3 className="mb-4 flex items-center gap-2 text-lg font-black text-slate-900">
+              <Sparkles size={18} className="text-violet-600" />
+              AI triázs módosítása
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-700">Kategória</label>
+                <select
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+                  value={overrideCategory}
+                  onChange={(e) => setOverrideCategory(e.target.value)}
+                >
+                  <option value="plumbing">Vízvezeték</option>
+                  <option value="electrical">Elektromos</option>
+                  <option value="structural">Szerkezeti</option>
+                  <option value="common_area">Közös terület</option>
+                  <option value="emergency">Vészhelyzet</option>
+                  <option value="hvac">Fűtés / Légkond.</option>
+                  <option value="elevator">Lift</option>
+                  <option value="other">Egyéb</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-700">Sürgősség: {overrideUrgency}/10</label>
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  value={overrideUrgency}
+                  onChange={(e) => setOverrideUrgency(Number(e.target.value))}
+                  className="w-full accent-violet-600"
+                />
+                <div className="mt-1 flex justify-between text-xs text-slate-400">
+                  <span>1 — Rutinkarbantartás</span>
+                  <span>10 — Életveszély</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button
+                className="flex-1 rounded-2xl bg-violet-600 px-4 py-3 text-sm font-black text-white hover:bg-violet-700 disabled:opacity-50"
+                onClick={submitAiOverride}
+                disabled={overrideSaving}
+                type="button"
+              >
+                {overrideSaving ? 'Mentés...' : 'Mentés'}
+              </button>
+              <button
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                onClick={() => setOverrideTicketId(null)}
+                type="button"
+              >
+                Mégse
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

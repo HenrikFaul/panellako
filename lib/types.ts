@@ -5,6 +5,9 @@ export interface UserProfile {
   full_name: string;
   email: string;
   role: Role;
+  notifications_email?: boolean;
+  notifications_statutory_email?: boolean;
+  unsubscribe_token?: string;
 }
 
 export type NewsCategory = 'tarsashazi_kozlony' | 'keruleti_hir' | 'uzemeltetes' | 'biztonsag' | 'egyeb';
@@ -30,6 +33,16 @@ export interface NotificationItem {
   read_at?: string | null;
 }
 
+export type AiCategory =
+  | 'plumbing'
+  | 'electrical'
+  | 'structural'
+  | 'common_area'
+  | 'emergency'
+  | 'hvac'
+  | 'elevator'
+  | 'other';
+
 export interface Ticket {
   id: string;
   title: string;
@@ -42,6 +55,13 @@ export interface Ticket {
   unit_label?: string;
   created_at?: string;
   updated_at?: string;
+  // AI triage fields — null until Edge Function completes
+  ai_category?: AiCategory | null;
+  ai_urgency?: number | null;
+  ai_vendor_suggestion?: string | null;
+  ai_summary_hu?: string | null;
+  ai_triage_at?: string | null;
+  ai_override?: boolean | null;
 }
 
 export interface MeterReading {
@@ -64,12 +84,20 @@ export interface DocumentItem {
   acknowledged_at?: string | null;
 }
 
+export type FinanceEntryType = 'charge' | 'payment' | 'adjustment' | 'opening_balance';
+
 export interface FinanceItem {
   id: string;
+  unit_id?: string;
   period: string;
   expected_amount: number;
   paid_amount: number;
   due_date: string;
+  entry_type?: FinanceEntryType;
+  description?: string;
+  payment_date?: string | null;
+  payment_reference?: string | null;
+  created_by?: string | null;
 }
 
 export interface MeetingItem {
@@ -77,8 +105,15 @@ export interface MeetingItem {
   title: string;
   scheduled_at: string;
   status: 'tervezett' | 'lezart';
+  status_detail?: string;
   resolution_count: number;
   agenda_preview?: string;
+  location?: string;
+  actual_quorum?: number | null;
+  quorum_threshold?: number;
+  invitation_sent_at?: string | null;
+  protocol_url?: string | null;
+  protocol_generated_at?: string | null;
 }
 
 export interface UnitItem {

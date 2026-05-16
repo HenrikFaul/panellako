@@ -308,3 +308,195 @@ create policy "Public insert meter readings" on meter_readings for insert with c
 create policy "Manager insert announcements" on announcements for insert with check (true);
 create policy "Manager insert notifications" on notifications for insert with check (true);
 create policy "Public insert audit logs" on audit_logs for insert with check (true);
+
+-- Previously missing INSERT policies
+drop policy if exists "Authenticated insert documents" on documents;
+drop policy if exists "Authenticated insert document acknowledgements" on document_acknowledgements;
+drop policy if exists "Authenticated insert finance entries" on finance_entries;
+drop policy if exists "Authenticated insert votes" on votes;
+drop policy if exists "Authenticated insert work orders" on work_orders;
+
+create policy "Authenticated insert documents" on documents for insert with check (true);
+create policy "Authenticated insert document acknowledgements" on document_acknowledgements for insert with check (true);
+create policy "Authenticated insert finance entries" on finance_entries for insert with check (true);
+create policy "Authenticated insert votes" on votes for insert with check (true);
+create policy "Authenticated insert work orders" on work_orders for insert with check (true);
+
+-- Previously missing UPDATE policies
+drop policy if exists "Authenticated update tickets" on tickets;
+drop policy if exists "Authenticated update notifications" on notifications;
+drop policy if exists "Authenticated update document acknowledgements" on document_acknowledgements;
+drop policy if exists "Authenticated update work orders" on work_orders;
+drop policy if exists "Authenticated update resolutions" on resolutions;
+
+create policy "Authenticated update tickets" on tickets for update using (true) with check (true);
+create policy "Authenticated update notifications" on notifications for update using (true) with check (true);
+create policy "Authenticated update document acknowledgements" on document_acknowledgements for update using (true) with check (true);
+create policy "Authenticated update work orders" on work_orders for update using (true) with check (true);
+create policy "Authenticated update resolutions" on resolutions for update using (true) with check (true);
+
+-- Unique constraint for votes upsert (required for onConflict to work)
+alter table votes drop constraint if exists votes_resolution_voter_unique;
+alter table votes add constraint votes_resolution_voter_unique unique (resolution_id, voter_profile_id);
+
+-- Initiative #6: PWA Push Notifications — push subscriptions table
+create table if not exists push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  profile_id uuid not null references profiles(id) on delete cascade,
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  user_agent text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table push_subscriptions enable row level security;
+drop policy if exists "User manages own push subscriptions" on push_subscriptions;
+create policy "User manages own push subscriptions" on push_subscriptions
+  using (auth.uid() = profile_id)
+  with check (auth.uid() = profile_id);
+
+create index if not exists idx_push_subscriptions_profile_id on push_subscriptions (profile_id);
+
+-- Initiative #9: Assembly protocol generator — meetings table extensions
+alter table meetings add column if not exists status_detail text
+  check (status_detail in ('tervezett', 'aktiv', 'szavazas_folyamatban', 'lezarva'));
+alter table meetings add column if not exists quorum_threshold numeric default 0.5;
+alter table meetings add column if not exists actual_quorum numeric;
+alter table meetings add column if not exists protocol_url text;
+alter table meetings add column if not exists protocol_generated_at timestamptz;
+alter table meetings add column if not exists invitation_sent_at timestamptz;
+alter table meetings add column if not exists location text;
+alter table meetings add column if not exists chairperson_name text;
+alter table meetings add column if not exists secretary_name text;
+
+create table if not exists meeting_attendances (
+  id uuid primary key default gen_random_uuid(),
+  meeting_id uuid not null references meetings(id) on delete cascade,
+  profile_id uuid references profiles(id) on delete set null,
+  unit_id uuid not null references units(id) on delete cascade,
+  ownership_share numeric(10,4) not null,
+  attended_at timestamptz not null default now(),
+  proxy_name text,
+  proxy_document_url text,
+  unique (meeting_id, unit_id)
+);
+
+alter table meeting_attendances enable row level security;
+drop policy if exists "Public read meeting attendances" on meeting_attendances;
+create policy "Public read meeting attendances" on meeting_attendances for select using (true);
+drop policy if exists "Manager insert meeting attendances" on meeting_attendances;
+create policy "Manager insert meeting attendances" on meeting_attendances for insert with check (true);
+drop policy if exists "Manager update meeting attendances" on meeting_attendances;
+create policy "Manager update meeting attendances" on meeting_attendances for update using (true);
+
+drop policy if exists "Manager insert meetings" on meetings;
+create policy "Manager insert meetings" on meetings for insert with check (true);
+drop policy if exists "Manager update meetings" on meetings;
+create policy "Manager update meetings" on meetings for update using (true);
+
+drop policy if exists "Manager insert agenda items" on agenda_items;
+create policy "Manager insert agenda items" on agenda_items for insert with check (true);
+drop policy if exists "Manager insert resolutions" on resolutions;
+create policy "Manager insert resolutions" on resolutions for insert with check (true);
+
+alter table documents add column if not exists document_type text default 'upload';
+
+-- Initiative #8: Financial ledger enhancements
+alter table finance_entries
+  add column if not exists payment_date timestamptz,
+  add column if not exists payment_reference text,
+  add column if not exists created_by uuid references profiles(id) on delete set null,
+  add column if not exists description text,
+  add column if not exists entry_type text not null default 'charge'
+    check (entry_type in ('charge', 'payment', 'adjustment', 'opening_balance'));
+
+create index if not exists idx_finance_entries_unit_period on finance_entries (unit_id, period);
+create index if not exists idx_finance_entries_unit_id on finance_entries (unit_id);
+create index if not exists idx_finance_entries_entry_type on finance_entries (entry_type);
+create index if not exists idx_units_balance_amount on units (balance_amount) where balance_amount < 0;
+
+drop view if exists unit_balance_view;
+create view unit_balance_view as
+select
+  u.id as unit_id,
+  u.building_id,
+  u.unit_label,
+  u.owner_name,
+  u.unit_type,
+  u.balance_amount as cached_balance,
+  coalesce(sum(case when fe.entry_type in ('charge','opening_balance') then fe.expected_amount else 0 end), 0) as total_charged,
+  coalesce(sum(case when fe.entry_type = 'payment' then fe.paid_amount else 0 end), 0) as total_paid,
+  coalesce(sum(
+    case
+      when fe.entry_type in ('charge','opening_balance') then fe.expected_amount
+      when fe.entry_type = 'payment' then -fe.paid_amount
+      when fe.entry_type = 'adjustment' then fe.expected_amount - fe.paid_amount
+      else 0
+    end
+  ), 0) as computed_balance,
+  count(fe.id) as entry_count
+from units u
+left join finance_entries fe on fe.unit_id = u.id
+group by u.id, u.building_id, u.unit_label, u.owner_name, u.unit_type, u.balance_amount;
+
+drop view if exists building_arrears_view;
+create view building_arrears_view as
+select
+  ubv.building_id,
+  b.name as building_name,
+  ubv.unit_id,
+  ubv.unit_label,
+  ubv.owner_name,
+  ubv.total_charged,
+  ubv.total_paid,
+  ubv.computed_balance,
+  (select max(fe2.due_date) from finance_entries fe2 where fe2.unit_id = ubv.unit_id and fe2.entry_type = 'charge') as latest_due_date
+from unit_balance_view ubv
+join buildings b on b.id = ubv.building_id
+where ubv.computed_balance > 0
+order by ubv.computed_balance desc;
+
+drop policy if exists "Finance managers can insert finance entries" on finance_entries;
+drop policy if exists "Finance managers can update finance entries" on finance_entries;
+create policy "Finance managers can insert finance entries" on finance_entries for insert with check (true);
+create policy "Finance managers can update finance entries" on finance_entries for update using (true) with check (true);
+
+create or replace function sync_unit_balance()
+returns trigger language plpgsql as $$
+declare v_computed_balance numeric(12,2);
+begin
+  select coalesce(sum(
+    case
+      when entry_type in ('charge','opening_balance') then expected_amount
+      when entry_type = 'payment' then -paid_amount
+      when entry_type = 'adjustment' then expected_amount - paid_amount
+      else 0
+    end
+  ), 0) into v_computed_balance from finance_entries where unit_id = new.unit_id;
+  update units set balance_amount = v_computed_balance where id = new.unit_id;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_sync_unit_balance on finance_entries;
+create trigger trg_sync_unit_balance
+  after insert or update on finance_entries
+  for each row execute function sync_unit_balance();
+
+-- Initiative #10: Email notification preferences on profiles
+alter table profiles add column if not exists notifications_email boolean not null default true;
+alter table profiles add column if not exists notifications_statutory_email boolean not null default true;
+alter table profiles add column if not exists unsubscribe_token uuid default gen_random_uuid();
+
+-- Initiative #7: AI triage columns on tickets
+alter table tickets add column if not exists ai_category text;
+alter table tickets add column if not exists ai_urgency integer check (ai_urgency >= 1 and ai_urgency <= 10);
+alter table tickets add column if not exists ai_vendor_suggestion text;
+alter table tickets add column if not exists ai_summary_hu text;
+alter table tickets add column if not exists ai_triage_at timestamptz;
+alter table tickets add column if not exists ai_override boolean not null default false;
+
+create index if not exists idx_tickets_ai_triage_at on tickets (ai_triage_at) where ai_triage_at is null;
+create index if not exists idx_tickets_ai_urgency on tickets (ai_urgency desc) where ai_urgency is not null;
