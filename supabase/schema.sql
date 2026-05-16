@@ -339,6 +339,26 @@ create policy "Authenticated update resolutions" on resolutions for update using
 alter table votes drop constraint if exists votes_resolution_voter_unique;
 alter table votes add constraint votes_resolution_voter_unique unique (resolution_id, voter_profile_id);
 
+-- Initiative #6: PWA Push Notifications — push subscriptions table
+create table if not exists push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  profile_id uuid not null references profiles(id) on delete cascade,
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  user_agent text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table push_subscriptions enable row level security;
+drop policy if exists "User manages own push subscriptions" on push_subscriptions;
+create policy "User manages own push subscriptions" on push_subscriptions
+  using (auth.uid() = profile_id)
+  with check (auth.uid() = profile_id);
+
+create index if not exists idx_push_subscriptions_profile_id on push_subscriptions (profile_id);
+
 -- Initiative #9: Assembly protocol generator — meetings table extensions
 alter table meetings add column if not exists status_detail text
   check (status_detail in ('tervezett', 'aktiv', 'szavazas_folyamatban', 'lezarva'));

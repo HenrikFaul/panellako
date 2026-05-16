@@ -309,6 +309,11 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [kommandOpen, setKommandOpen] = useState(false);
   const [kommandQuery, setKommandQuery] = useState('');
 
+  // Push notification state
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+
   // Meetings state
   const [showMeetingForm, setShowMeetingForm] = useState(false);
   const [meetingStatus, setMeetingStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
@@ -384,6 +389,18 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Detect push notification support
+  useEffect(() => {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      setPushSupported(true);
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.pushManager.getSubscription().then((sub) => {
+          setPushSubscribed(Boolean(sub));
+        });
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -852,6 +869,50 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 <button className="rounded-2xl bg-brand-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-100 hover:bg-brand-700">Profil mentése</button>
                 {profileSaved ? <p className="text-sm font-semibold text-emerald-700">Profiladatok mentve demo módban.</p> : null}
               </form>
+
+              {/* Push notification toggle */}
+              {pushSupported ? (
+                <div className="mt-4 flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">Push értesítések</p>
+                    <p className="text-xs text-slate-500">Kapjon azonnali értesítést hirdetményekről és hibabejelentés frissítésekről.</p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={pushLoading}
+                    onClick={async () => {
+                      setPushLoading(true);
+                      try {
+                        if (pushSubscribed) {
+                          // Unsubscribe
+                          const reg = await navigator.serviceWorker.ready;
+                          const sub = await reg.pushManager.getSubscription();
+                          if (sub) {
+                            await fetch('/api/push/subscribe', { method: 'DELETE', body: JSON.stringify({ endpoint: sub.endpoint }), headers: { 'Content-Type': 'application/json' } });
+                            await sub.unsubscribe();
+                          }
+                          setPushSubscribed(false);
+                        } else {
+                          // Subscribe
+                          const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+                          if (!vapidKey) { alert('VAPID kulcs nincs beállítva — push értesítés nem elérhető.'); return; }
+                          const permission = await Notification.requestPermission();
+                          if (permission !== 'granted') { alert('Push értesítések engedélyezése megtagadva.'); return; }
+                          const reg = await navigator.serviceWorker.ready;
+                          const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey });
+                          await fetch('/api/push/subscribe', { method: 'POST', body: JSON.stringify(sub), headers: { 'Content-Type': 'application/json' } });
+                          setPushSubscribed(true);
+                        }
+                      } finally {
+                        setPushLoading(false);
+                      }
+                    }}
+                    className={`rounded-full px-4 py-2 text-xs font-black transition-colors ${pushSubscribed ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'} disabled:opacity-50`}
+                  >
+                    {pushLoading ? '...' : pushSubscribed ? '✓ Bekapcsolva' : 'Bekapcsolás'}
+                  </button>
+                </div>
+              ) : null}
             </SectionCard>
 
             <SectionCard id="tasks" title="Teendők és gyors műveletek" icon={<ClipboardCheck size={18} />}>

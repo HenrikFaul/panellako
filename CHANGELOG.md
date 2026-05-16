@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-05-16 — v0.3.6 Mobile PWA + Push értesítések (Initiative #6)
+
+### Added
+- **`next.config.mjs`**: `next-pwa` konfiguráció — service worker regisztrálva, offline fallback `/offline` oldalra, production-only (dev módban kikapcsolva).
+- **`public/manifest.json`**: PWA Web App Manifest — installable app, `standalone` display, teal theme color, HU lang.
+- **`app/layout.tsx`**: `<link rel="manifest">`, `theme-color`, apple-web-app-capable, `Viewport` export.
+- **`app/offline/page.tsx`**: Offline fallback oldal.
+- **`supabase/schema.sql`**: `push_subscriptions` tábla (endpoint, p256dh, auth, profile_id) RLS-sel.
+- **`app/api/push/subscribe/route.ts`**: POST (upsert subscription) + DELETE (unsubscribe) API végpont.
+- **`supabase/functions/send-push/index.ts`**: Supabase Edge Function — Web Push küldés VAPID JWT-vel, building-szintű broadcast, lejárt subscription automatikus törlése.
+- **`components/dashboard-client.tsx`**: Push értesítés bekapcsolás/kikapcsolás UI a profil szekcióban (PushManager API detection, Notification.requestPermission, subscribe/unsubscribe flow).
+
+### Deployment note
+VAPID kulcsok generálása: `npx web-push generate-vapid-keys`. `NEXT_PUBLIC_VAPID_PUBLIC_KEY` és `VAPID_PRIVATE_KEY` beállítása `.env.local`-ban és Vercel-en. Supabase Edge Function secrets: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT=mailto:support@panellako.hu`.
+
 ## 2026-05-15 — v0.3.5 Közgyűlési protokoll generator (Initiative #9)
 
 ### Added
