@@ -15,7 +15,7 @@ const ALLOWED_MIME_TYPES = [
 ];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
-export async function acknowledgeDocument(documentId: string) {
+export async function acknowledgeDocument(documentId: string, buildingId?: string) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -34,7 +34,7 @@ export async function acknowledgeDocument(documentId: string) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath('/');
+  revalidatePath(buildingId ? `/w/${buildingId}` : '/');
   return { success: true };
 }
 
@@ -72,7 +72,7 @@ export async function createDocument(input: CreateDocumentInput) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath('/');
+  revalidatePath(input.building_id ? `/w/${input.building_id}` : '/');
   return { success: true, data };
 }
 
@@ -132,7 +132,7 @@ export async function uploadDocument(formData: FormData) {
     return { success: false, error: `Adatbázis hiba: ${dbError.message}` };
   }
 
-  revalidatePath('/');
+  revalidatePath(buildingId ? `/w/${buildingId}` : '/');
   return { success: true };
 }
 

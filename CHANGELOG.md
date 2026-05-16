@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-05-16 — v0.4.0 Multi-épület dashboard + Building Picker (Initiative #5)
+
+### Added
+- **`app/app/page.tsx`**: Building Picker Server Component — az összes épület kártyás nézetben, nyitott ticket számmal, szerepkör badge-dzsel, valós idejű adatokkal a `get_my_buildings` RPC-n keresztül. Bejelentkezési redirect `/login?next=...` nem hitelesített látogatóknak.
+- **`app/w/[buildingId]/page.tsx`**: Épület-szintű dashboard route — UUID validáció (404 ha nem UUID), membership check (`validate_building_membership` RPC), jogosulatlan hozzáférés esetén redirect `/app`-ra. `getDashboardData` meghívása `buildingId` paraméterrel.
+- **`app/auth/signout/route.ts`**: POST sign-out handler — `supabase.auth.signOut()`, majd redirect `/login`-ra.
+- **`supabase/migrations/20260516_get_my_buildings_rpc.sql`**: `get_my_buildings()` Postgres RPC — épület aggregátumok (albetét szám, nyitott ticket szám) per felhasználó, `SECURITY DEFINER`, `authenticated` jogkör.
+- **`supabase/migrations/20260516_validate_building_membership_rpc.sql`**: `validate_building_membership(_building_id)` RPC — member check, szerepkör és unit_id visszaadása.
+- **`lib/data.ts`**: `getDashboardData(role, buildingId?)` — `buildingId` paraméter hozzáadva, minden Supabase lekérdezés `.eq('building_id', buildingId)`-vel szűrve (announcements, notifications, tickets, meter_readings, documents, meetings, units, vendors, knowledge_base_articles). Finance entries JOIN via units.
+- **`middleware.ts`**: Auth guard hozzáadva — `/w/*` és `/app` útvonalak bejelentkezést igényelnek, unauthenticated → `redirect('/login?next=...')`. Autentikált user login oldalon → `redirect('/app')`.
+- **`components/dashboard-client.tsx`**: `DashboardData` kiegészítve `buildingId`, `buildingName`, `buildingAddress` opcionális mezőkkel. Sidebar building context panel (épület neve, cím, "Épület váltása" link). Mobile header: tappable building breadcrumb link `/app`-ra (lg breakpoint felett rejtve, sidebar kezeli).
+- **Server Actions** (`tickets.ts`, `meter-readings.ts`, `announcements.ts`, `documents.ts`): `revalidatePath` frissítve `/w/${buildingId}` mintára ahol elérhető. `updateTicketStatus` és `updateTicketAiOverride` opcionális `buildingId` paramétert kap.
+
+### Architecture note
+A `memberships` tábla már multi-tenancy ready volt. Ez az initiative csak az alkalmazás réteget adaptálta: routing, data scoping, middleware protection. Az RLS policy-k jelen PR-ban változatlanok (production hardening külön security task).
+
 ## 2026-05-16 — v0.3.6 Mobile PWA + Push értesítések (Initiative #6)
 
 ### Added

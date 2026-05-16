@@ -36,6 +36,6 @@ export async function submitMeterReading(input: SubmitMeterReadingInput) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath('/');
+  revalidatePath(input.building_id ? `/w/${input.building_id}` : '/');
   return { success: true, data };
 }

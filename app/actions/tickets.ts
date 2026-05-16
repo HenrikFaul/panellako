@@ -14,6 +14,7 @@ export interface CreateTicketInput {
   submitted_by?: string;
   unit_label?: string;
   building_id?: string;
+  buildingId?: string;
 }
 
 // Fire-and-forget: calls the triage Edge Function without awaiting the result.
@@ -66,14 +67,16 @@ export async function createTicket(input: CreateTicketInput) {
     return { success: false, error: error.message };
   }
 
-  // Fire-and-forget — do NOT await
-  triggerAiTriage(data.id, input.title, input.description, input.building_id);
+  const bid = input.buildingId ?? input.building_id;
 
-  revalidatePath('/');
+  // Fire-and-forget — do NOT await
+  triggerAiTriage(data.id, input.title, input.description, bid);
+
+  revalidatePath(bid ? `/w/${bid}` : '/');
   return { success: true, data };
 }
 
-export async function updateTicketStatus(ticketId: string, status: TicketStatus) {
+export async function updateTicketStatus(ticketId: string, status: TicketStatus, buildingId?: string) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -81,16 +84,18 @@ export async function updateTicketStatus(ticketId: string, status: TicketStatus)
     return { success: false, error: 'Nem vagy bejelentkezve' };
   }
 
-  const { error } = await supabase
+  const query = supabase
     .from('tickets')
     .update({ status, updated_at: new Date().toISOString() })
     .eq('id', ticketId);
+
+  const { error } = buildingId ? await query.eq('building_id', buildingId) : await query;
 
   if (error) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath('/');
+  revalidatePath(buildingId ? `/w/${buildingId}` : '/');
   return { success: true };
 }
 
@@ -98,7 +103,8 @@ const VALID_AI_CATEGORIES = ['plumbing', 'electrical', 'structural', 'common_are
 
 export async function updateTicketAiOverride(
   ticketId: string,
-  overrides: { ai_category?: string; ai_urgency?: number; ai_vendor_suggestion?: string }
+  overrides: { ai_category?: string; ai_urgency?: number; ai_vendor_suggestion?: string },
+  buildingId?: string
 ) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -126,6 +132,6 @@ export async function updateTicketAiOverride(
     return { success: false, error: error.message };
   }
 
-  revalidatePath('/');
+  revalidatePath(buildingId ? `/w/${buildingId}` : '/');
   return { success: true };
 }

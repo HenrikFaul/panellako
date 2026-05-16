@@ -129,6 +129,6 @@ export async function createAnnouncement(input: CreateAnnouncementInput) {
     ).catch((err) => console.error('[createAnnouncement] Email send failed:', err));
   }
 
-  revalidatePath('/');
+  revalidatePath(input.building_id ? `/w/${input.building_id}` : '/');
   return { success: true, data };
 }

@@ -61,6 +61,9 @@ import { createMeeting as createMeetingAction, closeMeeting as closeMeetingActio
 
 type DashboardData = {
   source: string;
+  buildingId?: string;
+  buildingName?: string;
+  buildingAddress?: string;
   currentUser: { full_name: string; role: Role };
   news: Array<{
     id: string;
@@ -646,6 +649,24 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 </div>
               </div>
 
+              {/* BUILDING CONTEXT */}
+              {data.buildingName && (
+                <div className="mb-3 rounded-xl border border-slate-800/60 bg-black/20 px-3 py-2.5">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-700 mb-1">Aktuális épület</p>
+                  <p className="text-xs font-semibold text-slate-300 leading-snug truncate">{data.buildingName}</p>
+                  {data.buildingAddress && (
+                    <p className="text-[10px] text-slate-600 truncate mt-0.5">{data.buildingAddress}</p>
+                  )}
+                  <Link
+                    href="/app"
+                    className="mt-2 flex items-center gap-1.5 text-[10px] font-medium text-teal-500 hover:text-teal-400 transition-colors"
+                  >
+                    <Layers3 size={11} />
+                    Épület váltása
+                  </Link>
+                </div>
+              )}
+
               {/* HÁZ RADAR */}
               <div className="mb-4 rounded-2xl border border-slate-800/80 bg-black/40 p-3.5">
                 <div className="mb-2.5 flex items-center justify-between">
@@ -758,9 +779,26 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         <main className="space-y-6 px-4 py-5 md:px-8 lg:px-10">
           <header className="flex flex-col gap-4 rounded-[2rem] border border-white/70 bg-white/80 p-4 shadow-[0_18px_70px_rgba(15,23,42,0.08)] backdrop-blur md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-sm font-semibold text-slate-500">Teszt3</p>
-              <h1 className="text-2xl font-black tracking-tight text-slate-950 md:text-3xl">Ház kiválasztása</h1>
-              <p className="mt-1 text-sm text-slate-500">Adatforrás: {data.source === 'supabase' ? 'Supabase' : 'Mock/demo'} · Modern lakói és képviselői működés egy felületen.</p>
+              {data.buildingName ? (
+                <>
+                  {/* Mobile building switcher — tappable breadcrumb, hidden on lg (sidebar handles it) */}
+                  <Link
+                    href="/app"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:text-teal-800 mb-1 lg:hidden"
+                  >
+                    <Layers3 size={12} />
+                    <span className="truncate max-w-[200px]">{data.buildingName}</span>
+                    <ChevronRight size={11} className="text-slate-400 flex-shrink-0" />
+                  </Link>
+                  <h1 className="text-2xl font-black tracking-tight text-slate-950 md:text-3xl">{data.buildingName}</h1>
+                  <p className="mt-1 text-sm text-slate-500">{data.buildingAddress} · Adatforrás: {data.source === 'supabase' ? 'Supabase' : 'Mock/demo'}</p>
+                </>
+              ) : (
+                <>
+                  <h1 className="text-2xl font-black tracking-tight text-slate-950 md:text-3xl">PanelLakó</h1>
+                  <p className="mt-1 text-sm text-slate-500">Adatforrás: {data.source === 'supabase' ? 'Supabase' : 'Mock/demo'} · Modern lakói és képviselői működés egy felületen.</p>
+                </>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative">
