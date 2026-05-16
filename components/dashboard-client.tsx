@@ -779,6 +779,20 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 </button>
               </div>
 
+              {/* BILLING LINK — managers only */}
+              {isManager && (
+                <div className="mt-2">
+                  <a
+                    href={'/billing' + (data.buildingId ? `?building=${data.buildingId}` : '')}
+                    className="group flex w-full items-center gap-2.5 rounded-xl border border-violet-900/40 bg-violet-950/30 px-3 py-2.5 text-left transition-all hover:border-violet-500/40 hover:bg-violet-500/10"
+                  >
+                    <Sparkles size={12} className="shrink-0 text-violet-700 transition-colors group-hover:text-violet-400" />
+                    <span className="text-xs font-bold text-violet-700 transition-colors group-hover:text-violet-400">Előfizetés &amp; Számlázás</span>
+                    <ChevronRight size={11} className="ml-auto text-violet-800 group-hover:text-violet-500" />
+                  </a>
+                </div>
+              )}
+
               {/* ROLE PANEL */}
               <div className="mt-3 rounded-2xl border border-slate-800/60 bg-black/30 p-3.5">
                 <p className="text-[10px] uppercase tracking-widest text-slate-700">Aktív szerepkör</p>
