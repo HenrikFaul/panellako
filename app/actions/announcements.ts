@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { sendBulkEmail, renderEmailTemplate, generateUnsubscribeUrl, isEmailEnabledForProfile } from '@/lib/email';
+import { sendBulkEmail, renderEmailTemplate, isEmailEnabledForProfile } from '@/lib/email';
 import * as React from 'react';
 import { AnnouncementEmail } from '@/lib/email-templates/announcement';
 

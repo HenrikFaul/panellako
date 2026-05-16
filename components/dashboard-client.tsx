@@ -55,7 +55,7 @@ import { submitMeterReading as submitMeterReadingAction } from '@/app/actions/me
 import { createAnnouncement as createAnnouncementAction } from '@/app/actions/announcements';
 import { acknowledgeDocument as acknowledgeDocumentAction, uploadDocument as uploadDocumentAction, getDocumentSignedUrl as getDocumentSignedUrlAction } from '@/app/actions/documents';
 import { updateWorkOrderStatus as updateWorkOrderStatusAction } from '@/app/actions/work-orders';
-import { submitVote as submitVoteAction } from '@/app/actions/votes';
+// votes action imported on-demand in the votes tab handler
 import { createCharge as createChargeAction, recordPayment as recordPaymentAction } from '@/app/actions/finance';
 import { createMeeting as createMeetingAction, closeMeeting as closeMeetingAction, sendAssemblyInvitation as sendInvitationAction } from '@/app/actions/meetings';
 

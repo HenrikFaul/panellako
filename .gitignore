@@ -4,6 +4,14 @@ out/
 build/
 tsconfig.tsbuildinfo
 
+# next-pwa generated service worker artifacts (regenerated on each build)
+public/sw.js
+public/sw.js.map
+public/workbox-*.js
+public/workbox-*.js.map
+public/fallback-*.js
+public/fallback-*.js.map
+
 # Dependencies
 node_modules/
 
