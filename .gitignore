@@ -35,3 +35,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Claude Code local settings (machine-specific, not for version control)
+.claude/settings.local.json
+.claude/worktrees/
