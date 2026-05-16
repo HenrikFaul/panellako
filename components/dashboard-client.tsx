@@ -161,6 +161,7 @@ const HU_MONTHS = ['jan.','feb.','már.','ápr.','máj.','jún.','júl.','aug.',
 
 function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; title?: string }> }) {
   const [hovered, setHovered] = useState<string | null>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   const today = new Date();
   today.setHours(23, 59, 59, 999);
@@ -179,16 +180,15 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
     }
   }
 
-  // Align grid to Mon-Sun weeks. Find Monday of current week.
-  const dow = today.getDay(); // 0=Sun
+  // Align grid to Mon-Sun weeks — find Monday of current week
+  const dow = today.getDay();
   const daysFromMon = dow === 0 ? 6 : dow - 1;
   const thisMon = new Date(today);
   thisMon.setDate(today.getDate() - daysFromMon);
   thisMon.setHours(0, 0, 0, 0);
 
-  // Start 4 weeks before this Monday = 5 full weeks
   const startDate = new Date(thisMon);
-  startDate.setDate(thisMon.getDate() - 28);
+  startDate.setDate(thisMon.getDate() - 28); // 5 full weeks
 
   const cells: Array<{ key: string; count: number; date: Date; isFuture: boolean }> = [];
   for (let i = 0; i < 35; i++) {
@@ -211,15 +211,11 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
     return 'bg-rose-400 shadow-[0_0_6px_rgba(251,113,133,0.7)]';
   }
 
-  // Build week row labels showing "máj. 12" for each Monday
   const weeks: Array<{ monday: Date; label: string }> = [];
   for (let w = 0; w < 5; w++) {
     const mon = new Date(startDate);
     mon.setDate(startDate.getDate() + w * 7);
-    weeks.push({
-      monday: mon,
-      label: `${HU_MONTHS[mon.getMonth()]} ${mon.getDate()}`,
-    });
+    weeks.push({ monday: mon, label: `${HU_MONTHS[mon.getMonth()]} ${mon.getDate()}` });
   }
 
   const DAYS = ['H', 'K', 'Sz', 'Cs', 'P', 'Szo', 'V'];
@@ -232,45 +228,13 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
   const hoveredCount  = hovered ? (countMap.get(hovered) ?? 0) : 0;
   const hoveredCell   = hovered ? cells.find(c => c.key === hovered) : undefined;
 
+  // Tooltip width + safe margin from viewport edge
+  const TT_W = 224;
+  const TT_OFFSET = 16; // px above cursor
+
   return (
     <div className="flex flex-col h-full select-none">
-      {/* Title row + inline hover info panel */}
-      <div className="mb-2">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">35 napos aktivitás</p>
-        {/* Info panel — always rendered to avoid layout shift; shows details on hover */}
-        <div className="mt-1.5 min-h-[42px] rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2">
-          {hovered && hoveredCell ? (
-            <>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-300">{formatDate(hoveredCell.date)}</span>
-                {!hoveredCell.isFuture && hoveredCount > 0 && (
-                  <span className="rounded-full bg-rose-500/20 px-1.5 py-0.5 text-[9px] font-bold text-rose-400">
-                    {hoveredCount} bejelentés
-                  </span>
-                )}
-                {hoveredCell.isFuture && (
-                  <span className="text-[9px] italic text-slate-700">jövőbeli nap</span>
-                )}
-              </div>
-              {hoveredCount === 0 && !hoveredCell.isFuture && (
-                <p className="mt-0.5 text-[9px] text-slate-700">Nincs aktivitás ezen a napon.</p>
-              )}
-              {hoveredTitles.length > 0 && (
-                <ul className="mt-1 space-y-0.5">
-                  {hoveredTitles.slice(0, 4).map((title, i) => (
-                    <li key={i} className="truncate text-[9px] text-slate-400">· {title}</li>
-                  ))}
-                  {hoveredTitles.length > 4 && (
-                    <li className="text-[9px] text-slate-600">+ {hoveredTitles.length - 4} további…</li>
-                  )}
-                </ul>
-              )}
-            </>
-          ) : (
-            <p className="text-[9px] italic text-slate-700">Vigye az egeret egy napra a részletekért…</p>
-          )}
-        </div>
-      </div>
+      <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">35 napos aktivitás</p>
 
       <div className="flex gap-2">
         {/* Week row labels */}
@@ -284,23 +248,21 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
 
         {/* Grid */}
         <div className="flex-1">
-          {/* Day-of-week headers */}
           <div className="mb-1.5 grid grid-cols-7 gap-1.5">
             {DAYS.map((d) => (
               <span key={d} className="text-center text-[9px] text-slate-600 font-bold">{d}</span>
             ))}
           </div>
 
-          {/* 5 × 7 cells */}
           <div className="grid grid-cols-7 gap-1.5">
             {cells.map((cell) => (
               <div
                 key={cell.key}
-                onMouseEnter={() => setHovered(cell.key)}
+                onMouseEnter={(e) => { setHovered(cell.key); setMousePos({ x: e.clientX, y: e.clientY }); }}
+                onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}
                 onMouseLeave={() => setHovered(null)}
-                className={`h-7 w-full rounded transition-all cursor-pointer relative ${cellColor(cell.count, cell.isFuture)}`}
+                className={`h-7 w-full rounded transition-colors cursor-pointer relative ${cellColor(cell.count, cell.isFuture)}`}
               >
-                {/* Month name badge on 1st of month */}
                 {cell.date.getDate() === 1 && (
                   <span className="absolute bottom-0.5 right-0.5 text-[6px] text-white/40 font-bold leading-none">
                     {HU_MONTHS[cell.date.getMonth()]}
@@ -320,6 +282,41 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
         ))}
         <span className="text-[9px] text-slate-700">sok</span>
       </div>
+
+      {/* Fixed-position tooltip — escapes overflow:hidden completely */}
+      {hovered && hoveredCell && (
+        <div
+          className="pointer-events-none fixed z-[9999] rounded-2xl border border-white/10 bg-slate-900 p-3 shadow-2xl"
+          style={{
+            width: TT_W,
+            left: Math.min(mousePos.x - TT_W / 2, (typeof window !== 'undefined' ? window.innerWidth : 1200) - TT_W - 8),
+            top: mousePos.y - TT_OFFSET - 80, // render above cursor; height ~80px estimate
+          }}
+        >
+          <p className="mb-1.5 text-[10px] font-bold text-slate-200">{formatDate(hoveredCell.date)}</p>
+
+          {hoveredCell.isFuture ? (
+            <p className="text-[9px] italic text-slate-600">jövőbeli nap</p>
+          ) : hoveredCount === 0 ? (
+            <p className="text-[9px] text-slate-600">Nincs aktivitás ezen a napon.</p>
+          ) : (
+            <>
+              <p className="mb-1 text-[10px] font-semibold text-rose-400">{hoveredCount} bejelentés</p>
+              <ul className="space-y-1">
+                {hoveredTitles.slice(0, 5).map((title, i) => (
+                  <li key={i} className="flex items-start gap-1 text-[10px] text-slate-300">
+                    <span className="mt-px text-rose-500 shrink-0">·</span>
+                    <span className="leading-tight">{title}</span>
+                  </li>
+                ))}
+                {hoveredTitles.length > 5 && (
+                  <li className="text-[9px] text-slate-600">+ {hoveredTitles.length - 5} további…</li>
+                )}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
