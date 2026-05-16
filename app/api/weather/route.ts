@@ -1,21 +1,18 @@
 import { NextResponse } from 'next/server';
 
-// Budapest, 1134 Gidófalvy Lajos utca 9 — AccuWeather uses city/neighborhood keys
-// Location key discovered via: /locations/v1/cities/search?q=Budapest&language=hu
-// Budapest city key on AccuWeather is 187423 (district-level keys fetched below)
-const FALLBACK_LOCATION_KEY = '187423'; // Budapest, Hungary
-const SEARCH_QUERY = '1134 Budapest';
+// Open-Meteo — free, no API key needed, WMO weather codes
+// Budapest, 1134 Gidófalvy Lajos utca 9
+const LAT = 47.5116;
+const LON = 19.0519;
 
-const AW_BASE = 'https://dataservice.accuweather.com';
+const OM_BASE = 'https://api.open-meteo.com/v1/forecast';
 
 interface CacheEntry<T> { data: T; expires: number }
-const locationCache: CacheEntry<string> | null = null;
-let _locationCache: CacheEntry<string> | null = locationCache;
 let _weatherCache: CacheEntry<WeatherResult> | null = null;
 
 export interface DailyForecast {
-  date: string;        // ISO date
-  icon: number;
+  date: string;       // ISO date YYYY-MM-DD
+  icon: number;       // WMO weather code
   iconPhrase: string;
   minTemp: number;
   maxTemp: number;
@@ -27,76 +24,99 @@ export interface WeatherResult {
   temp: number;
   feelsLike: number;
   conditionText: string;
-  icon: number;        // AccuWeather icon number 1-44
+  icon: number;       // WMO weather code 0-99
   isDay: boolean;
-  wind: number;        // km/h
+  wind: number;       // km/h
   humidity: number;
   forecast: DailyForecast[];
   fetchedAt: string;
 }
 
-async function fetchLocationKey(apiKey: string): Promise<string> {
-  if (_locationCache && _locationCache.expires > Date.now()) {
-    return _locationCache.data;
-  }
-  try {
-    const res = await fetch(
-      `${AW_BASE}/locations/v1/cities/search?apikey=${apiKey}&q=${encodeURIComponent(SEARCH_QUERY)}&language=hu&details=false`,
-      { next: { revalidate: 86400 } }
-    );
-    if (!res.ok) throw new Error(`Location search ${res.status}`);
-    const data = await res.json();
-    const key = Array.isArray(data) && data.length > 0 ? String(data[0].Key) : FALLBACK_LOCATION_KEY;
-    _locationCache = { data: key, expires: Date.now() + 24 * 3600 * 1000 };
-    return key;
-  } catch {
-    return FALLBACK_LOCATION_KEY;
-  }
+// WMO code → Hungarian condition text
+function wmoToText(code: number): string {
+  if (code === 0)                  return 'Derült';
+  if (code === 1)                  return 'Főleg derült';
+  if (code === 2)                  return 'Részben felhős';
+  if (code === 3)                  return 'Borult';
+  if (code === 45 || code === 48)  return 'Köd';
+  if (code === 51)                 return 'Gyenge szitálás';
+  if (code === 53)                 return 'Mérsékelt szitálás';
+  if (code === 55)                 return 'Sűrű szitálás';
+  if (code === 56 || code === 57)  return 'Ónos szitálás';
+  if (code === 61)                 return 'Gyenge eső';
+  if (code === 63)                 return 'Mérsékelt eső';
+  if (code === 65)                 return 'Erős eső';
+  if (code === 66 || code === 67)  return 'Ónos eső';
+  if (code === 71)                 return 'Gyenge havazás';
+  if (code === 73)                 return 'Mérsékelt havazás';
+  if (code === 75)                 return 'Erős havazás';
+  if (code === 77)                 return 'Hóförgeteg';
+  if (code === 80)                 return 'Záporok';
+  if (code === 81)                 return 'Mérsékelt záporok';
+  if (code === 82)                 return 'Erős záporok';
+  if (code === 85 || code === 86)  return 'Hózáporok';
+  if (code === 95)                 return 'Zivatar';
+  if (code === 96 || code === 99)  return 'Zivatar jégesővel';
+  return 'Változékony';
 }
 
-async function fetchWeather(apiKey: string): Promise<WeatherResult> {
+async function fetchWeather(): Promise<WeatherResult> {
   if (_weatherCache && _weatherCache.expires > Date.now()) {
     return _weatherCache.data;
   }
 
-  const locationKey = await fetchLocationKey(apiKey);
+  const params = new URLSearchParams({
+    latitude:  String(LAT),
+    longitude: String(LON),
+    current: [
+      'temperature_2m',
+      'apparent_temperature',
+      'weather_code',
+      'wind_speed_10m',
+      'relative_humidity_2m',
+      'is_day',
+    ].join(','),
+    daily: [
+      'weather_code',
+      'temperature_2m_max',
+      'temperature_2m_min',
+    ].join(','),
+    timezone:        'Europe/Budapest',
+    forecast_days:   '5',
+    wind_speed_unit: 'kmh',
+  });
 
-  const [currentRes, forecastRes] = await Promise.all([
-    fetch(`${AW_BASE}/currentconditions/v1/${locationKey}?apikey=${apiKey}&details=true&language=hu`,
-      { next: { revalidate: 1800 } }),
-    fetch(`${AW_BASE}/forecasts/v1/daily/5day/${locationKey}?apikey=${apiKey}&metric=true&language=hu`,
-      { next: { revalidate: 10800 } }),
-  ]);
+  const res = await fetch(`${OM_BASE}?${params}`, { next: { revalidate: 1800 } });
+  if (!res.ok) throw new Error(`Open-Meteo error: ${res.status}`);
+  const data = await res.json();
 
-  if (!currentRes.ok || !forecastRes.ok) {
-    throw new Error(`AccuWeather API error: current=${currentRes.status} forecast=${forecastRes.status}`);
+  const cur   = data.current;
+  const daily = data.daily;
+
+  // Skip index 0 (today's daily summary) → next 4 days for forecast
+  const forecast: DailyForecast[] = [];
+  for (let i = 1; i <= 4; i++) {
+    if (!daily.time[i]) break;
+    const code = daily.weather_code[i] as number;
+    forecast.push({
+      date:       daily.time[i],
+      icon:       code,
+      iconPhrase: wmoToText(code),
+      minTemp:    Math.round(daily.temperature_2m_min[i]),
+      maxTemp:    Math.round(daily.temperature_2m_max[i]),
+    });
   }
 
-  const [currentData, forecastData] = await Promise.all([currentRes.json(), forecastRes.json()]);
-  const c = Array.isArray(currentData) ? currentData[0] : currentData;
-
-  const forecast: DailyForecast[] = (forecastData.DailyForecasts ?? []).slice(1, 5).map((d: {
-    Date: string;
-    Day: { Icon: number; IconPhrase: string };
-    Temperature: { Minimum: { Value: number }; Maximum: { Value: number } };
-  }) => ({
-    date: d.Date,
-    icon: d.Day.Icon,
-    iconPhrase: d.Day.IconPhrase,
-    minTemp: Math.round(d.Temperature.Minimum.Value),
-    maxTemp: Math.round(d.Temperature.Maximum.Value),
-  }));
-
   const result: WeatherResult = {
-    locationKey,
-    locationName: 'Budapest, XIII. ker.',
-    temp: Math.round(c.Temperature?.Metric?.Value ?? 0),
-    feelsLike: Math.round(c.RealFeelTemperature?.Metric?.Value ?? 0),
-    conditionText: c.WeatherText ?? '',
-    icon: c.WeatherIcon ?? 1,
-    isDay: Boolean(c.IsDayTime),
-    wind: Math.round(c.Wind?.Speed?.Metric?.Value ?? 0),
-    humidity: c.RelativeHumidity ?? 0,
+    locationKey:   `${LAT},${LON}`,
+    locationName:  'Budapest, XIII. ker.',
+    temp:          Math.round(cur.temperature_2m),
+    feelsLike:     Math.round(cur.apparent_temperature),
+    conditionText: wmoToText(cur.weather_code),
+    icon:          cur.weather_code,
+    isDay:         cur.is_day === 1,
+    wind:          Math.round(cur.wind_speed_10m),
+    humidity:      Math.round(cur.relative_humidity_2m),
     forecast,
     fetchedAt: new Date().toISOString(),
   };
@@ -105,41 +125,35 @@ async function fetchWeather(apiKey: string): Promise<WeatherResult> {
   return result;
 }
 
-// Mock data for when ACCUWEATHER_API_KEY is not set
 function getMockWeather(): WeatherResult {
   const h = new Date().getHours();
   const isDay = h >= 6 && h < 20;
   return {
-    locationKey: FALLBACK_LOCATION_KEY,
-    locationName: 'Budapest, XIII. ker.',
-    temp: 18,
-    feelsLike: 17,
+    locationKey:   `${LAT},${LON}`,
+    locationName:  'Budapest, XIII. ker.',
+    temp:          18,
+    feelsLike:     17,
     conditionText: 'Részben felhős',
-    icon: 6,
+    icon:          2,
     isDay,
-    wind: 12,
-    humidity: 65,
+    wind:          12,
+    humidity:      65,
     forecast: [
-      { date: new Date(Date.now() + 86400000).toISOString(), icon: 2, iconPhrase: 'Napos', minTemp: 14, maxTemp: 22 },
-      { date: new Date(Date.now() + 172800000).toISOString(), icon: 12, iconPhrase: 'Záporos', minTemp: 12, maxTemp: 18 },
-      { date: new Date(Date.now() + 259200000).toISOString(), icon: 15, iconPhrase: 'Zivataros', minTemp: 11, maxTemp: 16 },
-      { date: new Date(Date.now() + 345600000).toISOString(), icon: 3, iconPhrase: 'Napos', minTemp: 15, maxTemp: 24 },
+      { date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),  icon: 0,  iconPhrase: 'Derült',        minTemp: 14, maxTemp: 22 },
+      { date: new Date(Date.now() + 172800000).toISOString().slice(0, 10), icon: 63, iconPhrase: 'Mérsékelt eső', minTemp: 12, maxTemp: 18 },
+      { date: new Date(Date.now() + 259200000).toISOString().slice(0, 10), icon: 95, iconPhrase: 'Zivatar',       minTemp: 11, maxTemp: 16 },
+      { date: new Date(Date.now() + 345600000).toISOString().slice(0, 10), icon: 1,  iconPhrase: 'Főleg derült',  minTemp: 15, maxTemp: 24 },
     ],
     fetchedAt: new Date().toISOString(),
   };
 }
 
 export async function GET() {
-  const apiKey = process.env.ACCUWEATHER_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ ...getMockWeather(), _mock: true });
-  }
-
   try {
-    const weather = await fetchWeather(apiKey);
+    const weather = await fetchWeather();
     return NextResponse.json(weather);
   } catch (err) {
-    console.error('[weather] API error:', err);
+    console.error('[weather] Open-Meteo error:', err);
     return NextResponse.json({ ...getMockWeather(), _mock: true, _error: String(err) });
   }
 }
