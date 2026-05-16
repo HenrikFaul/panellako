@@ -243,6 +243,165 @@ export async function closeMeeting(meetingId: string, buildingId: string) {
     entity_label: `Kvórum: ${(actualQuorum * 100).toFixed(1)}%`,
   });
 
+  // Trigger async protocol generation via Edge Function (fire-and-forget)
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (supabaseUrl && serviceKey) {
+    fetch(`${supabaseUrl}/functions/v1/generate-assembly-protocol`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ meeting_id: meetingId, building_id: buildingId }),
+    }).catch((err) => console.error('[closeMeeting] Protocol generation trigger failed:', err));
+  }
+
   revalidatePath('/');
   return { success: true, actual_quorum: actualQuorum };
+}
+
+// ─── addResolution ────────────────────────────────────────────────────────────
+
+export async function addResolution(
+  meetingId: string,
+  agendaItemId: string,
+  text: string,
+  effectiveDate?: string
+) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Nem vagy bejelentkezve.' };
+
+  const { data, error } = await supabase
+    .from('resolutions')
+    .insert({
+      meeting_id: meetingId,
+      agenda_item_id: agendaItemId,
+      text,
+      outcome: 'folyamatban',
+      effective_date: effectiveDate ?? null,
+    })
+    .select()
+    .single();
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath('/');
+  return { success: true, data };
+}
+
+// ─── updateResolutionOutcome ──────────────────────────────────────────────────
+
+export async function updateResolutionOutcome(
+  resolutionId: string,
+  outcome: 'elfogadva' | 'elutasitva' | 'folyamatban'
+) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Nem vagy bejelentkezve.' };
+
+  const { error } = await supabase
+    .from('resolutions')
+    .update({ outcome })
+    .eq('id', resolutionId);
+
+  if (error) return { success: false, error: error.message };
+
+  await supabase.from('audit_logs').insert({
+    actor_id: user.id,
+    actor_name: user.email ?? 'Rendszer',
+    action_type: 'resolution_updated',
+    entity_type: 'resolution',
+    entity_id: resolutionId,
+    entity_label: outcome,
+  });
+
+  revalidatePath('/');
+  return { success: true };
+}
+
+// ─── removeAttendance ─────────────────────────────────────────────────────────
+
+export async function removeAttendance(meetingId: string, unitId: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Nem vagy bejelentkezve.' };
+
+  const { error } = await supabase
+    .from('meeting_attendances')
+    .delete()
+    .eq('meeting_id', meetingId)
+    .eq('unit_id', unitId);
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath('/');
+  return { success: true };
+}
+
+// ─── getMeetingWithDetails ────────────────────────────────────────────────────
+
+export async function getMeetingWithDetails(meetingId: string) {
+  const supabase = createClient();
+
+  const [meetingRes, agendaRes, resolutionsRes, votesRes, attendancesRes] = await Promise.all([
+    supabase.from('meetings').select('*').eq('id', meetingId).single(),
+    supabase.from('agenda_items').select('*').eq('meeting_id', meetingId).order('order_no'),
+    supabase.from('resolutions').select('*').eq('meeting_id', meetingId),
+    supabase.from('votes').select('*').eq('resolution_id', meetingId), // note: filtered via resolution join below
+    supabase.from('meeting_attendances').select('*, units(unit_label, owner_name, ownership_share)').eq('meeting_id', meetingId),
+  ]);
+
+  return {
+    meeting: meetingRes.data,
+    agenda_items: agendaRes.data ?? [],
+    resolutions: resolutionsRes.data ?? [],
+    attendances: attendancesRes.data ?? [],
+  };
+}
+
+// ─── generateProtocolManually ─────────────────────────────────────────────────
+
+export async function generateProtocolManually(meetingId: string, buildingId: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Nem vagy bejelentkezve.' };
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceKey) {
+    return { success: false, error: 'Szerver konfiguráció hiányzik.' };
+  }
+
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/generate-assembly-protocol`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ meeting_id: meetingId, building_id: buildingId }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      return { success: false, error: `Edge Function hiba: ${err}` };
+    }
+
+    const result = await res.json() as { protocol_url?: string };
+
+    await supabase.from('audit_logs').insert({
+      actor_id: user.id,
+      actor_name: user.email ?? 'Rendszer',
+      action_type: 'protocol_generated',
+      entity_type: 'meeting',
+      entity_id: meetingId,
+      entity_label: 'Közgyűlési Jegyzőkönyv generálva',
+    });
+
+    revalidatePath('/');
+    return { success: true, protocol_url: result.protocol_url };
+  } catch (err) {
+    return { success: false, error: `Kapcsolódási hiba: ${(err as Error).message}` };
+  }
 }
