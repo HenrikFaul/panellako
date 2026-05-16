@@ -500,3 +500,126 @@ alter table tickets add column if not exists ai_override boolean not null defaul
 
 create index if not exists idx_tickets_ai_triage_at on tickets (ai_triage_at) where ai_triage_at is null;
 create index if not exists idx_tickets_ai_urgency on tickets (ai_urgency desc) where ai_urgency is not null;
+
+-- ============================================================
+-- Initiative #5: Multi-building Dashboard RPCs (2026-05-16)
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.get_my_buildings()
+RETURNS TABLE (
+  building_id   uuid,
+  building_name text,
+  address       text,
+  user_role     text,
+  unit_count    bigint,
+  open_tickets  bigint,
+  member_since  timestamptz
+)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT b.id, b.name, b.address, m.role,
+    COUNT(DISTINCT u.id),
+    COUNT(DISTINCT t.id) FILTER (WHERE t.status != 'lezarva'),
+    m.created_at
+  FROM memberships m
+  JOIN buildings b ON b.id = m.building_id
+  LEFT JOIN units u ON u.building_id = b.id
+  LEFT JOIN tickets t ON t.building_id = b.id
+  WHERE m.profile_id = auth.uid() AND m.active = true
+  GROUP BY b.id, b.name, b.address, m.role, m.created_at
+  ORDER BY b.name ASC;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.get_my_buildings() FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.get_my_buildings() TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.validate_building_membership(_building_id uuid)
+RETURNS TABLE (is_member boolean, user_role text, unit_id uuid)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT true, m.role, m.unit_id
+  FROM memberships m
+  WHERE m.profile_id = auth.uid()
+    AND m.building_id = _building_id
+    AND m.active = true
+  LIMIT 1;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.validate_building_membership(uuid) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.validate_building_membership(uuid) TO authenticated;
+
+-- ============================================================
+-- Initiative #4: SaaS Billing — subscriptions + invoice_events (2026-05-16)
+-- ============================================================
+
+create table if not exists subscriptions (
+  id                      uuid primary key default gen_random_uuid(),
+  building_id             uuid not null references buildings(id) on delete cascade,
+  stripe_customer_id      text not null,
+  stripe_subscription_id  text,
+  plan                    text not null default 'trial'
+                            check (plan in ('trial', 'alap', 'pro', 'cancelled', 'past_due')),
+  unit_count              integer not null default 0,
+  status                  text not null default 'trialing'
+                            check (status in ('trialing', 'active', 'past_due', 'cancelled', 'incomplete', 'incomplete_expired', 'unpaid')),
+  current_period_start    timestamptz,
+  current_period_end      timestamptz,
+  trial_end               timestamptz,
+  cancel_at_period_end    boolean not null default false,
+  stripe_price_id         text,
+  created_at              timestamptz not null default now(),
+  updated_at              timestamptz not null default now(),
+  unique (building_id)
+);
+
+create index if not exists idx_subscriptions_stripe_customer_id on subscriptions (stripe_customer_id);
+create index if not exists idx_subscriptions_stripe_subscription_id on subscriptions (stripe_subscription_id) where stripe_subscription_id is not null;
+
+drop trigger if exists set_subscriptions_updated_at on subscriptions;
+create trigger set_subscriptions_updated_at
+  before update on subscriptions
+  for each row execute function set_updated_at();
+
+alter table subscriptions enable row level security;
+
+drop policy if exists "Manager read own subscription" on subscriptions;
+create policy "Manager read own subscription" on subscriptions for select
+  using (exists (
+    select 1 from memberships
+    where memberships.building_id = subscriptions.building_id
+      and memberships.profile_id = auth.uid()
+      and memberships.active = true
+      and memberships.role in ('kozos_kepviselo', 'megbizott', 'konyvelo')
+  ));
+
+drop policy if exists "No direct client insert subscriptions" on subscriptions;
+create policy "No direct client insert subscriptions" on subscriptions for insert with check (false);
+drop policy if exists "No direct client update subscriptions" on subscriptions;
+create policy "No direct client update subscriptions" on subscriptions for update using (false);
+
+create table if not exists invoice_events (
+  id                      uuid primary key default gen_random_uuid(),
+  building_id             uuid not null references buildings(id) on delete cascade,
+  stripe_invoice_id       text not null,
+  stripe_subscription_id  text,
+  event_type              text not null,
+  amount_due              integer,
+  currency                text not null default 'eur',
+  period_start            timestamptz,
+  period_end              timestamptz,
+  invoice_url             text,
+  created_at              timestamptz not null default now(),
+  constraint uq_invoice_event unique (stripe_invoice_id, event_type)
+);
+
+alter table invoice_events enable row level security;
+
+drop policy if exists "Manager read own invoice events" on invoice_events;
+create policy "Manager read own invoice events" on invoice_events for select
+  using (exists (
+    select 1 from memberships
+    where memberships.building_id = invoice_events.building_id
+      and memberships.profile_id = auth.uid()
+      and memberships.active = true
+      and memberships.role in ('kozos_kepviselo', 'megbizott', 'konyvelo')
+  ));

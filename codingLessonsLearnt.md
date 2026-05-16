@@ -1245,3 +1245,38 @@ if (!rows || rows.length === 0) return jsonRes({ error: 'Already locked' }, 409)
 - Külső API kulcsot, ha nem muszáj publikussá tenni, server-side API route mögé kell tenni. A frontend `/api/location/autocomplete` endpointot hív, a route pedig `AWS_LOCATION_API_KEY` / `AWS_LOCATION_REGION` env-ből dolgozik.
 - Vercel env módosítás után mindig új redeploy kell, különben a serverless route és a buildelt client továbbra is a régi env snapshotot használhatja.
 - Magic link authnál a Supabase redirect URL és a kódbeli `emailRedirectTo` csak akkor működik stabilan, ha a production domain szerepel a Supabase Authentication → URL Configuration allowlistában.
+
+---
+
+## 2026-05-16 – PanelLakó v0.4.0–v0.5.0 fejlesztési tanulságok
+
+### [HIBA-077] `'use client'` hiányzik — onClick Server Componentben
+- **Dátum**: 2026-05-16 (v0.3.6)
+- **Fájl**: `app/offline/page.tsx`
+- **Hibaüzenet**: `Error: Event handlers cannot be passed to Client Component props. {onClick: function onClick}` + build timeout a `/offline` statikus generálásakor
+- **Gyökérok**: Az offline PWA page `onClick={() => window.location.reload()}` gombot tartalmazott, de nem volt `'use client'` direktíva. Next.js 14 App Routerben minden page.tsx alapértelmezetten Server Component — onClick, useState, useEffect ezekben tilos.
+- **Javítás**: `'use client'` direktíva hozzáadva az oldal elejéhez.
+- **Megelőzés**: Minden page/component, amely onClick, useState, useEffect, vagy `window.*` objektumot használ, **kötelező** `'use client'` direktívával kell kezdeni. A build error üzenet expliciten mondja: "Event handlers cannot be passed to Client Component props" — ilyenkor azonnal add hozzá a `'use client'`-et.
+
+### [HIBA-078] Env var névkonfliktus — SUPABASE_SERVICE_ROLE_KEY két projektre mutat
+- **Dátum**: 2026-05-16 (v0.5.0)
+- **Fájl**: `.env`, `app/api/location/autocomplete/route.ts`
+- **Gyökérok**: `.env`-ben `SUPABASE_SERVICE_ROLE_KEY` a GeoData service role kulcsát tárolta (mert az autocomplete route ezt olvassa), míg a PanelLakó billing/tickets kód ugyanezt a nevet várta a PanelLakó admin client kulcsaként. Eredmény: az admin műveletek a GeoData project-re futottak volna.
+- **Javítás**: GeoData kulcs → `GEODATA_SUPABASE_SERVICE_ROLE_KEY`; PanelLakó kulcs → `SUPABASE_SERVICE_ROLE_KEY`. Az autocomplete route fallback-kel olvassa mindkét nevet.
+- **Megelőzés**: Ha egy projektben több Supabase backend van (pl. GeoData + fő app), mindig **projekt-prefix**-el néveld a kulcsokat: `GEODATA_`, `PANELLAKO_`, stb. A generikus `SUPABASE_SERVICE_ROLE_KEY` csak az app fő backend-jéhez tartozhat.
+
+### [HIBA-079] Stripe SDK v22 — breaking changes a subscription és invoice típusokban
+- **Dátum**: 2026-05-16 (v0.5.0)
+- **Fájlok**: `app/api/stripe/webhook/route.ts`
+- **Hibaüzenet**: `Property 'current_period_start' does not exist on type 'Response<Subscription>'`, `Property 'subscription' does not exist on type 'Invoice'`
+- **Gyökérok**: Stripe Node.js SDK v22 (API version `2026-04-22.dahlia`) két breaking change-t hozott: (1) `subscription.current_period_start/end` átkerült → `subscription.items.data[0].current_period_start/end`; (2) `invoice.subscription` átkerült → `invoice.parent?.subscription_details?.subscription`.
+- **Javítás**: Helper függvények (`getPeriodDates(sub)`, `getInvoiceSubscriptionId(invoice)`) az új elérési utakkal.
+- **Megelőzés**: Stripe SDK major verziónál (pl. v17→v22) **mindig** olvasd el a CHANGELOG-ot. A legtöbb breaking change a Subscription és Invoice típusokat érinti. TypeScript-tel ezek kompile-time kimutathatók — soha ne használj `any` cast-ot Stripe típusokon.
+
+### [HIBA-080] Unused import lint hiba — ESLint no-unused-vars build-time error Next.js-ben
+- **Dátum**: 2026-05-16 (v0.5.0)
+- **Fájlok**: `app/actions/announcements.ts`, `app/auth/signout/route.ts`, `components/dashboard-client.tsx`
+- **Hibaüzenet**: `'generateUnsubscribeUrl' is defined but never used`, `'_request' is defined but never used`, `'submitVoteAction' is defined but never used`
+- **Gyökérok**: Importáláskor nem lett végigkövetve, hogy a függvény tényleg használatban van-e. A Next.js production build ESLint-et is futtat (nem csak TypeScript-et).
+- **Javítás**: Unused importok törlése. Unused param → `_` prefix helyett teljes elhagyás (ha nem kell a request objekt, a POST handler paramétere kihagyható).
+- **Megelőzés**: Minden PR előtt `npx tsc --noEmit && npm run build` futtatása (vagy legalább `eslint --ext .ts,.tsx .`). Ha egy importot `// TODO` kommentként hagyunk, azt is törölni kell ha nem kerül végül felhasználásra.
