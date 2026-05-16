@@ -144,17 +144,28 @@ export async function getDocumentSignedUrl(filePath: string) {
     return { success: false, error: 'Nem vagy bejelentkezve', url: null };
   }
 
-  // If it's already a full URL (mock data / legacy), return as-is
-  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+  // Detect legacy/dead storage.panellako.hu subdomain URLs — extract path and
+  // attempt Supabase Storage lookup instead of returning the dead URL.
+  const LEGACY_STORAGE_HOST = 'storage.panellako.hu';
+  let storagePath = filePath;
+  if (filePath.includes(LEGACY_STORAGE_HOST)) {
+    const idx = filePath.indexOf(LEGACY_STORAGE_HOST);
+    storagePath = filePath.slice(idx + LEGACY_STORAGE_HOST.length).replace(/^\//, '');
+  } else if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+    // Other full URLs (e.g. external CDN links) — open directly
     return { success: true, url: filePath };
   }
 
   const { data, error } = await supabase.storage
     .from(STORAGE_BUCKET)
-    .createSignedUrl(filePath, 3600); // 1-hour expiry
+    .createSignedUrl(storagePath, 3600); // 1-hour expiry
 
-  if (error) {
-    return { success: false, error: error.message, url: null };
+  if (error || !data?.signedUrl) {
+    return {
+      success: false,
+      error: 'A dokumentum fájlja nem található a tárolóban. Töltsd fel újra a fájlt, vagy ellenőrizd a Supabase Storage „documents" bucket tartalmát.',
+      url: null,
+    };
   }
 
   return { success: true, url: data.signedUrl };

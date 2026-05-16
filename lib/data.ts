@@ -48,6 +48,25 @@ export async function getDashboardData(role: Role = 'lako', buildingId?: string)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const scoped = (q: any) => buildingId ? q.eq('building_id', buildingId) : q;
 
+  // Residents and owners only see their own unit — fetch membership unit_id first
+  let ownUnitId: string | null = null;
+  const isResident = role === 'lako' || role === 'tulajdonos';
+  if (user && buildingId && isResident) {
+    const { data: mem } = await supabase
+      .from('memberships')
+      .select('unit_id')
+      .eq('profile_id', user.id)
+      .eq('building_id', buildingId)
+      .maybeSingle();
+    ownUnitId = (mem as { unit_id: string | null } | null)?.unit_id ?? null;
+  }
+
+  // Build units query — residents see only their own unit, managers see all
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const unitsQuery: any = isResident && ownUnitId
+    ? supabase.from('units').select('*').eq('id', ownUnitId)
+    : scoped(supabase.from('units').select('*').limit(12));
+
   const [
     news,
     notifications,
@@ -73,7 +92,7 @@ export async function getDashboardData(role: Role = 'lako', buildingId?: string)
       ? supabase.from('document_acknowledgements').select('document_id, viewed_at').eq('profile_id', user.id)
       : Promise.resolve({ data: [] as { document_id: string; viewed_at: string }[] }),
     scoped(supabase.from('meetings').select('*').order('scheduled_at', { ascending: false }).limit(6)),
-    scoped(supabase.from('units').select('*').limit(12)),
+    unitsQuery,
     scoped(supabase.from('vendors').select('*').limit(8)),
     supabase.from('work_orders').select('*').order('due_date', { ascending: true }).limit(8),
     scoped(supabase.from('knowledge_base_articles').select('*').limit(8)),
