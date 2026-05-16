@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Clock, Megaphone, Send, Users } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Clock, Send, Users } from 'lucide-react';
 import { createAnnouncement } from '@/app/actions/announcements';
 import type { AnnouncementScope, AnnouncementPriority } from '@/app/actions/announcements';
 
@@ -63,13 +63,6 @@ export default function AnnouncementComposer({ buildingId, units = [], onSuccess
   const [showOptions, setShowOptions] = useState(false);
   const [status, setStatus] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
-
-  const effectiveScope: AnnouncementScope =
-    mode === 'celzott' && selectedUnitIds.length > 0
-      ? 'specific_units'
-      : mode === 'celzott'
-      ? scope
-      : scope;
 
   const effectiveTitle = topicValue === 'Egyéb' ? customTopic.trim() : topicValue;
 

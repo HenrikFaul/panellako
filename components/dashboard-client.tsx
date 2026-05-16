@@ -20,7 +20,7 @@ import {
   LifeBuoy,
   LogOut,
   MapPin,
-  Megaphone,
+  Radio,
   MessageSquare,
   Search,
   ShieldCheck,
@@ -1765,7 +1765,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
           <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
             {isAdminLike ? (
-              <SectionCard title="Célzott kommunikáció / hírküldés" icon={<Megaphone size={18} />}>
+              <SectionCard title="Célzott kommunikáció / hírküldés" icon={<Radio size={18} />}>
                 <AnnouncementComposer
                   buildingId={data.buildingId}
                   units={data.units.map((u) => ({ id: u.id, unit_label: u.unit_label }))}
