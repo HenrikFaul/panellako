@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-05-16 — v0.5.0 SaaS Billing — Stripe integráció (Initiative #4)
+
+### Added
+- **`supabase/migrations/20260516_billing.sql`**: `subscriptions` tábla (building_id, stripe_customer_id, stripe_subscription_id, plan, status, unit_count, trial_end, current_period_end, cancel_at_period_end) RLS-sel (csak manager-jogkörű tagok olvashatnak). `invoice_events` tábla (audit log stripe eseményekhez, uq_invoice_event unique constraint). `set_updated_at()` trigger.
+- **`app/api/stripe/checkout/route.ts`**: POST endpoint — autentikáció, manager-jogkör ellenőrzés, unit count lekérdezés, Stripe Customer létrehozás/keresés, Checkout Session (subscription mode, quantity=unit_count, 14 napos trial, hu locale, automatic_tax). Már aktív subscription esetén Billing Portal redirect.
+- **`app/api/stripe/webhook/route.ts`**: POST endpoint Stripe webhook eseményekhez — HMAC signature verification, `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`, `invoice.paid`. Stripe API v22 kompatibilis (period dates → items.data[0], invoice subscription → parent.subscription_details).
+- **`app/api/stripe/portal/route.ts`**: POST endpoint Stripe Customer Portal session létrehozáshoz (lemondás, számlák, kártyacsere).
+- **`app/billing/page.tsx`**: Server Component — subscription és épület adatok betöltése, auth check.
+- **`app/billing/billing-client.tsx`**: Client Component — árazási kártyák (Alap €1.50/unit/hó, Pro €3.00/unit/hó), próbaidőszak állapot, "Számlázás kezelése" Stripe Portal link, fizetési hibák megjelenítése, sikeres checkout banner.
+- **`middleware.ts`**: Subscription paywall hozzáadva `/w/[buildingId]` útvonalakra — service role klienssel lekérdezi a subscription státuszt, expired trial vagy cancelled esetén → redirect `/billing?building=...&reason=subscription_required`. Stripe nélkül (SUPABASE_SERVICE_ROLE_KEY hiányában) átugorja az ellenőrzést.
+- **`stripe` és `@stripe/stripe-js`** csomagok telepítve (stripe v22.1.1, API version 2026-04-22.dahlia).
+
+### Architecture note
+Per-unit árazás: `unitCount × pricePerUnit (eurocent)` → Stripe `quantity` a checkout session line_item-en. Webhook idempotens: `upsert onConflict building_id` a subscriptions táblán, `upsert onConflict stripe_invoice_id,event_type` az invoice_events táblán.
+
+### Deployment note
+1. Stripe Dashboard → Products → létrehozni az Alap (€1.50) és Pro (€3.00) per-unit monthly árat
+2. `.env.local` (+ Vercel): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID_ALAP_MONTHLY`, `STRIPE_PRICE_ID_PRO_MONTHLY`, `NEXT_PUBLIC_APP_URL`
+3. Webhook regisztráció Stripe Dashboard-on: events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`, `invoice.paid`
+4. Supabase SQL Editorban: `supabase/migrations/20260516_billing.sql` futtatni
+
 ## 2026-05-16 — v0.4.0 Multi-épület dashboard + Building Picker (Initiative #5)
 
 ### Added

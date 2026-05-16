@@ -1,8 +1,22 @@
 import { createServerClient } from '@supabase/ssr';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
 
 const PROTECTED_PREFIXES = ['/w/', '/app'];
 const AUTH_ROUTES = ['/login'];
+
+function hasSubscriptionAccess(subscription: {
+  status: string;
+  trial_end: string | null;
+} | null): boolean {
+  if (!subscription) return true; // no record = new building, allow + prompt
+  if (subscription.status === 'active') return true;
+  if (subscription.status === 'trialing') {
+    if (!subscription.trial_end) return true;
+    return new Date(subscription.trial_end) > new Date();
+  }
+  return false;
+}
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -49,6 +63,30 @@ export async function middleware(request: NextRequest) {
     redirectUrl.pathname = '/login';
     redirectUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(redirectUrl);
+  }
+
+  // Subscription paywall: check /w/[buildingId] routes when Stripe is configured
+  const buildingIdMatch = user && pathname.match(/^\/w\/([0-9a-f-]{36})(\/|$)/i);
+  if (buildingIdMatch && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const buildingId = buildingIdMatch[1];
+    const adminClient = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    const { data: subscription } = await adminClient
+      .from('subscriptions')
+      .select('status, trial_end')
+      .eq('building_id', buildingId)
+      .maybeSingle();
+
+    if (!hasSubscriptionAccess(subscription)) {
+      const billingUrl = request.nextUrl.clone();
+      billingUrl.pathname = '/billing';
+      billingUrl.searchParams.set('building', buildingId);
+      billingUrl.searchParams.set('reason', 'subscription_required');
+      return NextResponse.redirect(billingUrl);
+    }
   }
 
   return supabaseResponse;
