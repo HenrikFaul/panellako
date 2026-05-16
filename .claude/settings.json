@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "supabase-panellako": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--project-ref",
+        "wzromwxpjlyrqbdiapep"
+      ]
+    }
+  },
+  "permissions": {
+    "allow": [
+      "mcp__supabase-panellako__execute_sql",
+      "mcp__supabase-panellako__apply_migration",
+      "mcp__supabase-panellako__list_tables",
+      "mcp__supabase-panellako__list_migrations",
+      "mcp__supabase-panellako__get_logs"
+    ]
+  }
+}
