@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-05-16 — v0.5.5 Keresés, kattintható badge-ek, kapcsolati űrlap
+
+### Added
+- **`app/actions/contact.ts`**: Új server action — kapcsolati üzenet fogadása és továbbítása email-ben. Tárgy dropdown (Ajánlatkérés / Érdeklődés / Hibabejelentés / Visszajelzés / Partnerség / Egyéb), max 2000 karakter szöveg. Recipient `CONTACT_RECIPIENT_EMAIL` env var-ból olvasva — a recipient email cím SEHOL nem jelenik meg a frontenden.
+- **Header keresőmező** — mostantól valóban keres: real-time dropdown az összes indexált tartalomban (navigáció, ticketek, dokumentumok, hírek, albetétek, közgyűlések, tudásbázis, partnerek). Max 8 találat, típus-badge és meta, kattintásra a kapcsolódó szekcióhoz ugrik. Click-outside és ESC bezár.
+- **Kapcsolat gomb** a fejlécben (Mail ikon + „Kapcsolat" felirat) — megnyitja a kapcsolati modalt. Sikerüzenet, loading state, hibaüzenet.
+
+### Changed
+- **`components/dashboard-client.tsx`**: `MetricCard` — `href` prop, kattintható link minden badge: Nyitott ügyek→`#tickets`, Hátralék→`#finances`, Olvasatlan értesítés→`#notifications`, Albetétek→`#units`. Hover animáció (`scale-[1.02]`). Értesítési napló SectionCard kapott `id="notifications"` anchorhoz.
+
+### Deployment note
+Vercel Environment Variables-ben add hozzá: `CONTACT_RECIPIENT_EMAIL=henrikfaul.hf@gmail.com`
+
 ## 2026-05-16 — v0.5.4 Communication Intelligence v2 — Structured Announcements & Reminder Engine
 
 ### Added

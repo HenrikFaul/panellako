@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
+import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -19,10 +19,12 @@ import {
   Layers3,
   LifeBuoy,
   LogOut,
+  Mail,
   MapPin,
   Radio,
   MessageSquare,
   Search,
+  Send,
   ShieldCheck,
   Siren,
   Sparkles,
@@ -53,6 +55,8 @@ import { createClient, hasSupabaseConfig } from '@/lib/supabase/browser';
 import { createTicket as createTicketAction, updateTicketStatus as updateTicketStatusAction, updateTicketAiOverride as updateTicketAiOverrideAction } from '@/app/actions/tickets';
 import { submitMeterReading as submitMeterReadingAction } from '@/app/actions/meter-readings';
 import { acknowledgeAnnouncement as acknowledgeAnnouncementAction } from '@/app/actions/announcements';
+import { sendContactMessage, CONTACT_SUBJECTS } from '@/app/actions/contact';
+import type { ContactSubject } from '@/app/actions/contact';
 import { acknowledgeDocument as acknowledgeDocumentAction, uploadDocument as uploadDocumentAction, getDocumentSignedUrl as getDocumentSignedUrlAction, deleteDocument as deleteDocumentAction, updateDocument as updateDocumentAction } from '@/app/actions/documents';
 import { updateWorkOrderStatus as updateWorkOrderStatusAction } from '@/app/actions/work-orders';
 // votes action imported on-demand in the votes tab handler
@@ -168,7 +172,7 @@ function SectionCard({ id, title, icon, children, action }: { id?: string; title
   );
 }
 
-function MetricCard({ title, value, subtitle, icon, tone = 'brand' }: { title: string; value: string; subtitle: string; icon: ReactNode; tone?: 'brand' | 'amber' | 'slate' | 'violet' }) {
+function MetricCard({ title, value, subtitle, icon, tone = 'brand', href }: { title: string; value: string; subtitle: string; icon: ReactNode; tone?: 'brand' | 'amber' | 'slate' | 'violet'; href?: string }) {
   const toneClass = {
     brand: 'from-brand-600 to-cyan-500 text-white',
     amber: 'from-amber-500 to-orange-500 text-white',
@@ -176,8 +180,8 @@ function MetricCard({ title, value, subtitle, icon, tone = 'brand' }: { title: s
     violet: 'from-violet-600 to-fuchsia-500 text-white'
   }[tone];
 
-  return (
-    <article className={`rounded-[1.5rem] bg-gradient-to-br ${toneClass} p-5 shadow-lg shadow-slate-200/70`}>
+  const inner = (
+    <>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium opacity-85">{title}</p>
@@ -186,6 +190,23 @@ function MetricCard({ title, value, subtitle, icon, tone = 'brand' }: { title: s
         <span className="rounded-2xl bg-white/18 p-3">{icon}</span>
       </div>
       <p className="mt-4 text-xs font-medium opacity-85">{subtitle}</p>
+    </>
+  );
+
+  if (href) {
+    return (
+      <a
+        href={href}
+        className={`block rounded-[1.5rem] bg-gradient-to-br ${toneClass} p-5 shadow-lg shadow-slate-200/70 transition hover:scale-[1.02] hover:shadow-xl cursor-pointer`}
+      >
+        {inner}
+      </a>
+    );
+  }
+
+  return (
+    <article className={`rounded-[1.5rem] bg-gradient-to-br ${toneClass} p-5 shadow-lg shadow-slate-200/70`}>
+      {inner}
     </article>
   );
 }
@@ -328,6 +349,18 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [kommandOpen, setKommandOpen] = useState(false);
   const [kommandQuery, setKommandQuery] = useState('');
 
+  // Header search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  // Contact modal state
+  const [contactOpen, setContactOpen] = useState(false);
+  const [contactSubject, setContactSubject] = useState<ContactSubject>(CONTACT_SUBJECTS[0]);
+  const [contactMessage, setContactMessage] = useState('');
+  const [contactStatus, setContactStatus] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
+  const [contactError, setContactError] = useState('');
+
   // Push notification state
   const [pushSupported, setPushSupported] = useState(false);
   const [pushSubscribed, setPushSubscribed] = useState(false);
@@ -420,9 +453,60 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     ? kommandItems.filter((i) => i.label.toLowerCase().includes(kommandQuery.toLowerCase()))
     : kommandItems;
 
+  // === HEADER SEARCH items (expanded set) ===
+  const searchItems = useMemo(() => [
+    ...navigation.map((n) => ({ id: `nav-${n.href}`, type: 'Navigáció', label: n.label, href: n.href, meta: '' })),
+    ...tickets.map((t) => ({ id: `t-${t.id}`, type: 'Ügy', label: t.title, href: '#tickets', meta: t.status })),
+    ...data.documents.map((d) => ({ id: `d-${d.id}`, type: 'Dokumentum', label: d.title, href: '#documents', meta: d.category })),
+    ...newsItems.map((n) => ({ id: `n-${n.id}`, type: 'Hír', label: n.title, href: '#overview', meta: n.category ?? '' })),
+    ...data.units.map((u) => ({ id: `u-${u.id}`, type: 'Albetét', label: `${u.unit_label} — ${u.owner_name}`, href: '#units', meta: u.unit_type })),
+    ...data.meetings.map((m) => ({ id: `m-${m.id}`, type: 'Közgyűlés', label: m.title, href: '#meetings', meta: m.status })),
+    ...data.kbArticles.map((k) => ({ id: `k-${k.id}`, type: 'Tudásbázis', label: k.title, href: '#knowledge', meta: k.topic })),
+    ...data.vendors.map((v) => ({ id: `v-${v.id}`, type: 'Partner', label: v.name, href: '#overview', meta: v.category })),
+  ], [tickets, data.documents, data.units, data.meetings, data.kbArticles, data.vendors, newsItems]);
+
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return searchItems
+      .filter((i) => i.label.toLowerCase().includes(q) || i.type.toLowerCase().includes(q) || i.meta.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [searchQuery, searchItems]);
+
+  // Close search dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Contact form handler
+  const handleContactSend = async () => {
+    if (!contactMessage.trim()) return;
+    setContactStatus('sending');
+    setContactError('');
+    const result = await sendContactMessage({ subject: contactSubject, message: contactMessage });
+    if (result.success) {
+      setContactStatus('done');
+      setContactMessage('');
+      setTimeout(() => { setContactStatus('idle'); setContactOpen(false); }, 3000);
+    } else {
+      setContactStatus('error');
+      setContactError(result.error ?? 'Ismeretlen hiba');
+    }
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setKommandOpen(false); setKommandQuery(''); }
+      if (e.key === 'Escape') {
+        setKommandOpen(false); setKommandQuery('');
+        setSearchOpen(false); setSearchQuery('');
+        setContactOpen(false);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -851,10 +935,50 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="relative">
+              {/* Header search with inline dropdown */}
+              <div className="relative" ref={searchRef}>
                 <Search className="pointer-events-none absolute left-3 top-2.5 text-slate-400" size={18} />
-                <input className="w-56 rounded-2xl border border-slate-200 bg-white px-10 py-2 text-sm outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100" placeholder="Keresés..." />
+                <input
+                  className="w-56 rounded-2xl border border-slate-200 bg-white px-10 py-2 text-sm outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                  placeholder="Keresés..."
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
+                  onFocus={() => setSearchOpen(true)}
+                />
+                {searchOpen && searchQuery.trim().length > 0 && (
+                  <div className="absolute left-0 top-full z-50 mt-1.5 w-80 rounded-2xl border border-slate-200 bg-white shadow-xl">
+                    {searchResults.length === 0 ? (
+                      <p className="px-4 py-3 text-sm text-slate-400">Nincs találat</p>
+                    ) : (
+                      <ul className="py-1">
+                        {searchResults.map((item) => (
+                          <li key={item.id}>
+                            <a
+                              href={item.href}
+                              onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-brand-50"
+                            >
+                              <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{item.type}</span>
+                              <span className="flex-1 truncate text-slate-800">{item.label}</span>
+                              {item.meta && <span className="shrink-0 text-xs text-slate-400">{item.meta}</span>}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
+
+              {/* Kapcsolat gomb */}
+              <button
+                type="button"
+                onClick={() => setContactOpen(true)}
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:border-brand-300 hover:text-brand-700"
+              >
+                <Mail size={15} /> Kapcsolat
+              </button>
+
               <Link className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-slate-300 transition hover:-translate-y-0.5" href="/login">
                 {isLoggedIn ? 'Session aktív' : 'Belépés'}
               </Link>
@@ -899,10 +1023,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </section>
 
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard title="Nyitott ügyek" value={String(openTicketCount)} subtitle="Ticketek, SLA és felelős kijelölés" icon={<Wrench size={24} />} />
-            <MetricCard title="Hátralék" value={formatCurrency(arrears)} subtitle="Lakói pénzügyi átláthatóság" icon={<CircleDollarSign size={24} />} tone="amber" />
-            <MetricCard title="Olvasatlan értesítés" value={String(unreadNotificationCount)} subtitle="Push/e-mail és olvasottsági visszajelzés" icon={<BellRing size={24} />} tone="violet" />
-            <MetricCard title="Albetétek" value={String(data.units.length)} subtitle={`${totalArea} m² · ${totalOwnershipShare} tulajdoni hányad`} icon={<Layers3 size={24} />} tone="slate" />
+            <MetricCard title="Nyitott ügyek" value={String(openTicketCount)} subtitle="Ticketek, SLA és felelős kijelölés" icon={<Wrench size={24} />} href="#tickets" />
+            <MetricCard title="Hátralék" value={formatCurrency(arrears)} subtitle="Lakói pénzügyi átláthatóság" icon={<CircleDollarSign size={24} />} tone="amber" href="#finances" />
+            <MetricCard title="Olvasatlan értesítés" value={String(unreadNotificationCount)} subtitle="Push/e-mail és olvasottsági visszajelzés" icon={<BellRing size={24} />} tone="violet" href="#notifications" />
+            <MetricCard title="Albetétek" value={String(data.units.length)} subtitle={`${totalArea} m² · ${totalOwnershipShare} tulajdoni hányad`} icon={<Layers3 size={24} />} tone="slate" href="#units" />
           </section>
 
           <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
@@ -1743,7 +1867,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </ul>
             </SectionCard>
 
-            <SectionCard title="Értesítési napló" icon={<UserCog size={18} />}>
+            <SectionCard id="notifications" title="Értesítési napló" icon={<UserCog size={18} />}>
               <ul className="space-y-3">
                 {data.notifications.map((item) => <li key={item.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm"><div className="flex items-start justify-between gap-3"><p className="font-black text-slate-950">{item.title}</p>{item.read_at ? <CheckCircle2 className="text-emerald-500" size={16} /> : <span className="rounded-full bg-rose-50 px-2 py-1 text-xs font-bold text-rose-700">új</span>}</div><p className="mt-1 text-sm text-slate-600">{item.message}</p><p className="mt-2 text-xs text-slate-400">{item.audience} · {item.channel} · {formatDateTime(item.created_at)}</p></li>)}
               </ul>
@@ -1798,6 +1922,75 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </section>
         </main>
       </div>
+
+      {/* Kapcsolat modal */}
+      {contactOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-lg font-black text-slate-900">
+                <Mail size={18} className="text-brand-600" /> Kapcsolat
+              </h3>
+              <button type="button" onClick={() => { setContactOpen(false); setContactStatus('idle'); setContactMessage(''); }} className="rounded-xl p-1.5 hover:bg-slate-100">
+                <X size={16} className="text-slate-400" />
+              </button>
+            </div>
+
+            {contactStatus === 'done' ? (
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <CheckCircle2 size={40} className="text-emerald-500" />
+                <p className="font-black text-slate-900">Üzenet elküldve!</p>
+                <p className="text-sm text-slate-500">Hamarosan felvesszük veled a kapcsolatot.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Tárgy</label>
+                  <select
+                    value={contactSubject}
+                    onChange={(e) => setContactSubject(e.target.value as ContactSubject)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                  >
+                    {CONTACT_SUBJECTS.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Üzenet <span className="normal-case font-normal text-slate-400">({contactMessage.length}/2000)</span>
+                  </label>
+                  <textarea
+                    value={contactMessage}
+                    onChange={(e) => setContactMessage(e.target.value.slice(0, 2000))}
+                    rows={6}
+                    placeholder="Írd le röviden, miben segíthetünk…"
+                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm leading-relaxed outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                  />
+                </div>
+
+                {contactStatus === 'error' && (
+                  <p className="rounded-2xl bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700">{contactError}</p>
+                )}
+
+                <button
+                  type="button"
+                  disabled={!contactMessage.trim() || contactStatus === 'sending'}
+                  onClick={handleContactSend}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-600 px-5 py-3 text-sm font-black text-white hover:bg-brand-700 disabled:opacity-50"
+                >
+                  {contactStatus === 'sending' ? (
+                    <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> Küldés…</>
+                  ) : (
+                    <><Send size={15} /> Üzenet elküldése</>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Payment Recording Modal */}
       {showPaymentForm ? (
