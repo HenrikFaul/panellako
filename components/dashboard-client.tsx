@@ -160,13 +160,15 @@ function previewText(text: string) {
 const HU_MONTHS = ['jan.','feb.','már.','ápr.','máj.','jún.','júl.','aug.','szept.','okt.','nov.','dec.'];
 
 function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; title?: string }> }) {
-  const [hovered, setHovered] = useState<string | null>(null);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = current week at top; negative = back in time
+  const [hovered, setHovered]       = useState<string | null>(null);
+  const [mousePos, setMousePos]     = useState({ x: 0, y: 0 });
 
   const today = new Date();
   today.setHours(23, 59, 59, 999);
+  const todayKey = today.toISOString().slice(0, 10);
 
-  // Build maps: 'YYYY-MM-DD' → count and → title list
+  // Build maps: 'YYYY-MM-DD' → count / title list
   const countMap = new Map<string, number>();
   const titleMap = new Map<string, string[]>();
   for (const t of tickets) {
@@ -174,49 +176,55 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
     const d = new Date(t.created_at);
     const key = d.toISOString().slice(0, 10);
     countMap.set(key, (countMap.get(key) ?? 0) + 1);
-    if (t.title) {
-      const prev = titleMap.get(key) ?? [];
-      titleMap.set(key, [...prev, t.title]);
-    }
+    if (t.title) titleMap.set(key, [...(titleMap.get(key) ?? []), t.title]);
   }
 
-  // Align grid to Mon-Sun weeks — find Monday of current week
+  // Monday of current real week
   const dow = today.getDay();
-  const daysFromMon = dow === 0 ? 6 : dow - 1;
   const thisMon = new Date(today);
-  thisMon.setDate(today.getDate() - daysFromMon);
+  thisMon.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
   thisMon.setHours(0, 0, 0, 0);
 
-  const startDate = new Date(thisMon);
-  startDate.setDate(thisMon.getDate() - 28); // 5 full weeks
+  // View starts at: this Monday + weekOffset weeks
+  const viewStart = new Date(thisMon);
+  viewStart.setDate(thisMon.getDate() + weekOffset * 7);
 
-  const cells: Array<{ key: string; count: number; date: Date; isFuture: boolean }> = [];
+  // Build 5 weeks × 7 days = 35 cells, top-to-bottom
+  const cells: Array<{ key: string; count: number; date: Date; isFuture: boolean; isToday: boolean }> = [];
   for (let i = 0; i < 35; i++) {
-    const d = new Date(startDate);
-    d.setDate(startDate.getDate() + i);
+    const d = new Date(viewStart);
+    d.setDate(viewStart.getDate() + i);
     const key = d.toISOString().slice(0, 10);
-    cells.push({ key, count: countMap.get(key) ?? 0, date: d, isFuture: d > today });
+    cells.push({
+      key,
+      count:    countMap.get(key) ?? 0,
+      date:     d,
+      isFuture: d > today,
+      isToday:  key === todayKey,
+    });
   }
 
   const maxCount = Math.max(1, ...cells.filter(c => !c.isFuture).map(c => c.count));
 
-  function cellColor(count: number, isFuture: boolean) {
-    if (isFuture) return 'bg-white/3 opacity-30';
+  function cellColor(count: number, isFuture: boolean, isToday: boolean) {
+    if (isToday && count === 0) return 'bg-white/[0.12] ring-1 ring-white/20';
+    if (isFuture) return 'bg-white/[0.03] opacity-40';
     if (count === 0) return 'bg-white/[0.06]';
-    const intensity = count / maxCount;
-    if (intensity < 0.2)  return 'bg-rose-950/70';
-    if (intensity < 0.4)  return 'bg-rose-800/75';
-    if (intensity < 0.65) return 'bg-rose-600/80';
-    if (intensity < 0.85) return 'bg-rose-500';
+    const v = count / maxCount;
+    if (v < 0.2)  return 'bg-rose-950/70';
+    if (v < 0.4)  return 'bg-rose-800/75';
+    if (v < 0.65) return 'bg-rose-600/80';
+    if (v < 0.85) return 'bg-rose-500';
     return 'bg-rose-400 shadow-[0_0_6px_rgba(251,113,133,0.7)]';
   }
 
-  const weeks: Array<{ monday: Date; label: string }> = [];
-  for (let w = 0; w < 5; w++) {
-    const mon = new Date(startDate);
-    mon.setDate(startDate.getDate() + w * 7);
-    weeks.push({ monday: mon, label: `${HU_MONTHS[mon.getMonth()]} ${mon.getDate()}` });
-  }
+  // Row labels: one per week (Monday of each row)
+  const weeks = Array.from({ length: 5 }, (_, w) => {
+    const mon = new Date(viewStart);
+    mon.setDate(viewStart.getDate() + w * 7);
+    const isCurrentWeek = mon.toISOString().slice(0, 10) === thisMon.toISOString().slice(0, 10);
+    return { mon, label: `${HU_MONTHS[mon.getMonth()]} ${mon.getDate()}`, isCurrentWeek };
+  });
 
   const DAYS = ['H', 'K', 'Sz', 'Cs', 'P', 'Szo', 'V'];
 
@@ -228,20 +236,55 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
   const hoveredCount  = hovered ? (countMap.get(hovered) ?? 0) : 0;
   const hoveredCell   = hovered ? cells.find(c => c.key === hovered) : undefined;
 
-  // Tooltip width + safe margin from viewport edge
   const TT_W = 224;
-  const TT_OFFSET = 16; // px above cursor
 
   return (
     <div className="flex flex-col h-full select-none">
-      <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">35 napos aktivitás</p>
+      {/* Header: title + navigation arrows */}
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Aktivitás naptár</p>
+        <div className="flex items-center gap-1">
+          {/* Back in time */}
+          <button
+            onClick={() => setWeekOffset(o => o - 1)}
+            className="flex h-5 w-5 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-300"
+            title="Korábbi hetek"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M7 1L3 5l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          {/* Today label / reset */}
+          {weekOffset !== 0 && (
+            <button
+              onClick={() => setWeekOffset(0)}
+              className="rounded-md px-1.5 py-0.5 text-[8px] font-bold text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-300"
+            >
+              ma
+            </button>
+          )}
+          {/* Forward in time — disabled at weekOffset 0 (current week already at top) */}
+          <button
+            onClick={() => setWeekOffset(o => o + 1)}
+            disabled={weekOffset >= 0}
+            className="flex h-5 w-5 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-300 disabled:opacity-20 disabled:cursor-not-allowed"
+            title="Következő hetek"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M3 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
 
       <div className="flex gap-2">
         {/* Week row labels */}
         <div className="flex flex-col gap-1.5 pt-5">
           {weeks.map((w) => (
-            <div key={w.monday.toISOString()} className="h-7 flex items-center">
-              <span className="text-[8px] text-slate-700 whitespace-nowrap leading-none">{w.label}</span>
+            <div key={w.mon.toISOString()} className="h-7 flex items-center">
+              <span className={`text-[8px] whitespace-nowrap leading-none ${w.isCurrentWeek ? 'font-bold text-slate-400' : 'text-slate-700'}`}>
+                {w.label}
+              </span>
             </div>
           ))}
         </div>
@@ -261,7 +304,7 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
                 onMouseEnter={(e) => { setHovered(cell.key); setMousePos({ x: e.clientX, y: e.clientY }); }}
                 onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}
                 onMouseLeave={() => setHovered(null)}
-                className={`h-7 w-full rounded transition-colors cursor-pointer relative ${cellColor(cell.count, cell.isFuture)}`}
+                className={`h-7 w-full rounded transition-colors cursor-pointer relative ${cellColor(cell.count, cell.isFuture, cell.isToday)}`}
               >
                 {cell.date.getDate() === 1 && (
                   <span className="absolute bottom-0.5 right-0.5 text-[6px] text-white/40 font-bold leading-none">
@@ -283,18 +326,17 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
         <span className="text-[9px] text-slate-700">sok</span>
       </div>
 
-      {/* Fixed-position tooltip — escapes overflow:hidden completely */}
+      {/* Fixed-position tooltip */}
       {hovered && hoveredCell && (
         <div
           className="pointer-events-none fixed z-[9999] rounded-2xl border border-white/10 bg-slate-900 p-3 shadow-2xl"
           style={{
             width: TT_W,
             left: Math.min(mousePos.x - TT_W / 2, (typeof window !== 'undefined' ? window.innerWidth : 1200) - TT_W - 8),
-            top: mousePos.y - TT_OFFSET - 80, // render above cursor; height ~80px estimate
+            top: mousePos.y - 96,
           }}
         >
           <p className="mb-1.5 text-[10px] font-bold text-slate-200">{formatDate(hoveredCell.date)}</p>
-
           {hoveredCell.isFuture ? (
             <p className="text-[9px] italic text-slate-600">jövőbeli nap</p>
           ) : hoveredCount === 0 ? (
