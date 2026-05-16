@@ -1716,7 +1716,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             agendaItems={meetingPanelData.agenda_items}
             resolutions={meetingPanelData.resolutions}
             isManager={isManager}
-            supabaseUrl={process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}
             onClose={() => { setSelectedMeeting(null); setMeetingPanelData(null); }}
             onRefresh={handleRefreshMeetingPanel}
           />

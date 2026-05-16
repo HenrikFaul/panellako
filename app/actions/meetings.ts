@@ -343,7 +343,7 @@ export async function removeAttendance(meetingId: string, unitId: string) {
 export async function getMeetingWithDetails(meetingId: string) {
   const supabase = createClient();
 
-  const [meetingRes, agendaRes, resolutionsRes, votesRes, attendancesRes] = await Promise.all([
+  const [meetingRes, agendaRes, resolutionsRes, , attendancesRes] = await Promise.all([
     supabase.from('meetings').select('*').eq('id', meetingId).single(),
     supabase.from('agenda_items').select('*').eq('meeting_id', meetingId).order('order_no'),
     supabase.from('resolutions').select('*').eq('meeting_id', meetingId),

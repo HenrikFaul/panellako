@@ -1,13 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Download, Send, UserCheck, UserX, Vote, CheckCircle, XCircle, Clock, FileText } from 'lucide-react';
+import { X, Download, Send, UserCheck, UserX, Vote, CheckCircle, XCircle, FileText } from 'lucide-react';
 import {
   closeMeeting,
   sendAssemblyInvitation,
   recordAttendance,
   removeAttendance,
-  recordVote,
   updateResolutionOutcome,
   generateProtocolManually,
 } from '@/app/actions/meetings';
@@ -65,7 +64,6 @@ interface Props {
   agendaItems: AgendaItem[];
   resolutions: Resolution[];
   isManager: boolean;
-  supabaseUrl: string;
   onClose: () => void;
   onRefresh: () => void;
 }
@@ -84,7 +82,6 @@ export default function MeetingDetailPanel({
   agendaItems,
   resolutions,
   isManager,
-  supabaseUrl,
   onClose,
   onRefresh,
 }: Props) {
@@ -170,12 +167,6 @@ export default function MeetingDetailPanel({
 
   const handleSendInvitation = () =>
     act(() => sendAssemblyInvitation(meeting.id), 'Meghívó elküldve (naplózva).');
-
-  const handleVote = (resolutionId: string, unitId: string, voteValue: 'igen' | 'nem' | 'tartozkodas', weight: number) =>
-    act(
-      () => recordVote({ resolution_id: resolutionId, unit_id: unitId, vote_value: voteValue, weight }),
-      'Szavazat rögzítve.'
-    );
 
   const handleOutcome = (resolutionId: string, outcome: 'elfogadva' | 'elutasitva') =>
     act(() => updateResolutionOutcome(resolutionId, outcome), 'Határozat eredménye rögzítve.');
