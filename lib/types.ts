@@ -21,6 +21,13 @@ export interface NewsItem {
   created_by_name?: string;
   category?: NewsCategory;
   source_label?: string;
+  // v2 communication fields
+  scope?: 'all' | 'owners' | 'residents' | 'specific_units';
+  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  deadline?: string | null;
+  requires_acknowledgement?: boolean;
+  read_at?: string | null;       // per current user
+  read_count?: number;           // total readers (for manager view)
 }
 
 export interface NotificationItem {

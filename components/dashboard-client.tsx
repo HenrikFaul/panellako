@@ -52,13 +52,14 @@ import {
 import { createClient, hasSupabaseConfig } from '@/lib/supabase/browser';
 import { createTicket as createTicketAction, updateTicketStatus as updateTicketStatusAction, updateTicketAiOverride as updateTicketAiOverrideAction } from '@/app/actions/tickets';
 import { submitMeterReading as submitMeterReadingAction } from '@/app/actions/meter-readings';
-import { createAnnouncement as createAnnouncementAction } from '@/app/actions/announcements';
+import { acknowledgeAnnouncement as acknowledgeAnnouncementAction } from '@/app/actions/announcements';
 import { acknowledgeDocument as acknowledgeDocumentAction, uploadDocument as uploadDocumentAction, getDocumentSignedUrl as getDocumentSignedUrlAction, deleteDocument as deleteDocumentAction, updateDocument as updateDocumentAction } from '@/app/actions/documents';
 import { updateWorkOrderStatus as updateWorkOrderStatusAction } from '@/app/actions/work-orders';
 // votes action imported on-demand in the votes tab handler
 import { createCharge as createChargeAction, recordPayment as recordPaymentAction } from '@/app/actions/finance';
 import { createMeeting as createMeetingAction, closeMeeting as closeMeetingAction, sendAssemblyInvitation as sendInvitationAction, getMeetingWithDetails } from '@/app/actions/meetings';
 import MeetingDetailPanel from '@/components/meeting-detail-panel';
+import AnnouncementComposer from '@/components/announcement-composer';
 
 type DashboardData = {
   source: string;
@@ -75,6 +76,12 @@ type DashboardData = {
     created_by_name?: string;
     category?: string;
     source_label?: string;
+    scope?: string;
+    priority?: string;
+    deadline?: string | null;
+    requires_acknowledgement?: boolean;
+    read_at?: string | null;
+    read_count?: number;
   }>;
   notifications: NotificationItem[];
   tickets: Ticket[];
@@ -284,10 +291,11 @@ function AiTriagePendingSkeleton() {
 export default function DashboardClient({ data }: { data: DashboardData }) {
   const [ticketSaved, setTicketSaved] = useState(false);
   const [meterSaved, setMeterSaved] = useState(false);
-  const [noticeSaved, setNoticeSaved] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
   const [tickets, setTickets] = useState(data.tickets);
   const [expandedNews, setExpandedNews] = useState<string[]>([]);
+  const [newsItems, setNewsItems] = useState(data.news);
+  const [ackingNewsId, setAckingNewsId] = useState<string | null>(null);
   const [ticketFilter, setTicketFilter] = useState<Ticket['status'] | 'osszes'>('osszes');
   const [documentFilter, setDocumentFilter] = useState('osszes');
   const [unitSearch, setUnitSearch] = useState('');
@@ -1670,16 +1678,65 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           <section className="grid gap-6 xl:grid-cols-3">
             <SectionCard title="Hírfolyam" icon={<BellRing size={18} />}>
               <ul className="space-y-3">
-                {data.news.map((item) => {
+                {newsItems.map((item) => {
                   const expanded = expandedNews.includes(item.id);
+                  const isUnread = !item.read_at;
+                  const isUrgent = item.priority === 'urgent';
+                  const isHigh = item.priority === 'high';
                   return (
-                    <li key={item.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
-                      <p className="font-black text-slate-950">{item.title}</p>
+                    <li
+                      key={item.id}
+                      className={`rounded-3xl border p-4 shadow-sm ${
+                        isUrgent
+                          ? 'border-rose-200 bg-rose-50'
+                          : isHigh
+                          ? 'border-amber-200 bg-amber-50'
+                          : isUnread
+                          ? 'border-brand-100 bg-brand-50/50'
+                          : 'border-slate-100 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className={`font-black ${isUnread ? 'text-slate-950' : 'text-slate-700'}`}>{item.title}</p>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          {isUrgent && <span className="rounded-full bg-rose-500 px-2 py-0.5 text-xs font-bold text-white">Sürgős</span>}
+                          {isHigh && !isUrgent && <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">Fontos</span>}
+                          {isUnread && !isUrgent && !isHigh && <span className="h-2 w-2 rounded-full bg-brand-500" />}
+                          {!isUnread && <CheckCircle2 size={14} className="text-emerald-500" />}
+                        </div>
+                      </div>
                       <p className="mt-1 text-sm text-slate-600">{expanded ? item.content : previewText(item.content)}</p>
-                      <p className="mt-2 text-xs text-slate-400">{newsCategoryLabels[item.category || 'egyeb']} · {item.source_label || item.created_by_name || 'Ismeretlen forrás'} · {formatDateTime(item.created_at)}</p>
-                      <button type="button" className="mt-2 text-xs font-black text-brand-700 hover:underline" onClick={() => setExpandedNews((prev) => (prev.includes(item.id) ? prev.filter((newsId) => newsId !== item.id) : [...prev, item.id]))}>
-                        {expanded ? 'Összecsukás' : 'Teljes hír megnyitása'}
-                      </button>
+                      <p className="mt-2 text-xs text-slate-400">
+                        {newsCategoryLabels[item.category || 'egyeb']} · {item.source_label || item.created_by_name || 'Ismeretlen forrás'} · {formatDateTime(item.created_at)}
+                        {item.deadline ? ` · Határidő: ${formatDate(item.deadline)}` : ''}
+                        {isManager && item.read_count != null ? ` · ${item.read_count} olvasva` : ''}
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-3">
+                        <button
+                          type="button"
+                          className="text-xs font-black text-brand-700 hover:underline"
+                          onClick={() => setExpandedNews((prev) => (prev.includes(item.id) ? prev.filter((newsId) => newsId !== item.id) : [...prev, item.id]))}
+                        >
+                          {expanded ? 'Összecsukás' : 'Teljes hír megnyitása'}
+                        </button>
+                        {isUnread && item.requires_acknowledgement && !isManager && (
+                          <button
+                            type="button"
+                            disabled={ackingNewsId === item.id}
+                            className="rounded-full bg-brand-600 px-3 py-1 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-60"
+                            onClick={async () => {
+                              setAckingNewsId(item.id);
+                              const result = await acknowledgeAnnouncementAction(item.id, data.buildingId);
+                              if (result.success) {
+                                setNewsItems((prev) => prev.map((n) => n.id === item.id ? { ...n, read_at: new Date().toISOString() } : n));
+                              }
+                              setAckingNewsId(null);
+                            }}
+                          >
+                            {ackingNewsId === item.id ? 'Mentés…' : 'Elolvasva ✓'}
+                          </button>
+                        )}
+                      </div>
                     </li>
                   );
                 })}
@@ -1709,28 +1766,19 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
             {isAdminLike ? (
               <SectionCard title="Célzott kommunikáció / hírküldés" icon={<Megaphone size={18} />}>
-                <form className="space-y-3" onSubmit={async (e) => {
-                  e.preventDefault();
-                  const form = e.currentTarget;
-                  const title = (form.elements.namedItem('notice_title') as HTMLInputElement).value;
-                  const audience = (form.elements.namedItem('notice_audience') as HTMLInputElement).value;
-                  const message = (form.elements.namedItem('notice_message') as HTMLTextAreaElement).value;
-                  await createAnnouncementAction({ title, content: message, target_group: audience });
-                  setNoticeSaved(true);
-                  form.reset();
-                }}>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <input name="notice_title" required className="rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Értesítés címe" />
-                    <input name="notice_audience" required className="rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Célcsoport (pl. B lépcsőház)" />
-                  </div>
-                  <textarea name="notice_message" required className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" rows={4} placeholder="Üzenet" />
-                  <button className="rounded-2xl bg-brand-600 px-5 py-3 text-sm font-black text-white hover:bg-brand-700">Kiküldés előkészítése</button>
-                  {noticeSaved ? <p className="text-sm font-semibold text-emerald-700">Értesítés elküldve.</p> : null}
-                </form>
+                <AnnouncementComposer
+                  buildingId={data.buildingId}
+                  units={data.units.map((u) => ({ id: u.id, unit_label: u.unit_label }))}
+                  onSuccess={() => {
+                    // News feed will refresh on next page load; optimistic feedback handled inside composer
+                  }}
+                />
               </SectionCard>
             ) : (
-              <SectionCard title="Lakói kapcsolat" icon={<MessageSquare size={18} />}>
-                <p className="text-sm leading-6 text-slate-600">Lakói szerepkörben a célzott kommunikáció olvasási és visszajelzési nézete látszik. Képviselői vagy megbízotti szerepkörre váltva megjelenik a hírküldő űrlap is.</p>
+              <SectionCard title="Értesítések" icon={<MessageSquare size={18} />}>
+                <p className="text-sm leading-6 text-slate-600">
+                  Az épület értesítései a Hírfolyam blokkban jelennek meg. A visszaigazolást igénylő értesítéseken az &quot;Elolvasva&quot; gombbal jelezheted, hogy tudomásul vetted.
+                </p>
               </SectionCard>
             )}
 

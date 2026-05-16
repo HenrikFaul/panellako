@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-05-16 — v0.5.4 Communication Intelligence v2 — Structured Announcements & Reminder Engine
+
+### Added
+- **`supabase/migrations/20260516_communication_v2.sql`**: Schema migration — `announcements` tábla kiegészítve (`scope`, `priority`, `deadline`, `requires_acknowledgement`). Új táblák: `announcement_units` (per-unit targeting junction), `announcement_reads` (olvasási visszaigazolás per-felhasználó), `reminder_rules` (konfiguálható emlékeztető motor), `reminder_sends` (idempotens kiküldési napló). RLS policy-k és indexek.
+- **`app/actions/announcements.ts`**: Teljes újraírás — strukturált célzás (`AnnouncementScope`: all/owners/residents/specific_units), prioritás (`AnnouncementPriority`), határidő, olvasási visszaigazolás. `getRecipientProfileIds()` scope-alapú szűrés memberships alapján. `createAnnouncement()`: `announcement_units` junction + `reminder_rules` automatikus létrehozása. `acknowledgeAnnouncement()`: upsert az `announcement_reads` táblába. `getAnnouncementReads()`: manager-nézet. `checkManagerRole()`: megosztott helper.
+- **`app/actions/reminders.ts`**: Új server action fájl — `createReminderRule()`, `toggleReminderRule()`, `getPendingReminderRecipients()` (szűri a már teljesítőket announcement_reads/document_acknowledgements/votes alapján), `executeReminderRule()` (idempotens app értesítés + reminder_sends naplózás upsert-tel).
+- **`components/announcement-composer.tsx`**: Többlépéses értesítés-összeállító komponens — 3 mód (Általános hír, Célzott üzenet, Határidős értesítő), scope selector (Mindenki/Tulajdonosok/Lakók), albetét multi-select célzott módban, téma-chip sáv (6 előre definiált + egyéb szabad szöveg), tartalom textarea, emlékeztető konfiguráció (7/3/1, 3/1, 1 napos preset), speciális beállítások (prioritás, e-mail küldés, olvasási visszaigazolás), küldés előtti összefoglaló sáv.
+
+### Changed
+- **`lib/types.ts`**: `NewsItem` kiegészítve — `scope`, `priority`, `deadline`, `requires_acknowledgement`, `read_at` (felhasználónkénti), `read_count` (manager nézet).
+- **`lib/data.ts`**: `getDashboardData()` — per-user `announcement_reads` lekérése, `read_at` merge-elése a hírekbe. Hirdetések limit 10-re növelve.
+- **`components/dashboard-client.tsx`**: Hírfolyam kártya — prioritás-alapú kiemelés (urgent=piros, high=sárga), olvasatlan jelző, határidő megjelenítése, „Elolvasva ✓" gomb kötelező visszaigazolásnál, manager-nézeten olvasói darabszám. Értesítés-küldő kártya: a régi 3 mezős formot felváltja az `AnnouncementComposer` komponens.
+
+### Deployment note
+Supabase SQL Editorban futtatni: `supabase/migrations/20260516_communication_v2.sql`
+
 ## 2026-05-16 — v0.5.3 Dokumentumtár kezelés — Document Management for Managers
 
 ### Added
