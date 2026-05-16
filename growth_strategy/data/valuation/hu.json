@@ -1,16 +1,14 @@
 {
   "executive_summary": {
-    "description": "A PanelLakó egy <b>multi-tenant PropTech SaaS platform</b>, amely Magyarország ~1,2 millió panellakásos épületállományát és a szélesebb közép-kelet-európai társasházi piacot célozza meg. Teljes digitális működési közeget nyújt: szerepkör-alapú hozzáférés (lakó, tulajdonos, közös képviselő, könyvelő, bizottság, megbízott), hibabejelentés-kezelés, mérőóra-bejelentés, olvasottság-visszajelzéses dokumentumtár, pénzügyi áttekintő, közgyűlés- és szavazás-előkészítő, vendor/munka-rendelési folyamat és tudásbázis — mindezt modern Next.js 14 + Supabase + AWS Location stack-en. A termék <b>MVP+ fázisban</b> van: az alaparchitektúra szilárd, a funkcionális felület kiterjedt, de az éles auth-keményítés, a valós adat-írások és a mobilos UX-csiszolás még hátra van.",
+    "description": "A PanelLakó egy éles környezetbe telepített, multi-tenant PropTech SaaS platform magyarországi társasházak számára. 2026 májusában a 10 tervezett növekedési initiative-ből 9 elkészült: valós Supabase adatírások, SSR auth keményítés, Supabase Storage dokumentumfeltöltés, Stripe SaaS számlázás, multi-épület dashboard, PWA push értesítések, AI ticket triage, pénzügyi főkönyv és Resend e-mail. A platform élőben elérhető a panellako.hu-n. Egy initiative maradt hátra (Közgyűlési Jegyzőkönyv Generátor). Az alap értékelés ezt a bevétel előtti, de éles-kész állapotot tükrözi.",
     "kpis_title": "Kulcsmérőszámok",
     "kpis": [
-      { "label": "Forrásfájlok (.ts/.tsx)", "value": "12" },
-      { "label": "Kódsorok összesen", "value": "2 099" },
-      { "label": "TS/TSX kódsorok (termék)", "value": "1 748" },
-      { "label": "DB séma (SQL sor)", "value": "310" },
-      { "label": "Adatbázis-táblák", "value": "18" },
-      { "label": "Felhasználói szerepkörök", "value": "6" },
-      { "label": "Fő funkcionális modulok", "value": "11" },
-      { "label": "Git commitok", "value": "30" }
+      {"label": "Kódsorok (TypeScript+SQL)", "value": "6 763 (ellenőrzött)"},
+      {"label": "Forrásfájlok", "value": "47 TypeScript/TSX/SQL"},
+      {"label": "Elkészült initiative-ek", "value": "9 / 10"},
+      {"label": "Telepítési állapot", "value": "Éles (panellako.hu)"},
+      {"label": "Alap értékelés", "value": "650 000–1,6 M €"},
+      {"label": "Cél értékelés (10/10)", "value": "850 000–2,1 M €"}
     ],
     "tables": [
       {

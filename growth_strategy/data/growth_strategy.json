@@ -6,7 +6,7 @@
         "en": {
           "title": "Real Supabase Data Writes — Replace All Mock Data (Production Unblock)",
           "desc": [
-            "PanelLakó's most critical growth blocker is that the entire data layer runs on mock/static data. Tickets, meter readings, announcements, votes and financial entries are displayed but not persisted. No real building manager can adopt a tool where submitted fault reports vanish on refresh. This is a zero-to-one inflection point: once real writes land, PanelLakó becomes a deployable product instead of a prototype.",
+            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. PanelLakó's most critical growth blocker is that the entire data layer runs on mock/static data. Tickets, meter readings, announcements, votes and financial entries are displayed but not persisted. No real building manager can adopt a tool where submitted fault reports vanish on refresh. This is a zero-to-one inflection point: once real writes land, PanelLakó becomes a deployable product instead of a prototype.",
             "The market context reinforces urgency: OnlineHáz (Hungary's incumbent) charges ~€15–30/unit/month and has ~1,500 buildings. PanelLakó's superior UX and modern stack can win contracts — but only if the product works. Every week of mock-data delay is a week a competitor retains those buildings.",
             "Implementation is straightforward: Next.js Server Actions (available in Next.js 14) are the cleanest path — no separate API layer needed. Each mutation (ticket create/update, meter reading submit, document acknowledge) becomes a typed Server Action calling Supabase directly with RLS enforcement. The existing schema is correct; only the frontend data-binding is missing."
           ],
@@ -32,7 +32,7 @@
         "hu": {
           "title": "Valós Supabase írások — Összes mock adat cseréje (Éles blokkoló feloldása)",
           "desc": [
-            "A PanelLakó legsürgetőbb növekedési blokkolója, hogy az egész adatréteg mock/statikus adatokon fut. A hibabejelentések, mérőóra-bejelentések, értesítések, szavazatok és pénzügyi tételek megjelennek, de nem kerülnek mentésre. Egyetlen közös képviselő sem fogadhat el egy olyan eszközt, ahol a beküldött hibabejelentések frissítés után eltűnnek.",
+            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. A PanelLakó legsürgetőbb növekedési blokkolója, hogy az egész adatréteg mock/statikus adatokon fut. A hibabejelentések, mérőóra-bejelentések, értesítések, szavazatok és pénzügyi tételek megjelennek, de nem kerülnek mentésre. Egyetlen közös képviselő sem fogadhat el egy olyan eszközt, ahol a beküldött hibabejelentések frissítés után eltűnnek.",
             "A piaci kontextus sürgeti a megoldást: az OnlineHáz (Magyarország vezető megoldása) ~15–30 €/albetét/hónap díjat számol fel és ~1 500 épületet kezel. A PanelLakó jobb UX-e és modern stack-je szerződéseket nyerhet — de csak akkor, ha a termék működik.",
             "Az implementáció egyszerű: a Next.js Server Actions (Next.js 14-ben elérhető) a legtisztább megközelítés — nincs szükség külön API rétegre. Minden mutáció (ticket létrehozás/frissítés, mérőóra beküldés, dokumentum visszaigazolás) gépelt Server Actionné válik, amely közvetlenül hívja a Supabase-t RLS érvényesítéssel."
           ],
@@ -62,7 +62,7 @@
         "en": {
           "title": "SSR Auth Hardening + Cookie-based Session (Security & Trust Gate)",
           "desc": [
-            "Hungarian building managers handle sensitive financial and personal data — resident payment status, meter readings, owner contact details. The current auth relies on client-side Supabase session which can be stale (getSession() reads local cache), and RLS is not enforced at the SSR layer. This is a security gap that will block enterprise and municipal pilots.",
+            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. Hungarian building managers handle sensitive financial and personal data — resident payment status, meter readings, owner contact details. The current auth relies on client-side Supabase session which can be stale (getSession() reads local cache), and RLS is not enforced at the SSR layer. This is a security gap that will block enterprise and municipal pilots.",
             "Auth hardening is a prerequisite for every other growth initiative: it unlocks GDPR-compliant positioning, enables B2B sales to property management companies (ügynökség) and municipal housing providers (önkormányzati lakáskezelő), and eliminates the largest security objection in a sales conversation. OnlineHáz's weakness is its aging PHP/legacy stack — PanelLakó can win on security posture.",
             "The fix is surgical: install @supabase/ssr, create a middleware.ts that refreshes the cookie session, and replace all getSession() calls with getUser(). This matches the documented Supabase SSR pattern and takes <1 day for an experienced developer."
           ],
@@ -86,7 +86,7 @@
         "hu": {
           "title": "SSR Auth keményítés + Cookie-alapú munkamenet (Biztonsági és bizalmi kapu)",
           "desc": [
-            "A magyarországi közös képviselők érzékeny pénzügyi és személyes adatokat kezelnek — lakói fizetési státusz, mérőóra-adatok, tulajdonosi elérhetőségek. A jelenlegi auth kliens-oldali Supabase munkamenetre támaszkodik, amely elavult lehet.",
+            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. A magyarországi közös képviselők érzékeny pénzügyi és személyes adatokat kezelnek — lakói fizetési státusz, mérőóra-adatok, tulajdonosi elérhetőségek. A jelenlegi auth kliens-oldali Supabase munkamenetre támaszkodik, amely elavult lehet.",
             "Az auth keményítés minden más növekedési kezdeményezés előfeltétele: feloldja a GDPR-kompatibilis pozicionálást, lehetővé teszi a B2B értékesítést ingatlankezelő cégeknek és önkormányzati lakáskezelőknek.",
             "A javítás sebészeti: telepítsd a @supabase/ssr-t, hozz létre egy middleware.ts-t a cookie munkamenet frissítéséhez, és cseréld le az összes getSession() hívást getUser()-re."
           ],
@@ -113,7 +113,7 @@
         "en": {
           "title": "Supabase Storage Document Upload (Feature Completeness Gate)",
           "desc": [
-            "The document library module is currently a UI skeleton — files cannot be uploaded, only listed as mock entries. For a building manager, the document library is mission-critical: house rules (SZMSZ), common area regulations, assembly minutes, financial reports, contractor quotations. Without real file upload, the document module is unusable and the feature parity gap with OnlineHáz is large.",
+            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. The document library module is currently a UI skeleton — files cannot be uploaded, only listed as mock entries. For a building manager, the document library is mission-critical: house rules (SZMSZ), common area regulations, assembly minutes, financial reports, contractor quotations. Without real file upload, the document module is unusable and the feature parity gap with OnlineHáz is large.",
             "Supabase Storage is already part of the stack (the Supabase project is provisioned). Adding file upload requires adding the Storage bucket, a Server Action for upload, and wiring the existing document list UI to real data. Market data: document management is the #1 reason building managers try PropTech software (source: OnlineHáz user interviews, 2023 — cited in HVG PropTech roundtable). It is the hook feature.",
             "The implementation is well-understood and low-risk: Supabase Storage with a `documents` bucket, RLS policy allowing building members to read and building managers to write, a Next.js Server Action to handle file uploads, and a signed URL for download. This can be completed in 1–2 days."
           ],
@@ -137,7 +137,7 @@
         "hu": {
           "title": "Supabase Storage dokumentumfeltöltés (Funkcióteljességi kapu)",
           "desc": [
-            "A dokumentumtár modul jelenleg csak UI váz — fájlok nem tölthetők fel, csak mock bejegyzések listázódnak. Egy közös képviselőnek a dokumentumtár missziókritikus: SZMSZ, házirendek, közgyűlési jegyzőkönyvek, pénzügyi jelentések, ajánlatok.",
+            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. A dokumentumtár modul jelenleg csak UI váz — fájlok nem tölthetők fel, csak mock bejegyzések listázódnak. Egy közös képviselőnek a dokumentumtár missziókritikus: SZMSZ, házirendek, közgyűlési jegyzőkönyvek, pénzügyi jelentések, ajánlatok.",
             "A Supabase Storage már a stack része (a Supabase projekt ki van provizionálva). A valós feltöltés hozzáadásához csak storage bucket-et, Server Action-t és UI bekötést kell hozzáadni.",
             "Piaci adat: a dokumentumkezelés az #1 ok, amiért a közös képviselők PropTech szoftvert próbálnak (OnlineHáz felhasználói interjúk, 2023). Ez a horog-feature."
           ],
@@ -163,7 +163,7 @@
         "en": {
           "title": "SaaS Billing Integration — Stripe/Barion Payment Gateway",
           "desc": [
-            "PanelLakó cannot generate revenue without a payment integration. The current platform has zero billing infrastructure — no subscription management, no invoicing, no payment collection. This is the direct path from €0 to €1 in ARR, which is the single most important milestone for valuation and fundraising.",
+            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. PanelLakó cannot generate revenue without a payment integration. The current platform has zero billing infrastructure — no subscription management, no invoicing, no payment collection. This is the direct path from €0 to €1 in ARR, which is the single most important milestone for valuation and fundraising.",
             "For the Hungarian market, Barion (local IBAN-based payment provider) is preferred by SME customers who are uncomfortable with Stripe. However, Stripe is faster to integrate and has better webhook infrastructure. The recommended approach: integrate Stripe first (1–2 days) for international and tech-savvy customers; add Barion in a follow-up sprint for traditional building managers.",
             "Pricing model recommendation based on market research: €1.50–€3.00/unit/month (albetétenként), billed annually to building managers. A 40-unit building = €720–€1,440/year. This is significantly below OnlineHáz (€15–30/unit/month) but above the pain threshold, and the modern UX justifies a price experiment."
           ],
@@ -188,7 +188,7 @@
         "hu": {
           "title": "SaaS Számlázás integráció — Stripe/Barion fizetési átjáró",
           "desc": [
-            "A PanelLakó fizetési integráció nélkül nem tud bevételt generálni. A jelenlegi platformnak nulla számlázási infrastruktúrája van — nincs előfizetés-kezelés, nincs számlázás, nincs díjbeszedés.",
+            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. A PanelLakó fizetési integráció nélkül nem tud bevételt generálni. A jelenlegi platformnak nulla számlázási infrastruktúrája van — nincs előfizetés-kezelés, nincs számlázás, nincs díjbeszedés.",
             "Magyarországi piacra: a Barion (helyi IBAN-alapú fizetési szolgáltató) preferált a KKV ügyfelek számára. A Stripe azonban gyorsabban integrálható és jobb webhook infrastruktúrával rendelkezik.",
             "Ajánlott árazási modell: 1,50–3,00 €/albetét/hónap, évente számlázva a közös képviselőnek. Egy 40 albetétes épület = 720–1 440 €/év."
           ],
@@ -216,7 +216,7 @@
         "en": {
           "title": "Multi-Building Dashboard + Building Picker (Scale Architecture Gate)",
           "desc": [
-            "PanelLakó's backend schema is multi-tenant (buildings table with building_id scoping on every entity) but the frontend is single-building — there is no building selector, no multi-building dashboard, and a property management company (ügynökség) managing 20 buildings cannot use the product today. This single gap locks out the most valuable customer segment: professional property managers who manage building portfolios.",
+            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. PanelLakó's backend schema is multi-tenant (buildings table with building_id scoping on every entity) but the frontend is single-building — there is no building selector, no multi-building dashboard, and a property management company (ügynökség) managing 20 buildings cannot use the product today. This single gap locks out the most valuable customer segment: professional property managers who manage building portfolios.",
             "Market context: In Hungary, ~2,400 professional property management companies (közös képviselők and ügynökségek) manage an average of 8–25 buildings each. A single ügynökség signing up = 8–25× the unit count of an individual building sign-up. This is the B2B enterprise wedge. OnlineHáz serves individual buildings; PanelLakó can serve the manager.",
             "Implementation follows the workspace UUID in URL pattern (already defined in CLAUDE.md governance): `/w/:workspaceId` for the building dashboard. The building picker is at `/app`. Each building selection pushes a new history entry (no replace) for Back button compliance."
           ],
@@ -241,7 +241,7 @@
         "hu": {
           "title": "Multi-épület dashboard + épületválasztó (Skálázási architektúra kapu)",
           "desc": [
-            "A PanelLakó backend sémája multi-tenant, de a frontend egyépületes — nincs épületválasztó, és egy ügynökség, amely 20 épületet kezel, jelenleg nem tudja használni a terméket.",
+            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. A PanelLakó backend sémája multi-tenant, de a frontend egyépületes — nincs épületválasztó, és egy ügynökség, amely 20 épületet kezel, jelenleg nem tudja használni a terméket.",
             "Piaci kontextus: Magyarországon ~2 400 professzionális ingatlankezelő cég (közös képviselők és ügynökségek) átlagosan 8–25 épületet kezel. Egyetlen ügynökség belépése = 8–25× az egyéni épület belépésnél. Ez a B2B vállalati ék.",
             "Az implementáció követi a workspace UUID az URL-ben mintát: `/w/:workspaceId` az épület dashboardhoz, `/app` az épületválasztóhoz."
           ],
@@ -267,7 +267,7 @@
         "en": {
           "title": "Mobile PWA + Push Notifications (Resident Engagement Engine)",
           "desc": [
-            "PanelLakó's current responsive web works on mobile browsers, but there is no Progressive Web App manifest, no service worker, and no push notification capability. For residents (lakók), the primary use case is: receive notification about building news, pay charges, report a fault. All three are mobile-first interactions. Without push notifications, PanelLakó cannot compete with WhatsApp groups — the current incumbent communication channel in Hungarian buildings.",
+            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. PanelLakó's current responsive web works on mobile browsers, but there is no Progressive Web App manifest, no service worker, and no push notification capability. For residents (lakók), the primary use case is: receive notification about building news, pay charges, report a fault. All three are mobile-first interactions. Without push notifications, PanelLakó cannot compete with WhatsApp groups — the current incumbent communication channel in Hungarian buildings.",
             "Market opportunity: 85% of Hungarian smartphone users (aged 18–60) use push notifications from at least one app daily (eMarketer CEE 2024). Building announcements sent as push notifications have 4–7× higher open rates than email (industry benchmark). Push notifications are the key mechanism to create daily engagement from a product that would otherwise be used monthly.",
             "Implementation: add `manifest.json` + service worker (Next.js 14 supports this via `next-pwa` or manual), integrate Web Push API with Supabase Edge Function as the push dispatcher, and store push subscriptions in a new `push_subscriptions` table."
           ],
@@ -292,7 +292,7 @@
         "hu": {
           "title": "Mobil PWA + Push értesítések (Lakói engagement motor)",
           "desc": [
-            "A PanelLakó jelenlegi reszponzív webes megjelenése mobilon működik, de nincs PWA manifest, service worker vagy push értesítési képesség. A WhatsApp csoportok a jelenlegi domináns kommunikációs csatorna a magyarországi épületekben — a PanelLakónak ezt kell felváltania.",
+            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. A PanelLakó jelenlegi reszponzív webes megjelenése mobilon működik, de nincs PWA manifest, service worker vagy push értesítési képesség. A WhatsApp csoportok a jelenlegi domináns kommunikációs csatorna a magyarországi épületekben — a PanelLakónak ezt kell felváltania.",
             "Push értesítésekkel az épületi bejelentések 4–7× magasabb megnyitási arányt érnek el, mint az e-mail.",
             "Implementáció: `manifest.json` + service worker (next-pwa), Web Push API Supabase Edge Function dispatch-csel, és `push_subscriptions` tábla."
           ],
@@ -319,7 +319,7 @@
         "en": {
           "title": "AI-Powered Fault Ticket Triage + Priority Scoring (Competitive Differentiator)",
           "desc": [
-            "PanelLakó's ticket module currently requires the building manager to manually assess, categorize and prioritize every fault report. For a manager handling 10–25 buildings with 50+ units each, this is 5–15 tickets/day — a significant administrative burden. An AI triage layer that auto-categorizes tickets (plumbing, electrical, structural, common area, emergency), estimates urgency, and suggests the right vendor type would be a genuine competitive moat.",
+            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. PanelLakó's ticket module currently requires the building manager to manually assess, categorize and prioritize every fault report. For a manager handling 10–25 buildings with 50+ units each, this is 5–15 tickets/day — a significant administrative burden. An AI triage layer that auto-categorizes tickets (plumbing, electrical, structural, common area, emergency), estimates urgency, and suggests the right vendor type would be a genuine competitive moat.",
             "No Hungarian property management software has AI triage as of 2026. OnlineHáz, Domus24 and competitors are legacy form-based systems. This is a first-mover differentiation opportunity. The technical path is accessible: a Supabase Edge Function calling Claude claude-haiku-4-5 (low latency, low cost) with a structured prompt analyzing ticket title + description → JSON output with category, urgency_score (1–10), suggested_vendor_type, and summary.",
             "Integration is straightforward: after a ticket is inserted (Server Action), call the triage Edge Function asynchronously. The triage result enriches the ticket record with `ai_category`, `ai_urgency`, `ai_vendor_suggestion`. The building manager sees these as pre-filled suggestions they can accept or override."
           ],
@@ -343,7 +343,7 @@
         "hu": {
           "title": "AI-alapú hibabejelentés triage + prioritás pontozás (Versenyképes differenciáló)",
           "desc": [
-            "A PanelLakó ticket modul jelenleg megköveteli, hogy a közös képviselő manuálisan értékelje és priorizálja minden hibabejelentést. Egy 10–25 épületet kezelő képviselőnél ez 5–15 ticket/nap — jelentős adminisztrációs teher.",
+            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. A PanelLakó ticket modul jelenleg megköveteli, hogy a közös képviselő manuálisan értékelje és priorizálja minden hibabejelentést. Egy 10–25 épületet kezelő képviselőnél ez 5–15 ticket/nap — jelentős adminisztrációs teher.",
             "2026-ban egyetlen magyarországi ingatlankezelő szoftver sem rendelkezik AI triage-dzsel. Ez első mozgásos differenciálási lehetőség.",
             "Technikai út: Supabase Edge Function Claude claude-haiku-4-5 hívással — alacsony késleltetés, alacsony költség. A triage eredmény gazdagítja a ticket rekordot `ai_category`, `ai_urgency`, `ai_vendor_suggestion` mezőkkel."
           ],
@@ -369,7 +369,7 @@
         "en": {
           "title": "Financial Module — Real Ledger + Arrears Automation",
           "desc": [
-            "The financial module currently shows mock balances and arrears. For a building manager, the financial module is the second most critical feature after document management — it determines whether they can replace their Excel spreadsheet or their current accounting software. Without real financial data writes, PanelLakó cannot be the system of record for building finances.",
+            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. The financial module currently shows mock balances and arrears. For a building manager, the financial module is the second most critical feature after document management — it determines whether they can replace their Excel spreadsheet or their current accounting software. Without real financial data writes, PanelLakó cannot be the system of record for building finances.",
             "The key jobs-to-be-done: (1) Record common cost charges per unit per month, (2) Track payments received, (3) Generate automatic arrears notices. Hungarian társasház law (Lakástörvény §24) requires buildings to maintain financial records — this is a compliance driver. PanelLakó can become the compliance tool.",
             "Implementation plan: add real `financials` insert/update Server Actions, add a charge generation routine (bulk insert monthly common cost charges for all units), add payment recording, and generate an automated arrears notice (PDF or email) for units with negative balance."
           ],
@@ -394,7 +394,7 @@
         "hu": {
           "title": "Pénzügyi modul — Valós főkönyv + Hátralék automatizálás",
           "desc": [
-            "A pénzügyi modul jelenleg mock egyenlegeket és hátralékokat mutat. A közös képviselőknek a pénzügyi modul a dokumentumkezelés után a második legkritikusabb funkció — ez dönti el, hogy le tudják-e váltani az Excel táblázatot.",
+            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. A pénzügyi modul jelenleg mock egyenlegeket és hátralékokat mutat. A közös képviselőknek a pénzügyi modul a dokumentumkezelés után a második legkritikusabb funkció — ez dönti el, hogy le tudják-e váltani az Excel táblázatot.",
             "Kulcs feladatok: (1) Közös költség tételek rögzítése albetétenként havonta, (2) Beérkező fizetések nyomon követése, (3) Automatikus hátralékértesítők generálása. A Lakástörvény §24 megköveteli a pénzügyi nyilvántartást — ez egy compliance hajtóerő.",
             "Implementáció: valós `financials` Server Actions, tömeges havi közös költség generálás, fizetés rögzítés, automatikus hátralékértesítő."
           ],
@@ -420,7 +420,7 @@
         "en": {
           "title": "Automated Assembly Protocol Generator (Közgyűlési Segéd)",
           "desc": [
-            "The assembly/voting module is partially built (UI for agenda, resolutions, votes exists) but does not generate any official documentation. In Hungary, every residential building assembly (közgyűlés) is legally required to produce a signed meeting minutes document (Ptk. 5:85–5:88) within 15 days. Building managers spend 2–4 hours per assembly generating this document manually in Word.",
+            "**STATUS: IN PROGRESS** — Következő fejlesztési prioritás. The assembly/voting module is partially built (UI for agenda, resolutions, votes exists) but does not generate any official documentation. In Hungary, every residential building assembly (közgyűlés) is legally required to produce a signed meeting minutes document (Ptk. 5:85–5:88) within 15 days. Building managers spend 2–4 hours per assembly generating this document manually in Word.",
             "PanelLakó can auto-generate a legally-compliant meeting minutes template (Közgyűlési Jegyzőkönyv) from the digital assembly record — agenda items, attendance, votes, resolutions — filled into a structured template that meets Ptk. requirements. This is a standalone, high-perceived-value feature that building managers will pay a premium for.",
             "Implementation: after an assembly is marked as closed, generate a PDF (using @react-pdf/renderer or Puppeteer on a Supabase Edge Function) from a Ptk-compliant template, store in Supabase Storage, and send to the building manager's email."
           ],
@@ -444,7 +444,7 @@
         "hu": {
           "title": "Automatizált közgyűlési jegyzőkönyv generátor",
           "desc": [
-            "A közgyűlési/szavazási modul részlegesen kiépített, de nem generál hivatalos dokumentumot. Magyarországon minden társasházi közgyűlés jogi kötelezettség a Ptk. 5:85–5:88 alapján aláírt közgyűlési jegyzőkönyv előállítására 15 napon belül. A közös képviselők közgyűlésenként 2–4 órát töltenek ennek Word-ben való elkészítésével.",
+            "**STATUS: IN PROGRESS** — Következő fejlesztési prioritás. A közgyűlési/szavazási modul részlegesen kiépített, de nem generál hivatalos dokumentumot. Magyarországon minden társasházi közgyűlés jogi kötelezettség a Ptk. 5:85–5:88 alapján aláírt közgyűlési jegyzőkönyv előállítására 15 napon belül. A közös képviselők közgyűlésenként 2–4 órát töltenek ennek Word-ben való elkészítésével.",
             "A PanelLakó automatikusan generálhat egy jogilag megfelelő közgyűlési jegyzőkönyv sablont a digitális közgyűlési rekordból. Ez önálló, magas észlelt értékű feature, amelyért a képviselők prémiumot fizetnek.",
             "Implementáció: Supabase Edge Function PDF generálással, Supabase Storage tárolással, e-mail küldéssel."
           ],
@@ -470,7 +470,7 @@
         "en": {
           "title": "Email Notification System via Supabase Email (Resident Communication Layer)",
           "desc": [
-            "PanelLakó currently has a `notifications` table with a `channel` field supporting 'app' and 'email', but no email is ever sent. Email is the most reliable communication channel for residents who do not check the app daily, and it is legally required for certain notices (assembly invitations must be sent in writing per Ptk. 5:84). Without email delivery, PanelLakó cannot be the sole communication platform for a building.",
+            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. PanelLakó currently has a `notifications` table with a `channel` field supporting 'app' and 'email', but no email is ever sent. Email is the most reliable communication channel for residents who do not check the app daily, and it is legally required for certain notices (assembly invitations must be sent in writing per Ptk. 5:84). Without email delivery, PanelLakó cannot be the sole communication platform for a building.",
             "Supabase provides built-in email via SMTP configuration, and Resend (a modern transactional email service) is the recommended partner for Next.js/Supabase apps. Resend has a free tier (100 emails/day), is production-grade, and integrates in minutes. The email system should support: announcement broadcast, ticket status update, assembly invitation, document share, and monthly financial statement.",
             "This feature directly enables compliance use cases: Ptk. requires assembly invitations to be sent 8 days in advance in writing. PanelLakó can auto-send these and log the send event in audit_logs."
           ],
@@ -495,7 +495,7 @@
         "hu": {
           "title": "E-mail értesítési rendszer Resend-del (Lakói kommunikációs réteg)",
           "desc": [
-            "A PanelLakónak van `notifications` táblája `channel` mezővel ('app' és 'email' értékekkel), de e-mail soha nem kerül kiküldésre. Az e-mail a legmegbízhatóbb kommunikációs csatorna a naponta az appot nem ellenőrző lakókhoz, és jogilag kötelező bizonyos értesítések esetén (a Ptk. 5:84 szerint a közgyűlési meghívót írásban kell küldeni).",
+            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. A PanelLakónak van `notifications` táblája `channel` mezővel ('app' és 'email' értékekkel), de e-mail soha nem kerül kiküldésre. Az e-mail a legmegbízhatóbb kommunikációs csatorna a naponta az appot nem ellenőrző lakókhoz, és jogilag kötelező bizonyos értesítések esetén (a Ptk. 5:84 szerint a közgyűlési meghívót írásban kell küldeni).",
             "Resend (modern tranzakciós e-mail szolgáltatás) a javasolt partner Next.js/Supabase alkalmazásokhoz. Ingyenes szint: 100 e-mail/nap.",
             "Ez a funkció közvetlenül lehetővé teszi a megfelelőségi eseteket: Ptk. megköveteli a közgyűlési meghívók 8 nappal előre írásos küldését."
           ],
