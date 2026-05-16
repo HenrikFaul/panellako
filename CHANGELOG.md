@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-05-16 — v0.5.1 SSR Auth hardening + Landing page (Initiative #2) + RLS fix (Initiative #1)
+
+### Changed
+- **`app/page.tsx`**: Landing page — server-side auth check (`getUser()`), authenticated user → `redirect('/app')`, unauthenticated → teal CTA landing page. Eltávolítva a `?role=` URL param alapú szerepkör-meghatározás (security hole: bármely látogató hozzáférhetett az admin nézethez).
+
+### Added
+- **`supabase/migrations/20260516_fix_rls_missing_policies.sql`**: Hiányzó INSERT/UPDATE RLS policy-k: `vendors`, `push_subscriptions` (UPDATE), `knowledge_base_articles`, `audit_logs`. A korábban hiányzó policy-k a schema.sql-ben már szerepelnek, ez a migration az adatbázisba való alkalmazást biztosítja.
+
+### Fixed
+- Build error: 3 ESLint unused var + `/offline` page `'use client'` hiány → 0 hiba
+- `SUPABASE_SERVICE_ROLE_KEY` env var konfliktus: GeoData kulcs → `GEODATA_SUPABASE_SERVICE_ROLE_KEY`
+
 ## 2026-05-16 — v0.5.0 SaaS Billing — Stripe integráció (Initiative #4)
 
 ### Added
