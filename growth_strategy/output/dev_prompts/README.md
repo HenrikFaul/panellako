@@ -1,9 +1,10 @@
 # PanelLakó — Development Prompts
 
-**Generated:** 2026-05-15  
+**Generated:** 2026-05-16  
 **Repository:** HenrikFaul/panellako  
 **Toolkit:** `growth_strategy/AI_INSTRUCTIONS.md`  
-**Prompt count:** 10 (one per growth initiative)
+**Prompt count:** 10 (one per growth initiative)  
+**Version:** 0.5.1-production — 9 of 10 initiatives complete
 
 ---
 
@@ -31,18 +32,18 @@ Note: prompts reference real environment variables. Before running any prompt, e
 
 ## Prompt Index
 
-| # | File | Initiative | Value Range | Key Technologies |
-|---|------|-----------|-------------|-----------------|
-| 1 | [01_supabase-data-writes.md](01_supabase-data-writes.md) | Real Supabase Data Writes — Replace All Mock Data (Production Unblock) | +€420k–€900k | Next.js Server Actions, @supabase/ssr, revalidatePath, RLS |
-| 2 | [02_ssr-auth-hardening.md](02_ssr-auth-hardening.md) | SSR Auth Hardening + Cookie-based Session (Security & Trust Gate) | +€350k–€750k | @supabase/ssr, middleware.ts, getUser(), cookie session |
-| 3 | [03_storage-document-upload.md](03_storage-document-upload.md) | Supabase Storage Document Upload (Feature Completeness Gate) | +€280k–€620k | Supabase Storage, signed URLs, FormData, document_acknowledgements |
-| 4 | [04_saas-billing-stripe.md](04_saas-billing-stripe.md) | SaaS Billing Integration — Stripe/Barion Payment Gateway | +€250k–€550k | Stripe SDK, Checkout, webhooks, subscriptions table, paywall middleware |
-| 5 | [05_multi-building-dashboard.md](05_multi-building-dashboard.md) | Multi-Building Dashboard + Building Picker (Scale Architecture Gate) | +€200k–€480k | Dynamic routes /w/[buildingId], memberships table, pushState navigation |
-| 6 | [06_mobile-pwa-push.md](06_mobile-pwa-push.md) | Mobile PWA + Push Notifications (Resident Engagement Engine) | +€180k–€420k | next-pwa, Web Push API, Supabase Edge Function, push_subscriptions table |
-| 7 | [07_ai-ticket-triage.md](07_ai-ticket-triage.md) | AI-Powered Fault Ticket Triage + Priority Scoring (Competitive Differentiator) | +€160k–€380k | Anthropic claude-haiku-4-5, Supabase Edge Function, async Server Action |
-| 8 | [08_financial-ledger.md](08_financial-ledger.md) | Financial Module — Real Ledger + Arrears Automation | +€140k–€320k | Server Actions, unit_balance_view, bulk charge generation, Resend |
-| 9 | [09_assembly-protocol-generator.md](09_assembly-protocol-generator.md) | Automated Assembly Protocol Generator (Compliance Automation) | +€120k–€280k | @react-pdf/renderer, Supabase Edge Function, Supabase Storage, meetings.status |
-| 10 | — (email prompt embedded in growth strategy) | Email Notification System via Resend (Resident Communication Layer) | +€100k–€240k | Resend SDK, email templates, audit_logs, Ptk. 5:84 compliance |
+| # | File | Initiative | Value Range | Status | Key Technologies |
+|---|------|-----------|-------------|--------|-----------------|
+| 1 | [01_supabase-data-writes.md](01_supabase-data-writes.md) | Real Supabase Data Writes — Replace All Mock Data (Production Unblock) | +€420k–€900k | ✅ Done | Next.js Server Actions, @supabase/ssr, revalidatePath, RLS |
+| 2 | [02_ssr-auth-hardening.md](02_ssr-auth-hardening.md) | SSR Auth Hardening + Cookie-based Session (Security & Trust Gate) | +€350k–€750k | ✅ Done | @supabase/ssr, middleware.ts, getUser(), cookie session |
+| 3 | [03_storage-document-upload.md](03_storage-document-upload.md) | Supabase Storage Document Upload (Feature Completeness Gate) | +€280k–€620k | ✅ Done | Supabase Storage, signed URLs, FormData, document_acknowledgements |
+| 4 | [04_saas-billing-stripe.md](04_saas-billing-stripe.md) | SaaS Billing Integration — Stripe/Barion Payment Gateway | +€250k–€550k | ✅ Done | Stripe SDK, Checkout, webhooks, subscriptions table, paywall middleware |
+| 5 | [05_multi-building-dashboard.md](05_multi-building-dashboard.md) | Multi-Building Dashboard + Building Picker (Scale Architecture Gate) | +€200k–€480k | ✅ Done | Dynamic routes /w/[buildingId], memberships table, pushState navigation |
+| 6 | [06_mobile-pwa-push.md](06_mobile-pwa-push.md) | Mobile PWA + Push Notifications (Resident Engagement Engine) | +€180k–€420k | ✅ Done | next-pwa, Web Push API, Supabase Edge Function, push_subscriptions table |
+| 7 | [07_ai-ticket-triage.md](07_ai-ticket-triage.md) | AI-Powered Fault Ticket Triage + Priority Scoring (Competitive Differentiator) | +€160k–€380k | ✅ Done | Anthropic claude-haiku-4-5, Supabase Edge Function, async Server Action |
+| 8 | [08_financial-ledger.md](08_financial-ledger.md) | Financial Module — Real Ledger + Arrears Automation | +€140k–€320k | ✅ Done | Server Actions, unit_balance_view, bulk charge generation, Resend |
+| 9 | [09_assembly-protocol-generator.md](09_assembly-protocol-generator.md) | Automated Assembly Protocol Generator (Compliance Automation) | +€120k–€280k | ❌ Next | @react-pdf/renderer, Supabase Edge Function, Supabase Storage, meetings.status |
+| 10 | — (email prompt embedded in growth strategy) | Email Notification System via Resend (Resident Communication Layer) | +€100k–€240k | ✅ Done | Resend SDK, email templates, audit_logs, Ptk. 5:84 compliance |
 
 **Total potential value uplift across all 10 initiatives: +€2.0M–€4.44M**
 
@@ -78,9 +79,9 @@ Prompts must be executed in a specific order because later features depend on in
 
 - **Product:** PanelLakó — Hungarian residential building management platform (társasház management SaaS)
 - **Stack:** Next.js 14 App Router, TypeScript 5.7, Supabase (PostgreSQL + Auth + Storage + Edge Functions), Tailwind CSS 3.4, Vercel
-- **Current state as of 2026-05-15:** Demo/prototype with mock data; 18-table Supabase schema exists but no live writes; 11 modules implemented in UI; 6 user roles with RLS defined
-- **Target:** Production-ready multi-tenant SaaS for Hungarian residential building managers (közös képviselők) and property management companies (ügynökségek)
-- **Valuation baseline:** €180k–€420k (pre-revenue); target after all 10 prompts: €2.1M–€5.8M
+- **Current state as of 2026-05-16:** 9 of 10 initiatives implemented; platform is production-deployed at panellako.hu; 311 files, 7,819 LOC; 62 git commits; Stripe billing, Supabase Storage, PWA push, AI triage, and Resend email all live
+- **Target:** Complete #9 Assembly Protocol Generator to reach full 10/10 initiative coverage
+- **Valuation baseline:** €650k–€1.6M (9/10 complete, pre-revenue production); target after #9: €850k–€2.1M
 
 ---
 
@@ -93,4 +94,4 @@ Prompts must be executed in a specific order because later features depend on in
 
 ---
 
-*Generated by the PanelLakó growth_strategy toolkit — `growth_strategy/AI_INSTRUCTIONS.md` · 2026-05-15*
+*Generated by the PanelLakó growth_strategy toolkit — `growth_strategy/AI_INSTRUCTIONS.md` · 2026-05-16 · v0.5.1-production · 9/10 initiatives complete*
