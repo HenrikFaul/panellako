@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Activity,
   AlertTriangle,
   BellRing,
   BookOpen,
@@ -57,6 +56,7 @@ import { submitMeterReading as submitMeterReadingAction } from '@/app/actions/me
 import { acknowledgeAnnouncement as acknowledgeAnnouncementAction } from '@/app/actions/announcements';
 import { sendContactMessage } from '@/app/actions/contact';
 import type { ContactSubject } from '@/app/actions/contact';
+import WeatherWidget from '@/components/weather-widget';
 
 // Defined here (not imported from server action file) to avoid 'use server' serialization issues
 const CONTACT_SUBJECTS: ContactSubject[] = ['Ajánlatkérés', 'Érdeklődés', 'Hibabejelentés', 'Visszajelzés', 'Partnerség', 'Egyéb'];
@@ -154,6 +154,73 @@ function formatCurrency(value: number | string | null | undefined) {
 function previewText(text: string) {
   const sentences = text.split('. ').slice(0, 2).join('. ');
   return sentences.endsWith('.') ? sentences : `${sentences}.`;
+}
+
+// ─── Ticket Activity Heatmap (35 days) ────────────────────────────────────────
+function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string }> }) {
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
+  // Build a map: 'YYYY-MM-DD' → count
+  const countMap = new Map<string, number>();
+  for (const t of tickets) {
+    if (!t.created_at) continue;
+    const d = new Date(t.created_at);
+    const key = d.toISOString().slice(0, 10);
+    countMap.set(key, (countMap.get(key) ?? 0) + 1);
+  }
+
+  // Build last 35 days grid (7 cols × 5 rows, Mon→Sun)
+  const cells: Array<{ key: string; count: number; label: string }> = [];
+  for (let i = 34; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    cells.push({ key, count: countMap.get(key) ?? 0, label: key });
+  }
+
+  const maxCount = Math.max(1, ...cells.map((c) => c.count));
+
+  function cellColor(count: number) {
+    if (count === 0) return 'bg-white/5';
+    const intensity = count / maxCount;
+    if (intensity < 0.25) return 'bg-rose-900/60';
+    if (intensity < 0.5) return 'bg-rose-700/70';
+    if (intensity < 0.75) return 'bg-rose-500/80';
+    return 'bg-rose-400';
+  }
+
+  const DAYS = ['H', 'K', 'Sz', 'Cs', 'P', 'Szo', 'V'];
+
+  return (
+    <div className="flex flex-col h-full">
+      <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">35 napos aktivitás</p>
+      {/* Day labels */}
+      <div className="mb-1 grid grid-cols-7 gap-1">
+        {DAYS.map((d) => (
+          <span key={d} className="text-center text-[9px] text-slate-700 font-semibold">{d}</span>
+        ))}
+      </div>
+      {/* Cells */}
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((cell) => (
+          <div
+            key={cell.key}
+            title={`${cell.label}: ${cell.count} bejelentés`}
+            className={`h-4 w-4 rounded-sm transition-all ${cellColor(cell.count)} cursor-default`}
+          />
+        ))}
+      </div>
+      {/* Legend */}
+      <div className="mt-2 flex items-center gap-1.5">
+        <span className="text-[9px] text-slate-700">kevés</span>
+        {['bg-white/5','bg-rose-900/60','bg-rose-700/70','bg-rose-500/80','bg-rose-400'].map((c, i) => (
+          <div key={i} className={`h-3 w-3 rounded-sm ${c}`} />
+        ))}
+        <span className="text-[9px] text-slate-700">sok</span>
+      </div>
+    </div>
+  );
 }
 
 function numberOrZero(value: number | string | null | undefined) {
@@ -402,19 +469,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const totalArea = data.units.reduce((acc, item) => acc + numberOrZero(item.area_m2), 0);
   const totalOwnershipShare = data.units.reduce((acc, item) => acc + numberOrZero(item.ownership_share), 0);
 
-  // === HÁZ RADAR: building health score ===
   const criticalTickets = tickets.filter((t) => t.priority === 'kritikus' && t.status !== 'lezarva').length;
-  const highTickets = tickets.filter((t) => t.priority === 'magas' && t.status !== 'lezarva').length;
   const unacknowledgedDocs = data.documents.filter((d) => !d.acknowledged_at).length;
   const upcomingMeetings = data.meetings.filter((m) => m.status === 'tervezett').length;
-  const buildingHealth = Math.max(0, Math.min(100,
-    100
-    - criticalTickets * 20
-    - highTickets * 8
-    - Math.min(openTicketCount * 3, 15)
-    - (arrears > 100000 ? 15 : arrears > 50000 ? 8 : 0)
-    - Math.min(unreadNotificationCount * 3, 12)
-  ));
 
   // === SIGNAL NAV: nav items with live counts ===
   const signalNav = [
@@ -949,66 +1006,29 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </header>
 
           <section id="overview" className="overflow-hidden rounded-[2rem] bg-slate-950 text-white shadow-2xl shadow-slate-300/60">
-            <div className="grid gap-6 p-6 md:grid-cols-[1.35fr_0.65fr] md:p-8">
-              <div>
-                <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-brand-100 ring-1 ring-white/10">
-                  <Sparkles size={14} /> MVP+ feature refresh
-                </div>
-                <h2 className="max-w-3xl text-3xl font-black tracking-tight md:text-5xl">Panellakó, a társasházi app.</h2>
-                <div className="mt-6 flex flex-wrap gap-3">
+            <div className="grid gap-0 md:grid-cols-[1fr_auto]">
+              {/* Left: hero text + CTAs */}
+              <div className="p-6 md:p-8">
+                <h2 className="max-w-2xl text-2xl font-black tracking-tight md:text-4xl">Panellakó, a társasházi app.</h2>
+                <div className="mt-5 flex flex-wrap gap-3">
                   <a href="#tickets" className="rounded-2xl bg-brand-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-950/20 hover:bg-brand-400">Új bejelentés</a>
                   <a href="#units" className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 hover:bg-slate-100">Albetétek nézete</a>
                 </div>
               </div>
 
-              {/* HÁZ RADAR — moved from sidebar, larger version */}
-              <div className="rounded-[1.5rem] bg-white/10 p-5 ring-1 ring-white/10">
-                <div className="mb-4 flex items-center justify-between">
-                  <span className="text-sm font-bold text-brand-100">Ház Radar</span>
-                  <Activity size={14} className="text-slate-500" />
+              {/* Right: weather + ticket heatmap side by side */}
+              <div className="flex gap-0 border-l border-white/10">
+
+                {/* Weather panel */}
+                <div className="w-48 shrink-0 border-r border-white/10 p-4">
+                  <WeatherWidget />
                 </div>
-                <div className="flex items-center gap-5">
-                  <div className="relative h-24 w-24 shrink-0">
-                    <svg viewBox="0 0 96 96" className="h-full w-full -rotate-90">
-                      <circle cx="48" cy="48" r="36" fill="none" stroke="#1e293b" strokeWidth="8" />
-                      <circle
-                        cx="48" cy="48" r="36"
-                        fill="none"
-                        stroke={buildingHealth > 75 ? '#10b981' : buildingHealth > 45 ? '#f59e0b' : '#ef4444'}
-                        strokeWidth="8"
-                        strokeLinecap="round"
-                        strokeDasharray={`${(buildingHealth / 100) * 226.2} 226.2`}
-                        className="transition-all duration-1000"
-                        style={{ filter: `drop-shadow(0 0 6px ${buildingHealth > 75 ? '#10b98180' : buildingHealth > 45 ? '#f59e0b80' : '#ef444480'})` }}
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className={`text-2xl font-black tabular-nums leading-none ${buildingHealth > 75 ? 'text-emerald-400' : buildingHealth > 45 ? 'text-amber-400' : 'text-rose-400'}`}>
-                        {buildingHealth}
-                      </span>
-                      <span className="mt-0.5 text-[10px] text-slate-600">/ 100</span>
-                    </div>
-                  </div>
-                  <div className="flex-1 space-y-3">
-                    {[
-                      { label: 'Nyitott ügyek', val: openTicketCount, max: 10, bar: 'bg-sky-500', href: '#tickets' },
-                      { label: 'Hátralék', val: arrears > 0 ? 1 : 0, max: 1, bar: 'bg-amber-500', href: '#finances' },
-                      { label: 'Értesítés', val: unreadNotificationCount, max: 8, bar: 'bg-violet-500', href: '#notifications' },
-                      { label: 'Dokumentumok', val: data.documents.length, max: 20, bar: 'bg-teal-500', href: '#documents' },
-                    ].map((sig) => (
-                      <a key={sig.label} href={sig.href} className="group flex items-center gap-2 hover:opacity-80">
-                        <span className="w-20 shrink-0 text-[11px] text-slate-500 group-hover:text-slate-300 transition-colors">{sig.label}</span>
-                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
-                          <div
-                            className={`h-full rounded-full transition-all duration-700 ${sig.bar}`}
-                            style={{ width: `${Math.min((sig.val / sig.max) * 100, 100)}%` }}
-                          />
-                        </div>
-                        <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-slate-500">{sig.val}</span>
-                      </a>
-                    ))}
-                  </div>
+
+                {/* Ticket activity heatmap */}
+                <div className="p-4">
+                  <TicketHeatmap tickets={tickets} />
                 </div>
+
               </div>
             </div>
           </section>
