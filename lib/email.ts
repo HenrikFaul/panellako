@@ -84,7 +84,13 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     if (!res.ok) {
       const text = await res.text().catch(() => res.statusText);
       console.error('[sendEmail] Brevo API error:', res.status, text);
-      return { success: false, error: `Brevo ${res.status}: ${text}` };
+      // Surface a human-readable hint for the most common failure modes
+      let hint = `Brevo ${res.status}`;
+      if (res.status === 401) hint = 'Brevo 401: invalid or missing BREVO_API_KEY';
+      if (res.status === 400 && text.includes('sender')) hint = 'Brevo 400: sender address not verified — verify no-reply@panellako.hu in Brevo dashboard → Senders & IP';
+      if (res.status === 403) hint = 'Brevo 403: account blocked or plan limit reached';
+      console.error('[sendEmail] hint:', hint, '| body:', text);
+      return { success: false, error: hint };
     }
 
     const data = await res.json();
