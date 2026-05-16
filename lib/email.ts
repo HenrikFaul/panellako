@@ -1,23 +1,12 @@
-// Central email sending utility using the Resend SDK.
+// Central email sending utility using the Brevo (Sendinblue) API v3.
 // All email sends MUST go through this module for consistent error handling and logging.
 
-import { Resend } from 'resend';
 import type { ReactElement } from 'react';
 
-const resendApiKey = process.env.RESEND_API_KEY;
-const isEmailEnabled = Boolean(resendApiKey);
+const BREVO_BASE = 'https://api.brevo.com/v3/smtp/email';
 
-let resendClient: Resend | null = null;
-
-function getResendClient(): Resend {
-  if (!resendClient) {
-    if (!resendApiKey) {
-      throw new Error('RESEND_API_KEY is not set.');
-    }
-    resendClient = new Resend(resendApiKey);
-  }
-  return resendClient;
-}
+const brevoApiKey = process.env.BREVO_API_KEY;
+const isEmailEnabled = Boolean(brevoApiKey);
 
 export const EMAIL_FROM_DISPLAY = 'PanelLakó <no-reply@panellako.hu>';
 export const EMAIL_REPLY_TO = 'support@panellako.hu';
@@ -47,9 +36,16 @@ export interface BulkSendResult {
   errors: Array<{ to: string; error: string }>;
 }
 
+// Parse "Display Name <email@example.com>" → { name, email }
+function parseFrom(from: string): { name: string; email: string } {
+  const match = from.match(/^(.+?)\s*<([^>]+)>$/);
+  if (match) return { name: match[1].trim(), email: match[2].trim() };
+  return { name: 'PanelLakó', email: from.trim() };
+}
+
 export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
   if (!isEmailEnabled) {
-    console.log('[EMAIL STUB — no RESEND_API_KEY]', {
+    console.log('[EMAIL STUB — no BREVO_API_KEY]', {
       to: options.to,
       subject: options.subject,
       htmlLength: options.html.length,
@@ -57,23 +53,42 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     return { success: true, id: 'stub_' + Math.random().toString(36).slice(2) };
   }
 
+  const sender = parseFrom(options.from ?? EMAIL_FROM_DISPLAY);
+  const replyToEmail = options.replyTo ?? EMAIL_REPLY_TO;
+  const toList = (Array.isArray(options.to) ? options.to : [options.to]).map(e => ({ email: e }));
+
+  const body: Record<string, unknown> = {
+    sender,
+    to: toList,
+    subject: options.subject,
+    htmlContent: options.html,
+    replyTo: { email: replyToEmail },
+  };
+
+  if (options.tags && options.tags.length > 0) {
+    // Brevo tags are plain strings; encode as "name:value"
+    body.tags = options.tags.map(t => `${t.name}:${t.value}`);
+  }
+
   try {
-    const resend = getResendClient();
-    const { data, error } = await resend.emails.send({
-      from: options.from ?? EMAIL_FROM_DISPLAY,
-      to: Array.isArray(options.to) ? options.to : [options.to],
-      subject: options.subject,
-      html: options.html,
-      replyTo: options.replyTo ?? EMAIL_REPLY_TO,
-      tags: options.tags,
+    const res = await fetch(BREVO_BASE, {
+      method: 'POST',
+      headers: {
+        'api-key': brevoApiKey!,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(body),
     });
 
-    if (error) {
-      console.error('[sendEmail] Resend API error:', error);
-      return { success: false, error: error.message };
+    if (!res.ok) {
+      const text = await res.text().catch(() => res.statusText);
+      console.error('[sendEmail] Brevo API error:', res.status, text);
+      return { success: false, error: `Brevo ${res.status}: ${text}` };
     }
 
-    return { success: true, id: data?.id };
+    const data = await res.json();
+    return { success: true, id: data.messageId };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     console.error('[sendEmail] Unexpected error:', message);
