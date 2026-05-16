@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-05-16 — v0.5.3 Dokumentumtár kezelés — Document Management for Managers
+
+### Added
+- **`app/actions/documents.ts`** — `deleteDocument(id, buildingId?)`: törli a dokumentumot az adatbázisból és a Storage bucket-ből. `updateDocument(id, updates, buildingId?)`: szerkeszti a metaadatokat (cím, kategória, verzió, láthatóság). Mindkét action manager-szerepkör ellenőrzéssel (kozos_kepviselo / megbizott).
+- **`app/api/init-demo-docs/route.ts`**: GET/POST endpoint — beolvassa a `public/demo-docs/` mappából a 4 demo PDF-et, feltölti a Supabase Storage `documents` bucket-be (`demo/` prefix), és frissíti az adatbázisban a legacy URL-eket a helyes storage path-ra.
+- **`public/demo-docs/`**: 4 generált demo PDF a tárolt dokumentumokhoz: `szmsz_v3.1.pdf`, `elszamolas_2025.pdf`, `kozgyules_meghivo_20260610.pdf`, `tuzvedelmi_szabalyzat_v2.pdf`. ReportLab-bal generálva, A4-es formátum, táblázatos tartalom, Panellako brandingegel.
+- **`scripts/generate_demo_docs.py`**: Python script a demo PDF-ek újragenerálásához.
+- **`supabase/migrations/20260516_fix_demo_document_urls.sql`**: UPDATE migration — legacy `storage.panellako.hu` URL-eket cseréli helyes storage path-ra meglévő adatbázisban.
+
+### Changed
+- **`components/dashboard-client.tsx`**: Dokumentumtár kártya — manager-csak szerkesztés (inline edit form cím/kategória/verzió/láthatóság mezőkkel), törlés megerősítő gombbal, ceruza ikon kártyánként. Demo-dokumentumok init banner (amber, csak manager + legacy URL esetén): egy gombbal feltölti a fájlokat és frissíti a DB-t.
+- **`supabase/seed.sql`**: Demo dokumentumok `file_url` frissítve legacy URL-ről → helyes storage path (`demo/*.pdf`).
+
+### Deployment note
+1. Supabase SQL Editorban: `supabase/migrations/20260516_fix_demo_document_urls.sql` futtatni (meglévő adatok migrálása)
+2. Az alkalmazásban Közösképviselő/Megbízott szerepkörrel bejelentkezve, Dokumentumtár szekcióban kattints a **„Demo fájlok feltöltése"** gombra (sárga banner) — feltölti a PDF-eket a Supabase Storage-ba és frissíti a DB rekordokat
+
 ## 2026-05-16 — v0.5.2 Közgyűlési Segéd — Assembly Protocol Generator (Initiative #9)
 
 ### Added

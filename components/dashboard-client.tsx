@@ -53,7 +53,7 @@ import { createClient, hasSupabaseConfig } from '@/lib/supabase/browser';
 import { createTicket as createTicketAction, updateTicketStatus as updateTicketStatusAction, updateTicketAiOverride as updateTicketAiOverrideAction } from '@/app/actions/tickets';
 import { submitMeterReading as submitMeterReadingAction } from '@/app/actions/meter-readings';
 import { createAnnouncement as createAnnouncementAction } from '@/app/actions/announcements';
-import { acknowledgeDocument as acknowledgeDocumentAction, uploadDocument as uploadDocumentAction, getDocumentSignedUrl as getDocumentSignedUrlAction } from '@/app/actions/documents';
+import { acknowledgeDocument as acknowledgeDocumentAction, uploadDocument as uploadDocumentAction, getDocumentSignedUrl as getDocumentSignedUrlAction, deleteDocument as deleteDocumentAction, updateDocument as updateDocumentAction } from '@/app/actions/documents';
 import { updateWorkOrderStatus as updateWorkOrderStatusAction } from '@/app/actions/work-orders';
 // votes action imported on-demand in the votes tab handler
 import { createCharge as createChargeAction, recordPayment as recordPaymentAction } from '@/app/actions/finance';
@@ -310,6 +310,13 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
   const [uploadError, setUploadError] = useState('');
+  // Document management state (manager only)
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  const [editDocData, setEditDocData] = useState({ title: '', category: '', version: '', visibility: 'Mindenki' });
+  const [docActionLoading, setDocActionLoading] = useState(false);
+  const [docActionError, setDocActionError] = useState('');
+  const [demoInitStatus, setDemoInitStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [kommandOpen, setKommandOpen] = useState(false);
   const [kommandQuery, setKommandQuery] = useState('');
 
@@ -498,6 +505,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     return tickets.filter((ticket) => ticket.status === ticketFilter);
   }, [ticketFilter, tickets]);
 
+  const hasLegacyDocUrls = useMemo(() => data.documents.some((d) => d.file_url?.includes('storage.panellako.hu')), [data.documents]);
   const documentCategories = useMemo(() => ['osszes', ...Array.from(new Set(data.documents.map((document) => document.category)))], [data.documents]);
   const visibleDocuments = useMemo(() => {
     if (documentFilter === 'osszes') {
@@ -1193,41 +1201,174 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 </form>
               )}
               {uploadStatus === 'done' && <p className="mb-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700">✓ Dokumentum sikeresen feltöltve</p>}
+              {isManager && hasLegacyDocUrls && demoInitStatus !== 'done' && (
+                <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-xs font-medium text-amber-800">A demo dokumentumfájlok még nem kerültek fel a tárolóba — a megnyitás nem fog működni.</p>
+                  <button
+                    type="button"
+                    disabled={demoInitStatus === 'loading'}
+                    className="shrink-0 rounded-xl bg-amber-600 px-3 py-2 text-xs font-bold text-white hover:bg-amber-700 disabled:opacity-50"
+                    onClick={async () => {
+                      setDemoInitStatus('loading');
+                      try {
+                        const res = await fetch('/api/init-demo-docs', { method: 'POST' });
+                        const json = await res.json();
+                        const allOk = json.results?.every((r: { status: string }) => r.status === 'ok' || r.status === 'skipped');
+                        setDemoInitStatus(allOk ? 'done' : 'error');
+                      } catch {
+                        setDemoInitStatus('error');
+                      }
+                    }}
+                  >
+                    {demoInitStatus === 'loading' ? 'Feltöltés…' : 'Demo fájlok feltöltése'}
+                  </button>
+                </div>
+              )}
+              {demoInitStatus === 'done' && <p className="mb-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700">✓ Demo dokumentumfájlok sikeresen feltöltve</p>}
+              {demoInitStatus === 'error' && <p className="mb-3 rounded-xl bg-rose-50 px-3 py-2 text-sm font-bold text-rose-700">Hiba a demo fájlok feltöltésekor. Ellenőrizd a konzolt.</p>}
               <div className="space-y-3">
                 {visibleDocuments.map((item) => (
                   <article key={item.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-black text-slate-950">{item.title}</p>
-                        <p className="mt-1 text-xs font-medium text-slate-500">{item.category} · {item.version} · {formatDate(item.uploaded_at)} · {item.visibility || 'Mindenki'}</p>
-                      </div>
-                      {item.acknowledged_at ? <CheckCircle2 className="text-emerald-500" size={18} /> : <AlertTriangle className="text-amber-500" size={18} />}
-                    </div>
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white hover:bg-slate-700"
-                        type="button"
-                        onClick={async () => {
-                          const result = await getDocumentSignedUrlAction(item.file_url);
-                          if (result.success && result.url) {
-                            window.open(result.url, '_blank', 'noopener,noreferrer');
+                    {editingDocId === item.id ? (
+                      <form
+                        className="space-y-3"
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          setDocActionLoading(true);
+                          setDocActionError('');
+                          const result = await updateDocumentAction(item.id, editDocData, data.buildingId);
+                          setDocActionLoading(false);
+                          if (result.success) {
+                            setEditingDocId(null);
                           } else {
-                            alert(result.error ?? 'Nem sikerült megnyitni a dokumentumot.');
+                            setDocActionError(result.error ?? 'Hiba történt');
                           }
                         }}
                       >
-                        Megnyitás
-                      </button>
-                      {!item.acknowledged_at && (
-                        <button
-                          className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white hover:bg-emerald-700"
-                          type="button"
-                          onClick={() => acknowledgeDocumentAction(item.id)}
-                        >
-                          Elolvasva
-                        </button>
-                      )}
-                    </div>
+                        <p className="text-xs font-bold text-brand-700">Dokumentum szerkesztése</p>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <input
+                            required
+                            value={editDocData.title}
+                            onChange={(e) => setEditDocData((d) => ({ ...d, title: e.target.value }))}
+                            placeholder="Cím *"
+                            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                          />
+                          <input
+                            required
+                            value={editDocData.category}
+                            onChange={(e) => setEditDocData((d) => ({ ...d, category: e.target.value }))}
+                            placeholder="Kategória *"
+                            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                          />
+                          <input
+                            value={editDocData.version}
+                            onChange={(e) => setEditDocData((d) => ({ ...d, version: e.target.value }))}
+                            placeholder="Verzió"
+                            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                          />
+                          <select
+                            value={editDocData.visibility}
+                            onChange={(e) => setEditDocData((d) => ({ ...d, visibility: e.target.value }))}
+                            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                          >
+                            <option value="Mindenki">Mindenki</option>
+                            <option value="Tulajdonosok">Tulajdonosok</option>
+                            <option value="Kezelők">Kezelők</option>
+                          </select>
+                        </div>
+                        {docActionError && <p className="text-xs text-rose-600">{docActionError}</p>}
+                        <div className="flex gap-2">
+                          <button type="submit" disabled={docActionLoading} className="rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-50">
+                            {docActionLoading ? 'Mentés…' : 'Mentés'}
+                          </button>
+                          <button type="button" onClick={() => setEditingDocId(null)} className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200">Mégse</button>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-black text-slate-950">{item.title}</p>
+                            <p className="mt-1 text-xs font-medium text-slate-500">{item.category} · {item.version} · {formatDate(item.uploaded_at)} · {item.visibility || 'Mindenki'}</p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1">
+                            {item.acknowledged_at ? <CheckCircle2 className="text-emerald-500" size={18} /> : <AlertTriangle className="text-amber-500" size={18} />}
+                            {isManager && (
+                              <button
+                                type="button"
+                                title="Szerkesztés"
+                                onClick={() => {
+                                  setEditingDocId(item.id);
+                                  setEditDocData({
+                                    title: item.title,
+                                    category: item.category,
+                                    version: item.version ?? '1.0',
+                                    visibility: item.visibility ?? 'Mindenki',
+                                  });
+                                  setDocActionError('');
+                                }}
+                                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-brand-600"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white hover:bg-slate-700"
+                            type="button"
+                            onClick={async () => {
+                              const result = await getDocumentSignedUrlAction(item.file_url);
+                              if (result.success && result.url) {
+                                window.open(result.url, '_blank', 'noopener,noreferrer');
+                              } else {
+                                alert(result.error ?? 'Nem sikerült megnyitni a dokumentumot.');
+                              }
+                            }}
+                          >
+                            Megnyitás
+                          </button>
+                          {!item.acknowledged_at && (
+                            <button
+                              className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white hover:bg-emerald-700"
+                              type="button"
+                              onClick={() => acknowledgeDocumentAction(item.id)}
+                            >
+                              Elolvasva
+                            </button>
+                          )}
+                          {isManager && deletingDocId === item.id ? (
+                            <span className="flex items-center gap-1">
+                              <span className="text-xs text-rose-600 font-medium">Biztosan törlöd?</span>
+                              <button
+                                type="button"
+                                disabled={docActionLoading}
+                                className="rounded-xl bg-rose-600 px-3 py-2 text-xs font-bold text-white hover:bg-rose-700 disabled:opacity-50"
+                                onClick={async () => {
+                                  setDocActionLoading(true);
+                                  await deleteDocumentAction(item.id, data.buildingId);
+                                  setDocActionLoading(false);
+                                  setDeletingDocId(null);
+                                }}
+                              >
+                                Igen, törlés
+                              </button>
+                              <button type="button" onClick={() => setDeletingDocId(null)} className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200">Mégse</button>
+                            </span>
+                          ) : isManager && (
+                            <button
+                              type="button"
+                              onClick={() => setDeletingDocId(item.id)}
+                              className="rounded-xl border border-rose-200 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50"
+                            >
+                              Törlés
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </article>
                 ))}
               </div>

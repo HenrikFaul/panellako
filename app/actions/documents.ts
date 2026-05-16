@@ -136,6 +136,75 @@ export async function uploadDocument(formData: FormData) {
   return { success: true };
 }
 
+export interface UpdateDocumentInput {
+  title?: string;
+  category?: string;
+  version?: string;
+  visibility?: string;
+}
+
+const MANAGER_ROLES = ['kozos_kepviselo', 'megbizott'];
+
+async function assertManagerRole(supabase: ReturnType<typeof createClient>, userId: string, buildingId?: string): Promise<string | null> {
+  if (!buildingId) return null;
+  const { data: mem } = await supabase
+    .from('memberships')
+    .select('role')
+    .eq('profile_id', userId)
+    .eq('building_id', buildingId)
+    .maybeSingle();
+  if (!mem || !MANAGER_ROLES.includes((mem as { role: string }).role)) {
+    return 'Nincs jogosultsága ehhez a művelethez';
+  }
+  return null;
+}
+
+export async function deleteDocument(documentId: string, buildingId?: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Nem vagy bejelentkezve' };
+
+  const roleError = await assertManagerRole(supabase, user.id, buildingId);
+  if (roleError) return { success: false, error: roleError };
+
+  const { data: doc } = await supabase
+    .from('documents')
+    .select('file_url')
+    .eq('id', documentId)
+    .maybeSingle();
+
+  if (doc?.file_url && !doc.file_url.startsWith('http')) {
+    await supabase.storage.from(STORAGE_BUCKET).remove([doc.file_url]);
+  }
+
+  const { error } = await supabase.from('documents').delete().eq('id', documentId);
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath(buildingId ? `/w/${buildingId}` : '/');
+  return { success: true };
+}
+
+export async function updateDocument(documentId: string, updates: UpdateDocumentInput, buildingId?: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Nem vagy bejelentkezve' };
+
+  const roleError = await assertManagerRole(supabase, user.id, buildingId);
+  if (roleError) return { success: false, error: roleError };
+
+  const patch: Record<string, string> = {};
+  if (updates.title) patch.title = updates.title;
+  if (updates.category) patch.category = updates.category;
+  if (updates.version) patch.version = updates.version;
+  if (updates.visibility) patch.visibility = updates.visibility;
+
+  const { error } = await supabase.from('documents').update(patch).eq('id', documentId);
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath(buildingId ? `/w/${buildingId}` : '/');
+  return { success: true };
+}
+
 export async function getDocumentSignedUrl(filePath: string) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
