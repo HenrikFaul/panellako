@@ -447,7 +447,7 @@ INSERT INTO documents (id, building_id, title, category, version, file_url, visi
   v_doc1, v_building_id,
   'Szervezeti és Működési Szabályzat (SZMSZ)',
   'Szabályzat', 'v3.1',
-  'https://storage.panellako.hu/demo/szmsz_v3.1.pdf',
+  'demo/szmsz_v3.1.pdf',
   'Mindenki', 'upload',
   now() - interval '30 days'
 ),
@@ -455,7 +455,7 @@ INSERT INTO documents (id, building_id, title, category, version, file_url, visi
   v_doc2, v_building_id,
   'Éves elszámolás 2025',
   'Pénzügyi', 'v1.0',
-  'https://storage.panellako.hu/demo/elszamolas_2025.pdf',
+  'demo/elszamolas_2025.pdf',
   'Mindenki', 'upload',
   now() - interval '10 days'
 ),
@@ -463,7 +463,7 @@ INSERT INTO documents (id, building_id, title, category, version, file_url, visi
   v_doc3, v_building_id,
   'Közgyűlési meghívó – 2026. június 10.',
   'Közgyűlés', 'v1.0',
-  'https://storage.panellako.hu/demo/kozgyules_meghivo_20260610.pdf',
+  'demo/kozgyules_meghivo_20260610.pdf',
   'Mindenki', 'upload',
   now() - interval '5 days'
 ),
@@ -471,7 +471,7 @@ INSERT INTO documents (id, building_id, title, category, version, file_url, visi
   v_doc4, v_building_id,
   'Tűzvédelmi szabályzat',
   'Szabályzat', 'v2.0',
-  'https://storage.panellako.hu/demo/tuzvedelmi_szabalyzat_v2.pdf',
+  'demo/tuzvedelmi_szabalyzat_v2.pdf',
   'Mindenki', 'upload',
   now() - interval '1 day'
 )
