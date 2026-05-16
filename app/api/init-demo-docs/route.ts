@@ -1,51 +1,56 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import fs from 'fs';
-import path from 'path';
 
 const BUCKET = 'documents';
 
 const DEMO_DOCS = [
   {
     storagePath: 'demo/szmsz_v3.1.pdf',
-    localFile: 'szmsz_v3.1.pdf',
+    publicFile: 'szmsz_v3.1.pdf',
     legacyUrl: 'https://storage.panellako.hu/demo/szmsz_v3.1.pdf',
   },
   {
     storagePath: 'demo/elszamolas_2025.pdf',
-    localFile: 'elszamolas_2025.pdf',
+    publicFile: 'elszamolas_2025.pdf',
     legacyUrl: 'https://storage.panellako.hu/demo/elszamolas_2025.pdf',
   },
   {
     storagePath: 'demo/kozgyules_meghivo_20260610.pdf',
-    localFile: 'kozgyules_meghivo_20260610.pdf',
+    publicFile: 'kozgyules_meghivo_20260610.pdf',
     legacyUrl: 'https://storage.panellako.hu/demo/kozgyules_meghivo_20260610.pdf',
   },
   {
     storagePath: 'demo/tuzvedelmi_szabalyzat_v2.pdf',
-    localFile: 'tuzvedelmi_szabalyzat_v2.pdf',
+    publicFile: 'tuzvedelmi_szabalyzat_v2.pdf',
     legacyUrl: 'https://storage.panellako.hu/demo/tuzvedelmi_szabalyzat_v2.pdf',
   },
 ];
 
-export async function POST() {
+async function handler(request: NextRequest) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const demoDocsDir = path.join(process.cwd(), 'public', 'demo-docs');
+  // Derive base URL from request so this works on any host (dev, staging, prod)
+  const origin = request.nextUrl.origin;
   const results: { path: string; status: string; error?: string }[] = [];
 
   for (const doc of DEMO_DOCS) {
-    const filePath = path.join(demoDocsDir, doc.localFile);
-    if (!fs.existsSync(filePath)) {
-      results.push({ path: doc.storagePath, status: 'skipped', error: 'local file not found' });
+    // Fetch PDF from our own public/demo-docs/ static serving
+    let bytes: ArrayBuffer;
+    try {
+      const res = await fetch(`${origin}/demo-docs/${doc.publicFile}`, { cache: 'no-store' });
+      if (!res.ok) {
+        results.push({ path: doc.storagePath, status: 'fetch_error', error: `HTTP ${res.status}` });
+        continue;
+      }
+      bytes = await res.arrayBuffer();
+    } catch (e) {
+      results.push({ path: doc.storagePath, status: 'fetch_error', error: String(e) });
       continue;
     }
-
-    const bytes = fs.readFileSync(filePath);
 
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
@@ -57,22 +62,21 @@ export async function POST() {
     }
 
     // Update any DB records still pointing at the legacy URL
-    const { error: updateError } = await supabase
+    await supabase
       .from('documents')
       .update({ file_url: doc.storagePath })
       .eq('file_url', doc.legacyUrl);
 
-    if (updateError) {
-      results.push({ path: doc.storagePath, status: 'db_error', error: updateError.message });
-    } else {
-      results.push({ path: doc.storagePath, status: 'ok' });
-    }
+    results.push({ path: doc.storagePath, status: 'ok' });
   }
 
   return NextResponse.json({ results });
 }
 
-// GET — for manual browser trigger during development
-export async function GET() {
-  return POST();
+export async function POST(request: NextRequest) {
+  return handler(request);
+}
+
+export async function GET(request: NextRequest) {
+  return handler(request);
 }

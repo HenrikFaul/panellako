@@ -1,7 +1,6 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 
 const STORAGE_BUCKET = 'documents';
@@ -232,12 +231,18 @@ export async function getDocumentSignedUrl(filePath: string) {
 
   if (error || !data?.signedUrl) {
     // For demo/ paths: fall back to the static file served from public/demo-docs/
+    // The files live at /demo-docs/<filename> as static Next.js public assets.
     if (storagePath.startsWith('demo/')) {
       const filename = storagePath.slice('demo/'.length);
-      const headersList = headers();
-      const host = headersList.get('host') ?? 'panellako.hu';
-      const proto = host.startsWith('localhost') ? 'http' : 'https';
-      return { success: true, url: `${proto}://${host}/demo-docs/${filename}` };
+      // Resolve app base URL: prefer NEXT_PUBLIC_APP_URL unless it's localhost,
+      // then try VERCEL_URL (auto-set by Vercel), then hard-fall to production domain.
+      const configured = process.env.NEXT_PUBLIC_APP_URL ?? '';
+      const appUrl = (configured && !configured.includes('localhost'))
+        ? configured.replace(/\/$/, '')
+        : process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : 'https://panellako.hu';
+      return { success: true, url: `${appUrl}/demo-docs/${filename}` };
     }
     return {
       success: false,
