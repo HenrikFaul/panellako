@@ -55,8 +55,11 @@ import { createClient, hasSupabaseConfig } from '@/lib/supabase/browser';
 import { createTicket as createTicketAction, updateTicketStatus as updateTicketStatusAction, updateTicketAiOverride as updateTicketAiOverrideAction } from '@/app/actions/tickets';
 import { submitMeterReading as submitMeterReadingAction } from '@/app/actions/meter-readings';
 import { acknowledgeAnnouncement as acknowledgeAnnouncementAction } from '@/app/actions/announcements';
-import { sendContactMessage, CONTACT_SUBJECTS } from '@/app/actions/contact';
+import { sendContactMessage } from '@/app/actions/contact';
 import type { ContactSubject } from '@/app/actions/contact';
+
+// Defined here (not imported from server action file) to avoid 'use server' serialization issues
+const CONTACT_SUBJECTS: ContactSubject[] = ['Ajánlatkérés', 'Érdeklődés', 'Hibabejelentés', 'Visszajelzés', 'Partnerség', 'Egyéb'];
 import { acknowledgeDocument as acknowledgeDocumentAction, uploadDocument as uploadDocumentAction, getDocumentSignedUrl as getDocumentSignedUrlAction, deleteDocument as deleteDocumentAction, updateDocument as updateDocumentAction } from '@/app/actions/documents';
 import { updateWorkOrderStatus as updateWorkOrderStatusAction } from '@/app/actions/work-orders';
 // votes action imported on-demand in the votes tab handler
@@ -787,56 +790,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 </div>
               )}
 
-              {/* HÁZ RADAR */}
-              <div className="mb-4 rounded-2xl border border-slate-800/80 bg-black/40 p-3.5">
-                <div className="mb-2.5 flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Ház Radar</span>
-                  <Activity size={11} className="text-slate-700" />
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="relative h-16 w-16 shrink-0">
-                    <svg viewBox="0 0 64 64" className="h-full w-full -rotate-90">
-                      <circle cx="32" cy="32" r="24" fill="none" stroke="#0f172a" strokeWidth="6" />
-                      <circle
-                        cx="32" cy="32" r="24"
-                        fill="none"
-                        stroke={buildingHealth > 75 ? '#10b981' : buildingHealth > 45 ? '#f59e0b' : '#ef4444'}
-                        strokeWidth="6"
-                        strokeLinecap="round"
-                        strokeDasharray={`${(buildingHealth / 100) * 150.8} 150.8`}
-                        className="transition-all duration-1000"
-                        style={{ filter: `drop-shadow(0 0 4px ${buildingHealth > 75 ? '#10b98166' : buildingHealth > 45 ? '#f59e0b66' : '#ef444466'})` }}
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className={`text-base font-black tabular-nums leading-none ${buildingHealth > 75 ? 'text-emerald-400' : buildingHealth > 45 ? 'text-amber-400' : 'text-rose-400'}`}>
-                        {buildingHealth}
-                      </span>
-                      <span className="mt-0.5 text-[9px] text-slate-700">/ 100</span>
-                    </div>
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    {[
-                      { label: 'Ügyek', val: openTicketCount, max: 10, bar: 'bg-sky-500' },
-                      { label: 'Hátralék', val: arrears > 0 ? 1 : 0, max: 1, bar: 'bg-amber-500' },
-                      { label: 'Értesítés', val: unreadNotificationCount, max: 8, bar: 'bg-violet-500' },
-                    ].map((sig) => (
-                      <div key={sig.label} className="flex items-center gap-2">
-                        <span className="w-12 shrink-0 text-[10px] text-slate-700">{sig.label}</span>
-                        <div className="h-1 flex-1 overflow-hidden rounded-full bg-slate-800">
-                          <div
-                            className={`h-full rounded-full transition-all duration-700 ${sig.bar}`}
-                            style={{ width: `${Math.min((sig.val / sig.max) * 100, 100)}%` }}
-                          />
-                        </div>
-                        <span className="w-3 shrink-0 text-right text-[10px] tabular-nums text-slate-700">{sig.val}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* SIGNAL NAV */}
+              {/* SIGNAL NAV — scrollable, takes all remaining space */}
               <nav className="sidebar-scroll flex-1 space-y-0.5 overflow-y-auto">
                 {signalNav.map((item) => {
                   const Icon = item.icon;
@@ -894,16 +848,12 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 </div>
               )}
 
-              {/* ROLE PANEL */}
-              <div className="mt-3 rounded-2xl border border-slate-800/60 bg-black/30 p-3.5">
-                <p className="text-[10px] uppercase tracking-widest text-slate-700">Aktív szerepkör</p>
-                <p className="mt-1 text-sm font-bold text-white">{roleLabels[data.currentUser.role]}</p>
-                <div className="mt-2.5 flex flex-wrap gap-1.5 text-xs">
-                  {(['lako', 'megbizott', 'kozos_kepviselo'] as Role[]).map((role) => (
-                    <Link key={role} href={`/?role=${role}`} className="rounded-full bg-slate-900 px-2.5 py-1 text-slate-500 transition hover:bg-slate-800 hover:text-slate-300">
-                      {roleLabels[role]}
-                    </Link>
-                  ))}
+              {/* ROLE PANEL — compact, active role only */}
+              <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-slate-800/60 bg-black/30 px-3 py-2.5">
+                <UserRound size={13} className="shrink-0 text-slate-600" />
+                <div className="min-w-0">
+                  <p className="text-[9px] uppercase tracking-widest text-slate-700">Aktív szerepkör</p>
+                  <p className="truncate text-xs font-bold text-white">{roleLabels[data.currentUser.role]}</p>
                 </div>
               </div>
             </div>
@@ -1005,18 +955,59 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   <Sparkles size={14} /> MVP+ feature refresh
                 </div>
                 <h2 className="max-w-3xl text-3xl font-black tracking-tight md:text-5xl">Panellakó, a társasházi app.</h2>
-              
                 <div className="mt-6 flex flex-wrap gap-3">
                   <a href="#tickets" className="rounded-2xl bg-brand-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-950/20 hover:bg-brand-400">Új bejelentés</a>
                   <a href="#units" className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 hover:bg-slate-100">Albetétek nézete</a>
                 </div>
               </div>
+
+              {/* HÁZ RADAR — moved from sidebar, larger version */}
               <div className="rounded-[1.5rem] bg-white/10 p-5 ring-1 ring-white/10">
-                <p className="text-sm font-bold text-brand-100">Feature lefedettség</p>
-                <div className="mt-4 space-y-3 text-sm text-slate-200">
-                  {['Hírek + push/email koncepció', 'Ticketing + SLA + vendor', 'Dokumentumtár + read receipt', 'Pénzügy + hátraléklista', 'Közgyűlés + szavazás előkészítés'].map((item) => (
-                    <div key={item} className="flex items-center gap-2"><CheckCircle2 className="text-brand-300" size={16} /> {item}</div>
-                  ))}
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="text-sm font-bold text-brand-100">Ház Radar</span>
+                  <Activity size={14} className="text-slate-500" />
+                </div>
+                <div className="flex items-center gap-5">
+                  <div className="relative h-24 w-24 shrink-0">
+                    <svg viewBox="0 0 96 96" className="h-full w-full -rotate-90">
+                      <circle cx="48" cy="48" r="36" fill="none" stroke="#1e293b" strokeWidth="8" />
+                      <circle
+                        cx="48" cy="48" r="36"
+                        fill="none"
+                        stroke={buildingHealth > 75 ? '#10b981' : buildingHealth > 45 ? '#f59e0b' : '#ef4444'}
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        strokeDasharray={`${(buildingHealth / 100) * 226.2} 226.2`}
+                        className="transition-all duration-1000"
+                        style={{ filter: `drop-shadow(0 0 6px ${buildingHealth > 75 ? '#10b98180' : buildingHealth > 45 ? '#f59e0b80' : '#ef444480'})` }}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className={`text-2xl font-black tabular-nums leading-none ${buildingHealth > 75 ? 'text-emerald-400' : buildingHealth > 45 ? 'text-amber-400' : 'text-rose-400'}`}>
+                        {buildingHealth}
+                      </span>
+                      <span className="mt-0.5 text-[10px] text-slate-600">/ 100</span>
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    {[
+                      { label: 'Nyitott ügyek', val: openTicketCount, max: 10, bar: 'bg-sky-500', href: '#tickets' },
+                      { label: 'Hátralék', val: arrears > 0 ? 1 : 0, max: 1, bar: 'bg-amber-500', href: '#finances' },
+                      { label: 'Értesítés', val: unreadNotificationCount, max: 8, bar: 'bg-violet-500', href: '#notifications' },
+                      { label: 'Dokumentumok', val: data.documents.length, max: 20, bar: 'bg-teal-500', href: '#documents' },
+                    ].map((sig) => (
+                      <a key={sig.label} href={sig.href} className="group flex items-center gap-2 hover:opacity-80">
+                        <span className="w-20 shrink-0 text-[11px] text-slate-500 group-hover:text-slate-300 transition-colors">{sig.label}</span>
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                          <div
+                            className={`h-full rounded-full transition-all duration-700 ${sig.bar}`}
+                            style={{ width: `${Math.min((sig.val / sig.max) * 100, 100)}%` }}
+                          />
+                        </div>
+                        <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-slate-500">{sig.val}</span>
+                      </a>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

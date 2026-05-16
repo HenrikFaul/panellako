@@ -2,17 +2,13 @@
 
 import { sendEmail } from '@/lib/email';
 
-const CONTACT_SUBJECTS = [
-  'Ajánlatkérés',
-  'Érdeklődés',
-  'Hibabejelentés',
-  'Visszajelzés',
-  'Partnerség',
-  'Egyéb',
-] as const;
-
-export type ContactSubject = typeof CONTACT_SUBJECTS[number];
-export { CONTACT_SUBJECTS };
+export type ContactSubject =
+  | 'Ajánlatkérés'
+  | 'Érdeklődés'
+  | 'Hibabejelentés'
+  | 'Visszajelzés'
+  | 'Partnerség'
+  | 'Egyéb';
 
 export interface ContactInput {
   subject: ContactSubject;
@@ -22,7 +18,6 @@ export interface ContactInput {
 export async function sendContactMessage(input: ContactInput): Promise<{ success: boolean; error?: string }> {
   const recipient = process.env.CONTACT_RECIPIENT_EMAIL;
   if (!recipient) {
-    // Fallback: log and return success so UI isn't broken without env var
     console.warn('[contact] CONTACT_RECIPIENT_EMAIL not set — message dropped', input.subject);
     return { success: true };
   }
