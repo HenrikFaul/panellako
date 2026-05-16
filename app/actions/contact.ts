@@ -18,8 +18,13 @@ export interface ContactInput {
 export async function sendContactMessage(input: ContactInput): Promise<{ success: boolean; error?: string }> {
   const recipient = process.env.CONTACT_RECIPIENT_EMAIL;
   if (!recipient) {
-    console.warn('[contact] CONTACT_RECIPIENT_EMAIL not set — message dropped', input.subject);
-    return { success: true };
+    console.error('[contact] CONTACT_RECIPIENT_EMAIL env var is not set');
+    return { success: false, error: 'Az üzenetküldés jelenleg nem érhető el (konfiguráció hiányzik). Kérjük, próbáld később.' };
+  }
+
+  if (!process.env.RESEND_API_KEY) {
+    console.error('[contact] RESEND_API_KEY env var is not set');
+    return { success: false, error: 'Az üzenetküldés jelenleg nem érhető el (email rendszer nincs konfigurálva). Kérjük, próbáld később.' };
   }
 
   const trimmedMessage = input.message.trim();
@@ -28,13 +33,17 @@ export async function sendContactMessage(input: ContactInput): Promise<{ success
   }
 
   const html = `
-    <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
-      <h2 style="color:#0f172a">PanelLakó — Kapcsolati üzenet</h2>
-      <p><strong>Tárgy:</strong> ${escapeHtml(input.subject)}</p>
-      <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/>
-      <div style="white-space:pre-wrap;color:#334155">${escapeHtml(trimmedMessage)}</div>
-      <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/>
-      <p style="color:#94a3b8;font-size:12px">Küldve a panellako.hu kapcsolati űrlapon keresztül.</p>
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
+      <h2 style="color:#0f172a;margin-bottom:8px">PanelLakó — Kapcsolati üzenet</h2>
+      <p style="color:#64748b;font-size:13px;margin-bottom:20px">Érkezett a panellako.hu kapcsolati űrlapon keresztül</p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
+        <tr>
+          <td style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;width:100px;font-size:13px">Tárgy</td>
+          <td style="padding:8px 12px;border:1px solid #e2e8f0;font-size:13px">${escapeHtml(input.subject)}</td>
+        </tr>
+      </table>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;white-space:pre-wrap;color:#334155;font-size:14px;line-height:1.6">${escapeHtml(trimmedMessage)}</div>
+      <p style="color:#94a3b8;font-size:11px;margin-top:20px">Küldés ideje: ${new Date().toLocaleString('hu-HU', { timeZone: 'Europe/Budapest' })}</p>
     </div>
   `;
 
@@ -42,12 +51,15 @@ export async function sendContactMessage(input: ContactInput): Promise<{ success
     to: recipient,
     subject: `[PanelLakó Kapcsolat] ${input.subject}`,
     html,
+    replyTo: undefined,
   });
 
   if (!result.success) {
-    return { success: false, error: 'Az üzenet küldése sikertelen. Kérjük, próbáld újra.' };
+    console.error('[contact] sendEmail failed:', result.error);
+    return { success: false, error: `Küldés sikertelen: ${result.error ?? 'ismeretlen hiba'}` };
   }
 
+  console.log('[contact] Message sent successfully, id:', result.id);
   return { success: true };
 }
 
