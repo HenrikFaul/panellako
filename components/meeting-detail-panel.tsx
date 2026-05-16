@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Download, Send, UserCheck, UserX, Vote, CheckCircle, XCircle, FileText } from 'lucide-react';
+import { X, Download, Send, UserCheck, UserX, Vote, CheckCircle, XCircle, Clock, FileText } from 'lucide-react';
 import {
   closeMeeting,
   sendAssemblyInvitation,
   recordAttendance,
   removeAttendance,
+  recordVote,
   updateResolutionOutcome,
   generateProtocolManually,
 } from '@/app/actions/meetings';
@@ -32,12 +33,20 @@ interface AgendaItem {
   description?: string;
 }
 
+interface ResolutionVote {
+  id: string;
+  unit_id: string;
+  vote_value: string;
+  weight: number;
+}
+
 interface Resolution {
   id: string;
   agenda_item_id: string;
   text: string;
   outcome: string;
   effective_date?: string;
+  votes?: ResolutionVote[];
 }
 
 interface Meeting {
@@ -64,6 +73,7 @@ interface Props {
   agendaItems: AgendaItem[];
   resolutions: Resolution[];
   isManager: boolean;
+  supabaseUrl: string;
   onClose: () => void;
   onRefresh: () => void;
 }
@@ -74,6 +84,12 @@ const outcomeLabels: Record<string, { label: string; color: string }> = {
   folyamatban: { label: 'Szavazás alatt', color: 'text-amber-600' },
 };
 
+const voteLabels: Record<string, { label: string; color: string }> = {
+  igen: { label: 'Igen', color: 'text-emerald-600' },
+  nem: { label: 'Nem', color: 'text-red-600' },
+  tartozkodas: { label: 'Tartózkodik', color: 'text-amber-600' },
+};
+
 export default function MeetingDetailPanel({
   meeting,
   buildingId,
@@ -82,6 +98,7 @@ export default function MeetingDetailPanel({
   agendaItems,
   resolutions,
   isManager,
+  supabaseUrl,
   onClose,
   onRefresh,
 }: Props) {
@@ -156,10 +173,14 @@ export default function MeetingDetailPanel({
 
   const handleDownloadProtocol = async () => {
     if (!protocolUrl) return;
+    // Try signed URL via API route first (works for private buckets)
     const res = await fetch(`/api/storage-signed-url?path=${encodeURIComponent(protocolUrl)}&bucket=documents`);
     if (res.ok) {
       const { url } = await res.json() as { url: string };
       window.open(url, '_blank');
+    } else if (supabaseUrl) {
+      // Fallback: direct public URL (works if documents bucket is public)
+      window.open(`${supabaseUrl}/storage/v1/object/public/documents/${protocolUrl}`, '_blank');
     } else {
       setMsg('Letöltési link generálása sikertelen.');
     }
@@ -167,6 +188,12 @@ export default function MeetingDetailPanel({
 
   const handleSendInvitation = () =>
     act(() => sendAssemblyInvitation(meeting.id), 'Meghívó elküldve (naplózva).');
+
+  const handleVote = (resolutionId: string, unitId: string, voteValue: 'igen' | 'nem' | 'tartozkodas', weight: number) =>
+    act(
+      () => recordVote({ resolution_id: resolutionId, unit_id: unitId, vote_value: voteValue, weight }),
+      'Szavazat rögzítve.'
+    );
 
   const handleOutcome = (resolutionId: string, outcome: 'elfogadva' | 'elutasitva') =>
     act(() => updateResolutionOutcome(resolutionId, outcome), 'Határozat eredménye rögzítve.');
@@ -182,10 +209,16 @@ export default function MeetingDetailPanel({
           <div className="flex-1">
             <p className="text-xs font-bold uppercase tracking-widest text-brand-600">Közgyűlés részletek</p>
             <h2 className="text-lg font-black text-slate-800 leading-tight">{meeting.title}</h2>
-            <p className="text-sm text-slate-500">
+            <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
+              <Clock size={13} className="shrink-0" />
               {scheduledDate.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}
               {' '}{scheduledDate.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}
               {meeting.location ? ` · ${meeting.location}` : ''}
+              {!isLocked && daysUntil > 0 && (
+                <span className="ml-1 rounded-full bg-sky-50 px-2 py-0.5 text-xs font-bold text-sky-600">
+                  {daysUntil} nap múlva
+                </span>
+              )}
             </p>
           </div>
           <button onClick={onClose} className="rounded-full p-1.5 hover:bg-slate-100"><X size={18} /></button>
@@ -284,7 +317,7 @@ export default function MeetingDetailPanel({
             </div>
           </section>
 
-          {/* Agenda + Resolutions */}
+          {/* Agenda + Resolutions + Voting */}
           <section>
             <h3 className="mb-3 text-sm font-black uppercase tracking-wider text-slate-500">Napirendi pontok és határozatok</h3>
             <div className="space-y-4">
@@ -295,13 +328,21 @@ export default function MeetingDetailPanel({
                     <p className="font-bold text-slate-800">{item.order_no}. {item.title}</p>
                     {item.description && <p className="mt-1 text-xs text-slate-500">{item.description}</p>}
                     {itemResolutions.length > 0 && (
-                      <div className="mt-3 space-y-2">
+                      <div className="mt-3 space-y-3">
                         {itemResolutions.map((res) => {
                           const oc = outcomeLabels[res.outcome] ?? outcomeLabels.folyamatban;
+                          const votes = res.votes ?? [];
+                          const votedUnitIds = new Set(votes.map((v) => v.unit_id));
+                          const unvotedAttendingUnits = units.filter(
+                            (u) => attendedUnitIds.has(u.id) && !votedUnitIds.has(u.id)
+                          );
+
                           return (
                             <div key={res.id} className="rounded-xl bg-slate-50 p-3">
                               <p className="text-xs text-slate-600">{res.text}</p>
-                              <div className="mt-2 flex items-center gap-2">
+
+                              {/* Outcome label + manager outcome buttons */}
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
                                 <span className={`text-xs font-bold ${oc.color}`}>{oc.label}</span>
                                 {isManager && !isLocked && res.outcome === 'folyamatban' && (
                                   <>
@@ -320,6 +361,57 @@ export default function MeetingDetailPanel({
                                   </>
                                 )}
                               </div>
+
+                              {/* Cast votes display */}
+                              {votes.length > 0 && (
+                                <div className="mt-2 space-y-1">
+                                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Leadott szavazatok</p>
+                                  {votes.map((v) => {
+                                    const unit = units.find((u) => u.id === v.unit_id);
+                                    const vl = voteLabels[v.vote_value] ?? { label: v.vote_value, color: 'text-slate-600' };
+                                    return (
+                                      <div key={v.id} className="flex items-center gap-2 text-xs">
+                                        <span className="w-12 font-bold text-slate-700">{unit?.unit_label ?? '—'}</span>
+                                        <span className={`font-bold ${vl.color}`}>{vl.label}</span>
+                                        <span className="text-slate-400">({(v.weight * 100).toFixed(2)}%)</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {/* Vote buttons for attending units that haven't voted yet */}
+                              {!isLocked && res.outcome === 'folyamatban' && unvotedAttendingUnits.length > 0 && (
+                                <div className="mt-2 space-y-1.5 border-t border-slate-200 pt-2">
+                                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Szavazás</p>
+                                  {unvotedAttendingUnits.map((unit) => (
+                                    <div key={unit.id} className="flex items-center gap-2">
+                                      <span className="w-12 text-xs font-bold text-slate-700">{unit.unit_label}</span>
+                                      <button
+                                        disabled={busy}
+                                        onClick={() => handleVote(res.id, unit.id, 'igen', unit.ownership_share)}
+                                        className="rounded-lg bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700 hover:bg-emerald-200 disabled:opacity-50"
+                                      >
+                                        Igen
+                                      </button>
+                                      <button
+                                        disabled={busy}
+                                        onClick={() => handleVote(res.id, unit.id, 'nem', unit.ownership_share)}
+                                        className="rounded-lg bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700 hover:bg-red-200 disabled:opacity-50"
+                                      >
+                                        Nem
+                                      </button>
+                                      <button
+                                        disabled={busy}
+                                        onClick={() => handleVote(res.id, unit.id, 'tartozkodas', unit.ownership_share)}
+                                        className="rounded-lg bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700 hover:bg-amber-200 disabled:opacity-50"
+                                      >
+                                        Tartózkodik
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
