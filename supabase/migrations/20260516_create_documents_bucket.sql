@@ -21,18 +21,23 @@ VALUES (
 ON CONFLICT (id) DO NOTHING;
 
 -- RLS policies so authenticated users can read, managers can write
-CREATE POLICY IF NOT EXISTS "Authenticated users can read documents"
+-- DROP first to avoid "already exists" error on re-run
+DROP POLICY IF EXISTS "Authenticated users can read documents" ON storage.objects;
+CREATE POLICY "Authenticated users can read documents"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'documents' AND auth.role() = 'authenticated');
 
-CREATE POLICY IF NOT EXISTS "Authenticated users can upload documents"
+DROP POLICY IF EXISTS "Authenticated users can upload documents" ON storage.objects;
+CREATE POLICY "Authenticated users can upload documents"
   ON storage.objects FOR INSERT
   WITH CHECK (bucket_id = 'documents' AND auth.role() = 'authenticated');
 
-CREATE POLICY IF NOT EXISTS "Authenticated users can update documents"
+DROP POLICY IF EXISTS "Authenticated users can update documents" ON storage.objects;
+CREATE POLICY "Authenticated users can update documents"
   ON storage.objects FOR UPDATE
   USING (bucket_id = 'documents' AND auth.role() = 'authenticated');
 
-CREATE POLICY IF NOT EXISTS "Authenticated users can delete documents"
+DROP POLICY IF EXISTS "Authenticated users can delete documents" ON storage.objects;
+CREATE POLICY "Authenticated users can delete documents"
   ON storage.objects FOR DELETE
   USING (bucket_id = 'documents' AND auth.role() = 'authenticated');
