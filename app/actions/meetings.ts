@@ -138,7 +138,7 @@ export async function sendAssemblyInvitation(meetingId: string) {
 
   if (updateError) return { success: false, error: updateError.message };
 
-  // Note: actual email sending is delegated to lib/email.ts when RESEND_API_KEY is set
+  // Note: actual email sending is delegated to lib/email.ts when BREVO_API_KEY is set
   // This action marks the invitation as sent; email is fire-and-forget
   console.log(`[sendAssemblyInvitation] Meeting ${meetingId} invitation logged. Connect email action for actual send.`);
 

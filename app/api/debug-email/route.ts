@@ -9,14 +9,14 @@ import { sendEmail } from '@/lib/email';
 //   POST /api/debug-email?token=<DEBUG_TOKEN>&to=test@mailinator.com  → test send
 
 export async function GET() {
-  const hasResendKey = Boolean(process.env.RESEND_API_KEY);
+  const hasResendKey = Boolean(process.env.BREVO_API_KEY);
   const hasRecipient = Boolean(process.env.CONTACT_RECIPIENT_EMAIL);
   const fromAddress = process.env.EMAIL_FROM ?? 'PanelLakó <no-reply@panellako.hu>';
 
   return NextResponse.json({
     ok: hasResendKey && hasRecipient,
     config: {
-      RESEND_API_KEY: hasResendKey ? '✓ set' : '✗ MISSING',
+      BREVO_API_KEY: hasResendKey ? '✓ set' : '✗ MISSING',
       CONTACT_RECIPIENT_EMAIL: hasRecipient ? '✓ set' : '✗ MISSING',
       from_address: fromAddress,
     },
@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing or invalid ?to= parameter.' }, { status: 400 });
   }
 
-  if (!process.env.RESEND_API_KEY) {
-    return NextResponse.json({ error: 'RESEND_API_KEY is not set.' }, { status: 500 });
+  if (!process.env.BREVO_API_KEY) {
+    return NextResponse.json({ error: 'BREVO_API_KEY is not set.' }, { status: 500 });
   }
 
   const result = await sendEmail({

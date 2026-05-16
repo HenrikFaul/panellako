@@ -22,8 +22,8 @@ export async function sendContactMessage(input: ContactInput): Promise<{ success
     return { success: false, error: 'Az üzenetküldés jelenleg nem érhető el (konfiguráció hiányzik). Kérjük, próbáld később.' };
   }
 
-  if (!process.env.RESEND_API_KEY) {
-    console.error('[contact] RESEND_API_KEY env var is not set');
+  if (!process.env.BREVO_API_KEY) {
+    console.error('[contact] BREVO_API_KEY env var is not set');
     return { success: false, error: 'Az üzenetküldés jelenleg nem érhető el (email rendszer nincs konfigurálva). Kérjük, próbáld később.' };
   }
 
