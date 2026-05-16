@@ -25,7 +25,11 @@ drop policy if exists "Manager update resolutions" on resolutions;
 create policy "Manager update resolutions" on resolutions
   for update using (true) with check (true);
 
--- votes: any authenticated member can vote
+-- votes: any authenticated member can vote and read votes
+drop policy if exists "Public select votes" on votes;
+create policy "Public select votes" on votes
+  for select using (true);
+
 drop policy if exists "Public insert votes" on votes;
 create policy "Public insert votes" on votes
   for insert with check (true);
