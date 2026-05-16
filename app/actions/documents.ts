@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 
 const STORAGE_BUCKET = 'documents';
@@ -230,6 +231,14 @@ export async function getDocumentSignedUrl(filePath: string) {
     .createSignedUrl(storagePath, 3600); // 1-hour expiry
 
   if (error || !data?.signedUrl) {
+    // For demo/ paths: fall back to the static file served from public/demo-docs/
+    if (storagePath.startsWith('demo/')) {
+      const filename = storagePath.slice('demo/'.length);
+      const headersList = headers();
+      const host = headersList.get('host') ?? 'panellako.hu';
+      const proto = host.startsWith('localhost') ? 'http' : 'https';
+      return { success: true, url: `${proto}://${host}/demo-docs/${filename}` };
+    }
     return {
       success: false,
       error: 'A dokumentum fájlja nem található a tárolóban. Töltsd fel újra a fájlt, vagy ellenőrizd a Supabase Storage „documents" bucket tartalmát.',

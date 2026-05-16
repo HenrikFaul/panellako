@@ -505,7 +505,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     return tickets.filter((ticket) => ticket.status === ticketFilter);
   }, [ticketFilter, tickets]);
 
-  const hasLegacyDocUrls = useMemo(() => data.documents.some((d) => d.file_url?.includes('storage.panellako.hu')), [data.documents]);
+  // Banner shows for legacy URLs OR for demo/ paths (files not yet in Supabase Storage)
+  const hasLegacyDocUrls = useMemo(() => data.documents.some((d) => d.file_url?.includes('storage.panellako.hu') || d.file_url?.startsWith('demo/')), [data.documents]);
   const documentCategories = useMemo(() => ['osszes', ...Array.from(new Set(data.documents.map((document) => document.category)))], [data.documents]);
   const visibleDocuments = useMemo(() => {
     if (documentFilter === 'osszes') {

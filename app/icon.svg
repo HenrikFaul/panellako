@@ -1,11 +1,20 @@
 <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" fill="none">
-  <defs>
-    <linearGradient id="plGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0ea5e9" />
-      <stop offset="100%" stop-color="#2563eb" />
-    </linearGradient>
-  </defs>
-  <rect x="8" y="8" width="104" height="104" rx="24" fill="url(#plGrad)" />
-  <path d="M31 82V38h24c14 0 22 7 22 19s-8 19-22 19H45v6H31z" fill="white" />
-  <rect x="82" y="34" width="8" height="52" rx="4" fill="white" />
+  <rect width="120" height="120" rx="26" fill="#0f172a"/>
+  <!-- Panel apartment building silhouette -->
+  <!-- Main building body -->
+  <rect x="22" y="46" width="76" height="52" rx="3" fill="#3b82f6"/>
+  <!-- Roof / top bar -->
+  <rect x="18" y="40" width="84" height="10" rx="3" fill="#60a5fa"/>
+  <!-- Antenna / top accent -->
+  <rect x="57" y="24" width="6" height="18" rx="3" fill="#60a5fa"/>
+  <!-- Windows row 1 -->
+  <rect x="30" y="54" width="12" height="10" rx="2" fill="#dbeafe"/>
+  <rect x="54" y="54" width="12" height="10" rx="2" fill="#dbeafe"/>
+  <rect x="78" y="54" width="12" height="10" rx="2" fill="#dbeafe"/>
+  <!-- Windows row 2 -->
+  <rect x="30" y="70" width="12" height="10" rx="2" fill="#93c5fd"/>
+  <rect x="54" y="70" width="12" height="10" rx="2" fill="#dbeafe"/>
+  <rect x="78" y="70" width="12" height="10" rx="2" fill="#93c5fd"/>
+  <!-- Door -->
+  <rect x="50" y="82" width="20" height="16" rx="2" fill="#1e40af"/>
 </svg>
