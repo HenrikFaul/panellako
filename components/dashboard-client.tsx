@@ -263,11 +263,10 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
               ma
             </button>
           )}
-          {/* Forward in time — disabled at weekOffset 0 (current week already at top) */}
+          {/* Forward in time */}
           <button
             onClick={() => setWeekOffset(o => o + 1)}
-            disabled={weekOffset >= 0}
-            className="flex h-5 w-5 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-300 disabled:opacity-20 disabled:cursor-not-allowed"
+            className="flex h-5 w-5 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-300"
             title="Következő hetek"
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -1149,7 +1148,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             <div className="grid gap-0 md:grid-cols-[1fr_auto]">
               {/* Left: hero text + CTAs */}
               <div className="p-6 md:p-8">
-                <h2 className="max-w-2xl text-2xl font-black tracking-tight md:text-4xl">Panellakó, a társasházi app.</h2>
+                <h2 className="max-w-2xl text-3xl font-black tracking-tight md:text-5xl">Panellakó, a társasházi app.</h2>
                 <div className="mt-5 flex flex-wrap gap-3">
                   <a href="#tickets" className="rounded-2xl bg-brand-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-950/20 hover:bg-brand-400">Új bejelentés</a>
                   <a href="#units" className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 hover:bg-slate-100">Albetétek nézete</a>
