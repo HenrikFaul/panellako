@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { AlertTriangle, Bike, Bus, ChevronRight, Leaf, MapPin, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import type { TransitNearbyResult, NearbyStop, RouteType } from '@/app/api/transit/nearby/route';
 import type { DepartureBoard, Departure } from '@/app/api/transit/departures/route';
-import type { AlertsResult, TransitAlert, AlertEffect } from '@/app/api/transit/alerts/route';
+import type { AlertsResult, TransitAlert, AlertSeverity } from '@/app/api/transit/alerts/route';
 
 // ─── Animation CSS ─────────────────────────────────────────────────────────────
 const TP_CSS = `
@@ -46,17 +46,11 @@ const VEHICLE_COLOR: Record<string, string> = {
   BUS: '#38bdf8', RAIL: '#a78bfa', FERRY: '#2dd4bf',
 };
 
-const EFFECT_COLOR: Record<AlertEffect, string> = {
-  NO_SERVICE:         '#ef4444',
-  SIGNIFICANT_DELAYS: '#f97316',
-  REDUCED_SERVICE:    '#f97316',
-  DETOUR:             '#f97316',
-  MODIFIED_SERVICE:   '#eab308',
-  ADDITIONAL_SERVICE: '#34d399',
-  STOP_MOVED:         '#eab308',
-  OTHER_EFFECT:       '#eab308',
-  UNKNOWN_EFFECT:     '#94a3b8',
-  NO_EFFECT:          '#94a3b8',
+// Severity-level border opacity — magas riasztásnál erősebb border
+const SEVERITY_BORDER_OPACITY: Record<AlertSeverity['level'], string> = {
+  high:   '50',
+  medium: '35',
+  low:    '25',
 };
 
 // ─── Freshness state ──────────────────────────────────────────────────────────
@@ -260,17 +254,26 @@ function DepartureBoardPanel({ stopId, stopName, refreshKey }: {
 
 // ─── Alert card ───────────────────────────────────────────────────────────────
 function AlertCard({ alert }: { alert: TransitAlert }) {
-  const color = EFFECT_COLOR[alert.effect] ?? '#94a3b8';
+  const { color, level } = alert.severity;
+  const borderOpacity = SEVERITY_BORDER_OPACITY[level];
   const [open, setOpen] = useState(false);
   return (
     <button onClick={() => setOpen(v => !v)}
       className="w-full rounded-xl px-3 py-2 text-left transition-all"
-      style={{ background: `${color}14`, border: `1px solid ${color}30` }}
+      style={{ background: `${color}14`, border: `1px solid ${color}${borderOpacity}` }}
     >
       <div className="flex items-start gap-2">
         <AlertTriangle size={11} style={{ color, flexShrink: 0, marginTop: 1 }} />
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold leading-tight" style={{ color }}>{alert.headerText}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-[10px] font-bold leading-tight" style={{ color }}>{alert.headerText}</p>
+            {level === 'high' && (
+              <span className="shrink-0 rounded-full px-1 py-0.5 text-[7px] font-black"
+                style={{ background: `${color}30`, color }}>
+                ●
+              </span>
+            )}
+          </div>
           {alert.routes.length > 0 && (
             <p className="mt-0.5 text-[8px] text-slate-500">Érintett: {alert.routes.join(', ')}</p>
           )}

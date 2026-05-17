@@ -6,15 +6,21 @@ export type AlertEffect =
   | 'DETOUR' | 'ADDITIONAL_SERVICE' | 'MODIFIED_SERVICE'
   | 'OTHER_EFFECT' | 'UNKNOWN_EFFECT' | 'STOP_MOVED' | 'NO_EFFECT';
 
+export interface AlertSeverity {
+  level: 'high' | 'medium' | 'low';
+  color: string;
+}
+
 export interface TransitAlert {
-  id:             string;
-  headerText:     string;
+  id:              string;
+  headerText:      string;
   descriptionText: string;
-  effect:         AlertEffect;
-  routes:         string[];   // affected route short names
-  startTime:      number | null;  // unix seconds
-  endTime:        number | null;
-  url:            string | null;
+  effect:          AlertEffect;
+  severity:        AlertSeverity;
+  routes:          string[];   // affected route short names
+  startTime:       number | null;  // unix seconds
+  endTime:         number | null;
+  url:             string | null;
 }
 
 export interface AlertsResult {
@@ -79,11 +85,13 @@ async function fetchFutarAlerts(): Promise<TransitAlert[]> {
       .map((r: { shortName?: string }) => r.shortName ?? '')
       .filter(Boolean);
 
+    const effect = (a.effect as AlertEffect) ?? 'OTHER_EFFECT';
     return {
       id:              a.id ?? String(i),
       headerText:      extractText(a.alertHeaderText, a.headerText ?? 'Üzemzavar'),
       descriptionText: extractText(a.alertDescriptionText, a.descriptionText ?? ''),
-      effect:          (a.effect as AlertEffect) ?? 'OTHER_EFFECT',
+      effect,
+      severity:        alertSeverity(effect),
       routes:          routeNames,
       startTime:       period?.start ?? null,
       endTime:         period?.end   ?? null,
