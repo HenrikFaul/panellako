@@ -93,7 +93,7 @@ async function fetchFutarAlerts(): Promise<TransitAlert[]> {
 }
 
 // ─── Effect → severity + color ────────────────────────────────────────────────
-export function alertSeverity(effect: AlertEffect): { level: 'high' | 'medium' | 'low'; color: string } {
+function alertSeverity(effect: AlertEffect): { level: 'high' | 'medium' | 'low'; color: string } {
   if (['NO_SERVICE', 'SIGNIFICANT_DELAYS'].includes(effect)) return { level: 'high',   color: '#ef4444' };
   if (['REDUCED_SERVICE', 'DETOUR', 'MODIFIED_SERVICE'].includes(effect)) return { level: 'medium', color: '#f97316' };
   return { level: 'low', color: '#eab308' };
