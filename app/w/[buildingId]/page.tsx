@@ -35,12 +35,6 @@ interface PageProps {
   params: { buildingId: string };
 }
 
-interface MembershipValidation {
-  is_member: boolean;
-  user_role: string;
-  unit_id: string | null;
-}
-
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const allowedRoles: Role[] = [
@@ -70,16 +64,25 @@ export default async function BuildingDashboardPage({ params }: PageProps) {
     redirect(`/login?next=/w/${buildingId}`);
   }
 
-  const { data: memberships } = await supabase
-    .rpc('validate_building_membership', { _building_id: buildingId });
+  const { data: memberships, error: memberError } = await supabase
+    .from('memberships')
+    .select('role, unit_id')
+    .eq('profile_id', user.id)
+    .eq('building_id', buildingId)
+    .eq('active', true)
+    .limit(1);
 
-  if (!memberships || (memberships as MembershipValidation[]).length === 0) {
+  if (memberError) {
+    console.error('[building-dashboard] membership check failed:', memberError.message);
+  }
+
+  if (!memberships || memberships.length === 0) {
     redirect('/app');
   }
 
-  const membership = (memberships as MembershipValidation[])[0];
-  const role = allowedRoles.includes(membership.user_role as Role)
-    ? (membership.user_role as Role)
+  const membership = memberships[0] as { role: string; unit_id: string | null };
+  const role = allowedRoles.includes(membership.role as Role)
+    ? (membership.role as Role)
     : 'lako';
 
   const { data: building } = await supabase
