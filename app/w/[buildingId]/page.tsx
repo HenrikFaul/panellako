@@ -87,7 +87,7 @@ export default async function BuildingDashboardPage({ params }: PageProps) {
 
   const { data: building } = await supabase
     .from('buildings')
-    .select('id, name, address, lat, lon')
+    .select('*')
     .eq('id', buildingId)
     .single();
 
