@@ -189,9 +189,9 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
   const viewStart = new Date(thisMon);
   viewStart.setDate(thisMon.getDate() + weekOffset * 7);
 
-  // Build 5 weeks × 7 days = 35 cells, top-to-bottom
+  // Build 7 weeks × 7 days = 49 cells, top-to-bottom
   const cells: Array<{ key: string; count: number; date: Date; isFuture: boolean; isToday: boolean }> = [];
-  for (let i = 0; i < 35; i++) {
+  for (let i = 0; i < 49; i++) {
     const d = new Date(viewStart);
     d.setDate(viewStart.getDate() + i);
     const key = d.toISOString().slice(0, 10);
@@ -219,7 +219,7 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
   }
 
   // Row labels: one per week (Monday of each row)
-  const weeks = Array.from({ length: 5 }, (_, w) => {
+  const weeks = Array.from({ length: 7 }, (_, w) => {
     const mon = new Date(viewStart);
     mon.setDate(viewStart.getDate() + w * 7);
     const isCurrentWeek = mon.toISOString().slice(0, 10) === thisMon.toISOString().slice(0, 10);
@@ -1148,7 +1148,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             <div className="grid gap-0 md:grid-cols-[1fr_auto]">
               {/* Left: hero text + CTAs */}
               <div className="p-6 md:p-8">
-                <h2 className="max-w-2xl text-3xl font-black tracking-tight md:text-5xl">Panellakó, a társasházi app.</h2>
+                <h2 className="max-w-2xl text-4xl font-black leading-tight tracking-tight md:text-6xl">
+                  Panellakó,<br/>a társasházi<br className="md:hidden"/> app.
+                </h2>
                 <div className="mt-5 flex flex-wrap gap-3">
                   <a href="#tickets" className="rounded-2xl bg-brand-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-950/20 hover:bg-brand-400">Új bejelentés</a>
                   <a href="#units" className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 hover:bg-slate-100">Albetétek nézete</a>
@@ -1159,7 +1161,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               <div className="flex gap-0 border-l border-white/10">
 
                 {/* Weather panel — compact */}
-                <div className="w-36 shrink-0 border-r border-white/10 p-3">
+                <div className="w-44 shrink-0 border-r border-white/10 p-3">
                   <WeatherWidget city={
                     data.buildingAddress?.match(/\d{4}\s+([A-Za-záéíóöőúüűÁÉÍÓÖŐÚÜŰ-]+)/)?.[1]
                     ?? 'Budapest'
