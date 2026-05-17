@@ -8,10 +8,13 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
   @apply bg-slate-50 text-slate-900 antialiased;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 ::selection {

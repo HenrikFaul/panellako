@@ -83,7 +83,7 @@ function MeterCard({ type, readings }: { type: MeterType; readings: MeterReading
   }
 
   return (
-    <div className="relative flex flex-col rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+    <div className="relative flex flex-col rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-shadow hover:shadow-md overflow-hidden">
       {/* Header */}
       <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-1.5">

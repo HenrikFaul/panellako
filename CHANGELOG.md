@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-05-17 — v0.5.6 UI/UX Layout Refactor — Overflow fixes, responsive grids, feed health
+
+### Changed
+- **`app/globals.css`**: Added `overflow-x: hidden` and `max-width: 100%` to `html` and `body` — global backstop against horizontal scroll.
+- **`app/layout.tsx`**: Added `overflow-x-hidden` Tailwind class to `<body>`.
+- **`components/dashboard-client.tsx`**:
+  - Overview right panel: `hidden md:flex` → `hidden lg:flex` — prevents narrow-tablet overflow.
+  - Metric cards grid: `sm:grid-cols-2 xl:grid-cols-4` → `sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` — adds intermediate breakpoint step.
+  - Header search input: `w-56` → `w-full md:w-56` — full-width on mobile.
+  - Building name `<h1>`: added `break-words` — long addresses no longer overflow.
+- **`components/transport-panel.tsx`**: Tab row `flex gap-1` → `flex flex-wrap gap-1` — tabs wrap gracefully on narrow panels.
+- **`components/energy-dashboard.tsx`**: `MeterCard` wrapper gains `overflow-hidden` — donut gauge SVG stays contained.
+- **`components/air-quality-widget.tsx`**: AQIcon container gains `overflow-hidden` — animated SVG particles stay clipped inside panel bounds.
+
 ## 2026-05-16 — v0.5.5 Keresés, kattintható badge-ek, kapcsolati űrlap
 
 ### Added

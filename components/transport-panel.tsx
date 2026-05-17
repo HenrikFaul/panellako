@@ -536,7 +536,7 @@ export default function TransportPanel({ lat, lon, buildingAddress }: TransportP
       </div>
 
       {/* Tab nav */}
-      <div className="flex gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.04)' }}>
+      <div className="flex flex-wrap gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.04)' }}>
         {([
           ['stops',  <Bus size={10} key="b" />,          'Megállók'],
           ['bubi',   <Bike size={10} key="k" />,         'Bubi'],
