@@ -1078,12 +1078,12 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     <span className="truncate max-w-[200px]">{data.buildingName}</span>
                     <ChevronRight size={11} className="text-slate-400 flex-shrink-0" />
                   </Link>
-                  <h1 className="text-2xl font-black tracking-tight text-slate-950 md:text-3xl">{data.buildingName}</h1>
+                  <h1 className="text-2xl font-black tracking-tight text-slate-950 break-words md:text-3xl">{data.buildingName}</h1>
                   <p className="mt-1 text-sm text-slate-500">{data.buildingAddress}</p>
                 </>
               ) : (
                 <>
-                  <h1 className="text-2xl font-black tracking-tight text-slate-950 md:text-3xl">PanelLakó</h1>
+                  <h1 className="text-2xl font-black tracking-tight text-slate-950 break-words md:text-3xl">PanelLakó</h1>
                   <p className="mt-1 text-sm text-slate-500">Modern lakói és képviselői működés egy felületen.</p>
                 </>
               )}
@@ -1093,7 +1093,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               <div className="relative" ref={searchRef}>
                 <Search className="pointer-events-none absolute left-3 top-2.5 text-slate-400" size={18} />
                 <input
-                  className="w-56 rounded-2xl border border-slate-200 bg-white px-10 py-2 text-sm outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-10 py-2 text-sm outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100 md:w-56"
                   placeholder="Keresés..."
                   value={searchQuery}
                   onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
@@ -1166,7 +1166,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </div>
 
               {/* Right: weather + air quality + ticket heatmap */}
-              <div className="hidden md:flex gap-0 border-l border-white/10 overflow-x-auto">
+              <div className="hidden lg:flex gap-0 border-l border-white/10 overflow-x-auto">
 
                 {/* Weather panel */}
                 <div className="w-44 shrink-0 border-r border-white/10 p-3">
@@ -1190,7 +1190,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </div>
           </section>
 
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <MetricCard title="Nyitott ügyek" value={String(openTicketCount)} subtitle="Ticketek, SLA és felelős kijelölés" icon={<Wrench size={24} />} href="#tickets" />
             <MetricCard title="Hátralék" value={formatCurrency(arrears)} subtitle="Lakói pénzügyi átláthatóság" icon={<CircleDollarSign size={24} />} tone="amber" href="#finances" />
             <MetricCard title="Olvasatlan értesítés" value={String(unreadNotificationCount)} subtitle="Push/e-mail és olvasottsági visszajelzés" icon={<BellRing size={24} />} tone="violet" href="#notifications" />

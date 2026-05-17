@@ -236,7 +236,7 @@ export default function AirQualityWidget() {
       </p>
 
       {/* Animated icon */}
-      <div className="relative flex items-center justify-center">
+      <div className="relative flex items-center justify-center overflow-hidden">
         <AQIcon category={aq.aqiCategory} color={aq.color} aqi={aq.aqi} />
       </div>
 
