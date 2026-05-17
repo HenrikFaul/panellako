@@ -1161,7 +1161,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
                 {/* Weather panel — compact */}
                 <div className="w-36 shrink-0 border-r border-white/10 p-3">
-                  <WeatherWidget />
+                  <WeatherWidget city={
+                    data.buildingAddress?.match(/\d{4}\s+([A-Za-záéíóöőúüűÁÉÍÓÖŐÚÜŰ-]+)/)?.[1]
+                    ?? 'Budapest'
+                  } />
                 </div>
 
                 {/* Ticket activity heatmap — larger */}
