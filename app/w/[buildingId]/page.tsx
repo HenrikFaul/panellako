@@ -8,6 +8,29 @@ import { getDashboardData } from '@/lib/data';
 import DashboardClient from '@/components/dashboard-client';
 import type { Role } from '@/lib/types';
 
+// ─── Server-side geocoding (Nominatim) ────────────────────────────────────────
+async function geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
+  try {
+    const params = new URLSearchParams({
+      q: address, format: 'json', countrycodes: 'hu', limit: '1', addressdetails: '0',
+    });
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+      headers: {
+        'User-Agent': 'panellako.hu/1.0 (contact via panellako.hu)',
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(5000),
+      next: { revalidate: 86400 }, // cache in Next.js fetch cache for 24h
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) return null;
+    return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+  } catch {
+    return null;
+  }
+}
+
 interface PageProps {
   params: { buildingId: string };
 }
@@ -61,12 +84,29 @@ export default async function BuildingDashboardPage({ params }: PageProps) {
 
   const { data: building } = await supabase
     .from('buildings')
-    .select('id, name, address')
+    .select('id, name, address, lat, lon')
     .eq('id', buildingId)
     .single();
 
   if (!building) {
     redirect('/app');
+  }
+
+  // Geocode the building address if coordinates are not yet stored
+  let buildingLat: number | null = (building as { lat?: number | null }).lat ?? null;
+  let buildingLon: number | null = (building as { lon?: number | null }).lon ?? null;
+
+  if ((buildingLat === null || buildingLon === null) && building.address) {
+    const geo = await geocodeAddress(building.address);
+    if (geo) {
+      buildingLat = geo.lat;
+      buildingLon = geo.lon;
+      // Persist coordinates so future loads skip geocoding
+      await supabase
+        .from('buildings')
+        .update({ lat: geo.lat, lon: geo.lon, geocoded_at: new Date().toISOString() })
+        .eq('id', buildingId);
+    }
   }
 
   const data = await getDashboardData(role, buildingId);
@@ -75,7 +115,9 @@ export default async function BuildingDashboardPage({ params }: PageProps) {
     ...data,
     buildingId,
     buildingName: building.name,
-    buildingAddress: building.address
+    buildingAddress: building.address,
+    buildingLat:    buildingLat ?? undefined,
+    buildingLon:    buildingLon ?? undefined,
   };
 
   return <DashboardClient data={enrichedData} />;

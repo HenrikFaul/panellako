@@ -77,6 +77,8 @@ type DashboardData = {
   buildingId?: string;
   buildingName?: string;
   buildingAddress?: string;
+  buildingLat?: number;
+  buildingLon?: number;
   currentUser: { full_name: string; role: Role };
   news: Array<{
     id: string;
@@ -1773,7 +1775,11 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </SectionCard>
 
             <SectionCard id="transport" title="Közlekedés és tömegközl. lefedettség" icon={<Bus size={18} />}>
-              <TransportPanel />
+              <TransportPanel
+                lat={data.buildingLat}
+                lon={data.buildingLon}
+                buildingAddress={data.buildingAddress}
+              />
             </SectionCard>
           </section>
 
