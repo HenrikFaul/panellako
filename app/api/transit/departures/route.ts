@@ -23,51 +23,72 @@ const _cache = new Map<string, CacheEntry>();
 
 // ─── BKK Futár live arrivals ──────────────────────────────────────────────────
 async function fetchFutarDepartures(stopId: string): Promise<DepartureBoard> {
-  const BASE = 'https://futar.bkk.hu/api/query/v1/ws/otp/routers/budapest/index/stops';
-  const res = await fetch(`${BASE}/${stopId}/stoptimes?numberOfDepartures=8&timeRange=3600`, {
+  // Use the BKK-specific arrivals-and-departures endpoint (richer than OTP /stoptimes).
+  // Arrival times are seconds-since-midnight relative to serviceDay (a unix day boundary),
+  // NOT absolute unix timestamps — must add serviceDay to get the real epoch second.
+  const BASE = 'https://futar.bkk.hu/api/query/v1/ws/otp/routers/budapest';
+  const params = new URLSearchParams({
+    stopId,
+    numberOfDepartures: '8',
+    minutesAfter:       '60',
+    onlyDepartures:     'true',
+  });
+  const res = await fetch(`${BASE}/arrivals-and-departures-for-stop?${params}`, {
     headers: { 'Accept': 'application/json', 'User-Agent': 'panellako.hu/1.0' },
-    signal: AbortSignal.timeout(5000),
+    signal: AbortSignal.timeout(7000),
   });
   if (!res.ok) throw new Error(`Futár HTTP ${res.status}`);
   const data = await res.json();
 
-  const stopName: string = data?.data?.entry?.name ?? stopId;
+  // References contain route/stop metadata keyed by their IDs
+  const routeRefs: Record<string, { shortName?: string; type?: number }> =
+    data?.data?.references?.routes ?? {};
+  const stopRefs: Record<string, { name?: string }> =
+    data?.data?.references?.stops ?? {};
+
+  const stopName: string =
+    stopRefs[stopId]?.name ?? data?.data?.entry?.stopName ?? stopId;
+
   const now = Math.floor(Date.now() / 1000);
 
-  const list: Array<{
-    scheduledArrival?: number;
-    realtimeArrival?: number;
-    realtime?: boolean;
-    route?: {
-      shortName?: string;
-      longName?: string;
-      type?: number;
-      mode?: string;
-    };
-    headsign?: string;
-    trip?: { headsign?: string };
+  const stopTimes: Array<{
+    serviceDay?:        number;   // unix timestamp of the local day start
+    scheduledArrival?:  number;   // seconds since midnight
+    scheduledDeparture?: number;
+    realtimeArrival?:   number;
+    realtimeDeparture?: number;
+    realtime?:          boolean;
+    routeId?:           string;
+    headsign?:          string;
   }> = data?.data?.entry?.stopTimes ?? [];
 
-  // GTFS route_type → vehicle label
   const gtfsTypeMap: Record<number, Departure['vehicle']> = {
-    0: 'TRAM', 1: 'SUBWAY', 2: 'RAIL', 3: 'BUS', 4: 'FERRY', 5: 'TRAM', 11: 'TROLLEYBUS', 12: 'TRAM',
+    0: 'TRAM', 1: 'SUBWAY', 2: 'RAIL', 3: 'BUS',
+    4: 'FERRY', 5: 'TRAM', 11: 'TROLLEYBUS', 12: 'TRAM',
   };
 
-  const departures: Departure[] = list
+  const departures: Departure[] = stopTimes
     .map(s => {
-      const arrivalSec = s.realtimeArrival ?? s.scheduledArrival ?? 0;
-      const minutesAway = Math.round((arrivalSec - now) / 60);
-      const gtfsType = s.route?.type ?? 3;
-      const vehicle: Departure['vehicle'] = gtfsTypeMap[gtfsType] ?? 'BUS';
+      const serviceDay = s.serviceDay ?? 0;
+      // Arrival is relative to serviceDay (seconds since midnight) → add to get unix epoch
+      const relArrival = s.realtimeArrival ?? s.scheduledArrival
+                      ?? s.realtimeDeparture ?? s.scheduledDeparture ?? 0;
+      const absArrival = serviceDay + relArrival;
+      const minutesAway = Math.round((absArrival - now) / 60);
+
+      const route = routeRefs[s.routeId ?? ''];
+      const vehicle: Departure['vehicle'] =
+        gtfsTypeMap[route?.type ?? 3] ?? 'BUS';
+
       return {
-        routeRef:    s.route?.shortName ?? '?',
-        headsign:    s.trip?.headsign ?? s.headsign ?? '',
+        routeRef:    route?.shortName ?? '?',
+        headsign:    s.headsign ?? '',
         minutesAway,
         realtime:    s.realtime ?? false,
         vehicle,
       };
     })
-    .filter(d => d.minutesAway >= -1)   // keep "just left" items
+    .filter(d => d.minutesAway >= -1)
     .sort((a, b) => a.minutesAway - b.minutesAway)
     .slice(0, 6);
 
