@@ -57,6 +57,8 @@ import { acknowledgeAnnouncement as acknowledgeAnnouncementAction } from '@/app/
 import { sendContactMessage } from '@/app/actions/contact';
 import type { ContactSubject } from '@/app/actions/contact';
 import WeatherWidget from '@/components/weather-widget';
+import AirQualityWidget from '@/components/air-quality-widget';
+import EnergyDashboard from '@/components/energy-dashboard';
 
 // Defined here (not imported from server action file) to avoid 'use server' serialization issues
 const CONTACT_SUBJECTS: ContactSubject[] = ['Ajánlatkérés', 'Érdeklődés', 'Hibabejelentés', 'Visszajelzés', 'Partnerség', 'Egyéb'];
@@ -1157,10 +1159,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 </div>
               </div>
 
-              {/* Right: weather + ticket heatmap side by side */}
+              {/* Right: weather + air quality + ticket heatmap */}
               <div className="flex gap-0 border-l border-white/10">
 
-                {/* Weather panel — compact */}
+                {/* Weather panel */}
                 <div className="w-44 shrink-0 border-r border-white/10 p-3">
                   <WeatherWidget city={
                     data.buildingAddress?.match(/\d{4}\s+([A-Za-záéíóöőúüűÁÉÍÓÖŐÚÜŰ-]+)/)?.[1]
@@ -1168,7 +1170,12 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   } />
                 </div>
 
-                {/* Ticket activity heatmap — larger */}
+                {/* Air quality panel */}
+                <div className="w-40 shrink-0 border-r border-white/10 p-3">
+                  <AirQualityWidget />
+                </div>
+
+                {/* Ticket activity heatmap */}
                 <div className="p-4 min-w-[340px]">
                   <TicketHeatmap tickets={tickets} />
                 </div>
@@ -1749,28 +1756,16 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </ul>
             </SectionCard>
 
-            <SectionCard id="meters" title="Mérőóra diktálás" icon={<Gauge size={18} />}>
-              <form className="mb-4 space-y-3" onSubmit={async (e) => {
-                e.preventDefault();
-                const form = e.currentTarget;
-                const meterType = (form.elements.namedItem('meter_type') as HTMLSelectElement).value as 'viz' | 'gaz' | 'villany';
-                const value = parseFloat((form.elements.namedItem('meter_value') as HTMLInputElement).value);
-                const readingDate = (form.elements.namedItem('reading_date') as HTMLInputElement).value;
-                await submitMeterReadingAction({ meter_type: meterType, value, reading_date: readingDate, unit_label: unit || undefined });
-                setMeterSaved(true);
-                form.reset();
-              }}>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <select name="meter_type" className="rounded-2xl border border-slate-200 px-3 py-2 text-sm"><option value="viz">víz</option><option value="gaz">gáz</option><option value="villany">villany</option></select>
-                  <input name="meter_value" type="number" step="0.01" required className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Érték" />
-                </div>
-                <input name="reading_date" type="date" required className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm" />
-                <button className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-black text-white hover:bg-slate-700">Óraállás elküldése</button>
-                {meterSaved ? <p className="text-sm font-semibold text-emerald-700">Óraállás rögzítve.</p> : null}
-              </form>
-              <ul className="space-y-2 text-sm">
-                {data.meterReadings.map((reading) => <li key={reading.id} className="rounded-2xl bg-slate-50 p-3"><b>{reading.unit_label}</b> · {reading.meter_type} · {reading.value} · {formatDate(reading.reading_date)}</li>)}
-              </ul>
+            <SectionCard id="meters" title="Energiafogyasztás és mérőórák" icon={<Gauge size={18} />}>
+              <EnergyDashboard
+                readings={data.meterReadings}
+                saved={meterSaved}
+                onSubmit={async (type, value, date) => {
+                  await submitMeterReadingAction({ meter_type: type, value, reading_date: date, unit_label: unit || undefined });
+                  setMeterSaved(true);
+                  setTimeout(() => setMeterSaved(false), 3000);
+                }}
+              />
             </SectionCard>
           </section>
 
