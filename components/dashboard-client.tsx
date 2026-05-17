@@ -7,6 +7,7 @@ import {
   BellRing,
   BookOpen,
   Building2,
+  Bus,
   CalendarDays,
   CheckCircle2,
   ChevronRight,
@@ -59,6 +60,7 @@ import type { ContactSubject } from '@/app/actions/contact';
 import WeatherWidget from '@/components/weather-widget';
 import AirQualityWidget from '@/components/air-quality-widget';
 import EnergyDashboard from '@/components/energy-dashboard';
+import TransportPanel from '@/components/transport-panel';
 
 // Defined here (not imported from server action file) to avoid 'use server' serialization issues
 const CONTACT_SUBJECTS: ContactSubject[] = ['Ajánlatkérés', 'Érdeklődés', 'Hibabejelentés', 'Visszajelzés', 'Partnerség', 'Egyéb'];
@@ -130,6 +132,7 @@ const navigation = [
   { href: '#documents', label: 'Dokumentumok', icon: FileText },
   { href: '#finances', label: 'Pénzügyek', icon: CircleDollarSign },
   { href: '#meters', label: 'Mérőórák', icon: Gauge },
+  { href: '#transport', label: 'Közlekedés', icon: Bus },
   { href: '#meetings', label: 'Közgyűlések', icon: CalendarDays },
   { href: '#knowledge', label: 'Tudásbázis', icon: BookOpen },
   { href: '#audit', label: 'Audit napló', icon: ShieldCheck }
@@ -623,6 +626,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     { href: '#documents', label: 'Dokumentumok', icon: FileText, count: unacknowledgedDocs, critical: 0 },
     { href: '#finances', label: 'Pénzügyek', icon: CircleDollarSign, count: arrears > 0 ? 1 : 0, critical: arrears > 100000 ? 1 : 0 },
     { href: '#meters', label: 'Mérőórák', icon: Gauge, count: 0, critical: 0 },
+    { href: '#transport', label: 'Közlekedés', icon: Bus, count: 0, critical: 0 },
     { href: '#meetings', label: 'Közgyűlések', icon: CalendarDays, count: upcomingMeetings, critical: 0 },
     { href: '#knowledge', label: 'Tudásbázis', icon: BookOpen, count: 0, critical: 0 },
     ...(isAdminLike ? [{ href: '#audit', label: 'Audit napló', icon: ShieldCheck, count: 0, critical: 0 }] : []),
@@ -1766,6 +1770,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   setTimeout(() => setMeterSaved(false), 3000);
                 }}
               />
+            </SectionCard>
+
+            <SectionCard id="transport" title="Közlekedés és tömegközl. lefedettség" icon={<Bus size={18} />}>
+              <TransportPanel />
             </SectionCard>
           </section>
 
