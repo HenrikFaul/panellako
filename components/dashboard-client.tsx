@@ -375,7 +375,7 @@ function numberOrZero(value: number | string | null | undefined) {
 
 function SectionCard({ id, title, icon, children, action }: { id?: string; title: string; icon: ReactNode; children: ReactNode; action?: ReactNode }) {
   return (
-    <section id={id} className="rounded-[1.75rem] border border-white/70 bg-white/90 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur">
+    <section id={id} className="min-w-0 overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/90 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
           <span className="rounded-2xl bg-brand-50 p-2 text-brand-700">{icon}</span>
@@ -1064,7 +1064,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </div>
         </aside>
 
-        <main className="space-y-6 px-4 py-5 md:px-8 lg:px-10">
+        <main className="min-w-0 overflow-x-hidden space-y-6 px-4 py-5 md:px-8 lg:px-10">
           <header className="flex flex-col gap-4 rounded-[2rem] border border-white/70 bg-white/80 p-4 shadow-[0_18px_70px_rgba(15,23,42,0.08)] backdrop-blur md:flex-row md:items-center md:justify-between">
             <div>
               {data.buildingName ? (
@@ -1166,7 +1166,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </div>
 
               {/* Right: weather + air quality + ticket heatmap */}
-              <div className="flex gap-0 border-l border-white/10">
+              <div className="hidden md:flex gap-0 border-l border-white/10 overflow-x-auto">
 
                 {/* Weather panel */}
                 <div className="w-44 shrink-0 border-r border-white/10 p-3">
@@ -1182,7 +1182,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 </div>
 
                 {/* Ticket activity heatmap */}
-                <div className="p-4 min-w-[340px]">
+                <div className="p-4 w-[340px] max-w-full">
                   <TicketHeatmap tickets={tickets} />
                 </div>
 
@@ -1442,7 +1442,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </div>
           </SectionCard>
 
-          <section className="grid gap-6 xl:grid-cols-3">
+          <section className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
             <SectionCard id="documents" title="Dokumentumtár" icon={<FileText size={18} />} action={
               <div className="flex items-center gap-2">
                 <select value={documentFilter} onChange={(e) => setDocumentFilter(e.target.value)} className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-semibold">
@@ -1963,7 +1963,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </SectionCard>
           </section>
 
-          <section className="grid gap-6 xl:grid-cols-3">
+          <section className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
             <SectionCard title="Hírfolyam" icon={<BellRing size={18} />}>
               <ul className="space-y-3">
                 {newsItems.map((item) => {
