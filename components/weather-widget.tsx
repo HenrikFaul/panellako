@@ -891,7 +891,7 @@ function SmallWeatherIcon({ icon, isDay }: { icon: number; isDay?: boolean }) {
 }
 
 // ─── Main Widget ───────────────────────────────────────────────────────────────
-export default function WeatherWidget() {
+export default function WeatherWidget({ city = 'Budapest' }: { city?: string }) {
   const [weather, setWeather] = useState<WeatherResult | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -922,8 +922,25 @@ export default function WeatherWidget() {
 
   const type = getWeatherType(weather.icon, weather.isDay);
 
+  const idokepUrl = `https://www.idokep.hu/30napos/${encodeURIComponent(city)}`;
+
   return (
     <div className="flex h-full flex-col items-center">
+      {/* Idokep 30-day forecast link */}
+      <a
+        href={idokepUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={`${city} — 30 napos előrejelzés (időkép.hu)`}
+        className="mb-1.5 flex items-center gap-1 rounded-lg px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-300"
+      >
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" className="shrink-0">
+          <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+          <path d="M8 1h3m0 0v3m0-3L5.5 6.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        30 napos
+      </a>
+
       {/* Location label */}
       <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-slate-500 text-center">
         {weather.locationName}
