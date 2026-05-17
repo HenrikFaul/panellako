@@ -170,8 +170,8 @@ function AQIcon({ category, color, aqi }: { category: AQICategory; color: string
 }
 
 // ─── Mini pollutant bar ───────────────────────────────────────────────────────
-function PollutantBar({ label, value, max, unit, color }: {
-  label: string; value: number | null; max: number; unit: string; color: string;
+function PollutantBar({ label, value, max, color }: {
+  label: string; value: number | null; max: number; unit?: string; color: string;
 }) {
   if (value === null) return null;
   const frac = Math.min(value / max, 1);
