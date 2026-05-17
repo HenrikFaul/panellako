@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type AlertEffect =
@@ -100,7 +100,7 @@ export function alertSeverity(effect: AlertEffect): { level: 'high' | 'medium' |
 }
 
 // ─── GET handler ──────────────────────────────────────────────────────────────
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const now = Date.now();
 
   if (_cache && _cache.expires > now) {
