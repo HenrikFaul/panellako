@@ -82,7 +82,7 @@ async function fetchWeather(): Promise<WeatherResult> {
       'temperature_2m_min',
     ].join(','),
     timezone:        'Europe/Budapest',
-    forecast_days:   '5',
+    forecast_days:   '7',
     wind_speed_unit: 'kmh',
   });
 
@@ -93,9 +93,9 @@ async function fetchWeather(): Promise<WeatherResult> {
   const cur   = data.current;
   const daily = data.daily;
 
-  // Skip index 0 (today's daily summary) → next 4 days for forecast
+  // Skip index 0 (today's daily summary) → next 6 days for forecast
   const forecast: DailyForecast[] = [];
-  for (let i = 1; i <= 4; i++) {
+  for (let i = 1; i <= 6; i++) {
     if (!daily.time[i]) break;
     const code = daily.weather_code[i] as number;
     forecast.push({
@@ -143,6 +143,8 @@ function getMockWeather(): WeatherResult {
       { date: new Date(Date.now() + 172800000).toISOString().slice(0, 10), icon: 63, iconPhrase: 'Mérsékelt eső', minTemp: 12, maxTemp: 18 },
       { date: new Date(Date.now() + 259200000).toISOString().slice(0, 10), icon: 95, iconPhrase: 'Zivatar',       minTemp: 11, maxTemp: 16 },
       { date: new Date(Date.now() + 345600000).toISOString().slice(0, 10), icon: 1,  iconPhrase: 'Főleg derült',  minTemp: 15, maxTemp: 24 },
+      { date: new Date(Date.now() + 432000000).toISOString().slice(0, 10), icon: 2,  iconPhrase: 'Részben felhős',minTemp: 13, maxTemp: 21 },
+      { date: new Date(Date.now() + 518400000).toISOString().slice(0, 10), icon: 3,  iconPhrase: 'Borult',        minTemp: 11, maxTemp: 17 },
     ],
     fetchedAt: new Date().toISOString(),
   };

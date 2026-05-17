@@ -967,9 +967,9 @@ export default function WeatherWidget({ city = 'Budapest' }: { city?: string }) 
         </p>
       </div>
 
-      {/* 4-day forecast */}
+      {/* 6-day forecast */}
       {weather.forecast.length > 0 && (
-        <div className="mt-3 w-full grid grid-cols-4 gap-1 border-t border-white/10 pt-2">
+        <div className="mt-3 w-full grid grid-cols-6 gap-0.5 border-t border-white/10 pt-2">
           {weather.forecast.map((day) => (
             <div key={day.date} className="flex flex-col items-center gap-0.5">
               <p className="text-[9px] font-bold text-slate-600">{getDayLabel(day.date)}</p>
