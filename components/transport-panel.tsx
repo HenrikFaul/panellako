@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Bike, Bus, ChevronRight, MapPin, Leaf, RefreshCw, AlertCircle } from 'lucide-react';
+import { AlertTriangle, Bike, Bus, ChevronRight, Leaf, MapPin, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import type { TransitNearbyResult, NearbyStop, RouteType } from '@/app/api/transit/nearby/route';
 import type { DepartureBoard, Departure } from '@/app/api/transit/departures/route';
+import type { AlertsResult, TransitAlert, AlertEffect } from '@/app/api/transit/alerts/route';
 
 // ─── Animation CSS ─────────────────────────────────────────────────────────────
 const TP_CSS = `
@@ -15,11 +16,6 @@ const TP_CSS = `
     0%,100% { opacity: 0.12; r: 44; }
     50%      { opacity: 0.26; r: 50; }
   }
-  @keyframes tp-bounce-in {
-    0%   { transform: scale(0.6) translateY(8px); opacity: 0; }
-    70%  { transform: scale(1.05) translateY(-2px); }
-    100% { transform: scale(1) translateY(0); opacity: 1; }
-  }
   @keyframes tp-slide-up {
     from { transform: translateY(6px); opacity: 0; }
     to   { transform: translateY(0);   opacity: 1; }
@@ -28,10 +24,14 @@ const TP_CSS = `
     0%,100% { opacity: 1; }
     50%      { opacity: 0.35; }
   }
+  @keyframes tp-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
 `;
 
 // ─── Route type badge config ──────────────────────────────────────────────────
-const ROUTE_STYLE: Record<RouteType | string, { bg: string; text: string; border: string; label: string }> = {
+const ROUTE_STYLE: Record<string, { bg: string; text: string; border: string; label: string }> = {
   SUBWAY:     { bg: 'bg-red-600',     text: 'text-white',        border: 'border-red-700',     label: 'M' },
   TRAM:       { bg: 'bg-yellow-400',  text: 'text-yellow-900',   border: 'border-yellow-500',  label: 'V' },
   TROLLEYBUS: { bg: 'bg-red-400',     text: 'text-white',        border: 'border-red-500',     label: 'Tr' },
@@ -41,10 +41,63 @@ const ROUTE_STYLE: Record<RouteType | string, { bg: string; text: string; border
   CABLE_CAR:  { bg: 'bg-amber-500',   text: 'text-white',        border: 'border-amber-600',   label: 'D' },
 };
 
-const VEHICLE_COLOR: Record<Departure['vehicle'], string> = {
+const VEHICLE_COLOR: Record<string, string> = {
   SUBWAY: '#ef4444', TRAM: '#fbbf24', TROLLEYBUS: '#f87171',
   BUS: '#38bdf8', RAIL: '#a78bfa', FERRY: '#2dd4bf',
 };
+
+const EFFECT_COLOR: Record<AlertEffect, string> = {
+  NO_SERVICE:         '#ef4444',
+  SIGNIFICANT_DELAYS: '#f97316',
+  REDUCED_SERVICE:    '#f97316',
+  DETOUR:             '#f97316',
+  MODIFIED_SERVICE:   '#eab308',
+  ADDITIONAL_SERVICE: '#34d399',
+  STOP_MOVED:         '#eab308',
+  OTHER_EFFECT:       '#eab308',
+  UNKNOWN_EFFECT:     '#94a3b8',
+  NO_EFFECT:          '#94a3b8',
+};
+
+// ─── Freshness state ──────────────────────────────────────────────────────────
+type FeedHealth = 'live' | 'refreshing' | 'stale' | 'offline';
+
+function feedHealth(lastFetched: Date | null, isRefreshing: boolean): FeedHealth {
+  if (isRefreshing) return 'refreshing';
+  if (!lastFetched) return 'offline';
+  const ageMs = Date.now() - lastFetched.getTime();
+  if (ageMs < 90_000) return 'live';
+  if (ageMs < 5 * 60_000) return 'stale';
+  return 'offline';
+}
+
+function FeedHealthBadge({ health, lastFetched }: { health: FeedHealth; lastFetched: Date | null }) {
+  const labels: Record<FeedHealth, { label: string; color: string }> = {
+    live:       { label: 'Élő',       color: '#34d399' },
+    refreshing: { label: 'Frissül…',  color: '#38bdf8' },
+    stale:      { label: 'Elavult',   color: '#f97316' },
+    offline:    { label: 'Offline',   color: '#ef4444' },
+  };
+  const { label, color } = labels[health];
+  const timeStr = lastFetched
+    ? lastFetched.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : '—';
+
+  return (
+    <div className="flex items-center gap-1.5">
+      {health === 'live'
+        ? <Wifi size={9} style={{ color }} />
+        : health === 'offline'
+          ? <WifiOff size={9} style={{ color }} />
+          : <RefreshCw size={9} style={{ color, animation: health === 'refreshing' ? 'tp-spin 1s linear infinite' : undefined }} />
+      }
+      <span className="text-[8px] font-bold" style={{ color }}>{label}</span>
+      {lastFetched && (
+        <span className="text-[8px] text-slate-700">{timeStr}</span>
+      )}
+    </div>
+  );
+}
 
 // ─── Coverage score ring ──────────────────────────────────────────────────────
 function CoverageRing({ total, label, color }: { total: number; label: string; color: string }) {
@@ -52,49 +105,27 @@ function CoverageRing({ total, label, color }: { total: number; label: string; c
   const circ = 2 * Math.PI * r;
   const fill = circ * Math.min(total / 100, 1);
   const gap = circ - fill;
-
   return (
     <div className="relative flex shrink-0 items-center justify-center" style={{ width: 110, height: 110 }}>
       <svg width="110" height="110" viewBox="0 0 110 110">
-        <defs>
-          <style>{TP_CSS}</style>
-        </defs>
-        {/* Pulse halo */}
+        <defs><style>{TP_CSS}</style></defs>
         <circle cx="55" cy="55" r="44" fill={color} opacity="0"
-          style={{ animation: 'tp-pulse-ring 4s ease-in-out infinite' }}
-        />
-        {/* Track */}
+          style={{ animation: 'tp-pulse-ring 4s ease-in-out infinite' }} />
         <circle cx="55" cy="55" r={r} fill="none"
-          stroke="white" strokeOpacity="0.07" strokeWidth="6"
-          strokeLinecap="round"
-        />
-        {/* Fill */}
+          stroke="white" strokeOpacity="0.07" strokeWidth="6" strokeLinecap="round" />
         <circle cx="55" cy="55" r={r} fill="none"
-          stroke={color} strokeOpacity="0.9" strokeWidth="7"
-          strokeLinecap="round"
+          stroke={color} strokeOpacity="0.9" strokeWidth="7" strokeLinecap="round"
           strokeDasharray={`${fill} ${gap}`}
           transform="rotate(-90 55 55)"
-          style={{
-            animation: 'tp-ring-in 1.2s ease-out both',
-            filter: `drop-shadow(0 0 4px ${color}80)`,
-            transition: 'stroke-dasharray 1s ease',
-          }}
+          style={{ animation: 'tp-ring-in 1.2s ease-out both', filter: `drop-shadow(0 0 4px ${color}80)`, transition: 'stroke-dasharray 1s ease' }}
         />
-        {/* Score */}
         <text x="55" y="50" textAnchor="middle" dominantBaseline="middle"
           fill="white" fontSize="22" fontWeight="900" letterSpacing="-1"
-          style={{ fontFamily: 'inherit' }}
-        >
-          {total}
-        </text>
+          style={{ fontFamily: 'inherit' }}>{total}</text>
         <text x="55" y="68" textAnchor="middle" dominantBaseline="middle"
           fill="white" fontSize="8" fontWeight="600" opacity="0.65"
-          style={{ fontFamily: 'inherit' }}
-        >
-          / 100
-        </text>
+          style={{ fontFamily: 'inherit' }}>/ 100</text>
       </svg>
-      {/* Label below ring */}
       <div className="absolute bottom-0 left-0 right-0 text-center">
         <span className="text-[9px] font-black" style={{ color, textShadow: `0 0 8px ${color}60` }}>
           {label}
@@ -104,22 +135,20 @@ function CoverageRing({ total, label, color }: { total: number; label: string; c
   );
 }
 
-// ─── Score breakdown bars ─────────────────────────────────────────────────────
 function ScoreBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
   return (
     <div className="flex items-center gap-1.5">
       <span className="w-14 text-[8px] font-bold text-slate-500 leading-none">{label}</span>
       <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
         <div className="h-full rounded-full transition-all duration-700"
-          style={{ width: `${Math.min(value / max * 100, 100)}%`, background: color, boxShadow: `0 0 4px ${color}60` }}
-        />
+          style={{ width: `${Math.min(value / max * 100, 100)}%`, background: color, boxShadow: `0 0 4px ${color}60` }} />
       </div>
       <span className="w-6 text-right text-[8px] tabular-nums font-bold" style={{ color }}>{value}</span>
     </div>
   );
 }
 
-// ─── Route badge pill ─────────────────────────────────────────────────────────
+// ─── Route badge ─────────────────────────────────────────────────────────────
 function RouteBadge({ routeRef, type }: { routeRef: string; type: RouteType }) {
   const s = ROUTE_STYLE[type] ?? ROUTE_STYLE.BUS;
   return (
@@ -130,36 +159,24 @@ function RouteBadge({ routeRef, type }: { routeRef: string; type: RouteType }) {
 }
 
 // ─── Stop row ─────────────────────────────────────────────────────────────────
-function StopRow({
-  stop, selected, onClick,
-}: {
-  stop: NearbyStop;
-  selected: boolean;
-  onClick: () => void;
+function StopRow({ stop, selected, onClick }: {
+  stop: NearbyStop; selected: boolean; onClick: () => void;
 }) {
   const s = ROUTE_STYLE[stop.routeType] ?? ROUTE_STYLE.BUS;
   return (
-    <button
-      onClick={onClick}
+    <button onClick={onClick}
       className={`w-full flex items-start gap-2 rounded-xl px-2.5 py-2 text-left transition-all ${
-        selected
-          ? 'bg-white/[0.10] ring-1 ring-white/20'
-          : 'hover:bg-white/[0.05]'
+        selected ? 'bg-white/[0.10] ring-1 ring-white/20' : 'hover:bg-white/[0.05]'
       }`}
     >
-      {/* Type dot */}
       <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[7px] font-black ${s.bg} ${s.text}`}>
         {s.label}
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[10px] font-bold text-slate-200 leading-tight">{stop.name}</p>
         <div className="mt-0.5 flex flex-wrap gap-1">
-          {stop.routeRefs.slice(0, 5).map(r => (
-            <RouteBadge key={r} routeRef={r} type={stop.routeType} />
-          ))}
-          {stop.routeRefs.length > 5 && (
-            <span className="text-[8px] text-slate-600">+{stop.routeRefs.length - 5}</span>
-          )}
+          {stop.routeRefs.slice(0, 5).map(r => <RouteBadge key={r} routeRef={r} type={stop.routeType} />)}
+          {stop.routeRefs.length > 5 && <span className="text-[8px] text-slate-600">+{stop.routeRefs.length - 5}</span>}
         </div>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-0.5">
@@ -173,86 +190,66 @@ function StopRow({
 // ─── Departure countdown ──────────────────────────────────────────────────────
 function DepartureTime({ minutes, realtime }: { minutes: number; realtime: boolean }) {
   if (minutes <= 0) return (
-    <span className="text-[9px] font-black text-emerald-400" style={{ animation: 'tp-blink 1.4s ease-in-out infinite' }}>
-      ◆ Indul
-    </span>
+    <span className="text-[9px] font-black text-emerald-400"
+      style={{ animation: 'tp-blink 1.4s ease-in-out infinite' }}>◆ Indul</span>
   );
   return (
     <span className="flex items-baseline gap-0.5">
-      <span className="text-[13px] font-black tabular-nums leading-none" style={{ color: realtime ? '#34d399' : '#94a3b8' }}>
-        {minutes}
-      </span>
+      <span className="text-[13px] font-black tabular-nums leading-none"
+        style={{ color: realtime ? '#34d399' : '#94a3b8' }}>{minutes}</span>
       <span className="text-[8px] text-slate-500">p</span>
       {realtime && <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />}
     </span>
   );
 }
 
-// ─── Departure board panel ────────────────────────────────────────────────────
-function DepartureBoardPanel({ stopId, stopName }: { stopId: string; stopName: string }) {
+// ─── Departure board ──────────────────────────────────────────────────────────
+function DepartureBoardPanel({ stopId, stopName, refreshKey }: {
+  stopId: string; stopName: string; refreshKey: number;
+}) {
   const [board, setBoard] = useState<DepartureBoard | null>(null);
   const [loading, setLoading] = useState(true);
-  const prevStopId = useRef('');
 
-  const load = useCallback(() => {
+  useEffect(() => {
     setLoading(true);
     fetch(`/api/transit/departures?stopId=${encodeURIComponent(stopId)}`)
       .then(r => r.json())
       .then(d => { setBoard(d); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [stopId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stopId, refreshKey]);
 
-  useEffect(() => {
-    if (stopId !== prevStopId.current) {
-      prevStopId.current = stopId;
-      load();
-    }
-  }, [stopId, load]);
+  if (loading) return (
+    <div className="flex flex-col gap-1.5 animate-pulse">
+      {[1,2,3].map(i => <div key={i} className="h-8 rounded-xl bg-white/[0.05]" />)}
+    </div>
+  );
 
-  if (loading) {
-    return (
-      <div className="flex flex-col gap-1.5 animate-pulse">
-        {[1,2,3].map(i => (
-          <div key={i} className="h-8 rounded-xl bg-white/[0.05]" />
-        ))}
-      </div>
-    );
-  }
+  if (!board || board.departures.length === 0) return (
+    <div className="flex items-center gap-2 rounded-xl bg-white/[0.04] px-3 py-2">
+      <MapPin size={12} className="text-slate-600" />
+      <p className="text-[10px] text-slate-600">Nincs indulási adat</p>
+    </div>
+  );
 
-  if (!board || board.departures.length === 0) {
-    return (
-      <div className="flex items-center gap-2 rounded-xl bg-white/[0.04] px-3 py-2">
-        <AlertCircle size={12} className="text-slate-600" />
-        <p className="text-[10px] text-slate-600">Nincs indulási adat</p>
-      </div>
-    );
-  }
+  const isMock = (board as { _mock?: boolean })._mock;
 
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between">
         <p className="text-[9px] font-black uppercase tracking-wider text-slate-500 truncate pr-2">{board.stopName || stopName}</p>
-        <button onClick={load} className="text-slate-600 hover:text-slate-400 transition-colors">
-          <RefreshCw size={10} />
-        </button>
+        {isMock && <span className="text-[8px] text-slate-600 italic">Minta adatok</span>}
       </div>
       <ul className="space-y-1">
-        {board.departures.map((dep, i) => (
+        {board.departures.map((dep: Departure, i) => (
           <li key={i}
             className="flex items-center gap-2 rounded-xl px-2.5 py-1.5"
             style={{ animation: `tp-slide-up 0.3s ease-out ${i * 0.06}s both`, background: 'rgba(255,255,255,0.04)' }}
           >
-            {/* Vehicle color dot */}
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{ background: VEHICLE_COLOR[dep.vehicle] }} />
-            {/* Route number */}
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: VEHICLE_COLOR[dep.vehicle] ?? '#94a3b8' }} />
             <span className="w-8 text-[11px] font-black tabular-nums leading-none"
-              style={{ color: VEHICLE_COLOR[dep.vehicle] }}>
-              {dep.routeRef}
-            </span>
-            {/* Headsign */}
+              style={{ color: VEHICLE_COLOR[dep.vehicle] ?? '#94a3b8' }}>{dep.routeRef}</span>
             <span className="min-w-0 flex-1 truncate text-[9px] text-slate-400">{dep.headsign}</span>
-            {/* Time */}
             <DepartureTime minutes={dep.minutesAway} realtime={dep.realtime} />
           </li>
         ))}
@@ -261,11 +258,35 @@ function DepartureBoardPanel({ stopId, stopName }: { stopId: string; stopName: s
   );
 }
 
+// ─── Alert card ───────────────────────────────────────────────────────────────
+function AlertCard({ alert }: { alert: TransitAlert }) {
+  const color = EFFECT_COLOR[alert.effect] ?? '#94a3b8';
+  const [open, setOpen] = useState(false);
+  return (
+    <button onClick={() => setOpen(v => !v)}
+      className="w-full rounded-xl px-3 py-2 text-left transition-all"
+      style={{ background: `${color}14`, border: `1px solid ${color}30` }}
+    >
+      <div className="flex items-start gap-2">
+        <AlertTriangle size={11} style={{ color, flexShrink: 0, marginTop: 1 }} />
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-bold leading-tight" style={{ color }}>{alert.headerText}</p>
+          {alert.routes.length > 0 && (
+            <p className="mt-0.5 text-[8px] text-slate-500">Érintett: {alert.routes.join(', ')}</p>
+          )}
+        </div>
+      </div>
+      {open && alert.descriptionText && (
+        <p className="mt-1.5 text-[9px] text-slate-400 leading-relaxed">{alert.descriptionText}</p>
+      )}
+    </button>
+  );
+}
+
 // ─── Bubi station card ────────────────────────────────────────────────────────
 function BubiCard({ station }: { station: TransitNearbyResult['bubi'][number] }) {
   const pct = station.totalDocks > 0 ? station.bikesAvail / station.totalDocks : 0;
   const color = pct > 0.5 ? '#34d399' : pct > 0.2 ? '#fbbf24' : '#f87171';
-
   return (
     <div className="flex items-center gap-2.5 rounded-xl px-3 py-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
       <Bike size={14} className="shrink-0" style={{ color }} />
@@ -275,9 +296,7 @@ function BubiCard({ station }: { station: TransitNearbyResult['bubi'][number] })
       </div>
       <div className="flex shrink-0 flex-col items-end">
         <div className="flex items-baseline gap-0.5">
-          <span className="text-[13px] font-black tabular-nums leading-none" style={{ color }}>
-            {station.bikesAvail}
-          </span>
+          <span className="text-[13px] font-black tabular-nums leading-none" style={{ color }}>{station.bikesAvail}</span>
           <span className="text-[8px] text-slate-500">/{station.totalDocks}</span>
         </div>
         <p className="text-[8px] text-slate-600">kerékpár</p>
@@ -286,18 +305,16 @@ function BubiCard({ station }: { station: TransitNearbyResult['bubi'][number] })
   );
 }
 
-// ─── CO₂ comparison calculator ────────────────────────────────────────────────
+// ─── CO₂ calculator ───────────────────────────────────────────────────────────
 const CO2_PER_KM: Record<string, { label: string; gCo2: number; color: string; icon: string }> = {
-  car:     { label: 'Autó',         gCo2: 171,  color: '#f87171', icon: '🚗' },
-  transit: { label: 'Tömegközlek.', gCo2: 28,   color: '#38bdf8', icon: '🚌' },
-  ebike:   { label: 'E-bike/Bubi',  gCo2: 8,    color: '#34d399', icon: '🚲' },
-  walk:    { label: 'Gyalog',       gCo2: 0,    color: '#a78bfa', icon: '🚶' },
+  car:     { label: 'Autó',         gCo2: 171, color: '#f87171', icon: '🚗' },
+  transit: { label: 'Tömegközlek.', gCo2: 28,  color: '#38bdf8', icon: '🚌' },
+  ebike:   { label: 'E-bike/Bubi',  gCo2: 8,   color: '#34d399', icon: '🚲' },
+  walk:    { label: 'Gyalog',       gCo2: 0,   color: '#a78bfa', icon: '🚶' },
 };
-
 function Co2Calculator() {
   const [km, setKm] = useState(5);
   const maxCo2 = CO2_PER_KM.car.gCo2 * km;
-
   return (
     <div className="rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
       <div className="mb-2.5 flex items-center justify-between">
@@ -307,11 +324,9 @@ function Co2Calculator() {
         </div>
         <div className="flex items-center gap-1.5">
           <span className="text-[9px] text-slate-500">{km} km</span>
-          <input
-            type="range" min={1} max={20} value={km}
+          <input type="range" min={1} max={20} value={km}
             onChange={e => setKm(Number(e.target.value))}
-            className="w-16 h-1 accent-emerald-400"
-          />
+            className="w-16 h-1 accent-emerald-400" />
         </div>
       </div>
       <div className="space-y-1.5">
@@ -324,8 +339,7 @@ function Co2Calculator() {
               <span className="w-20 text-[9px] text-slate-400 truncate">{cfg.label}</span>
               <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
                 <div className="h-full rounded-full transition-all duration-700"
-                  style={{ width: `${frac * 100}%`, background: cfg.color, boxShadow: `0 0 4px ${cfg.color}60` }}
-                />
+                  style={{ width: `${frac * 100}%`, background: cfg.color, boxShadow: `0 0 4px ${cfg.color}60` }} />
               </div>
               <span className="w-12 text-right text-[9px] tabular-nums font-bold" style={{ color: cfg.color }}>
                 {total === 0 ? '0 g' : total < 1000 ? `${total} g` : `${(total/1000).toFixed(1)} kg`}
@@ -334,50 +348,132 @@ function Co2Calculator() {
           );
         })}
       </div>
-      <p className="mt-2 text-[8px] text-slate-700">
-        Forrás: EU átlag 2024 · Bubi ~0 közvetlen emissziót produkál
-      </p>
+      <p className="mt-2 text-[8px] text-slate-700">Forrás: EU átlag 2024 · Bubi ~0 közvetlen emissziót produkál</p>
     </div>
   );
 }
 
-// ─── Coverage color helper ────────────────────────────────────────────────────
+// ─── Coverage color ────────────────────────────────────────────────────────────
 function coverageColor(total: number): string {
-  if (total >= 80) return '#34d399';  // emerald
-  if (total >= 60) return '#38bdf8';  // sky
-  if (total >= 40) return '#fbbf24';  // amber
-  if (total >= 20) return '#f97316';  // orange
-  return '#f87171';                   // red
+  if (total >= 80) return '#34d399';
+  if (total >= 60) return '#38bdf8';
+  if (total >= 40) return '#fbbf24';
+  if (total >= 20) return '#f97316';
+  return '#f87171';
+}
+
+// ─── Geocoding hook ───────────────────────────────────────────────────────────
+function useGeocoordinate(
+  lat: number | undefined,
+  lon: number | undefined,
+  buildingAddress: string | undefined
+): { lat: number; lon: number; geocoding: boolean } {
+  // Budapest center as last-resort default
+  const [coords, setCoords] = useState<{ lat: number; lon: number }>({
+    lat: lat ?? 47.4979,
+    lon: lon ?? 19.0402,
+  });
+  const [geocoding, setGeocoding] = useState(false);
+
+  useEffect(() => {
+    if (lat !== undefined && lon !== undefined) {
+      setCoords({ lat, lon });
+      return;
+    }
+    if (!buildingAddress) return;
+    setGeocoding(true);
+    fetch(`/api/transit/geocode?address=${encodeURIComponent(buildingAddress)}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.lat && d.lon) setCoords({ lat: d.lat, lon: d.lon });
+      })
+      .catch(() => {})
+      .finally(() => setGeocoding(false));
+  }, [lat, lon, buildingAddress]);
+
+  return { ...coords, geocoding };
 }
 
 // ─── Main TransportPanel ──────────────────────────────────────────────────────
 interface TransportPanelProps {
-  lat?: number;
-  lon?: number;
+  lat?:             number;
+  lon?:             number;
+  buildingAddress?: string;
 }
 
-export default function TransportPanel({ lat = 47.4979, lon = 19.0402 }: TransportPanelProps) {
-  const [data, setData] = useState<TransitNearbyResult | null>(null);
-  const [loading, setLoading] = useState(true);
+const REFRESH_INTERVAL_MS = 30_000;  // 30 seconds
+
+export default function TransportPanel({ lat, lon, buildingAddress }: TransportPanelProps) {
+  const { lat: realLat, lon: realLon, geocoding } = useGeocoordinate(lat, lon, buildingAddress);
+
+  const [data, setData]               = useState<TransitNearbyResult | null>(null);
+  const [alerts, setAlerts]           = useState<AlertsResult | null>(null);
+  const [loading, setLoading]         = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
+  const [refreshKey, setRefreshKey]   = useState(0);
   const [selectedStop, setSelectedStop] = useState<NearbyStop | null>(null);
-  const [tab, setTab] = useState<'stops' | 'bubi' | 'co2'>('stops');
+  const [tab, setTab]                 = useState<'stops' | 'bubi' | 'co2' | 'alerts'>('stops');
+  const coordsReady                   = !geocoding && (realLat !== 47.4979 || realLon !== 19.0402 || lat !== undefined);
+  const firstLoad                     = useRef(true);
 
-  useEffect(() => {
-    fetch(`/api/transit/nearby?lat=${lat}&lon=${lon}`)
-      .then(r => r.json())
-      .then(d => {
+  const fetchData = useCallback(async () => {
+    if (firstLoad.current) {
+      setLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
+
+    try {
+      const [nearbyRes, alertsRes] = await Promise.allSettled([
+        fetch(`/api/transit/nearby?lat=${realLat}&lon=${realLon}`).then(r => r.json()),
+        fetch('/api/transit/alerts').then(r => r.json()),
+      ]);
+
+      if (nearbyRes.status === 'fulfilled') {
+        const d = nearbyRes.value as TransitNearbyResult;
         setData(d);
-        setLoading(false);
-        if (d.stops?.length > 0) setSelectedStop(d.stops[0]);
-      })
-      .catch(() => setLoading(false));
-  }, [lat, lon]);
+        if (!selectedStop && d.stops?.length > 0) setSelectedStop(d.stops[0]);
+      }
+      if (alertsRes.status === 'fulfilled') {
+        setAlerts(alertsRes.value as AlertsResult);
+      }
+      setLastFetched(new Date());
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+      firstLoad.current = false;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [realLat, realLon]);
 
-  if (loading) {
+  // Initial load + coordinate changes
+  useEffect(() => {
+    firstLoad.current = true;
+    setLoading(true);
+    fetchData();
+  }, [fetchData]);
+
+  // Auto-refresh every 30s
+  useEffect(() => {
+    const id = setInterval(() => {
+      setRefreshKey(k => k + 1);
+      fetchData();
+    }, REFRESH_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [fetchData]);
+
+  const health = feedHealth(lastFetched, isRefreshing || geocoding);
+
+  // ─── Loading skeleton ──────────────────────────────────────────────────────
+  if (loading || geocoding) {
     return (
       <div className="flex flex-col gap-3 animate-pulse">
+        <div className="flex items-center gap-2 rounded-xl bg-white/[0.04] px-3 py-1.5">
+          <div className="h-2 w-2 rounded-full bg-white/[0.10]" />
+          <div className="h-2 w-32 rounded bg-white/[0.10]" />
+        </div>
         <div className="h-[110px] w-[110px] self-center rounded-full bg-white/[0.05]" />
-        <div className="h-4 w-32 self-center rounded bg-white/[0.05]" />
         {[1,2,3].map(i => <div key={i} className="h-10 rounded-xl bg-white/[0.05]" />)}
       </div>
     );
@@ -393,17 +489,46 @@ export default function TransportPanel({ lat = 47.4979, lon = 19.0402 }: Transpo
 
   const { coverage, stops, bubi } = data;
   const color = coverageColor(coverage.total);
+  const alertCount = alerts?.alerts.length ?? 0;
+  const isMockData = data.source === 'mock';
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Coverage ring + score breakdown */}
+      {/* Address context + freshness row */}
+      <div className="flex items-center justify-between rounded-xl bg-white/[0.04] px-3 py-1.5">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <MapPin size={9} className="shrink-0 text-slate-600" />
+          <p className="truncate text-[9px] text-slate-500">
+            {buildingAddress
+              ? buildingAddress.replace(/^HU,\s*/i, '').slice(0, 40)
+              : `${realLat.toFixed(4)}°N ${realLon.toFixed(4)}°E`}
+          </p>
+          {isMockData && (
+            <span className="ml-1 rounded-full bg-amber-900/30 px-1.5 py-0.5 text-[7px] font-bold text-amber-400">
+              MINTA
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0 ml-2">
+          <FeedHealthBadge health={health} lastFetched={lastFetched} />
+          <button
+            onClick={() => { setRefreshKey(k => k + 1); fetchData(); }}
+            className="text-slate-600 hover:text-slate-400 transition-colors"
+            disabled={isRefreshing}
+          >
+            <RefreshCw size={10} style={isRefreshing ? { animation: 'tp-spin 1s linear infinite' } : undefined} />
+          </button>
+        </div>
+      </div>
+
+      {/* Coverage ring + breakdown */}
       <div className="flex items-center gap-4">
         <CoverageRing total={coverage.total} label={coverage.label} color={color} />
         <div className="flex-1 space-y-1.5">
           <p className="text-[9px] font-black uppercase tracking-wider text-slate-500 mb-2">Tömegközl. lefedettség</p>
-          <ScoreBar label="Megállók"   value={coverage.stopScore}    max={40} color="#38bdf8" />
-          <ScoreBar label="Minőség"    value={coverage.qualityScore} max={40} color="#a78bfa" />
-          <ScoreBar label="Útvonalak"  value={coverage.accessScore}  max={20} color="#34d399" />
+          <ScoreBar label="Megállók"  value={coverage.stopScore}    max={40} color="#38bdf8" />
+          <ScoreBar label="Minőség"   value={coverage.qualityScore} max={40} color="#a78bfa" />
+          <ScoreBar label="Útvonalak" value={coverage.accessScore}  max={20} color="#34d399" />
           <p className="mt-1 text-[8px] text-slate-600">
             {stops.length} megálló · {new Set(stops.flatMap(s => s.routeRefs)).size} járat 700m-en belül
           </p>
@@ -413,34 +538,30 @@ export default function TransportPanel({ lat = 47.4979, lon = 19.0402 }: Transpo
       {/* Tab nav */}
       <div className="flex gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.04)' }}>
         {([
-          ['stops', <Bus size={10} key="b" />, 'Megállók'],
-          ['bubi',  <Bike size={10} key="k" />, 'Bubi'],
-          ['co2',   <Leaf size={10} key="l" />, 'CO₂'],
+          ['stops',  <Bus size={10} key="b" />,          'Megállók'],
+          ['bubi',   <Bike size={10} key="k" />,         'Bubi'],
+          ['alerts', <AlertTriangle size={10} key="a" />, alertCount > 0 ? `Riasztás (${alertCount})` : 'Riasztás'],
+          ['co2',    <Leaf size={10} key="l" />,         'CO₂'],
         ] as const).map(([id, icon, label]) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
+          <button key={id} onClick={() => setTab(id)}
             className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[9px] font-black transition-all ${
-              tab === id
-                ? 'bg-white/[0.12] text-white'
-                : 'text-slate-500 hover:text-slate-400'
-            }`}
+              tab === id ? 'bg-white/[0.12] text-white' : 'text-slate-500 hover:text-slate-400'
+            } ${id === 'alerts' && alertCount > 0 ? 'relative' : ''}`}
           >
             {icon}{label}
+            {id === 'alerts' && alertCount > 0 && (
+              <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-orange-500" />
+            )}
           </button>
         ))}
       </div>
 
-      {/* Tab content */}
+      {/* ── Stops tab ─────────────────────────────────────────────────── */}
       {tab === 'stops' && (
         <div className="flex flex-col gap-1">
           {stops.slice(0, 6).map(stop => (
-            <StopRow
-              key={stop.id}
-              stop={stop}
-              selected={selectedStop?.id === stop.id}
-              onClick={() => setSelectedStop(stop)}
-            />
+            <StopRow key={stop.id} stop={stop} selected={selectedStop?.id === stop.id}
+              onClick={() => setSelectedStop(stop)} />
           ))}
           {stops.length === 0 && (
             <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
@@ -448,16 +569,15 @@ export default function TransportPanel({ lat = 47.4979, lon = 19.0402 }: Transpo
               <p className="text-[10px] text-slate-600">Nincsenek közeli megállók</p>
             </div>
           )}
-
-          {/* Departure board for selected stop */}
           {selectedStop && (
             <div className="mt-1 rounded-xl p-2.5" style={{ background: 'rgba(255,255,255,0.04)' }}>
-              <DepartureBoardPanel stopId={selectedStop.id} stopName={selectedStop.name} />
+              <DepartureBoardPanel stopId={selectedStop.id} stopName={selectedStop.name} refreshKey={refreshKey} />
             </div>
           )}
         </div>
       )}
 
+      {/* ── Bubi tab ──────────────────────────────────────────────────── */}
       {tab === 'bubi' && (
         <div className="flex flex-col gap-1.5">
           {bubi.length === 0 ? (
@@ -468,27 +588,48 @@ export default function TransportPanel({ lat = 47.4979, lon = 19.0402 }: Transpo
                 <p className="text-[9px] text-slate-600">800m-en belül nem található dokkoló</p>
               </div>
             </div>
-          ) : (
-            bubi.map(s => <BubiCard key={s.id} station={s} />)
-          )}
+          ) : bubi.map(s => <BubiCard key={s.id} station={s} />)}
           <div className="mt-1 rounded-xl px-3 py-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
             <p className="text-[8px] text-slate-600 leading-relaxed">
-              💡 A kerékpározás a főutcáknál 53%-kal kevesebb ultrafinom részecskét jelent parki útvonalakon.
-              (Antwerp tanulmány, 2014)
+              💡 Parki útvonalakon a kerékpározás 53%-kal kevesebb ultrafinom részecskét jelent a főutcáknál. (Antwerp, 2014)
             </p>
           </div>
         </div>
       )}
 
+      {/* ── Alerts tab ────────────────────────────────────────────────── */}
+      {tab === 'alerts' && (
+        <div className="flex flex-col gap-1.5">
+          {(!alerts || alerts.alerts.length === 0) ? (
+            <div className="flex items-center gap-2 rounded-xl px-3 py-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
+              <AlertTriangle size={12} className="text-emerald-500" />
+              <p className="text-[10px] text-slate-400">Nincs aktív üzemzavar a BKK hálózaton</p>
+            </div>
+          ) : (
+            alerts.alerts.map(alert => <AlertCard key={alert.id} alert={alert} />)
+          )}
+          {alerts?.stale && (
+            <p className="text-center text-[8px] text-amber-500">⚠ Riasztások adatai elavultak</p>
+          )}
+        </div>
+      )}
+
+      {/* ── CO₂ tab ───────────────────────────────────────────────────── */}
       {tab === 'co2' && <Co2Calculator />}
 
-      {/* Data source badge */}
-      <div className="flex items-center justify-between">
+      {/* Data source + last update */}
+      <div className="flex items-center justify-between border-t border-white/[0.05] pt-2">
         <p className="text-[8px] text-slate-700">
-          Forrás: {data.source === 'futar' ? 'BKK Futár GTFS' : data.source === 'overpass' ? 'OpenStreetMap' : 'Minta adatok'}
+          {data.source === 'futar'    ? '🟢 BKK Futár GTFS valósidejű'
+          : data.source === 'overpass' ? '🟡 OpenStreetMap (Overpass)'
+          : '🔴 Offline minta adatok'}
         </p>
         <p className="text-[8px] text-slate-700">
-          {new Date(data.fetchedAt).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}
+          {coordsReady && lat !== undefined
+            ? '📍 Valós helyszín'
+            : buildingAddress
+              ? '🗺 Geocódolt cím'
+              : '⚠ Budapest középpont'}
         </p>
       </div>
     </div>
