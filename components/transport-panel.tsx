@@ -120,7 +120,7 @@ function ScoreBar({ label, value, max, color }: { label: string; value: number; 
 }
 
 // ─── Route badge pill ─────────────────────────────────────────────────────────
-function RouteBadge({ ref: routeRef, type }: { ref: string; type: RouteType }) {
+function RouteBadge({ routeRef, type }: { routeRef: string; type: RouteType }) {
   const s = ROUTE_STYLE[type] ?? ROUTE_STYLE.BUS;
   return (
     <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-black border ${s.bg} ${s.text} ${s.border}`}>
@@ -155,7 +155,7 @@ function StopRow({
         <p className="truncate text-[10px] font-bold text-slate-200 leading-tight">{stop.name}</p>
         <div className="mt-0.5 flex flex-wrap gap-1">
           {stop.routeRefs.slice(0, 5).map(r => (
-            <RouteBadge key={r} ref={r} type={stop.routeType} />
+            <RouteBadge key={r} routeRef={r} type={stop.routeType} />
           ))}
           {stop.routeRefs.length > 5 && (
             <span className="text-[8px] text-slate-600">+{stop.routeRefs.length - 5}</span>
