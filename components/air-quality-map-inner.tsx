@@ -189,16 +189,16 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
         const color   = heatColor(activePollutant, val);
         const opacity = heatOpacity(activePollutant, val);
 
-        // Outer large circle
+        // Outer large circle — 18km radius, overlapping between stations creates smooth city-scale gradient
         L.circle([st.lat, st.lon], {
-          pane: 'heatmap', radius: 5000,
+          pane: 'heatmap', radius: 18000,
           color: 'transparent', fillColor: color, fillOpacity: opacity, interactive: false,
         }).addTo(heatLayer);
 
         // Inner concentrated circle
         L.circle([st.lat, st.lon], {
-          pane: 'heatmap', radius: 2500,
-          color: 'transparent', fillColor: color, fillOpacity: opacity * 0.7, interactive: false,
+          pane: 'heatmap', radius: 8000,
+          color: 'transparent', fillColor: color, fillOpacity: opacity * 0.8, interactive: false,
         }).addTo(heatLayer);
       }
     }, [mapReady, activePollutant, heatData]);

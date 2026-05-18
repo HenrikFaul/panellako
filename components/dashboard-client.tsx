@@ -1325,21 +1325,21 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             {/* Gold accent top line */}
             <div className="absolute inset-x-0 top-0 h-[2px]" style={{ background: 'linear-gradient(90deg, transparent 0%, #c87920 30%, #f5c842 55%, #c87920 80%, transparent 100%)' }} />
 
-            {/* Skyline illustration — right side, fades left */}
-            <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-[52%] xl:w-[44%] select-none">
-              <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, #05091a 0%, transparent 38%)' }} />
-              <PanelSkylineSvg />
+            {/* Skyline illustration — centered background, fades on both sides */}
+            <div className="pointer-events-none select-none absolute inset-0 flex items-center justify-center overflow-hidden opacity-70">
+              <div className="relative w-full h-full">
+                <PanelSkylineSvg />
+                {/* Fade left */}
+                <div className="absolute inset-y-0 left-0 w-1/3" style={{ background: 'linear-gradient(to right, #05091a 0%, transparent 100%)' }} />
+                {/* Fade right */}
+                <div className="absolute inset-y-0 right-0 w-1/3" style={{ background: 'linear-gradient(to left, #05091a 0%, transparent 100%)' }} />
+              </div>
             </div>
 
             {/* Content */}
-            <div className="relative flex flex-col gap-3 px-6 py-5 md:flex-row md:items-center md:justify-between md:gap-4">
-              {/* Left: branding + building info */}
+            <div className="relative z-10 flex flex-col gap-3 px-6 py-5 md:flex-row md:items-center md:justify-between md:gap-4">
+              {/* Left: building info */}
               <div className="min-w-0">
-                {/* Premium label */}
-                <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.2em]" style={{ color: '#c87920' }}>
-                  PanelLakó · Digitális Műveleti Központ
-                </p>
-
                 {data.buildingName ? (
                   <>
                     {/* Mobile building switcher */}

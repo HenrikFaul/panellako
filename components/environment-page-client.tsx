@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Wind, Bike, ArrowLeft, RefreshCw } from 'lucide-react';
 import AirQualitySection from '@/components/air-quality-section';
 import CyclingMap from '@/components/cycling-map';
@@ -30,8 +30,9 @@ export default function EnvironmentPageClient({
   const [routes, setRoutes]     = useState<CyclingFeature[]>([]);
   const [cycleLoading, setCycleLoading] = useState(false);
   const [cycleError, setCycleError]     = useState(false);
+  // Track whether we've already initiated the first fetch (prevents re-fetch loop when API returns [])
+  const cycleLoadedRef = useRef(false);
 
-  // Fetch cycling routes when that tab is first opened
   const fetchRoutes = useCallback(async () => {
     setCycleLoading(true);
     setCycleError(false);
@@ -44,11 +45,13 @@ export default function EnvironmentPageClient({
     setCycleLoading(false);
   }, []);
 
+  // Fetch once when the cycling tab is first opened — ref prevents loop when API returns []
   useEffect(() => {
-    if (tab === 'cycling' && routes.length === 0 && !cycleLoading) {
-      fetchRoutes();
+    if (tab === 'cycling' && !cycleLoadedRef.current) {
+      cycleLoadedRef.current = true;
+      void fetchRoutes();
     }
-  }, [tab, routes.length, cycleLoading, fetchRoutes]);
+  }, [tab, fetchRoutes]);
 
   return (
     <div className="min-h-screen bg-[#070d1a]">

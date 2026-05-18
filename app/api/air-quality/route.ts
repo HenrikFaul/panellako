@@ -27,7 +27,7 @@ export interface AirQualityResult {
   dominantPol:       string;
   stationName:       string;
   stationId:         string;
-  measuredAt:        string;   // ISO — when the station measured (from AQICN time.v)
+  measuredAt:        string;
   fetchedAt:         string;
   source:            'aqicn' | 'mock';
   forecast?:         AirQualityForecast;
@@ -51,30 +51,28 @@ function aqiInfo(aqi: number): AQIInfo {
 interface CacheEntry { data: AirQualityResult; expires: number; }
 const _cache = new Map<string, CacheEntry>();
 
-// ─── AQICN fetch ──────────────────────────────────────────────────────────────
-async function fetchAQICN(lat: number, lon: number): Promise<AirQualityResult> {
-  const url = `${AQICN_BASE}/geo:${lat};${lon}/?token=${AQICN_TOKEN}`;
-  const res  = await fetch(url, { signal: AbortSignal.timeout(7000) });
-  if (!res.ok) throw new Error(`AQICN HTTP ${res.status}`);
-  const json = await res.json();
-  if (json.status !== 'ok') throw new Error(`AQICN status: ${json.status}`);
-
-  const d = json.data as {
-    aqi:         number;
-    idx:         number;
-    dominentpol: string;
-    city:        { name: string; geo: [number, number] };
-    time:        { v: number; iso: string };
-    iaqi:        Record<string, { v: number } | undefined>;
-    forecast?:   { daily?: Record<string, Array<{ day: string; avg: number; max: number; min: number }>> };
+// ─── Parse and shape the AQICN feed JSON ─────────────────────────────────────
+function parseFeedJson(json: unknown): AirQualityResult {
+  const j = json as {
+    status: string;
+    data: {
+      aqi:         number;
+      idx:         number;
+      dominentpol: string;
+      city:        { name: string; geo: [number, number] };
+      time:        { v: number; iso: string };
+      iaqi:        Record<string, { v: number } | undefined>;
+      forecast?:   { daily?: Record<string, Array<{ day: string; avg: number; max: number; min: number }>> };
+    };
   };
+  if (j.status !== 'ok') throw new Error(`AQICN status: ${j.status}`);
 
+  const d = j.data;
   const iaqi       = d.iaqi ?? {};
   const stationId  = String(d.idx);
   const measuredAt = new Date(d.time.v * 1000).toISOString();
   const info       = aqiInfo(d.aqi);
 
-  // Extract forecast data if available
   const daily = d.forecast?.daily;
   const forecast: AirQualityForecast | undefined = daily ? {
     pm25: daily.pm25,
@@ -103,11 +101,41 @@ async function fetchAQICN(lat: number, lon: number): Promise<AirQualityResult> {
   };
 }
 
-// ─── DB persistence: insert only when measurement timestamp is new ────────────
+// ─── AQICN fetch — finds nearest Budapest station first ──────────────────────
+async function fetchAQICN(lat: number, lon: number): Promise<AirQualityResult> {
+  // Try Budapest bounding-box lookup first (avoids geo:lat;lon returning wrong city with demo token)
+  let feedUrl = `${AQICN_BASE}/geo:${lat};${lon}/?token=${AQICN_TOKEN}`;
+  try {
+    const boundsRes = await fetch(
+      `https://api.waqi.info/map/bounds/?latlng=47.35,18.85,47.65,19.25&token=${AQICN_TOKEN}`,
+      { signal: AbortSignal.timeout(6000) }
+    );
+    if (boundsRes.ok) {
+      const boundsJson = await boundsRes.json() as {
+        status: string;
+        data: Array<{ uid: number; aqi: string; station: { geo: [number, number] } }>;
+      };
+      if (boundsJson.status === 'ok' && boundsJson.data?.length > 0) {
+        const nearest = boundsJson.data
+          .filter(s => s.aqi !== '-' && s.aqi !== '' && !isNaN(Number(s.aqi)))
+          .sort((a, b) =>
+            Math.hypot(a.station.geo[0] - lat, a.station.geo[1] - lon) -
+            Math.hypot(b.station.geo[0] - lat, b.station.geo[1] - lon)
+          )[0];
+        if (nearest) feedUrl = `${AQICN_BASE}/@${nearest.uid}/?token=${AQICN_TOKEN}`;
+      }
+    }
+  } catch { /* fall through to geo URL */ }
+
+  const res = await fetch(feedUrl, { signal: AbortSignal.timeout(7000) });
+  if (!res.ok) throw new Error(`AQICN HTTP ${res.status}`);
+  return parseFeedJson(await res.json());
+}
+
+// ─── DB persistence ───────────────────────────────────────────────────────────
 async function persistIfNew(result: AirQualityResult): Promise<void> {
   try {
     const supabase = createClient();
-    // Upsert with ON CONFLICT DO NOTHING via ignoreDuplicates
     const { error } = await supabase
       .from('air_quality_readings')
       .upsert(
@@ -161,7 +189,6 @@ export async function GET(request: NextRequest) {
   try {
     const result = await fetchAQICN(lat, lon);
     _cache.set(cacheKey, { data: result, expires: Date.now() + 10 * 60_000 });
-    // Fire-and-forget DB write — only inserts if measured_at is new
     void persistIfNew(result);
     return NextResponse.json(result);
   } catch (err) {

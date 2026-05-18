@@ -39,11 +39,13 @@ export default function CyclingMapInner({ buildingLat, buildingLon, routes }: Pr
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef       = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const leafletRef   = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const layerRefs    = useRef<Record<RouteType, any>>({} as Record<RouteType, any>);
   const [activeTypes, setActiveTypes] = useState<Set<RouteType>>(new Set(ALL_TYPES));
   const [mapReady, setMapReady]       = useState(false);
 
-  // ── Map init ──────────────────────────────────────────────────────────────
+  // ── Map init — runs only when building location changes ───────────────────
   useEffect(() => {
     if (!document.getElementById('cycling-map-css')) {
       const s = document.createElement('style');
@@ -55,8 +57,7 @@ export default function CyclingMapInner({ buildingLat, buildingLon, routes }: Pr
     (async () => {
       const L = await import('leaflet');
       if (destroyed || !containerRef.current || mapRef.current) return;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).L = L;
+      leafletRef.current = L;
 
       const map = L.map(containerRef.current, {
         center: [buildingLat, buildingLon], zoom: 13,
@@ -77,29 +78,9 @@ export default function CyclingMapInner({ buildingLat, buildingLon, routes }: Pr
         zIndexOffset: 1000,
       }).bindTooltip('<b>Az épület</b>', { sticky: false }).addTo(map);
 
-      // Create one LayerGroup per route type, add all routes
-      const grouped: Record<RouteType, CyclingFeature[]> = {
-        cycleway: [], track: [], lane: [], shared: [], other: [],
-      };
-      for (const r of routes) grouped[r.type].push(r);
-
+      // Create one empty LayerGroup per route type — routes are added by the routes effect
       for (const type of ALL_TYPES) {
-        const cfg   = ROUTE_CFG[type];
-        const group = L.layerGroup();
-        for (const route of grouped[type]) {
-          const latlngs = route.coords.map(([lon, lat]) => [lat, lon] as [number, number]);
-          L.polyline(latlngs, {
-            color:     cfg.color,
-            weight:    cfg.weight,
-            opacity:   0.85,
-            dashArray: cfg.dashArray,
-          }).bindTooltip(
-            `<div style="font-size:10px"><b>${cfg.label}</b>${route.name ? `<br/>${route.name}` : ''}${route.surface ? `<br/><span style="color:#94a3b8">${route.surface}</span>` : ''}</div>`,
-            { sticky: true, direction: 'top' }
-          ).addTo(group);
-        }
-        group.addTo(map);
-        layerRefs.current[type] = group;
+        layerRefs.current[type] = L.layerGroup().addTo(map);
       }
 
       mapRef.current = map;
@@ -111,10 +92,41 @@ export default function CyclingMapInner({ buildingLat, buildingLon, routes }: Pr
     return () => {
       destroyed = true;
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
+      leafletRef.current = null;
       setMapReady(false);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buildingLat, buildingLon, routes]);
+  }, [buildingLat, buildingLon]);
+
+  // ── Render routes — updates layers without destroying the map ─────────────
+  useEffect(() => {
+    const L = leafletRef.current;
+    if (!mapReady || !L) return;
+
+    const grouped: Record<RouteType, CyclingFeature[]> = {
+      cycleway: [], track: [], lane: [], shared: [], other: [],
+    };
+    for (const r of routes) grouped[r.type].push(r);
+
+    for (const type of ALL_TYPES) {
+      const group = layerRefs.current[type];
+      if (!group) continue;
+      group.clearLayers();
+      const cfg = ROUTE_CFG[type];
+      for (const route of grouped[type]) {
+        const latlngs = route.coords.map(([lon, lat]) => [lat, lon] as [number, number]);
+        L.polyline(latlngs, {
+          color:     cfg.color,
+          weight:    cfg.weight,
+          opacity:   0.85,
+          dashArray: cfg.dashArray,
+        }).bindTooltip(
+          `<div style="font-size:10px"><b>${cfg.label}</b>${route.name ? `<br/>${route.name}` : ''}${route.surface ? `<br/><span style="color:#94a3b8">${route.surface}</span>` : ''}</div>`,
+          { sticky: true, direction: 'top' }
+        ).addTo(group);
+      }
+    }
+  }, [mapReady, routes]);
 
   // ── Toggle layers ──────────────────────────────────────────────────────────
   useEffect(() => {

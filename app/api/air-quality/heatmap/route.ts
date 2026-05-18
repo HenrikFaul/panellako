@@ -18,12 +18,6 @@ export interface HeatmapStation {
   nox:         number | null;
 }
 
-// ─── Budapest bounding box ────────────────────────────────────────────────────
-const BP = { latMin: 47.35, lonMin: 18.85, latMax: 47.65, lonMax: 19.25 };
-function inBudapest(lat: number, lon: number) {
-  return lat >= BP.latMin && lat <= BP.latMax && lon >= BP.lonMin && lon <= BP.lonMax;
-}
-
 // ─── 15-minute server cache ───────────────────────────────────────────────────
 interface CacheEntry { data: HeatmapStation[]; expires: number; }
 let _cache: CacheEntry | null = null;
@@ -68,23 +62,24 @@ export async function GET() {
   }
 
   try {
-    // 1. Search for Budapest stations
-    const searchUrl  = `https://api.waqi.info/search/?token=${AQICN_TOKEN}&keyword=Budapest`;
-    const searchRes  = await fetch(searchUrl, { signal: AbortSignal.timeout(8000) });
-    if (!searchRes.ok) throw new Error(`Search HTTP ${searchRes.status}`);
-    const searchJson = await searchRes.json() as {
+    // Use map/bounds for the Budapest bounding box — more reliable than keyword search
+    const boundsUrl  = `https://api.waqi.info/map/bounds/?latlng=47.35,18.85,47.65,19.25&token=${AQICN_TOKEN}`;
+    const boundsRes  = await fetch(boundsUrl, { signal: AbortSignal.timeout(8000) });
+    if (!boundsRes.ok) throw new Error(`Bounds HTTP ${boundsRes.status}`);
+    const boundsJson = await boundsRes.json() as {
       status: string;
       data: Array<{ uid: number; station: { geo: [number, number] } }>;
     };
-    if (searchJson.status !== 'ok') throw new Error(`Search status: ${searchJson.status}`);
+    if (boundsJson.status !== 'ok') throw new Error(`Bounds status: ${boundsJson.status}`);
 
-    // 2. Filter to Budapest bounding box, max 12 stations
-    const uids = (searchJson.data ?? [])
-      .filter(s => { const [la, lo] = s.station.geo ?? [0, 0]; return inBudapest(la, lo); })
+    // Take up to 12 station UIDs from within the bounding box
+    const uids = (boundsJson.data ?? [])
       .slice(0, 12)
       .map(s => s.uid);
 
-    // 3. Fetch detailed pollutant data in parallel
+    if (uids.length === 0) throw new Error('No stations in Budapest bounds');
+
+    // Fetch detailed pollutant data in parallel
     const details = await Promise.all(uids.map(fetchDetail));
     const result  = details.filter((d): d is HeatmapStation => d !== null);
 
