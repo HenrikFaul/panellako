@@ -5,19 +5,19 @@ import 'leaflet/dist/leaflet.css';
 import type { NearbyStop } from '@/app/api/transit/nearby/route';
 import type { VehiclePosition } from '@/app/api/transit/vehicles/route';
 import type { Departure } from '@/app/api/transit/departures/route';
+import type { TripShape } from '@/app/api/transit/shape/route';
 
 // ─── Style constants ──────────────────────────────────────────────────────────
 const VEHICLE_COLOR: Record<string, string> = {
   SUBWAY: '#ef4444', TRAM: '#fbbf24', TROLLEYBUS: '#f87171',
   BUS: '#38bdf8', RAIL: '#a78bfa', FERRY: '#2dd4bf',
 };
-// Vivid BKK-Futár style colors for stop pins — bus uses bright blue, not slate
 const STOP_COLOR: Record<string, string> = {
   SUBWAY: '#ef4444', TRAM: '#f59e0b', TROLLEYBUS: '#f87171',
   BUS: '#2563eb', RAIL: '#8b5cf6', FERRY: '#14b8a6', CABLE_CAR: '#f59e0b',
 };
 
-// ─── Inline CSS injected once ────────────────────────────────────────────────
+// ─── Inline CSS ───────────────────────────────────────────────────────────────
 const MAP_CSS = `
 .bkk-popup .leaflet-popup-content-wrapper {
   background: #0f172a; color: #e2e8f0; border-radius: 14px;
@@ -25,17 +25,28 @@ const MAP_CSS = `
   padding: 0; overflow: hidden;
 }
 .bkk-popup .leaflet-popup-tip { background: #0f172a; }
-.bkk-popup .leaflet-popup-content { margin: 0; }
-.bkk-dep-row { display:flex; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+.bkk-popup .leaflet-popup-content { margin: 0; width: auto !important; }
+.bkk-dep-row {
+  display:flex; align-items:center; gap:6px; padding:5px 0;
+  border-bottom:1px solid rgba(255,255,255,0.05); cursor:pointer;
+  transition: background 0.12s;
+}
 .bkk-dep-row:last-child { border-bottom:none; }
+.bkk-dep-row:hover { background: rgba(255,255,255,0.05); border-radius:6px; }
 .bkk-route-badge {
   display:inline-flex; align-items:center; justify-content:center;
   min-width:32px; padding:2px 6px; border-radius:6px;
   font-size:11px; font-weight:900; cursor:pointer; border:none;
-  transition: opacity 0.15s, transform 0.15s;
+  transition: opacity 0.15s, transform 0.15s; white-space:nowrap;
 }
 .bkk-route-badge:hover { opacity:0.85; transform:scale(1.08); }
 .bkk-stop-pin { background:none!important; border:none!important; }
+.bkk-a11y { font-size:10px; opacity:0.75; flex-shrink:0; }
+.bkk-alert-dot { color:#f97316; font-size:10px; flex-shrink:0; }
+.bkk-rt-dot { width:6px; height:6px; border-radius:50%; background:#34d399; flex-shrink:0; animation: bkk-blink 1.4s ease-in-out infinite; }
+@keyframes bkk-blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.bkk-updated { font-size:8px; color:#475569; }
+.bkk-updated b { color:#64748b; }
 `;
 
 // ─── SVG icon factories ────────────────────────────────────────────────────────
@@ -48,15 +59,12 @@ function vehicleSvg(color: string, bearing?: number) {
   </svg>`;
 }
 
-// BKK Futár–style teardrop pin: vivid colored body, white border + letter
-// Uses CSS filter instead of SVG <filter> to avoid ID conflicts with multiple markers
 const VEHICLE_LABEL: Record<string, string> = {
   SUBWAY: 'M', TRAM: 'V', TROLLEYBUS: 'Tr', BUS: 'B', RAIL: 'H', FERRY: 'H', CABLE_CAR: 'D',
 };
 function stopPinSvg(color: string, vehicleType: string) {
   const label    = VEHICLE_LABEL[vehicleType] ?? 'B';
   const fontSize = label.length > 1 ? 7 : 11;
-  // drop-shadow on the outer SVG element — no <filter id> collision
   return `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="44" viewBox="0 0 32 44"
     style="filter:drop-shadow(0 2px 5px rgba(0,0,0,0.45));overflow:visible">
     <path d="M16,1 C8,1 1,8 1,16 C1,27 16,43 16,43 C16,43 31,27 31,16 C31,8 24,1 16,1 Z"
@@ -75,43 +83,83 @@ function buildingSvg() {
   </svg>`;
 }
 
+// ─── Stop code helper ─────────────────────────────────────────────────────────
+function stopCode(stopId: string): string {
+  // BKK_F090482 → #090482, BKK_090482 → #090482
+  const m = stopId.match(/BKK_F?0*(\d+)/);
+  return m ? `#${m[1]}` : '';
+}
+
+// ─── Route badge color ────────────────────────────────────────────────────────
+function routeBadgeStyle(dep: Departure): { bg: string; textColor: string } {
+  const col = VEHICLE_COLOR[dep.vehicle] ?? '#64748b';
+  return { bg: col, textColor: col === '#fbbf24' ? '#78350f' : '#fff' };
+}
+
 // ─── Departure popup HTML ─────────────────────────────────────────────────────
-function buildPopupHtml(stop: NearbyStop, deps: Departure[] | null): string {
-  const routes = stop.routeRefs.slice(0, 8);
-  const badges = routes.map(r => {
-    const dep = deps?.find(d => d.routeRef === r);
-    const col = dep ? (VEHICLE_COLOR[dep.vehicle] ?? '#64748b') : '#334155';
-    return `<span class="bkk-route-badge" data-route="${r}" style="background:${col};color:${col === '#fbbf24' ? '#78350f' : '#fff'}">${r}</span>`;
+function buildPopupHtml(
+  stop: NearbyStop,
+  deps: Departure[] | null,
+  alertRouteSet: Set<string>,
+  fetchedAt: Date | null,
+): string {
+  const code    = stopCode(stop.id);
+  const timeStr = fetchedAt
+    ? fetchedAt.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : null;
+
+  // Route badges — all routes served at this stop, grouped and colored
+  const routeBadges = stop.routeRefs.slice(0, 10).map(r => {
+    const dep  = deps?.find(d => d.routeRef === r);
+    const col  = dep ? (VEHICLE_COLOR[dep.vehicle] ?? '#334155') : '#334155';
+    const text = col === '#fbbf24' ? '#78350f' : '#fff';
+    return `<span class="bkk-route-badge" data-route="${r}" style="background:${col};color:${text}">${r}</span>`;
   }).join('');
 
+  // Departure rows
   let depsHtml = '';
   if (!deps) {
-    depsHtml = '<div style="color:#64748b;font-size:10px;padding:4px 0">Betöltés…</div>';
+    depsHtml = '<div style="color:#64748b;font-size:10px;padding:6px 0">Betöltés…</div>';
   } else if (deps.length === 0) {
-    depsHtml = '<div style="color:#64748b;font-size:10px;padding:4px 0">Nincs indulási adat</div>';
+    depsHtml = '<div style="color:#64748b;font-size:10px;padding:6px 0">Nincs indulási adat</div>';
   } else {
-    depsHtml = deps.slice(0, 6).map(d => {
-      const col = VEHICLE_COLOR[d.vehicle] ?? '#64748b';
-      const min = d.minutesAway <= 0 ? '⬤' : `${d.minutesAway} p`;
-      const rtDot = d.realtime ? `<span style="color:#34d399;font-size:8px">●</span>` : '';
-      const tripAttr = d.tripId ? `data-tripid="${d.tripId}"` : '';
-      return `<div class="bkk-dep-row">
-        <span class="bkk-route-badge" ${tripAttr} data-route="${d.routeRef}"
-          style="background:${col};color:${col === '#fbbf24' ? '#78350f' : '#fff'};min-width:36px">
-          ${d.routeRef}
-        </span>
+    depsHtml = deps.slice(0, 8).map(d => {
+      const { bg, textColor } = routeBadgeStyle(d);
+      const min = d.minutesAway <= 0
+        ? `<span style="color:#34d399;font-weight:900;font-size:11px">◆ Indul</span>`
+        : `<span style="font-size:13px;font-weight:900;color:${d.realtime ? '#34d399' : '#94a3b8'}">${d.minutesAway}</span><span style="font-size:9px;color:#475569">&thinsp;p</span>`;
+      const rtDot = d.realtime ? `<span class="bkk-rt-dot"></span>` : '';
+      const a11y  = d.accessible ? `<span class="bkk-a11y" title="Alacsonypadlós jármű">♿</span>` : '';
+      const alert = (d.hasAlert || alertRouteSet.has(d.routeRef))
+        ? `<span class="bkk-alert-dot" title="Aktív üzemzavar">⚠</span>` : '';
+      const tripAttr = d.tripId ? `data-tripid="${d.tripId}" data-route="${d.routeRef}" data-color="${bg}" data-headsign="${d.headsign.replace(/"/g, '&quot;')}"` : '';
+      return `<div class="bkk-dep-row" ${tripAttr}>
+        <span class="bkk-route-badge" style="background:${bg};color:${textColor};min-width:36px;pointer-events:none">${d.routeRef}</span>
+        ${alert}${a11y}
         <span style="flex:1;font-size:10px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.headsign}</span>
-        <span style="font-size:11px;font-weight:900;color:#f1f5f9;white-space:nowrap">${min}</span>
-        ${rtDot}
+        <span style="display:flex;align-items:center;gap:3px">${min}${rtDot}</span>
       </div>`;
     }).join('');
   }
 
-  return `<div style="padding:12px 14px;min-width:200px;max-width:280px">
-    <div style="font-weight:900;font-size:12px;margin-bottom:8px;color:#f1f5f9">${stop.name}</div>
-    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">${badges}</div>
+  // Travel links (BKK Futár routing deep links)
+  const bkkId = stop.id.replace(/^BKK_/, '');
+  const fromLink = `https://futar.bkk.hu/?from=${encodeURIComponent(stop.id)}`;
+  const toLink   = `https://futar.bkk.hu/?to=${encodeURIComponent(stop.id)}`;
+
+  return `<div style="padding:12px 14px;min-width:230px;max-width:310px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">
+      <div style="font-weight:900;font-size:13px;color:#f1f5f9;line-height:1.2">${stop.name}</div>
+      ${timeStr ? `<div class="bkk-updated" style="flex-shrink:0">Frissítve<br/><b>${timeStr}</b></div>` : ''}
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span style="font-size:9px;color:#475569">${code}</span>
+      <a href="${fromLink}" target="_blank" rel="noopener" style="font-size:9px;color:#38bdf8;text-decoration:none">Innen indulok</a>
+      <a href="${toLink}"   target="_blank" rel="noopener" style="font-size:9px;color:#38bdf8;text-decoration:none">Ide megyek</a>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">${routeBadges}</div>
     <div class="bkk-departures-list">${depsHtml}</div>
-    <div style="font-size:8px;color:#334155;margin-top:6px">${stop.distanceM} m · 🔄 frissíthető</div>
+    <div style="font-size:8px;color:#1e293b;margin-top:6px">${stop.distanceM} m tőlünk · BKK ID: ${bkkId}</div>
   </div>`;
 }
 
@@ -121,26 +169,30 @@ export interface TransitLiveMapHandle {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-interface Props { lat: number; lon: number; stops: NearbyStop[]; }
+interface Props { lat: number; lon: number; stops: NearbyStop[]; alertRoutes?: string[]; }
 
 const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
-  function TransitLiveMapInner({ lat, lon, stops }, ref) {
+  function TransitLiveMapInner({ lat, lon, stops, alertRoutes }, ref) {
     const containerRef   = useRef<HTMLDivElement>(null);
     const mapRef         = useRef<unknown>(null);
     const vehicleLayer   = useRef<unknown>(null);
     const shapeLayer     = useRef<unknown>(null);
     const stopLayerRef   = useRef<unknown>(null);
     const stopMarkersRef = useRef<Map<string, unknown>>(new Map());
-    // Mutable ref tracking current map center (updated on moveend)
     const mapCenterRef   = useRef<{ lat: number; lon: number }>({ lat, lon });
     const [vehicleCount, setVehicleCount] = useState<number | null>(null);
     const [lastUpdate,   setLastUpdate]   = useState<Date | null>(null);
     const [showStops,    setShowStops]    = useState(true);
+    const [isPanned,     setIsPanned]     = useState(false);
     const [isRefreshingStops, setIsRefreshingStops] = useState(false);
-    // Track whether map center differs from building by >0.01 deg
-    const [isPanned, setIsPanned] = useState(false);
+    // Active trip info panel (shown after clicking a departure)
+    const [tripInfo, setTripInfo] = useState<{
+      routeRef: string; color: string; headsign: string;
+      vehicleId?: string; vehicleModel?: string;
+    } | null>(null);
 
-    // ── Imperative handle: let parent fly map to building ─────────────────────
+    const alertRouteSet = new Set<string>(alertRoutes ?? []);
+
     useImperativeHandle(ref, () => ({
       flyToBuilding: () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -149,7 +201,6 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
       },
     }), [lat, lon]);
 
-    // ── Toggle stop layer visibility ──────────────────────────────────────────
     const toggleStops = useCallback(() => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const map = mapRef.current as any;
@@ -162,21 +213,59 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
       });
     }, []);
 
-    // ── Show/update departure popup for a stop ────────────────────────────────
+    // ── Draw trip shape + show vehicle panel ─────────────────────────────────
+    const drawShape = useCallback(async (tripId: string, routeRef: string, color: string, headsign: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const L   = (window as any).L as typeof import('leaflet');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sl  = shapeLayer.current as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const map = mapRef.current as any;
+      if (!L || !sl || !map) return;
+
+      sl.clearLayers();
+      setTripInfo({ routeRef, color, headsign });
+
+      try {
+        const sr = await fetch(`/api/transit/shape?tripId=${encodeURIComponent(tripId)}`);
+        const sd = await sr.json() as TripShape;
+
+        if (sd.points?.length > 0) {
+          const latlngs = sd.points.map((p: { lat: number; lon: number }) => [p.lat, p.lon] as [number, number]);
+          L.polyline(latlngs, {
+            color: sd.color ?? color,
+            weight: 5, opacity: 0.9,
+            // Dashed pattern for night/express routes
+          }).addTo(sl);
+          map.fitBounds(L.polyline(latlngs).getBounds(), { padding: [40, 40] });
+        }
+
+        setTripInfo({
+          routeRef:     sd.routeRef || routeRef,
+          color:        sd.color    || color,
+          headsign:     sd.headsign || headsign,
+          vehicleId:    sd.vehicleId,
+          vehicleModel: sd.vehicleModel,
+        });
+      } catch { /* shape draw failure is silent */ }
+    }, []);
+
+    // ── Show departures popup ─────────────────────────────────────────────────
     const showDepartures = useCallback(async (stop: NearbyStop, marker: unknown) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const L = (window as any).L as typeof import('leaflet');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const m = marker as any;
+      const fetchedAt = new Date();
 
-      m.setPopupContent(buildPopupHtml(stop, null)).openPopup();
+      m.setPopupContent(buildPopupHtml(stop, null, alertRouteSet, fetchedAt)).openPopup();
 
       try {
         const res  = await fetch(`/api/transit/departures?stopId=${encodeURIComponent(stop.id)}`);
         const data = await res.json() as { departures: Departure[] };
         const deps: Departure[] = data?.departures ?? [];
-        m.setPopupContent(buildPopupHtml(stop, deps));
+        const now = new Date();
+        m.setPopupContent(buildPopupHtml(stop, deps, alertRouteSet, now));
 
+        // Attach click handlers to departure rows
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const map = mapRef.current as any;
         if (!map) return;
@@ -184,29 +273,20 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         const popupEl = m.getPopup()?.getElement() as HTMLElement | null;
         if (!popupEl) return;
 
-        popupEl.querySelectorAll<HTMLElement>('.bkk-route-badge[data-tripid]').forEach(el => {
-          el.style.cursor = 'pointer';
-          el.addEventListener('click', async () => {
-            const tripId = el.dataset.tripid;
-            if (!tripId) return;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const sl = shapeLayer.current as any;
-            if (sl) sl.clearLayers();
-            try {
-              const sr = await fetch(`/api/transit/shape?tripId=${encodeURIComponent(tripId)}`);
-              const sd = await sr.json() as { points: Array<{lat:number;lon:number}>; color: string; routeRef: string };
-              if (sd.points?.length > 0) {
-                const latlngs = sd.points.map((p: {lat:number;lon:number}) => [p.lat, p.lon] as [number,number]);
-                L.polyline(latlngs, { color: sd.color ?? '#38bdf8', weight: 4, opacity: 0.85 }).addTo(sl);
-                map.fitBounds(L.polyline(latlngs).getBounds(), { padding: [40, 40] });
-              }
-            } catch { /* shape draw failure is silent */ }
+        popupEl.querySelectorAll<HTMLElement>('.bkk-dep-row[data-tripid]').forEach(el => {
+          el.addEventListener('click', () => {
+            const tripId   = el.dataset.tripid ?? '';
+            const route    = el.dataset.route   ?? '';
+            const color    = el.dataset.color   ?? '#38bdf8';
+            const headsign = el.dataset.headsign ?? '';
+            if (tripId) drawShape(tripId, route, color, headsign);
           });
         });
       } catch { /* departure fetch failure — leave loading state */ }
-    }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [alertRouteSet, drawShape]);
 
-    // ── Refresh stops at a new center ─────────────────────────────────────────
+    // ── Refresh stops at a new map center ────────────────────────────────────
     const refreshStopsAt = useCallback(async (newLat: number, newLon: number) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const L = (window as any).L as typeof import('leaflet') | undefined;
@@ -220,11 +300,9 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         const data = await res.json() as { stops: NearbyStop[] };
         const newStops: NearbyStop[] = data?.stops ?? [];
 
-        // Clear existing stop markers
         stopLayer.clearLayers();
         stopMarkersRef.current = new Map();
 
-        // Re-add new markers using the same pin/showDepartures logic
         for (const stop of newStops) {
           const color  = STOP_COLOR[stop.routeType] ?? '#64748b';
           const routes = stop.routeRefs.slice(0, 4).join(' · ');
@@ -232,10 +310,10 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
             icon: L.divIcon({ html: stopPinSvg(color, stop.routeType), className: 'bkk-stop-pin', iconSize: [32,44], iconAnchor: [16,43], popupAnchor: [0,-46] }),
           })
             .bindTooltip(
-              `<div style="font-size:11px"><b>${stop.name}</b><br/><span style="color:#94a3b8;font-size:9px">${routes} · ${stop.distanceM} m</span></div>`,
+              `<div style="font-size:11px"><b>${stop.name}</b> <span style="color:#64748b;font-size:9px">${stopCode(stop.id)}</span><br/><span style="color:#94a3b8;font-size:9px">${routes} · ${stop.distanceM} m</span></div>`,
               { sticky: true, direction: 'top' }
             )
-            .bindPopup('', { className: 'bkk-popup', maxWidth: 300, minWidth: 200 })
+            .bindPopup('', { className: 'bkk-popup', maxWidth: 330, minWidth: 230 })
             .addTo(stopLayer);
 
           marker.on('click', () => showDepartures(stop, marker));
@@ -246,11 +324,8 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
       setIsRefreshingStops(false);
     }, [showDepartures]);
 
-    // Stale-closure fix: keep a ref synced to the latest refreshStopsAt
     const refreshStopsAtRef = useRef(refreshStopsAt);
-    useEffect(() => {
-      refreshStopsAtRef.current = refreshStopsAt;
-    }, [refreshStopsAt]);
+    useEffect(() => { refreshStopsAtRef.current = refreshStopsAt; }, [refreshStopsAt]);
 
     // ── Vehicle poll ──────────────────────────────────────────────────────────
     const refreshVehicles = useCallback(async () => {
@@ -260,7 +335,6 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
       const lyr = vehicleLayer.current as any;
       if (!L || !lyr) return;
 
-      // Use mapCenterRef so vehicles always poll the current visible area
       const { lat: cLat, lon: cLon } = mapCenterRef.current;
 
       try {
@@ -275,15 +349,20 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
             icon: L.divIcon({ html: vehicleSvg(color, v.bearing), className: '', iconSize: [26,26], iconAnchor: [13,13], popupAnchor: [0,-14] }),
             zIndexOffset: 100,
           })
-            .bindTooltip(`<b style="color:${color}">${v.routeRef}</b>&thinsp;${v.headsign ?? ''}`, { sticky: true, className: '' })
+            .bindTooltip(`<b style="color:${color}">${v.routeRef}</b>&thinsp;${v.headsign ?? ''}`, { sticky: true })
+            .on('click', () => {
+              // Clicking a live vehicle draws its route shape
+              if (v.tripId) {
+                drawShape(v.tripId, v.routeRef, color, v.headsign ?? '');
+              }
+            })
             .addTo(lyr);
         }
         setVehicleCount(data.vehicles.length);
         setLastUpdate(new Date());
       } catch { setVehicleCount(0); }
-    // No lat/lon in deps — uses mapCenterRef.current at call time
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [drawShape]);
 
     // ── Map init ──────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -322,7 +401,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
           .bindTooltip('<b>Az épület</b>', { sticky: false })
           .addTo(map);
 
-        // Stop markers in their own layer group (toggleable)
+        // Stop layer
         const stopLayer = L.layerGroup().addTo(map);
         stopLayerRef.current = stopLayer;
 
@@ -334,10 +413,10 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
             icon: L.divIcon({ html: stopPinSvg(color, stop.routeType), className: 'bkk-stop-pin', iconSize: [32,44], iconAnchor: [16,43], popupAnchor: [0,-46] }),
           })
             .bindTooltip(
-              `<div style="font-size:11px"><b>${stop.name}</b><br/><span style="color:#94a3b8;font-size:9px">${routes} · ${stop.distanceM} m</span></div>`,
+              `<div style="font-size:11px"><b>${stop.name}</b> <span style="color:#64748b;font-size:9px">${stopCode(stop.id)}</span><br/><span style="color:#94a3b8;font-size:9px">${routes} · ${stop.distanceM} m</span></div>`,
               { sticky: true, direction: 'top' }
             )
-            .bindPopup('', { className: 'bkk-popup', maxWidth: 300, minWidth: 200 })
+            .bindPopup('', { className: 'bkk-popup', maxWidth: 330, minWidth: 230 })
             .addTo(stopLayer);
 
           marker.on('click', () => showDepartures(stop, marker));
@@ -353,18 +432,14 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setTimeout(() => { if (mapRef.current) (mapRef.current as any).invalidateSize(); }, 300);
 
-        // ── Pan → auto-refresh stops ─────────────────────────────────────────
         map.on('moveend', () => {
           clearTimeout(moveTimer);
           moveTimer = setTimeout(() => {
             const c = map.getCenter();
             mapCenterRef.current = { lat: c.lat, lon: c.lng };
-
-            // Check if panned >0.01 deg from building
             const diffLat = Math.abs(c.lat - lat);
             const diffLon = Math.abs(c.lng - lon);
             setIsPanned(diffLat > 0.01 || diffLon > 0.01);
-
             refreshStopsAtRef.current(c.lat, c.lng);
           }, 800);
         });
@@ -389,9 +464,13 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
       ? lastUpdate.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
       : null;
 
+    // ─── Trip info panel colors ───────────────────────────────────────────────
+    const tripBg = tripInfo
+      ? `${tripInfo.color}18`
+      : 'rgba(255,255,255,0.05)';
+
     return (
       <div className="flex flex-col gap-1.5">
-        {/* Map container — relative so overlay buttons can be positioned inside */}
         <div className="relative">
           <div
             ref={containerRef}
@@ -399,29 +478,27 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
             style={{ background: '#1e293b' }}
           />
 
-          {/* Map overlay: stop toggle button (top-right, above Leaflet z-index) */}
+          {/* Stop toggle */}
           <div className="absolute right-2 top-2 z-[1000] flex flex-col gap-1">
             <button
               onClick={toggleStops}
               className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-slate-900/90 px-2.5 py-1 text-[9px] font-black backdrop-blur-sm transition-all hover:bg-slate-800/90"
               style={{ color: showStops ? '#38bdf8' : '#64748b' }}
             >
-              <span
-                className="h-2 w-2 shrink-0 rounded-full transition-colors"
-                style={{ background: showStops ? '#38bdf8' : '#475569' }}
-              />
+              <span className="h-2 w-2 shrink-0 rounded-full transition-colors"
+                style={{ background: showStops ? '#38bdf8' : '#475569' }} />
               Megállók
             </button>
           </div>
 
-          {/* Loading chip: visible while stops refresh (top-center) */}
+          {/* Refreshing chip */}
           {isRefreshingStops && (
             <div className="absolute left-1/2 top-2 z-[1000] -translate-x-1/2 rounded-full border border-white/10 bg-slate-900/90 px-3 py-1 text-[9px] font-bold text-sky-400 backdrop-blur-sm">
               Megállók frissítése…
             </div>
           )}
 
-          {/* "⌖ Épületre" button (top-left) — shown when panned >0.01 deg from building */}
+          {/* Back to building */}
           {isPanned && (
             <button
               className="absolute left-2 top-2 z-[1000] flex items-center gap-1 rounded-lg border border-white/10 bg-slate-900/90 px-2.5 py-1 text-[9px] font-black text-indigo-400 backdrop-blur-sm transition-all hover:bg-slate-800/90"
@@ -438,17 +515,58 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
               ⌖ Épületre
             </button>
           )}
+
+          {/* Active trip info panel */}
+          {tripInfo && (
+            <div
+              className="absolute bottom-3 left-3 right-3 z-[1000] flex items-center gap-3 rounded-xl px-3 py-2.5 backdrop-blur-sm"
+              style={{ background: 'rgba(15,23,42,0.92)', border: `1px solid ${tripInfo.color}40` }}
+            >
+              {/* Route badge */}
+              <span
+                className="flex h-7 min-w-[40px] items-center justify-center rounded-lg px-2 text-[12px] font-black"
+                style={{ background: tripInfo.color, color: tripInfo.color === '#fbbf24' ? '#78350f' : '#fff' }}
+              >
+                {tripInfo.routeRef}
+              </span>
+              {/* Headsign + vehicle */}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[11px] font-bold text-slate-200 leading-tight">
+                  ▶ {tripInfo.headsign}
+                </p>
+                {(tripInfo.vehicleId || tripInfo.vehicleModel) && (
+                  <p className="mt-0.5 truncate text-[9px] text-slate-500">
+                    {[tripInfo.vehicleId, tripInfo.vehicleModel].filter(Boolean).join('  ')}
+                  </p>
+                )}
+              </div>
+              {/* Clear shape button */}
+              <button
+                onClick={() => {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const sl = shapeLayer.current as any;
+                  if (sl) sl.clearLayers();
+                  setTripInfo(null);
+                }}
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/10 hover:text-white"
+                title="Útvonal törlése"
+              >
+                ✕
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Status bar */}
         <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-3">
             {[
-              { color: VEHICLE_COLOR.BUS,    label: 'Busz' },
-              { color: VEHICLE_COLOR.TRAM,   label: 'Villamos' },
-              { color: VEHICLE_COLOR.SUBWAY, label: 'Metró' },
-              { color: VEHICLE_COLOR.RAIL,   label: 'HÉV/Vasút' },
-              { color: '#6366f1',            label: 'Épület' },
+              { color: VEHICLE_COLOR.BUS,        label: 'Busz' },
+              { color: VEHICLE_COLOR.TRAM,        label: 'Villamos' },
+              { color: VEHICLE_COLOR.TROLLEYBUS,  label: 'Trolibusz' },
+              { color: VEHICLE_COLOR.SUBWAY,      label: 'Metró' },
+              { color: VEHICLE_COLOR.RAIL,        label: 'HÉV/Vasút' },
+              { color: '#6366f1',                 label: 'Épület' },
             ].map(({ color, label }) => (
               <div key={label} className="flex items-center gap-1">
                 <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
@@ -463,6 +581,11 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
             {timeStr && <span className="text-[8px] text-slate-700">{timeStr}</span>}
           </div>
         </div>
+        {tripInfo && (
+          <p className="text-center text-[8px] text-slate-700">
+            Kattints ✕-re az útvonal törléséhez · ♿ = alacsonypadlós jármű · ⚠ = aktív üzemzavar
+          </p>
+        )}
       </div>
     );
   }
