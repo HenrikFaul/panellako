@@ -144,17 +144,32 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
           zIndexOffset: 200,
         }).bindTooltip('<b>Az épület</b>', { sticky: false }).addTo(map);
 
-        // AQI station markers
+        // AQI station markers — show all stations, OLM fallbacks (null AQI) as small dots
         for (const st of stations) {
-          if (st.aqi === null) continue;
-          const color  = aqiColor(st.aqi);
-          const marker = L.marker([st.lat, st.lon], {
-            icon: L.divIcon({ html: aqiMarkerSvg(st.aqi, color), className: 'aqi-station-pin', iconSize: [48,48], iconAnchor: [24,24], popupAnchor: [0,-26] }),
-          }).bindTooltip(
-            `<div style="font-size:11px"><b>${st.stationName}</b><br/><span style="color:${color};font-weight:900">AQI ${st.aqi}</span></div>`,
-            { sticky: true, direction: 'top' }
-          ).addTo(map);
-          if (onSelectStation) marker.on('click', () => onSelectStation(st.uid));
+          if (st.aqi !== null) {
+            const color  = aqiColor(st.aqi);
+            const marker = L.marker([st.lat, st.lon], {
+              icon: L.divIcon({ html: aqiMarkerSvg(st.aqi, color), className: 'aqi-station-pin', iconSize: [48,48], iconAnchor: [24,24], popupAnchor: [0,-26] }),
+            }).bindTooltip(
+              `<div style="font-size:11px"><b>${st.stationName}</b><br/><span style="color:${color};font-weight:900">AQI ${st.aqi}</span></div>`,
+              { sticky: true, direction: 'top' }
+            ).addTo(map);
+            if (onSelectStation) marker.on('click', () => onSelectStation(st.uid));
+          } else {
+            // OLM station without current AQI data — show as named dot marker
+            L.marker([st.lat, st.lon], {
+              icon: L.divIcon({
+                html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
+                  <circle cx="11" cy="11" r="9" fill="#334155" stroke="#64748b" stroke-width="1.5"/>
+                  <circle cx="11" cy="11" r="3.5" fill="#94a3b8"/>
+                </svg>`,
+                className: 'aqi-station-pin', iconSize: [22,22], iconAnchor: [11,11],
+              }),
+            }).bindTooltip(
+              `<div style="font-size:11px"><b>${st.stationName}</b><br/><span style="color:#94a3b8;font-size:9px">OLM mérőállomás</span></div>`,
+              { sticky: true, direction: 'top' }
+            ).addTo(map);
+          }
         }
 
         mapRef.current = map;

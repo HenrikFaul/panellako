@@ -68,6 +68,13 @@ function parseFeedJson(json: unknown): AirQualityResult {
   if (j.status !== 'ok') throw new Error(`AQICN status: ${j.status}`);
 
   const d = j.data;
+
+  // Reject stations outside Hungary — catches demo token returning Shanghai etc.
+  const [sLat, sLon] = d.city?.geo ?? [0, 0];
+  if (sLat !== 0 && (sLat < 45.7 || sLat > 48.6 || sLon < 16.1 || sLon > 22.9)) {
+    throw new Error(`Non-Hungarian station: ${d.city?.name ?? 'unknown'} (${sLat},${sLon})`);
+  }
+
   const iaqi       = d.iaqi ?? {};
   const stationId  = String(d.idx);
   const measuredAt = new Date(d.time.v * 1000).toISOString();
