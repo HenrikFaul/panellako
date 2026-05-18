@@ -1,15 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
-// Open-Meteo Air Quality API — free, no API key, same provider as weather
-// Uses CAMS EU global model for Central Europe
-const LAT = 47.4979;
-const LON = 19.0402;
+// ─── AQICN / World Air Quality Index ─────────────────────────────────────────
+const AQICN_TOKEN = process.env.AQICN_API_TOKEN ?? 'demo';
+const AQICN_BASE  = 'https://api.waqi.info/feed';
 
-const AQ_BASE = 'https://air-quality-api.open-meteo.com/v1/air-quality';
-
-interface CacheEntry<T> { data: T; expires: number; }
-let _aqCache: CacheEntry<AirQualityResult> | null = null;
-
+// ─── Types ────────────────────────────────────────────────────────────────────
 export interface AirQualityResult {
   aqi:               number;
   aqiCategory:       AQICategory;
@@ -19,9 +15,14 @@ export interface AirQualityResult {
   pm10:              number | null;
   no2:               number | null;
   o3:                number | null;
+  so2:               number | null;
+  co:                number | null;
+  dominantPol:       string;
   stationName:       string;
-  stationDistanceKm: number;
+  stationId:         string;
+  measuredAt:        string;   // ISO — when the station measured (from AQICN time.v)
   fetchedAt:         string;
+  source:            'aqicn' | 'mock';
 }
 
 export type AQICategory =
@@ -38,91 +39,115 @@ function aqiInfo(aqi: number): AQIInfo {
   return           { category: 'hazardous',            label: 'Veszélyes',                color: '#7f1d1d' };
 }
 
-// EPA PM2.5 breakpoints → AQI
-function pm25ToAQI(c: number): number {
-  const bp = [
-    [0,     12,    0,   50],
-    [12.1,  35.4,  51,  100],
-    [35.5,  55.4,  101, 150],
-    [55.5,  150.4, 151, 200],
-    [150.5, 250.4, 201, 300],
-    [250.5, 500.4, 301, 500],
-  ];
-  for (const [cLo, cHi, iLo, iHi] of bp) {
-    if (c >= cLo && c <= cHi)
-      return Math.round(((iHi - iLo) / (cHi - cLo)) * (c - cLo) + iLo);
-  }
-  return c > 500 ? 500 : 0;
-}
+// ─── In-memory cache (10 min) ─────────────────────────────────────────────────
+interface CacheEntry { data: AirQualityResult; expires: number; }
+const _cache = new Map<string, CacheEntry>();
 
-async function fetchAirQuality(): Promise<AirQualityResult> {
-  const params = new URLSearchParams({
-    latitude:  String(LAT),
-    longitude: String(LON),
-    current:   'pm10,pm2_5,nitrogen_dioxide,ozone,european_aqi',
-    timezone:  'Europe/Budapest',
-  });
+// ─── AQICN fetch ──────────────────────────────────────────────────────────────
+async function fetchAQICN(lat: number, lon: number): Promise<AirQualityResult> {
+  const url = `${AQICN_BASE}/geo:${lat};${lon}/?token=${AQICN_TOKEN}`;
+  const res  = await fetch(url, { signal: AbortSignal.timeout(7000) });
+  if (!res.ok) throw new Error(`AQICN HTTP ${res.status}`);
+  const json = await res.json();
+  if (json.status !== 'ok') throw new Error(`AQICN status: ${json.status}`);
 
-  const res = await fetch(`${AQ_BASE}?${params}`, {
-    signal: AbortSignal.timeout(6000),
-    next: { revalidate: 1800 },
-  });
-  if (!res.ok) throw new Error(`Open-Meteo AQ ${res.status}`);
-  const data = await res.json();
-
-  const cur = data.current as {
-    pm2_5:             number | null;
-    pm10:              number | null;
-    nitrogen_dioxide:  number | null;
-    ozone:             number | null;
-    european_aqi:      number | null;
+  const d = json.data as {
+    aqi:         number;
+    idx:         number;
+    dominentpol: string;
+    city:        { name: string; geo: [number, number] };
+    time:        { v: number; iso: string };
+    iaqi:        Record<string, { v: number } | undefined>;
   };
 
-  const pm25 = cur.pm2_5 ?? null;
-  const pm10 = cur.pm10 ?? null;
-  const no2  = cur.nitrogen_dioxide ?? null;
-  const o3   = cur.ozone ?? null;
-
-  // Use European AQI directly when available, otherwise compute from PM2.5
-  const europeanAqi = cur.european_aqi ?? null;
-  const aqi = europeanAqi !== null ? europeanAqi : (pm25 !== null ? pm25ToAQI(pm25) : 0);
-  const info = aqiInfo(aqi);
+  const iaqi       = d.iaqi ?? {};
+  const stationId  = String(d.idx);
+  const measuredAt = new Date(d.time.v * 1000).toISOString();
+  const info       = aqiInfo(d.aqi);
 
   return {
-    aqi,
-    aqiCategory:       info.category,
-    aqiLabel:          info.label,
-    color:             info.color,
-    pm25,
-    pm10,
-    no2,
-    o3,
-    stationName:       'Budapest (CAMS modell)',
-    stationDistanceKm: 0,
-    fetchedAt:         new Date().toISOString(),
+    aqi:          d.aqi,
+    aqiCategory:  info.category,
+    aqiLabel:     info.label,
+    color:        info.color,
+    pm25:         iaqi.pm25?.v ?? null,
+    pm10:         iaqi.pm10?.v ?? null,
+    no2:          iaqi.no2?.v  ?? null,
+    o3:           iaqi.o3?.v   ?? null,
+    so2:          iaqi.so2?.v  ?? null,
+    co:           iaqi.co?.v   ?? null,
+    dominantPol:  d.dominentpol ?? '',
+    stationName:  d.city.name,
+    stationId,
+    measuredAt,
+    fetchedAt:    new Date().toISOString(),
+    source:       'aqicn',
   };
 }
 
-function getMockResult(): AirQualityResult {
+// ─── DB persistence: insert only when measurement timestamp is new ────────────
+async function persistIfNew(result: AirQualityResult): Promise<void> {
+  try {
+    const supabase = createClient();
+    // Upsert with ON CONFLICT DO NOTHING via ignoreDuplicates
+    const { error } = await supabase
+      .from('air_quality_readings')
+      .upsert(
+        {
+          station_id:   result.stationId,
+          station_name: result.stationName,
+          measured_at:  result.measuredAt,
+          aqi:          result.aqi,
+          dominant_pol: result.dominantPol,
+          pm25:         result.pm25,
+          pm10:         result.pm10,
+          no2:          result.no2,
+          o3:           result.o3,
+          so2:          result.so2,
+          co:           result.co,
+        },
+        { onConflict: 'station_id,measured_at', ignoreDuplicates: true }
+      );
+    if (error) console.warn('[air-quality] DB upsert error:', error.message);
+  } catch (err) {
+    console.warn('[air-quality] DB persist failed (non-fatal):', err);
+  }
+}
+
+// ─── Mock fallback ─────────────────────────────────────────────────────────────
+function getMock(): AirQualityResult {
   const info = aqiInfo(42);
   return {
     aqi: 42, aqiCategory: info.category, aqiLabel: info.label, color: info.color,
-    pm25: 8.4, pm10: 18.2, no2: 24.1, o3: 55.8,
-    stationName: 'Budapest (offline)', stationDistanceKm: 0,
-    fetchedAt: new Date().toISOString(),
+    pm25: 8.4, pm10: 18.2, no2: 24.1, o3: 55.8, so2: 3.1, co: 0.4,
+    dominantPol: 'pm25',
+    stationName: 'Budapest (offline)', stationId: 'mock',
+    measuredAt:  new Date().toISOString(),
+    fetchedAt:   new Date().toISOString(),
+    source:      'mock',
   };
 }
 
-export async function GET() {
-  if (_aqCache && _aqCache.expires > Date.now()) {
-    return NextResponse.json(_aqCache.data);
+// ─── GET handler ──────────────────────────────────────────────────────────────
+export async function GET(request: NextRequest) {
+  const sp  = request.nextUrl.searchParams;
+  const lat = parseFloat(sp.get('lat') ?? '47.4979');
+  const lon = parseFloat(sp.get('lon') ?? '19.0402');
+  const cacheKey = `${lat.toFixed(3)},${lon.toFixed(3)}`;
+
+  const cached = _cache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) {
+    return NextResponse.json(cached.data);
   }
+
   try {
-    const result = await fetchAirQuality();
-    _aqCache = { data: result, expires: Date.now() + 30 * 60 * 1000 };
+    const result = await fetchAQICN(lat, lon);
+    _cache.set(cacheKey, { data: result, expires: Date.now() + 10 * 60_000 });
+    // Fire-and-forget DB write — only inserts if measured_at is new
+    void persistIfNew(result);
     return NextResponse.json(result);
   } catch (err) {
-    console.error('[air-quality] Open-Meteo error:', err);
-    return NextResponse.json({ ...getMockResult(), _mock: true, _error: String(err) });
+    console.warn('[air-quality] AQICN fetch failed:', err);
+    return NextResponse.json({ ...getMock(), _mock: true, _error: String(err) });
   }
 }
