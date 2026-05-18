@@ -82,6 +82,27 @@ export async function GET(req: NextRequest) {
     };
   } catch (e) { results.alerts = { error: String(e) }; }
 
+  // 4. Test GTFS-RT go.bkk.hu feeds
+  const GTFS_BASE = 'https://go.bkk.hu/api/query/v1/ws/gtfs-rt/full';
+  const gtfsHeaders = { ...BKK_HEADERS, 'Accept': '*/*' };
+
+  for (const feed of ['VehiclePositions', 'TripUpdates', 'Alerts'] as const) {
+    const key = `gtfsRt${feed}` as const;
+    try {
+      const r = await fetch(`${GTFS_BASE}/${feed}.txt?key=${BKK_KEY}`, {
+        headers: gtfsHeaders, signal: AbortSignal.timeout(10000),
+      });
+      const body = await r.text();
+      const entityCount = (body.match(/^entity \{/gm) ?? []).length;
+      results[key] = {
+        status:      r.status,
+        entityCount,
+        bodyBytes:   body.length,
+        preview:     r.ok ? body.slice(0, 300) : body.slice(0, 400),
+      };
+    } catch (e) { results[key] = { error: String(e) }; }
+  }
+
   return NextResponse.json({
     env:      { hasCustomKey: !!process.env.BKKFUTAR_API_KEY, keyPrefix: BKK_KEY.slice(0, 8), origin: APP_ORIGIN },
     headers:  BKK_HEADERS,
