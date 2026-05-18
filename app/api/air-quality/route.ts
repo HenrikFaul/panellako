@@ -6,6 +6,13 @@ const AQICN_TOKEN = process.env.AQICN_API_TOKEN ?? 'demo';
 const AQICN_BASE  = 'https://api.waqi.info/feed';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+export interface ForecastDay { day: string; avg: number; max: number; min: number; }
+export interface AirQualityForecast {
+  pm25?: ForecastDay[];
+  pm10?: ForecastDay[];
+  o3?:  ForecastDay[];
+}
+
 export interface AirQualityResult {
   aqi:               number;
   aqiCategory:       AQICategory;
@@ -23,6 +30,7 @@ export interface AirQualityResult {
   measuredAt:        string;   // ISO — when the station measured (from AQICN time.v)
   fetchedAt:         string;
   source:            'aqicn' | 'mock';
+  forecast?:         AirQualityForecast;
 }
 
 export type AQICategory =
@@ -58,12 +66,21 @@ async function fetchAQICN(lat: number, lon: number): Promise<AirQualityResult> {
     city:        { name: string; geo: [number, number] };
     time:        { v: number; iso: string };
     iaqi:        Record<string, { v: number } | undefined>;
+    forecast?:   { daily?: Record<string, Array<{ day: string; avg: number; max: number; min: number }>> };
   };
 
   const iaqi       = d.iaqi ?? {};
   const stationId  = String(d.idx);
   const measuredAt = new Date(d.time.v * 1000).toISOString();
   const info       = aqiInfo(d.aqi);
+
+  // Extract forecast data if available
+  const daily = d.forecast?.daily;
+  const forecast: AirQualityForecast | undefined = daily ? {
+    pm25: daily.pm25,
+    pm10: daily.pm10,
+    o3:   daily.o3,
+  } : undefined;
 
   return {
     aqi:          d.aqi,
@@ -82,6 +99,7 @@ async function fetchAQICN(lat: number, lon: number): Promise<AirQualityResult> {
     measuredAt,
     fetchedAt:    new Date().toISOString(),
     source:       'aqicn',
+    forecast,
   };
 }
 

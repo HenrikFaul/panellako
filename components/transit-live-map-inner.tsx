@@ -131,9 +131,14 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
     const shapeLayer     = useRef<unknown>(null);
     const stopLayerRef   = useRef<unknown>(null);
     const stopMarkersRef = useRef<Map<string, unknown>>(new Map());
+    // Mutable ref tracking current map center (updated on moveend)
+    const mapCenterRef   = useRef<{ lat: number; lon: number }>({ lat, lon });
     const [vehicleCount, setVehicleCount] = useState<number | null>(null);
     const [lastUpdate,   setLastUpdate]   = useState<Date | null>(null);
     const [showStops,    setShowStops]    = useState(true);
+    const [isRefreshingStops, setIsRefreshingStops] = useState(false);
+    // Track whether map center differs from building by >0.01 deg
+    const [isPanned, setIsPanned] = useState(false);
 
     // ── Imperative handle: let parent fly map to building ─────────────────────
     useImperativeHandle(ref, () => ({
@@ -201,6 +206,52 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
       } catch { /* departure fetch failure — leave loading state */ }
     }, []);
 
+    // ── Refresh stops at a new center ─────────────────────────────────────────
+    const refreshStopsAt = useCallback(async (newLat: number, newLon: number) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const L = (window as any).L as typeof import('leaflet') | undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const stopLayer = stopLayerRef.current as any;
+      if (!L || !stopLayer) return;
+
+      setIsRefreshingStops(true);
+      try {
+        const res  = await fetch(`/api/transit/nearby?lat=${newLat}&lon=${newLon}`);
+        const data = await res.json() as { stops: NearbyStop[] };
+        const newStops: NearbyStop[] = data?.stops ?? [];
+
+        // Clear existing stop markers
+        stopLayer.clearLayers();
+        stopMarkersRef.current = new Map();
+
+        // Re-add new markers using the same pin/showDepartures logic
+        for (const stop of newStops) {
+          const color  = STOP_COLOR[stop.routeType] ?? '#64748b';
+          const routes = stop.routeRefs.slice(0, 4).join(' · ');
+          const marker = L.marker([stop.lat, stop.lon], {
+            icon: L.divIcon({ html: stopPinSvg(color, stop.routeType), className: 'bkk-stop-pin', iconSize: [32,44], iconAnchor: [16,43], popupAnchor: [0,-46] }),
+          })
+            .bindTooltip(
+              `<div style="font-size:11px"><b>${stop.name}</b><br/><span style="color:#94a3b8;font-size:9px">${routes} · ${stop.distanceM} m</span></div>`,
+              { sticky: true, direction: 'top' }
+            )
+            .bindPopup('', { className: 'bkk-popup', maxWidth: 300, minWidth: 200 })
+            .addTo(stopLayer);
+
+          marker.on('click', () => showDepartures(stop, marker));
+          stopMarkersRef.current.set(stop.id, marker);
+        }
+      } catch { /* stop refresh failure is silent */ }
+
+      setIsRefreshingStops(false);
+    }, [showDepartures]);
+
+    // Stale-closure fix: keep a ref synced to the latest refreshStopsAt
+    const refreshStopsAtRef = useRef(refreshStopsAt);
+    useEffect(() => {
+      refreshStopsAtRef.current = refreshStopsAt;
+    }, [refreshStopsAt]);
+
     // ── Vehicle poll ──────────────────────────────────────────────────────────
     const refreshVehicles = useCallback(async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -209,8 +260,11 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
       const lyr = vehicleLayer.current as any;
       if (!L || !lyr) return;
 
+      // Use mapCenterRef so vehicles always poll the current visible area
+      const { lat: cLat, lon: cLon } = mapCenterRef.current;
+
       try {
-        const res  = await fetch(`/api/transit/vehicles?lat=${lat}&lon=${lon}`);
+        const res  = await fetch(`/api/transit/vehicles?lat=${cLat}&lon=${cLon}`);
         const data = await res.json() as { vehicles: VehiclePosition[]; source: string };
         lyr.clearLayers();
         if (data.source === 'mock' || !data.vehicles?.length) { setVehicleCount(0); return; }
@@ -227,7 +281,9 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         setVehicleCount(data.vehicles.length);
         setLastUpdate(new Date());
       } catch { setVehicleCount(0); }
-    }, [lat, lon]);
+    // No lat/lon in deps — uses mapCenterRef.current at call time
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // ── Map init ──────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -239,6 +295,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
       }
 
       let interval: ReturnType<typeof setInterval>;
+      let moveTimer: ReturnType<typeof setTimeout>;
 
       (async () => {
         const L = await import('leaflet');
@@ -294,12 +351,29 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         shapeLayer.current   = sLayer;
         mapRef.current       = map;
 
+        // ── Pan → auto-refresh stops ─────────────────────────────────────────
+        map.on('moveend', () => {
+          clearTimeout(moveTimer);
+          moveTimer = setTimeout(() => {
+            const c = map.getCenter();
+            mapCenterRef.current = { lat: c.lat, lon: c.lng };
+
+            // Check if panned >0.01 deg from building
+            const diffLat = Math.abs(c.lat - lat);
+            const diffLon = Math.abs(c.lng - lon);
+            setIsPanned(diffLat > 0.01 || diffLon > 0.01);
+
+            refreshStopsAtRef.current(c.lat, c.lng);
+          }, 800);
+        });
+
         await refreshVehicles();
         interval = setInterval(refreshVehicles, 15_000);
       })();
 
       return () => {
         clearInterval(interval);
+        clearTimeout(moveTimer);
         if (mapRef.current) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (mapRef.current as any).remove();
@@ -337,6 +411,31 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
               Megállók
             </button>
           </div>
+
+          {/* Loading chip: visible while stops refresh (top-center) */}
+          {isRefreshingStops && (
+            <div className="absolute left-1/2 top-2 z-[1000] -translate-x-1/2 rounded-full border border-white/10 bg-slate-900/90 px-3 py-1 text-[9px] font-bold text-sky-400 backdrop-blur-sm">
+              Megállók frissítése…
+            </div>
+          )}
+
+          {/* "⌖ Épületre" button (top-left) — shown when panned >0.01 deg from building */}
+          {isPanned && (
+            <button
+              className="absolute left-2 top-2 z-[1000] flex items-center gap-1 rounded-lg border border-white/10 bg-slate-900/90 px-2.5 py-1 text-[9px] font-black text-indigo-400 backdrop-blur-sm transition-all hover:bg-slate-800/90"
+              onClick={() => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const map = mapRef.current as any;
+                if (map) {
+                  map.flyTo([lat, lon], 15, { animate: true, duration: 0.8 });
+                  mapCenterRef.current = { lat, lon };
+                  setIsPanned(false);
+                }
+              }}
+            >
+              ⌖ Épületre
+            </button>
+          )}
         </div>
 
         {/* Status bar */}

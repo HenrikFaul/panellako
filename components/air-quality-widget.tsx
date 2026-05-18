@@ -229,7 +229,7 @@ export default function AirQualityWidget() {
   }
 
   return (
-    <div className="flex h-full flex-col items-center">
+    <a href="#air-quality" className="flex h-full flex-col items-center cursor-pointer hover:opacity-90 transition-opacity" title="Részletes levegőminőség adatok">
       {/* Header label */}
       <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-slate-500">
         Levegőminőség
@@ -269,6 +269,6 @@ export default function AirQualityWidget() {
           <><br/><span className="text-slate-600">AQICN · OLM</span></>
         )}
       </p>
-    </div>
+    </a>
   );
 }

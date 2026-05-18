@@ -33,6 +33,7 @@ import {
   UserCog,
   UserRound,
   Vote,
+  Wind,
   Wrench,
   X
 } from 'lucide-react';
@@ -59,6 +60,7 @@ import { sendContactMessage } from '@/app/actions/contact';
 import type { ContactSubject } from '@/app/actions/contact';
 import WeatherWidget from '@/components/weather-widget';
 import AirQualityWidget from '@/components/air-quality-widget';
+import AirQualitySection from '@/components/air-quality-section';
 import EnergyDashboard from '@/components/energy-dashboard';
 import TransportPanel from '@/components/transport-panel';
 
@@ -135,6 +137,7 @@ const navigation = [
   { href: '#finances', label: 'Pénzügyek', icon: CircleDollarSign },
   { href: '#meters', label: 'Mérőórák', icon: Gauge },
   { href: '#transport', label: 'Közlekedés', icon: Bus },
+  { href: '#air-quality', label: 'Levegőminőség', icon: Wind },
   { href: '#meetings', label: 'Közgyűlések', icon: CalendarDays },
   { href: '#knowledge', label: 'Tudásbázis', icon: BookOpen },
   { href: '#audit', label: 'Audit napló', icon: ShieldCheck }
@@ -787,6 +790,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     { href: '#finances', label: 'Pénzügyek', icon: CircleDollarSign, count: arrears > 0 ? 1 : 0, critical: arrears > 100000 ? 1 : 0 },
     { href: '#meters', label: 'Mérőórák', icon: Gauge, count: 0, critical: 0 },
     { href: '#transport', label: 'Közlekedés', icon: Bus, count: 0, critical: 0 },
+    { href: '#air-quality', label: 'Levegőminőség', icon: Wind, count: 0, critical: 0 },
     { href: '#meetings', label: 'Közgyűlések', icon: CalendarDays, count: upcomingMeetings, critical: 0 },
     { href: '#knowledge', label: 'Tudásbázis', icon: BookOpen, count: 0, critical: 0 },
     ...(isAdminLike ? [{ href: '#audit', label: 'Audit napló', icon: ShieldCheck, count: 0, critical: 0 }] : []),
@@ -1962,6 +1966,12 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               />
             </SectionCard>
           </section>
+
+          <AirQualitySection
+            buildingLat={data.buildingLat}
+            buildingLon={data.buildingLon}
+            buildingAddress={data.buildingAddress}
+          />
 
           <section className="grid gap-6 xl:grid-cols-2">
             <SectionCard id="meetings" title="Közgyűlés, határozatok és szavazás" icon={<Vote size={18} />} action={
