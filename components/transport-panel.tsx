@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { AlertTriangle, Bike, Bus, ChevronRight, Leaf, MapPin, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { AlertTriangle, Bike, Bus, ChevronRight, Leaf, Map, MapPin, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import type { TransitNearbyResult, NearbyStop, RouteType } from '@/app/api/transit/nearby/route';
 import type { DepartureBoard, Departure } from '@/app/api/transit/departures/route';
 import type { AlertsResult, TransitAlert, AlertSeverity } from '@/app/api/transit/alerts/route';
+import TransitLiveMap from '@/components/transit-live-map';
 
 // ─── Animation CSS ─────────────────────────────────────────────────────────────
 const TP_CSS = `
@@ -232,7 +233,11 @@ function DepartureBoardPanel({ stopId, stopName, refreshKey }: {
     <div>
       <div className="mb-1.5 flex items-center justify-between">
         <p className="text-[9px] font-black uppercase tracking-wider text-slate-500 truncate pr-2">{board.stopName || stopName}</p>
-        {isMock && <span className="text-[8px] text-slate-600 italic">Minta adatok</span>}
+        {isMock && (
+          <span className="rounded-full bg-amber-900/20 px-1.5 py-0.5 text-[7px] font-bold text-amber-500 italic">
+            API nem elérhető
+          </span>
+        )}
       </div>
       <ul className="space-y-1">
         {board.departures.map((dep: Departure, i) => (
@@ -416,7 +421,7 @@ export default function TransportPanel({ lat, lon, buildingAddress }: TransportP
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
   const [refreshKey, setRefreshKey]   = useState(0);
   const [selectedStop, setSelectedStop] = useState<NearbyStop | null>(null);
-  const [tab, setTab]                 = useState<'stops' | 'bubi' | 'co2' | 'alerts'>('stops');
+  const [tab, setTab]                 = useState<'stops' | 'bubi' | 'co2' | 'alerts' | 'map'>('stops');
   const coordsReady                   = !geocoding && (realLat !== 47.4979 || realLon !== 19.0402 || lat !== undefined);
   const firstLoad                     = useRef(true);
 
@@ -545,6 +550,7 @@ export default function TransportPanel({ lat, lon, buildingAddress }: TransportP
           ['bubi',   <Bike size={10} key="k" />,         'Bubi'],
           ['alerts', <AlertTriangle size={10} key="a" />, alertCount > 0 ? `Riasztás (${alertCount})` : 'Riasztás'],
           ['co2',    <Leaf size={10} key="l" />,         'CO₂'],
+          ['map',    <Map size={10} key="m" />,          'Térkép'],
         ] as const).map(([id, icon, label]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[9px] font-black transition-all ${
@@ -620,12 +626,27 @@ export default function TransportPanel({ lat, lon, buildingAddress }: TransportP
       {/* ── CO₂ tab ───────────────────────────────────────────────────── */}
       {tab === 'co2' && <Co2Calculator />}
 
+      {/* ── Live map tab ──────────────────────────────────────────────── */}
+      {tab === 'map' && (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">
+            Élő járattérkép
+          </p>
+          <TransitLiveMap lat={realLat} lon={realLon} stops={stops} />
+          <p className="text-[8px] text-slate-700 leading-relaxed px-0.5">
+            Megállók és járatok 1 km-en belül · 15 másodpercenként frissül · © OpenStreetMap
+          </p>
+        </div>
+      )}
+
       {/* Data source + last update */}
       <div className="flex items-center justify-between border-t border-white/[0.05] pt-2">
         <p className="text-[8px] text-slate-700">
-          {data.source === 'futar'    ? '🟢 BKK Futár GTFS valósidejű'
-          : data.source === 'overpass' ? '🟡 OpenStreetMap (Overpass)'
-          : '🔴 Offline minta adatok'}
+          {data.source === 'futar'
+            ? '🟢 BKK Futár valósidejű'
+            : data.source === 'overpass'
+              ? '🟡 OpenStreetMap (Overpass)'
+              : '🔴 BKK API nem elérhető — minta megállók'}
         </p>
         <p className="text-[8px] text-slate-700">
           {coordsReady && lat !== undefined
