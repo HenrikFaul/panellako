@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { parseAlerts } from '@/lib/gtfs-rt-parser';
 import { saveAlertsToCache } from '@/lib/transit-cache';
 import {
@@ -25,6 +25,15 @@ function isAuthorized(request: NextRequest): boolean {
     (CRON_SECRET  !== '' && token === CRON_SECRET)  ||
     (SYNC_SECRET  !== '' && token === SYNC_SECRET)
   );
+}
+
+// ─── Supabase service-role client (bypasses RLS — safe for cron context) ──────
+
+function createServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+  return createSupabaseClient(url, key, { auth: { persistSession: false } });
 }
 
 // ─── BKK API config ───────────────────────────────────────────────────────────
@@ -180,7 +189,7 @@ async function syncStopsRoutesCell(cellIndex: number): Promise<StopRouteSyncResu
   // Courtesy delay before returning (good API citizen)
   await new Promise(resolve => setTimeout(resolve, 300));
 
-  const supabase = createClient();
+  const supabase = createServiceClient();
 
   // Upsert in dependency order: routes first, then stops, then pairs
   await upsertTransitRoutes(supabase, routeRows);
@@ -203,7 +212,7 @@ interface BuildingStopsSyncResult {
 }
 
 async function syncBuildingStops(): Promise<BuildingStopsSyncResult> {
-  const supabase = createClient();
+  const supabase = createServiceClient();
 
   const { data: buildings, error } = await supabase
     .from('buildings')
@@ -231,7 +240,7 @@ async function syncBuildingStops(): Promise<BuildingStopsSyncResult> {
       chunk.map(async (building) => {
         try {
           const stops: NearbyStop[] | null = await loadNearbyStops(
-            createClient(),
+            createServiceClient(),
             building.lat,
             building.lon,
             700,
@@ -243,7 +252,7 @@ async function syncBuildingStops(): Promise<BuildingStopsSyncResult> {
           }
 
           await upsertBuildingStops(
-            createClient(),
+            createServiceClient(),
             building.id,
             stops.map(s => ({ stop_id: s.id, distance_m: s.distanceM })),
           );
@@ -300,7 +309,7 @@ async function syncAlerts(): Promise<AlertsSyncResult> {
     url:             a.url,
   }));
 
-  const supabase = createClient();
+  const supabase = createServiceClient();
 
   await upsertCatalogAlerts(supabase, alerts);
 
@@ -319,7 +328,17 @@ async function handleRequest(request: NextRequest): Promise<NextResponse> {
   }
 
   const { searchParams } = request.nextUrl;
-  const action = searchParams.get('action') ?? 'stops-routes';
+  let action = searchParams.get('action') ?? '';
+
+  // For manual POST testing: fall back to reading action from JSON body
+  if (!action && request.method === 'POST') {
+    try {
+      const body = await request.clone().json() as { action?: string };
+      action = body?.action ?? '';
+    } catch { /* ignore parse errors */ }
+  }
+
+  if (!action) action = 'stops-routes';
 
   try {
     if (action === 'stops-routes') {
