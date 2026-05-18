@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // ─── Overpass API — Budapest cycling infrastructure ───────────────────────────
 // Cached for 60 minutes server-side (route data changes rarely).
@@ -37,7 +37,7 @@ function classifyWay(tags: Record<string, string>): CyclingFeature['type'] {
 }
 
 // ─── GET handler ──────────────────────────────────────────────────────────────
-export async function GET(_req: NextRequest) {
+export async function GET(): Promise<NextResponse> {
   if (_cache && _cache.expires > Date.now()) {
     return NextResponse.json(_cache.data);
   }

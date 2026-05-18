@@ -159,6 +159,7 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
 
         mapRef.current = map;
         // Ensure tiles render correctly after any CSS layout change
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setTimeout(() => { if (mapRef.current) (mapRef.current as any).invalidateSize(); }, 300);
         setMapReady(true);
       })();
