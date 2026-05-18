@@ -77,69 +77,87 @@ function aqiLabel(aqi: number): string {
   return 'Veszélyes';
 }
 
-// ─── Premium SVG markers ──────────────────────────────────────────────────────
+// ─── Professional monitoring station markers ──────────────────────────────────
+// Design: vertical pole + stacked radiation-shield discs + anemometer arm,
+// inspired by real-world air quality / meteorological monitoring masts.
 const AQI_MAP_CSS = `
 .aqi-station-pin { background:none!important; border:none!important; }
-@keyframes aq-beacon-pulse {
-  0%,100% { opacity:0.30; transform:scale(1); }
-  50%      { opacity:0.08; transform:scale(1.35); }
-}
-.aq-beacon-ring {
-  animation: aq-beacon-pulse 3.2s ease-in-out infinite;
-  transform-box: fill-box;
-  transform-origin: center;
-}
 @keyframes aq-low-conf {
-  0%,100% { opacity:0.55; }
-  50%      { opacity:0.25; }
+  0%,100% { opacity:0.60; }
+  50%      { opacity:0.28; }
 }
-.aq-low-conf-ring { animation: aq-low-conf 2s ease-in-out infinite; }
+.aq-low-conf-blink { animation: aq-low-conf 2.2s ease-in-out infinite; }
 `;
 
-// Premium "air quality sensor beacon" marker for live stations
-function beaconMarkerSvg(aqi: number, color: string, confidence: StationValidation['confidence']): string {
-  const isLive = true;
-  const textSize = aqi >= 100 ? 9 : 11;
-  const glowStr  = `drop-shadow(0 0 ${isLive ? 9 : 5}px ${color}${confidence === 'high' ? '70' : '40'})`;
-  // Confidence indicator dot (top-right corner)
+// Live station: disc-stack sensor mast with AQI readout
+function stationMarkerSvg(aqi: number, color: string, confidence: StationValidation['confidence']): string {
+  const ts  = aqi >= 100 ? 8 : 10;
+  const glo = `drop-shadow(0 0 10px ${color}80) drop-shadow(0 0 3px ${color}50)`;
   const confDot = confidence === 'low'
-    ? `<circle cx="35" cy="10" r="4.5" fill="#ef4444" stroke="#060c18" stroke-width="1.5"/><text x="35" y="10" text-anchor="middle" dominant-baseline="central" fill="white" font-size="6" font-weight="900">!</text>`
+    ? `<circle cx="40" cy="5" r="4.5" fill="#ef4444" stroke="#05091a" stroke-width="1.5"/>
+       <text x="40" y="5" text-anchor="middle" dominant-baseline="central" fill="white" font-size="6" font-weight="900">!</text>`
     : confidence === 'medium'
-      ? `<circle cx="35" cy="10" r="4.5" fill="#f97316" stroke="#060c18" stroke-width="1.5"/>`
+      ? `<circle cx="40" cy="5" r="4.5" fill="#f97316" stroke="#05091a" stroke-width="1.5"/>`
       : '';
-  // Signal bars (beacon antenna)
-  const bars = `
-    <line x1="22" y1="9" x2="22" y2="4.5" stroke="${color}" stroke-width="2" stroke-linecap="round" opacity="0.85"/>
-    <circle cx="22" cy="3.5" r="1.8" fill="${color}" opacity="0.9"/>
-    <line x1="18.5" y1="8" x2="18.5" y2="5.5" stroke="${color}" stroke-width="1.2" stroke-linecap="round" opacity="0.45"/>
-    <line x1="25.5" y1="8" x2="25.5" y2="5.5" stroke="${color}" stroke-width="1.2" stroke-linecap="round" opacity="0.45"/>
-  `;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44" style="filter:${glowStr};overflow:visible">
-    <circle cx="22" cy="22" r="21" fill="none" stroke="${color}" stroke-width="1.2" class="aq-beacon-ring"/>
-    <circle cx="22" cy="22" r="17" fill="${color}" fill-opacity="0.12"/>
-    <circle cx="22" cy="22" r="13" fill="${color}" fill-opacity="0.92" stroke="rgba(255,255,255,0.22)" stroke-width="1.5"/>
-    <circle cx="22" cy="22" r="8"  fill="rgba(255,255,255,0.12)"/>
-    ${bars}
-    <text x="22" y="22" text-anchor="middle" dominant-baseline="central" fill="white" font-weight="900" font-size="${textSize}" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">${aqi}</text>
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="54" viewBox="0 0 44 54" style="filter:${glo};overflow:visible">
+    <!-- Vertical mast pole -->
+    <rect x="20.5" y="4" width="2.5" height="44" fill="${color}" fill-opacity="0.72" rx="1.25"/>
+    <!-- Base mount plate -->
+    <rect x="13" y="46" width="17" height="3.5" fill="${color}" fill-opacity="0.55" rx="1.75"/>
+    <!-- Lower radiation shield disc -->
+    <ellipse cx="21.75" cy="36" rx="10.5" ry="3.5" fill="${color}" fill-opacity="0.45"/>
+    <!-- Main sensor body — largest disc, shows AQI -->
+    <ellipse cx="21.75" cy="26" rx="14.5" ry="5" fill="${color}" fill-opacity="0.90" stroke="rgba(255,255,255,0.20)" stroke-width="1.2"/>
+    <!-- AQI value -->
+    <text x="21.75" y="26" text-anchor="middle" dominant-baseline="central" fill="white"
+      font-weight="900" font-size="${ts}" font-family="ui-monospace,SFMono-Regular,'Courier New',monospace">${aqi}</text>
+    <!-- Upper shield disc -->
+    <ellipse cx="21.75" cy="16" rx="10.5" ry="3.5" fill="${color}" fill-opacity="0.60"/>
+    <!-- Top cap -->
+    <ellipse cx="21.75" cy="8"  rx="5.5"  ry="2.2" fill="${color}" fill-opacity="0.78"/>
+    <!-- Anemometer arm (left side) -->
+    <line x1="7" y1="11" x2="20.5" y2="11" stroke="${color}" stroke-width="1.8"
+      stroke-linecap="round" stroke-opacity="0.78"/>
+    <!-- Cup upward -->
+    <path d="M7,11 C3.5,9 4,5.5 7,4.5 C8.2,7 8.2,9.5 7,11Z" fill="${color}" fill-opacity="0.80"/>
+    <!-- Cup downward -->
+    <path d="M7,11 C3.5,13 4,16.5 7,17.5 C8.2,15 8.2,12.5 7,11Z" fill="${color}" fill-opacity="0.80"/>
+    <!-- Anemometer pivot dot -->
+    <circle cx="7" cy="11" r="1.5" fill="${color}"/>
     ${confDot}
   </svg>`;
 }
 
-// Elegant sensor beacon for fallback / no-AQI stations
-// High-confidence → blue, medium → amber, low → red (dimmer + slow blink)
+// Offline/fallback station: same mast design, no AQI, colour = confidence tier
 function sensorDotSvg(confidence: StationValidation['confidence']): string {
   const color = confidence === 'high' ? '#60a5fa' : confidence === 'medium' ? '#fbbf24' : '#f87171';
-  const alpha = confidence === 'low' ? '0.55' : '0.85';
-  const cls   = confidence === 'low' ? ' class="aq-low-conf-ring"' : '';
-  const glow  = `drop-shadow(0 0 7px ${color}70)`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28" style="filter:${glow};overflow:visible;opacity:${alpha}">
-    <circle cx="14" cy="14" r="12" fill="${color}" fill-opacity="0.18" stroke="${color}" stroke-width="1.5" stroke-opacity="0.65"${cls}/>
-    <circle cx="14" cy="14" r="7"  fill="${color}" fill-opacity="0.88"/>
-    <circle cx="14" cy="14" r="3"  fill="rgba(255,255,255,0.58)"/>
-    <line x1="14" y1="2"   x2="14" y2="7"   stroke="${color}" stroke-width="1.8" stroke-linecap="round"/>
-    <circle cx="14" cy="1.5" r="1.8" fill="${color}"/>
-    <line x1="10.5" y1="4.5" x2="10.5" y2="7" stroke="${color}" stroke-width="1.1" stroke-linecap="round" opacity="0.5"/>
-    <line x1="17.5" y1="4.5" x2="17.5" y2="7" stroke="${color}" stroke-width="1.1" stroke-linecap="round" opacity="0.5"/>
+  const alpha = confidence === 'low' ? '0.58' : '0.92';
+  const cls   = confidence === 'low' ? ' class="aq-low-conf-blink"' : '';
+  const glo   = `drop-shadow(0 0 7px ${color}65)`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="40" viewBox="0 0 30 40"
+      style="filter:${glo};overflow:visible;opacity:${alpha}"${cls}>
+    <!-- Mast pole -->
+    <rect x="14" y="3" width="2" height="32" fill="${color}" fill-opacity="0.70" rx="1"/>
+    <!-- Base -->
+    <rect x="8" y="34" width="14" height="3" fill="${color}" fill-opacity="0.50" rx="1.5"/>
+    <!-- Lower disc -->
+    <ellipse cx="15" cy="27" rx="7.5"  ry="2.5" fill="${color}" fill-opacity="0.45"/>
+    <!-- Main body disc -->
+    <ellipse cx="15" cy="20" rx="10.5" ry="3.5" fill="${color}" fill-opacity="0.88"
+      stroke="rgba(255,255,255,0.18)" stroke-width="0.8"/>
+    <!-- Upper disc -->
+    <ellipse cx="15" cy="13" rx="7.5"  ry="2.5" fill="${color}" fill-opacity="0.62"/>
+    <!-- Top cap -->
+    <ellipse cx="15" cy="6"  rx="4.5"  ry="1.8" fill="${color}" fill-opacity="0.75"/>
+    <!-- Anemometer arm -->
+    <line x1="5" y1="8" x2="14" y2="8" stroke="${color}" stroke-width="1.4"
+      stroke-linecap="round" stroke-opacity="0.75"/>
+    <!-- Cup up -->
+    <path d="M5,8 C2.5,6.5 3,4 5,3 C6,5 6,7 5,8Z" fill="${color}" fill-opacity="0.75"/>
+    <!-- Cup down -->
+    <path d="M5,8 C2.5,9.5 3,12 5,13 C6,11 6,9 5,8Z" fill="${color}" fill-opacity="0.75"/>
+    <!-- Anemometer pivot -->
+    <circle cx="5" cy="8" r="1.2" fill="${color}"/>
   </svg>`;
 }
 
@@ -444,9 +462,9 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
           const color  = aqiColor(st.aqi);
           const marker = L.marker([st.lat, st.lon], {
             icon: L.divIcon({
-              html:      beaconMarkerSvg(st.aqi, color, conf),
+              html:      stationMarkerSvg(st.aqi, color, conf),
               className: 'aqi-station-pin',
-              iconSize:  [44, 44], iconAnchor: [22, 22],
+              iconSize:  [44, 54], iconAnchor: [22, 50],
             }),
             zIndexOffset: conf === 'high' ? 100 : conf === 'medium' ? 50 : 0,
           }).bindTooltip(stationTooltip(st), { sticky: true, direction: 'top' });
@@ -461,7 +479,7 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
             icon: L.divIcon({
               html:      sensorDotSvg(conf),
               className: 'aqi-station-pin',
-              iconSize:  [28, 28], iconAnchor: [14, 14],
+              iconSize:  [30, 40], iconAnchor: [15, 37],
             }),
           }).bindTooltip(stationTooltip(st), { sticky: true, direction: 'top' });
           marker.on('click', () => setSelectedStation(st));

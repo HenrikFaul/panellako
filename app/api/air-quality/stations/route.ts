@@ -151,17 +151,17 @@ function validateStation(lat: number, lon: number, stationName: string): Station
 // Negative UIDs signal these are fallback markers (no live AQI value).
 // validation is populated at runtime via validateStation(); placeholders here satisfy TS.
 const _OLM_RAW: Omit<AQIStation, 'validation'>[] = [
-  // Budapest OLM network — coordinates verified against official OLM network maps
-  { uid: -1,  stationName: 'Budapest, Gilice tér',         lat: 47.4271, lon: 19.0912, aqi: null }, // dist XXIII, Soroksár (east bank)
-  { uid: -2,  stationName: 'Budapest, Széna tér',          lat: 47.5083, lon: 19.0228, aqi: null }, // dist II, Széll Kálmán tér (Buda)
-  { uid: -3,  stationName: 'Budapest, Teleki tér',         lat: 47.4940, lon: 19.0730, aqi: null }, // dist VIII, Józsefváros
-  { uid: -4,  stationName: 'Budapest, Pesthidegkút',       lat: 47.5533, lon: 18.9561, aqi: null }, // dist II, Buda hills
+  // Budapest OLM network — coordinates from official OLM network (olm.levegoszalon.hu)
+  { uid: -1,  stationName: 'Budapest, Gilice tér',         lat: 47.4300, lon: 19.1811, aqi: null }, // dist XVIII, Pestlőrinc
+  { uid: -2,  stationName: 'Budapest, Széna tér',          lat: 47.5075, lon: 19.0231, aqi: null }, // dist II, Széll Kálmán tér
+  { uid: -3,  stationName: 'Budapest, Teleki tér',         lat: 47.4941, lon: 19.0729, aqi: null }, // dist VIII, Józsefváros
+  { uid: -4,  stationName: 'Budapest, Pesthidegkút',       lat: 47.5877, lon: 18.9609, aqi: null }, // dist II, Buda hills
   { uid: -5,  stationName: 'Budapest, Káposztásmegyer',    lat: 47.5989, lon: 19.0671, aqi: null }, // dist XV, north Pest
   { uid: -6,  stationName: 'Budapest, Kőrakás park',       lat: 47.5380, lon: 19.0510, aqi: null }, // dist III, Óbuda
-  { uid: -7,  stationName: 'Budapest, Kosztolányi D. tér', lat: 47.4672, lon: 18.9958, aqi: null }, // dist XI, south Buda
-  { uid: -8,  stationName: 'Budapest, Honvéd telep',       lat: 47.4290, lon: 19.0990, aqi: null }, // dist XXI, Csepel
+  { uid: -7,  stationName: 'Budapest, Kosztolányi D. tér', lat: 47.4748, lon: 19.0409, aqi: null }, // dist XI, Budafok-Tétény
+  { uid: -8,  stationName: 'Budapest, Honvéd telep',       lat: 47.5227, lon: 19.0699, aqi: null }, // dist XXI, Csepel (OLM data)
   { uid: -9,  stationName: 'Budapest, Erzsébet tér',       lat: 47.4979, lon: 19.0522, aqi: null }, // dist V, inner Pest
-  { uid: -10, stationName: 'Budapest, Gergely utca',       lat: 47.4753, lon: 19.0771, aqi: null }, // dist IX, Ferencváros
+  { uid: -10, stationName: 'Budapest, Gergely utca',       lat: 47.4670, lon: 19.1572, aqi: null }, // dist X, Kőbánya
   { uid: -11, stationName: 'Budapest, Budatétény',         lat: 47.4083, lon: 18.9667, aqi: null }, // dist XXII, south-west Buda
   { uid: -12, stationName: 'Budapest, Csepel',             lat: 47.4235, lon: 19.0657, aqi: null }, // dist XXI, Csepel island
   // Major Hungarian cities
