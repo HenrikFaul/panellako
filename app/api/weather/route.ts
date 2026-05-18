@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 
 // Open-Meteo — free, no API key needed, WMO weather codes
 // Budapest, 1134 Gidófalvy Lajos utca 9

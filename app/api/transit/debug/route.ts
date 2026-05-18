@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 
 // Temporary debug endpoint — removes itself from production by checking env.
 // Tests BKK Futár API connectivity and response shapes.

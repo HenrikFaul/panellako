@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 
 const AQICN_TOKEN = process.env.AQICN_API_TOKEN ?? 'demo';
 

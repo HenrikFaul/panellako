@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 
 // ─── In-memory cache: address text → coordinates (24h TTL) ───────────────────
 interface GeoEntry { lat: number; lon: number; expires: number; }
