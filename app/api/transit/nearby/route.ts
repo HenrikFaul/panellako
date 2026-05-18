@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { loadStopsFromCache, saveStopsToCache } from '@/lib/transit-cache';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type RouteType = 'SUBWAY' | 'TRAM' | 'TROLLEYBUS' | 'BUS' | 'RAIL' | 'FERRY' | 'CABLE_CAR';
@@ -36,7 +38,7 @@ export interface TransitNearbyResult {
   stops:     NearbyStop[];
   bubi:      BubiStation[];
   coverage:  CoverageScore;
-  source:    'futar' | 'overpass' | 'mock';
+  source:    'futar' | 'overpass' | 'mock' | 'db';
   fetchedAt: string;
 }
 
@@ -291,13 +293,34 @@ function getMockResult(lat: number, lon: number): TransitNearbyResult {
 // ─── Main handler ─────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const lat = parseFloat(searchParams.get('lat') ?? '47.4979');
-  const lon = parseFloat(searchParams.get('lon') ?? '19.0402');
+  const lat        = parseFloat(searchParams.get('lat') ?? '47.4979');
+  const lon        = parseFloat(searchParams.get('lon') ?? '19.0402');
+  const buildingId = searchParams.get('buildingId') ?? null;
 
-  // 5-min TTL cache, per location
-  if (_cache && _cache.expires > Date.now() &&
+  // 5-min TTL in-memory cache (used when no buildingId is provided)
+  if (!buildingId && _cache && _cache.expires > Date.now() &&
       Math.abs(_cache.lat - lat) < 0.001 && Math.abs(_cache.lon - lon) < 0.001) {
     return NextResponse.json(_cache.data);
+  }
+
+  // ── DB cache check (only when buildingId is provided) ────────────────────
+  if (buildingId) {
+    try {
+      const cached = await loadStopsFromCache(createClient(), buildingId);
+      if (cached) {
+        const bubi = await fetchBubi(lat, lon).catch(() => []);
+        const result: TransitNearbyResult = {
+          stops:     cached,
+          bubi,
+          coverage:  computeCoverage(cached),
+          source:    'db',
+          fetchedAt: new Date().toISOString(),
+        };
+        return NextResponse.json(result);
+      }
+    } catch (cacheErr) {
+      console.warn('[transit/nearby] DB cache read failed:', cacheErr);
+    }
   }
 
   let stops: NearbyStop[] = [];
@@ -322,6 +345,12 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Fire-and-forget: persist stops to DB cache for this building
+  if (buildingId && stops.length > 0) {
+    void saveStopsToCache(createClient(), buildingId, stops)
+      .catch(e => console.warn('[transit/nearby] DB cache save failed:', e));
+  }
+
   bubi = await fetchBubi(lat, lon).catch(() => []);
 
   const result: TransitNearbyResult = {
@@ -329,6 +358,8 @@ export async function GET(request: NextRequest) {
     fetchedAt: new Date().toISOString(),
   };
 
-  _cache = { data: result, lat, lon, expires: Date.now() + 5 * 60 * 1000 };
+  if (!buildingId) {
+    _cache = { data: result, lat, lon, expires: Date.now() + 5 * 60 * 1000 };
+  }
   return NextResponse.json(result);
 }

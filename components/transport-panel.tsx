@@ -407,11 +407,12 @@ interface TransportPanelProps {
   lat?:             number;
   lon?:             number;
   buildingAddress?: string;
+  buildingId?:      string;
 }
 
 const REFRESH_INTERVAL_MS = 30_000;  // 30 seconds
 
-export default function TransportPanel({ lat, lon, buildingAddress }: TransportPanelProps) {
+export default function TransportPanel({ lat, lon, buildingAddress, buildingId }: TransportPanelProps) {
   const { lat: realLat, lon: realLon, geocoding } = useGeocoordinate(lat, lon, buildingAddress);
 
   const [data, setData]               = useState<TransitNearbyResult | null>(null);
@@ -434,8 +435,9 @@ export default function TransportPanel({ lat, lon, buildingAddress }: TransportP
     }
 
     try {
+      const nearbyUrl = `/api/transit/nearby?lat=${realLat}&lon=${realLon}${buildingId ? `&buildingId=${encodeURIComponent(buildingId)}` : ''}`;
       const [nearbyRes, alertsRes] = await Promise.allSettled([
-        fetch(`/api/transit/nearby?lat=${realLat}&lon=${realLon}`).then(r => r.json()),
+        fetch(nearbyUrl).then(r => r.json()),
         fetch('/api/transit/alerts').then(r => r.json()),
       ]);
 
@@ -454,7 +456,7 @@ export default function TransportPanel({ lat, lon, buildingAddress }: TransportP
       firstLoad.current = false;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [realLat, realLon]);
+  }, [realLat, realLon, buildingId]);
 
   // Initial load + coordinate changes
   useEffect(() => {
@@ -638,7 +640,9 @@ export default function TransportPanel({ lat, lon, buildingAddress }: TransportP
               ? '🟢 BKK Futár valósidejű'
               : data.source === 'overpass'
                 ? '🟡 OpenStreetMap'
-                : '🔴 BKK API nem elérhető'}
+                : data.source === 'db'
+                  ? '🔵 DB cache aktív'
+                  : '🔴 BKK API nem elérhető'}
           </p>
           <p className="text-[8px] text-slate-700">
             {coordsReady && lat !== undefined ? '📍 Valós helyszín'

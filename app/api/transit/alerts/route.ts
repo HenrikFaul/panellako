@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { loadAlertsFromCache, saveAlertsToCache } from '@/lib/transit-cache';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type AlertEffect =
@@ -126,9 +128,25 @@ function alertSeverity(effect: AlertEffect): AlertSeverity {
 export async function GET() {
   const now = Date.now();
 
+  // In-memory cache (fastest path)
   if (_cache && _cache.expires > now) {
     const ageMs = now - new Date(_cache.data.fetchedAt).getTime();
     return NextResponse.json({ ..._cache.data, stale: ageMs > STALE_AGE_MS });
+  }
+
+  // DB cache (second-fastest path — avoids BKK round-trip within 5-min window)
+  try {
+    const dbAlerts = await loadAlertsFromCache(createClient());
+    if (dbAlerts) {
+      const result: AlertsResult = {
+        alerts: dbAlerts, fetchedAt: new Date().toISOString(), source: 'futar', stale: false,
+      };
+      // Warm the in-memory cache too
+      _cache = { data: result, expires: now + CACHE_TTL_MS };
+      return NextResponse.json(result);
+    }
+  } catch (dbErr) {
+    console.warn('[transit/alerts] DB cache read failed:', dbErr);
   }
 
   try {
@@ -137,6 +155,9 @@ export async function GET() {
       alerts, fetchedAt: new Date().toISOString(), source: 'futar', stale: false,
     };
     _cache = { data: result, expires: now + CACHE_TTL_MS };
+    // Fire-and-forget: persist to DB cache
+    void saveAlertsToCache(createClient(), alerts)
+      .catch(e => console.warn('[transit/alerts] DB cache save failed:', e));
     return NextResponse.json(result);
   } catch (err) {
     console.warn('[transit/alerts] Futár failed:', err);
