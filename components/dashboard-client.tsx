@@ -60,7 +60,6 @@ import { sendContactMessage } from '@/app/actions/contact';
 import type { ContactSubject } from '@/app/actions/contact';
 import WeatherWidget from '@/components/weather-widget';
 import AirQualityWidget from '@/components/air-quality-widget';
-import AirQualitySection from '@/components/air-quality-section';
 import EnergyDashboard from '@/components/energy-dashboard';
 import TransportPanel from '@/components/transport-panel';
 
@@ -137,7 +136,7 @@ const navigation = [
   { href: '#finances', label: 'Pénzügyek', icon: CircleDollarSign },
   { href: '#meters', label: 'Mérőórák', icon: Gauge },
   { href: '#transport', label: 'Közlekedés', icon: Bus },
-  { href: '#air-quality', label: 'Levegőminőség', icon: Wind },
+  { href: `#kornyezet-link`, label: 'Levegő & Kerékpár', icon: Wind },
   { href: '#meetings', label: 'Közgyűlések', icon: CalendarDays },
   { href: '#knowledge', label: 'Tudásbázis', icon: BookOpen },
   { href: '#audit', label: 'Audit napló', icon: ShieldCheck }
@@ -790,7 +789,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     { href: '#finances', label: 'Pénzügyek', icon: CircleDollarSign, count: arrears > 0 ? 1 : 0, critical: arrears > 100000 ? 1 : 0 },
     { href: '#meters', label: 'Mérőórák', icon: Gauge, count: 0, critical: 0 },
     { href: '#transport', label: 'Közlekedés', icon: Bus, count: 0, critical: 0 },
-    { href: '#air-quality', label: 'Levegőminőség', icon: Wind, count: 0, critical: 0 },
+    { href: `/w/${data.buildingId}/kornyezet`, label: 'Levegő & Kerékpár', icon: Wind, count: 0, critical: 0 },
     { href: '#meetings', label: 'Közgyűlések', icon: CalendarDays, count: upcomingMeetings, critical: 0 },
     { href: '#knowledge', label: 'Tudásbázis', icon: BookOpen, count: 0, critical: 0 },
     ...(isAdminLike ? [{ href: '#audit', label: 'Audit napló', icon: ShieldCheck, count: 0, critical: 0 }] : []),
@@ -2271,11 +2270,25 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             />
           </SectionCard>
 
-          <AirQualitySection
-            buildingLat={data.buildingLat}
-            buildingLon={data.buildingLon}
-            buildingAddress={data.buildingAddress}
-          />
+          {/* Environment deep-link card */}
+          <a
+            id="kornyezet-link"
+            href={`/w/${data.buildingId}/kornyezet`}
+            className="group flex items-center justify-between gap-4 overflow-hidden rounded-[2rem] border border-slate-200/60 bg-white px-6 py-5 shadow-card-md transition-shadow hover:shadow-card-lg"
+          >
+            <div className="flex items-center gap-4">
+              <div className="rounded-2xl bg-sky-50 p-3">
+                <Wind size={22} className="text-sky-500" />
+              </div>
+              <div>
+                <p className="text-sm font-black text-slate-900">Levegőminőség és kerékpárutak</p>
+                <p className="text-xs text-slate-500">AQI, OLM hőtérkép, kerékpáros infrastruktúra térkép</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-bold text-brand-600 group-hover:text-brand-700">
+              Megnyitás →
+            </div>
+          </a>
         </main>
       </div>
 
