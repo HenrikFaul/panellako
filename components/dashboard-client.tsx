@@ -508,6 +508,136 @@ function numberOrZero(value: number | string | null | undefined) {
   return Number(value ?? 0);
 }
 
+// ─── Panel skyline illustration · v1 "champagne hour" ─────────────────────────
+// Drop-in replacement for the existing PanelSkylineSvg function inside
+// components/dashboard-client.tsx in HenrikFaul/panellako.
+//
+// HOW TO APPLY
+//   1. Open components/dashboard-client.tsx in the panellako repo.
+//   2. Find the existing  `function PanelSkylineSvg() { ... }`  block
+//      (search for: PanelSkylineSvg).
+//   3. Replace the whole function body with the one below.
+//      No imports change; nothing else needs to move.
+//   4. Commit + push + redeploy on Vercel.
+//
+// VISUAL CHANGE
+//   - Sky: navy / amber-horizon  →  magenta → gold sunset gradient
+//   - Buildings: gain a copper rim-light on their right edge
+//   - Windows: warmer + a few more lit
+//   - Ground line: copper instead of dim orange
+//
+// No behavioural change, no new dependencies. Pure swap of <svg> contents.
+// ────────────────────────────────────────────────────────────────────────────
+
+function PanelSkylineSvg() {
+  type Building = { x: number; top: number; w: number; h: number; cols: number; rows: number };
+  const buildings: Building[] = [
+    { x: 4,   top: 29, w: 86,  h: 89,  cols: 4, rows: 6 },
+    { x: 94,  top: 3,  w: 122, h: 115, cols: 6, rows: 8 },
+    { x: 220, top: 16, w: 104, h: 102, cols: 5, rows: 7 },
+    { x: 328, top: 42, w: 86,  h: 76,  cols: 4, rows: 5 },
+  ];
+  const GROUND = 118;
+  const winW = 12; const winH = 8;
+  const gapX = 6;  const gapY = 5;
+  const padX = 10; const padTop = 10;
+
+  const windows = buildings.flatMap((b, bi) =>
+    Array.from({ length: b.rows }, (_, r) =>
+      Array.from({ length: b.cols }, (_, c) => {
+        // Champagne-hour palette: more windows lit, biased warm.
+        const seed = bi * 37 + r * 17 + c * 11;
+        const lit  = seed % 10 < 7;                // ~70% lit (was ~60%)
+        const warm = (seed * 3) % 10 < 8;          // ~80% warm (was ~50%)
+        const wx   = b.x + padX + c * (winW + gapX);
+        const wy   = b.top + padTop + r * (winH + gapY);
+        return { wx, wy, lit, warm };
+      })
+    ).flat()
+  );
+
+  return (
+    <svg
+      viewBox="0 0 418 120"
+      xmlns="http://www.w3.org/2000/svg"
+      className="w-full h-full"
+      preserveAspectRatio="xMidYMid meet"
+      aria-hidden="true"
+    >
+      <defs>
+        {/* Sunset sky: dark plum → magenta → copper → champagne */}
+        <linearGradient id="sky-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="#241634" />
+          <stop offset="40%"  stopColor="#5b2a3d" />
+          <stop offset="75%"  stopColor="#b46437" />
+          <stop offset="100%" stopColor="#f3c98c" />
+        </linearGradient>
+
+        {/* Soft setting sun, hugging the horizon */}
+        <radialGradient id="sun-glow" cx="55%" cy="115%" r="35%">
+          <stop offset="0%"   stopColor="#fff3d6" stopOpacity="1" />
+          <stop offset="60%"  stopColor="#f9b76c" stopOpacity="0.45" />
+          <stop offset="100%" stopColor="#f9b76c" stopOpacity="0" />
+        </radialGradient>
+
+        {/* Buildings stay near-black, slightly cooler at the base */}
+        <linearGradient id="bld-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="#10182a" />
+          <stop offset="100%" stopColor="#070a14" />
+        </linearGradient>
+
+        {/* Copper rim light hitting the right edge of each building */}
+        <linearGradient id="rim" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stopColor="#f9b76c" stopOpacity="0" />
+          <stop offset="100%" stopColor="#f9b76c" stopOpacity="0.65" />
+        </linearGradient>
+      </defs>
+
+      {/* Sky */}
+      <rect width="418" height="120" fill="url(#sky-grad)" />
+      {/* Sun glow on horizon */}
+      <ellipse cx="230" cy="138" rx="200" ry="48" fill="url(#sun-glow)" />
+      {/* Two faint cloud bands */}
+      <rect x="0" y="60" width="418" height="1"   fill="#f9b76c" fillOpacity="0.18" />
+      <rect x="0" y="78" width="418" height="1.5" fill="#f9b76c" fillOpacity="0.12" />
+
+      {/* Single bright star (Venus) — calmer than the original star field */}
+      <circle cx="362" cy="18" r="3"   fill="#fffcf0" fillOpacity="0.15" />
+      <circle cx="362" cy="18" r="1.4" fill="#fffcf0" />
+
+      {/* Buildings + copper rim on the right edge of each */}
+      {buildings.map((b, bi) => (
+        <g key={`bld-${bi}`}>
+          <rect
+            x={b.x} y={b.top} width={b.w} height={GROUND - b.top}
+            fill="url(#bld-grad)" rx="2"
+          />
+          <rect
+            x={b.x + b.w - 1.5} y={b.top}
+            width="1.5" height={GROUND - b.top}
+            fill="url(#rim)"
+          />
+        </g>
+      ))}
+
+      {/* Horizon line — copper */}
+      <rect x="0" y={GROUND} width="418" height="2" fill="#f9b76c" fillOpacity="0.55" />
+
+      {/* Windows */}
+      {windows.map(({ wx, wy, lit, warm }, i) => (
+        <rect
+          key={`w-${i}`}
+          x={wx} y={wy} width={winW} height={winH}
+          rx="1"
+          fill={lit ? (warm ? '#f7c873' : '#7fb6e8') : '#0a0f1c'}
+          fillOpacity={lit ? (warm ? 0.92 : 0.55) : 0.6}
+        />
+      ))}
+    </svg>
+  );
+}
+
+   {/* 
 // ─── Panel skyline illustration ───────────────────────────────────────────────
 function PanelSkylineSvg() {
   type Building = { x: number; top: number; w: number; h: number; cols: number; rows: number };
@@ -596,7 +726,7 @@ function PanelSkylineSvg() {
     </svg>
   );
 }
-
+*/}
 function SectionCard({ id, title, icon, children, action, className, note }: { id?: string; title: string; icon: ReactNode; children: ReactNode; action?: ReactNode; className?: string; note?: string }) {
   return (
     <section
