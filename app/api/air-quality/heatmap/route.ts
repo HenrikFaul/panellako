@@ -62,19 +62,28 @@ export async function GET() {
   }
 
   try {
-    // Use map/bounds for the Budapest bounding box — more reliable than keyword search
-    const boundsUrl  = `https://api.waqi.info/map/bounds/?latlng=47.35,18.85,47.65,19.25&token=${AQICN_TOKEN}`;
+    // Use map/bounds for Hungary-wide bounding box
+    const boundsUrl  = `https://api.waqi.info/map/bounds/?latlng=45.7,16.1,48.6,22.9&token=${AQICN_TOKEN}`;
     const boundsRes  = await fetch(boundsUrl, { signal: AbortSignal.timeout(8000) });
     if (!boundsRes.ok) throw new Error(`Bounds HTTP ${boundsRes.status}`);
     const boundsJson = await boundsRes.json() as {
       status: string;
-      data: Array<{ uid: number; station: { geo: [number, number] } }>;
+      data: Array<{ uid: number; aqi: string | number; station: { geo: [number, number] } }>;
     };
     if (boundsJson.status !== 'ok') throw new Error(`Bounds status: ${boundsJson.status}`);
 
-    // Take up to 12 station UIDs from within the bounding box
+    // Take up to 30 station UIDs from within Hungary, prefer those with valid AQI
     const uids = (boundsJson.data ?? [])
-      .slice(0, 12)
+      .filter(s => {
+        const [lat, lon] = s.station.geo ?? [0, 0];
+        return lat >= 45.7 && lat <= 48.6 && lon >= 16.1 && lon <= 22.9;
+      })
+      .sort((a, b) => {
+        const aValid = a.aqi !== '-' && a.aqi !== '' && !isNaN(Number(a.aqi));
+        const bValid = b.aqi !== '-' && b.aqi !== '' && !isNaN(Number(b.aqi));
+        return (bValid ? 1 : 0) - (aValid ? 1 : 0);
+      })
+      .slice(0, 30)
       .map(s => s.uid);
 
     if (uids.length === 0) throw new Error('No stations in Budapest bounds');
