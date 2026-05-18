@@ -24,11 +24,15 @@ export interface DepartureBoard {
 interface CacheEntry { data: DepartureBoard; expires: number; }
 const _cache = new Map<string, CacheEntry>();
 
-// BKK Futár OBA-style endpoint (OneBusAway API, documented at opendata.bkk.hu)
-// Key 'apaiary-test' is the official public test key from BKK Apiary docs.
-// Override with BKKFUTAR_API_KEY env var for production registered key.
-const BKK_BASE = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
-const BKK_KEY  = process.env.BKKFUTAR_API_KEY ?? 'apaiary-test';
+const BKK_BASE    = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
+const BKK_KEY     = process.env.BKKFUTAR_API_KEY ?? 'apaiary-test';
+const APP_ORIGIN  = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://panellako.hu').replace(/\/$/, '');
+const BKK_HEADERS = {
+  'Accept':     'application/json',
+  'User-Agent': 'panellako.hu/1.0',
+  'Referer':    `${APP_ORIGIN}/`,
+  'Origin':     APP_ORIGIN,
+};
 
 // GTFS route type → vehicle label
 const GTFS_TYPE_MAP: Record<number, Departure['vehicle']> = {
@@ -52,16 +56,21 @@ async function fetchFutarDepartures(stopId: string): Promise<DepartureBoard> {
   const url = `${BKK_BASE}/arrivals-and-departures-for-stop.json?${params}`;
 
   const res = await fetch(url, {
-    headers: { 'Accept': 'application/json', 'User-Agent': 'panellako.hu/1.0' },
+    headers: BKK_HEADERS,
     signal:  AbortSignal.timeout(8000),
   });
 
-  if (!res.ok) throw new Error(`Futár HTTP ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Futár HTTP ${res.status}: ${body.slice(0, 300)}`);
+  }
 
   const json = await res.json();
 
   // OBA response envelope: { status, currentTime, data: { entry, references } }
-  if (json.status !== 'OK') throw new Error(`Futár status: ${json.status}`);
+  if (json.status !== 'OK') {
+    throw new Error(`Futár status: ${json.status} — ${JSON.stringify(json).slice(0, 300)}`);
+  }
 
   const entry = json?.data?.entry;
   const refs  = json?.data?.references ?? {};
