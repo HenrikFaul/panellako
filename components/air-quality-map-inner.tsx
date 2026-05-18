@@ -31,6 +31,12 @@ function heatOpacity(key: PollutantKey, value: number): number {
   return 0.2 + Math.min(value / POLLUTANTS[key].max, 1) * 0.55;
 }
 
+// Approximate pollutant value from AQI when real per-pollutant data isn't available.
+// Maps AQI 0–300 linearly to 0–max for each pollutant (rough proxy only).
+function syntheticValue(key: PollutantKey, aqi: number): number {
+  return (Math.min(aqi, 300) / 300) * POLLUTANTS[key].max;
+}
+
 function aqiColor(aqi: number): string {
   if (aqi <= 50)  return '#22c55e';
   if (aqi <= 100) return '#eab308';
@@ -98,6 +104,8 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
     const [heatData, setHeatData]               = useState<HeatmapStation[]>([]);
     const [heatLoading, setHeatLoading]         = useState(false);
     const [selectedStation, setSelectedStation] = useState<AQIStation | null>(null);
+    // true when heatmap is drawn from AQI proxy rather than real per-pollutant data
+    const [isSynthetic, setIsSynthetic]         = useState(false);
 
     useImperativeHandle(ref, () => ({
       flyToBuilding: () => {
@@ -114,7 +122,7 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
         .catch(() => setHeatLoading(false));
     }, []);
 
-    // ── Map init — Hungary-wide view, only reruns on building location change ──
+    // ── Map init — Hungary-wide view ──────────────────────────────────────────
     useEffect(() => {
       if (!document.getElementById('aqi-map-css')) {
         const s = document.createElement('style');
@@ -128,7 +136,7 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
         leafletRef.current = L;
 
         const map = L.map(containerRef.current, {
-          center: [47.16, 19.50], zoom: 7,   // Hungary-wide initial view
+          center: [47.16, 19.50], zoom: 7,
           zoomControl: true, attributionControl: true,
         });
 
@@ -137,7 +145,7 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
           maxZoom: 19,
         }).addTo(map);
 
-        // Heatmap pane
+        // Heatmap pane (blurred, non-interactive layer beneath markers)
         map.createPane('heatmap');
         const heatPane = map.getPane('heatmap')!;
         heatPane.style.zIndex        = '300';
@@ -146,7 +154,6 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
         heatLayerRef.current    = L.layerGroup().addTo(map);
         stationLayerRef.current = L.layerGroup().addTo(map);
 
-        // Building marker — high zIndex so it's always on top
         L.marker([buildingLat, buildingLon], {
           icon: L.divIcon({ html: buildingSvg(), className: '', iconSize: [32,32], iconAnchor: [16,16] }),
           zIndexOffset: 2000,
@@ -166,7 +173,7 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [buildingLat, buildingLon]);
 
-    // ── Station markers — update without destroying map ───────────────────────
+    // ── Station markers ───────────────────────────────────────────────────────
     useEffect(() => {
       const L  = leafletRef.current;
       const sl = stationLayerRef.current;
@@ -208,35 +215,49 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
     }, [mapReady, stations]);
 
     // ── Heatmap redraw ────────────────────────────────────────────────────────
+    // Uses real per-pollutant data when available; falls back to AQI-derived
+    // synthetic values so the heatmap always renders even with the demo token.
     useEffect(() => {
       const L         = leafletRef.current;
       const heatLayer = heatLayerRef.current;
       if (!mapReady || !L || !heatLayer) return;
 
       heatLayer.clearLayers();
-      if (!activePollutant || heatData.length === 0) return;
+      if (!activePollutant) { setIsSynthetic(false); return; }
 
-      for (const st of heatData) {
-        const val = (st as unknown as Record<string, number | null>)[activePollutant];
-        if (val === null || val === undefined) continue;
+      // Collect real data points for this pollutant
+      type Pt = { lat: number; lon: number; val: number };
+      const realPts: Pt[] = heatData
+        .map(st => {
+          const raw = (st as unknown as Record<string, number | null>)[activePollutant];
+          return raw !== null && raw !== undefined ? { lat: st.lat, lon: st.lon, val: raw } : null;
+        })
+        .filter((p): p is Pt => p !== null);
+
+      // Fall back to AQI-derived synthetic values from station markers
+      const useSynthetic = realPts.length === 0;
+      const pts: Pt[] = useSynthetic
+        ? stations
+            .filter(st => st.aqi !== null)
+            .map(st => ({ lat: st.lat, lon: st.lon, val: syntheticValue(activePollutant, st.aqi!) }))
+        : realPts;
+
+      setIsSynthetic(useSynthetic);
+
+      for (const { lat, lon, val } of pts) {
         const color   = heatColor(activePollutant, val);
         const opacity = heatOpacity(activePollutant, val);
-
-        // Hungary-scale circles: 40km outer / 20km inner
-        L.circle([st.lat, st.lon], {
+        L.circle([lat, lon], {
           pane: 'heatmap', radius: 40000,
           color: 'transparent', fillColor: color, fillOpacity: opacity, interactive: false,
         }).addTo(heatLayer);
-        L.circle([st.lat, st.lon], {
+        L.circle([lat, lon], {
           pane: 'heatmap', radius: 20000,
           color: 'transparent', fillColor: color, fillOpacity: opacity * 0.8, interactive: false,
         }).addTo(heatLayer);
       }
-    }, [mapReady, activePollutant, heatData]);
-
-    const availableKeys = POLLUTANT_KEYS.filter(k =>
-      heatData.some(s => (s as unknown as Record<string, number | null>)[k] !== null)
-    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mapReady, activePollutant, heatData, stations]);
 
     // Find the closest heatmap station for the selected station detail panel
     const selectedDetail = useMemo<HeatmapStation | null>(() => {
@@ -256,15 +277,16 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
         <div className="relative overflow-hidden rounded-2xl" style={{ height: 460, background: '#060c18' }}>
           <div ref={containerRef} className="absolute inset-0" />
 
-          {/* Active pollutant label */}
-          {activePollutant && !heatLoading && availableKeys.includes(activePollutant) && (
-            <div className="absolute top-2 left-2 z-[1000] rounded-full bg-black/60 backdrop-blur-sm px-3 py-1 text-[9px] font-bold text-slate-300 border border-white/[0.08]">
-              {POLLUTANTS[activePollutant].label} hőtérkép
-            </div>
-          )}
-          {heatLoading && (
-            <div className="absolute top-2 left-2 z-[1000] rounded-full bg-black/60 backdrop-blur-sm px-3 py-1 text-[9px] text-slate-500 border border-white/[0.08]">
-              Adatok betöltése…
+          {/* Active pollutant badge */}
+          {activePollutant && (
+            <div className="absolute top-2 left-2 z-[1000] flex items-center gap-1.5 rounded-full bg-black/70 backdrop-blur-sm px-3 py-1 border border-white/[0.08]">
+              <span className="text-[9px] font-bold text-slate-300">{POLLUTANTS[activePollutant].label} hőtérkép</span>
+              {isSynthetic && (
+                <span className="text-[7px] text-amber-500/80 font-medium">· AQI-alapú becslés</span>
+              )}
+              {heatLoading && (
+                <span className="text-[7px] text-slate-500">· betöltés…</span>
+              )}
             </div>
           )}
 
@@ -278,8 +300,8 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
             Épület
           </button>
 
-          {/* Heatmap legend */}
-          {activePollutant && availableKeys.includes(activePollutant) && (
+          {/* Heatmap legend — always visible when a pollutant is active */}
+          {activePollutant && (
             <div className="absolute bottom-12 right-2 z-[1000] bg-black/70 backdrop-blur-sm rounded-xl p-2.5 border border-white/[0.08] min-w-[110px]">
               <p className="text-[8px] font-bold uppercase text-slate-500 mb-1.5">
                 {POLLUTANTS[activePollutant].label} · {POLLUTANTS[activePollutant].unit}
@@ -296,38 +318,35 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
             </div>
           )}
 
-          {/* Pollutant toggle buttons */}
-          {availableKeys.length > 0 && (
-            <div className="absolute bottom-2 left-2 right-2 z-[1000] flex flex-wrap items-center gap-1">
-              <span className="text-[8px] uppercase tracking-wider text-slate-600 mr-0.5">Réteg:</span>
-              {availableKeys.map(key => (
-                <button
-                  key={key}
-                  onClick={() => setActivePollutant(prev => prev === key ? null : key)}
-                  className={`rounded-full px-2.5 py-0.5 text-[9px] font-bold transition-colors duration-150 cursor-pointer ${
-                    activePollutant === key
-                      ? 'bg-sky-500 text-white shadow-md shadow-sky-500/30'
-                      : 'bg-black/60 backdrop-blur-sm text-slate-400 border border-white/[0.12] hover:text-slate-200'
-                  }`}
-                >
-                  {POLLUTANTS[key].label}
-                </button>
-              ))}
-              {activePollutant && (
-                <button
-                  onClick={() => setActivePollutant(null)}
-                  className="rounded-full px-2 py-0.5 text-[9px] text-slate-600 border border-white/[0.08] bg-black/60 hover:text-slate-400 transition-colors cursor-pointer"
-                >✕</button>
-              )}
-            </div>
-          )}
+          {/* Pollutant toggle buttons — always visible (all 8 pollutants) */}
+          <div className="absolute bottom-2 left-2 right-14 z-[1000] flex flex-wrap items-center gap-1">
+            <span className="text-[8px] uppercase tracking-wider text-slate-600 mr-0.5">Réteg:</span>
+            {POLLUTANT_KEYS.map(key => (
+              <button
+                key={key}
+                onClick={() => setActivePollutant(prev => prev === key ? null : key)}
+                className={`rounded-full px-2.5 py-0.5 text-[9px] font-bold transition-colors duration-150 cursor-pointer ${
+                  activePollutant === key
+                    ? 'bg-sky-500 text-white shadow-md shadow-sky-500/30'
+                    : 'bg-black/60 backdrop-blur-sm text-slate-400 border border-white/[0.12] hover:text-slate-200'
+                }`}
+              >
+                {POLLUTANTS[key].label}
+              </button>
+            ))}
+            {activePollutant && (
+              <button
+                onClick={() => setActivePollutant(null)}
+                className="rounded-full px-2 py-0.5 text-[9px] text-slate-600 border border-white/[0.08] bg-black/60 hover:text-slate-400 transition-colors cursor-pointer"
+              >✕</button>
+            )}
+          </div>
         </div>
 
-        {/* ── Station detail panel (below map, not overlaid) ────────────── */}
+        {/* ── Station detail panel ─────────────────────────────────────────── */}
         {selectedStation && (
           <div className="rounded-2xl border border-white/[0.07] bg-[#090f1e]">
             <div className="p-4">
-              {/* Header row */}
               <div className="flex items-start justify-between mb-4">
                 <div className="min-w-0 pr-4">
                   <p className="mb-0.5 text-[8px] font-bold uppercase tracking-widest text-slate-600">Mérőállomás adatlap</p>
@@ -358,7 +377,6 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
                 </div>
               </div>
 
-              {/* Pollutant grid from heatmap data */}
               {selectedDetail ? (
                 <div className="grid grid-cols-4 gap-1.5">
                   {POLLUTANT_KEYS.map(key => {
@@ -379,11 +397,32 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
                     );
                   })}
                 </div>
+              ) : selectedStation.aqi !== null ? (
+                // Synthetic per-pollutant estimate from AQI when no real data
+                <div>
+                  <p className="mb-2 text-[8px] text-amber-500/70 font-medium">AQI-alapú közelítő értékek (valós API token szükséges a pontos adathoz)</p>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {(['pm25','pm10','no2','o3'] as PollutantKey[]).map(key => {
+                      const val   = syntheticValue(key, selectedStation.aqi!);
+                      const p     = POLLUTANTS[key];
+                      const frac  = Math.min(val / p.max, 1);
+                      const color = heatColor(key, val);
+                      return (
+                        <div key={key} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 opacity-70">
+                          <p className="text-[8px] font-bold uppercase text-slate-500 mb-1">{p.label}</p>
+                          <p className="text-sm font-black text-slate-100 tabular-nums leading-none">~{val.toFixed(0)}</p>
+                          <p className="mt-0.5 text-[8px] text-slate-600">{p.unit}</p>
+                          <div className="mt-2 h-0.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${frac * 100}%`, background: color }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               ) : (
                 <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-[10px] text-slate-600">
-                  {selectedStation.uid < 0
-                    ? 'Ez egy OLM mérőállomás helye. Részletes szennyező-adatok valós idejű AQICN API tokennel elérhetők.'
-                    : 'Részletes mérési adatok ehhez az állomáshoz nem elérhetők.'}
+                  Ez egy OLM mérőállomás helye. Részletes szennyező-adatok valós idejű AQICN API tokennel elérhetők.
                 </p>
               )}
             </div>
