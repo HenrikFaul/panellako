@@ -1486,7 +1486,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </div>
           </SectionCard>
 
-          <section className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+          <section className="grid gap-6 lg:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.6fr)]">
             <SectionCard id="documents" title="Dokumentumtár" icon={<FileText size={18} />} action={
               <div className="flex items-center gap-2">
                 <select value={documentFilter} onChange={(e) => setDocumentFilter(e.target.value)} className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-semibold">
