@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { AlertTriangle, Bike, Bus, ChevronRight, Leaf, Map, MapPin, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { AlertTriangle, Bike, Bus, ChevronRight, Leaf, MapPin, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import type { TransitNearbyResult, NearbyStop, RouteType } from '@/app/api/transit/nearby/route';
 import type { DepartureBoard, Departure } from '@/app/api/transit/departures/route';
 import type { AlertsResult, TransitAlert, AlertSeverity } from '@/app/api/transit/alerts/route';
@@ -421,7 +421,7 @@ export default function TransportPanel({ lat, lon, buildingAddress }: TransportP
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
   const [refreshKey, setRefreshKey]   = useState(0);
   const [selectedStop, setSelectedStop] = useState<NearbyStop | null>(null);
-  const [tab, setTab]                 = useState<'stops' | 'bubi' | 'co2' | 'alerts' | 'map'>('stops');
+  const [tab, setTab]                 = useState<'stops' | 'bubi' | 'co2' | 'alerts'>('stops');
   const coordsReady                   = !geocoding && (realLat !== 47.4979 || realLon !== 19.0402 || lat !== undefined);
   const firstLoad                     = useRef(true);
 
@@ -501,161 +501,155 @@ export default function TransportPanel({ lat, lon, buildingAddress }: TransportP
   const isMockData = data.source === 'mock';
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Address context + freshness row */}
-      <div className="flex items-center justify-between rounded-xl bg-white/[0.04] px-3 py-1.5">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <MapPin size={9} className="shrink-0 text-slate-600" />
-          <p className="truncate text-[9px] text-slate-500">
-            {buildingAddress
-              ? buildingAddress.replace(/^HU,\s*/i, '').slice(0, 40)
-              : `${realLat.toFixed(4)}°N ${realLon.toFixed(4)}°E`}
-          </p>
-          {isMockData && (
-            <span className="ml-1 rounded-full bg-amber-900/30 px-1.5 py-0.5 text-[7px] font-bold text-amber-400">
-              MINTA
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0 ml-2">
-          <FeedHealthBadge health={health} lastFetched={lastFetched} />
-          <button
-            onClick={() => { setRefreshKey(k => k + 1); fetchData(); }}
-            className="text-slate-600 hover:text-slate-400 transition-colors"
-            disabled={isRefreshing}
-          >
-            <RefreshCw size={10} style={isRefreshing ? { animation: 'tp-spin 1s linear infinite' } : undefined} />
-          </button>
-        </div>
-      </div>
+    <div className="grid gap-5 xl:grid-cols-[280px_1fr]">
 
-      {/* Coverage ring + breakdown */}
-      <div className="flex items-center gap-4">
-        <CoverageRing total={coverage.total} label={coverage.label} color={color} />
-        <div className="flex-1 space-y-1.5">
-          <p className="text-[9px] font-black uppercase tracking-wider text-slate-500 mb-2">Tömegközl. lefedettség</p>
-          <ScoreBar label="Megállók"  value={coverage.stopScore}    max={40} color="#38bdf8" />
-          <ScoreBar label="Minőség"   value={coverage.qualityScore} max={40} color="#a78bfa" />
-          <ScoreBar label="Útvonalak" value={coverage.accessScore}  max={20} color="#34d399" />
-          <p className="mt-1 text-[8px] text-slate-600">
-            {stops.length} megálló · {new Set(stops.flatMap(s => s.routeRefs)).size} járat 700m-en belül
-          </p>
-        </div>
-      </div>
+      {/* ── Left panel ──────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-3">
 
-      {/* Tab nav */}
-      <div className="flex flex-wrap gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.04)' }}>
-        {([
-          ['stops',  <Bus size={10} key="b" />,          'Megállók'],
-          ['bubi',   <Bike size={10} key="k" />,         'Bubi'],
-          ['alerts', <AlertTriangle size={10} key="a" />, alertCount > 0 ? `Riasztás (${alertCount})` : 'Riasztás'],
-          ['co2',    <Leaf size={10} key="l" />,         'CO₂'],
-          ['map',    <Map size={10} key="m" />,          'Térkép'],
-        ] as const).map(([id, icon, label]) => (
-          <button key={id} onClick={() => setTab(id)}
-            className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[9px] font-black transition-all ${
-              tab === id ? 'bg-white/[0.12] text-white' : 'text-slate-500 hover:text-slate-400'
-            } ${id === 'alerts' && alertCount > 0 ? 'relative' : ''}`}
-          >
-            {icon}{label}
-            {id === 'alerts' && alertCount > 0 && (
-              <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-orange-500" />
+        {/* Address + freshness row */}
+        <div className="flex items-center justify-between rounded-xl bg-white/[0.04] px-3 py-1.5">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <MapPin size={9} className="shrink-0 text-slate-600" />
+            <p className="truncate text-[9px] text-slate-500">
+              {buildingAddress
+                ? buildingAddress.replace(/^HU,\s*/i, '').slice(0, 35)
+                : `${realLat.toFixed(4)}°N ${realLon.toFixed(4)}°E`}
+            </p>
+            {isMockData && (
+              <span className="ml-1 rounded-full bg-amber-900/30 px-1.5 py-0.5 text-[7px] font-bold text-amber-400">
+                MINTA
+              </span>
             )}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Stops tab ─────────────────────────────────────────────────── */}
-      {tab === 'stops' && (
-        <div className="flex flex-col gap-1">
-          {stops.slice(0, 6).map(stop => (
-            <StopRow key={stop.id} stop={stop} selected={selectedStop?.id === stop.id}
-              onClick={() => setSelectedStop(stop)} />
-          ))}
-          {stops.length === 0 && (
-            <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
-              <MapPin size={12} className="text-slate-600" />
-              <p className="text-[10px] text-slate-600">Nincsenek közeli megállók</p>
-            </div>
-          )}
-          {selectedStop && (
-            <div className="mt-1 rounded-xl p-2.5" style={{ background: 'rgba(255,255,255,0.04)' }}>
-              <DepartureBoardPanel stopId={selectedStop.id} stopName={selectedStop.name} refreshKey={refreshKey} />
-            </div>
-          )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0 ml-2">
+            <FeedHealthBadge health={health} lastFetched={lastFetched} />
+            <button
+              onClick={() => { setRefreshKey(k => k + 1); fetchData(); }}
+              className="text-slate-600 hover:text-slate-400 transition-colors"
+              disabled={isRefreshing}
+            >
+              <RefreshCw size={10} style={isRefreshing ? { animation: 'tp-spin 1s linear infinite' } : undefined} />
+            </button>
+          </div>
         </div>
-      )}
 
-      {/* ── Bubi tab ──────────────────────────────────────────────────── */}
-      {tab === 'bubi' && (
-        <div className="flex flex-col gap-1.5">
-          {bubi.length === 0 ? (
-            <div className="flex items-center gap-2 rounded-xl px-3 py-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
-              <Bike size={14} className="text-slate-600" />
-              <div>
-                <p className="text-[10px] font-bold text-slate-500">Nincs Bubi állomás a közelben</p>
-                <p className="text-[9px] text-slate-600">800m-en belül nem található dokkoló</p>
-              </div>
-            </div>
-          ) : bubi.map(s => <BubiCard key={s.id} station={s} />)}
-          <div className="mt-1 rounded-xl px-3 py-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
-            <p className="text-[8px] text-slate-600 leading-relaxed">
-              💡 Parki útvonalakon a kerékpározás 53%-kal kevesebb ultrafinom részecskét jelent a főutcáknál. (Antwerp, 2014)
+        {/* Coverage ring */}
+        <div className="flex items-center gap-4">
+          <CoverageRing total={coverage.total} label={coverage.label} color={color} />
+          <div className="flex-1 space-y-1.5">
+            <p className="text-[9px] font-black uppercase tracking-wider text-slate-500 mb-2">Tömegközl. lefedettség</p>
+            <ScoreBar label="Megállók"  value={coverage.stopScore}    max={40} color="#38bdf8" />
+            <ScoreBar label="Minőség"   value={coverage.qualityScore} max={40} color="#a78bfa" />
+            <ScoreBar label="Útvonalak" value={coverage.accessScore}  max={20} color="#34d399" />
+            <p className="mt-1 text-[8px] text-slate-600">
+              {stops.length} megálló · {new Set(stops.flatMap(s => s.routeRefs)).size} járat 700m-en belül
             </p>
           </div>
         </div>
-      )}
 
-      {/* ── Alerts tab ────────────────────────────────────────────────── */}
-      {tab === 'alerts' && (
-        <div className="flex flex-col gap-1.5">
-          {(!alerts || alerts.alerts.length === 0) ? (
-            <div className="flex items-center gap-2 rounded-xl px-3 py-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
-              <AlertTriangle size={12} className="text-emerald-500" />
-              <p className="text-[10px] text-slate-400">Nincs aktív üzemzavar a BKK hálózaton</p>
-            </div>
-          ) : (
-            alerts.alerts.map(alert => <AlertCard key={alert.id} alert={alert} />)
-          )}
-          {alerts?.stale && (
-            <p className="text-center text-[8px] text-amber-500">⚠ Riasztások adatai elavultak</p>
-          )}
+        {/* Tab nav */}
+        <div className="flex flex-wrap gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.04)' }}>
+          {([
+            ['stops',  <Bus size={10} key="b" />,          'Megállók'],
+            ['bubi',   <Bike size={10} key="k" />,         'Bubi'],
+            ['alerts', <AlertTriangle size={10} key="a" />, alertCount > 0 ? `Riasztás (${alertCount})` : 'Riasztás'],
+            ['co2',    <Leaf size={10} key="l" />,         'CO₂'],
+          ] as const).map(([id, icon, label]) => (
+            <button key={id} onClick={() => setTab(id)}
+              className={`relative flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[9px] font-black transition-all ${
+                tab === id ? 'bg-white/[0.12] text-white' : 'text-slate-500 hover:text-slate-400'
+              }`}
+            >
+              {icon}{label}
+              {id === 'alerts' && alertCount > 0 && (
+                <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-orange-500" />
+              )}
+            </button>
+          ))}
         </div>
-      )}
 
-      {/* ── CO₂ tab ───────────────────────────────────────────────────── */}
-      {tab === 'co2' && <Co2Calculator />}
+        {/* ── Stops tab ─────────────────────────────────────────────── */}
+        {tab === 'stops' && (
+          <div className="flex flex-col gap-1">
+            {stops.slice(0, 6).map(stop => (
+              <StopRow key={stop.id} stop={stop} selected={selectedStop?.id === stop.id}
+                onClick={() => setSelectedStop(stop)} />
+            ))}
+            {stops.length === 0 && (
+              <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                <MapPin size={12} className="text-slate-600" />
+                <p className="text-[10px] text-slate-600">Nincsenek közeli megállók</p>
+              </div>
+            )}
+            {selectedStop && (
+              <div className="mt-1 rounded-xl p-2.5" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                <DepartureBoardPanel stopId={selectedStop.id} stopName={selectedStop.name} refreshKey={refreshKey} />
+              </div>
+            )}
+          </div>
+        )}
 
-      {/* ── Live map tab ──────────────────────────────────────────────── */}
-      {tab === 'map' && (
-        <div className="flex flex-col gap-1.5">
-          <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">
-            Élő járattérkép
+        {/* ── Bubi tab ──────────────────────────────────────────────── */}
+        {tab === 'bubi' && (
+          <div className="flex flex-col gap-1.5">
+            {bubi.length === 0 ? (
+              <div className="flex items-center gap-2 rounded-xl px-3 py-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                <Bike size={14} className="text-slate-600" />
+                <div>
+                  <p className="text-[10px] font-bold text-slate-500">Nincs Bubi állomás a közelben</p>
+                  <p className="text-[9px] text-slate-600">800m-en belül nem található dokkoló</p>
+                </div>
+              </div>
+            ) : bubi.map(s => <BubiCard key={s.id} station={s} />)}
+          </div>
+        )}
+
+        {/* ── Alerts tab ────────────────────────────────────────────── */}
+        {tab === 'alerts' && (
+          <div className="flex flex-col gap-1.5">
+            {(!alerts || alerts.alerts.length === 0) ? (
+              <div className="flex items-center gap-2 rounded-xl px-3 py-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                <AlertTriangle size={12} className="text-emerald-500" />
+                <p className="text-[10px] text-slate-400">Nincs aktív üzemzavar a BKK hálózaton</p>
+              </div>
+            ) : (
+              alerts.alerts.map(alert => <AlertCard key={alert.id} alert={alert} />)
+            )}
+            {alerts?.stale && (
+              <p className="text-center text-[8px] text-amber-500">⚠ Riasztások adatai elavultak</p>
+            )}
+          </div>
+        )}
+
+        {/* ── CO₂ tab ───────────────────────────────────────────────── */}
+        {tab === 'co2' && <Co2Calculator />}
+
+        {/* Data source */}
+        <div className="mt-auto flex items-center justify-between border-t border-white/[0.05] pt-2">
+          <p className="text-[8px] text-slate-700">
+            {data.source === 'futar'
+              ? '🟢 BKK Futár valósidejű'
+              : data.source === 'overpass'
+                ? '🟡 OpenStreetMap'
+                : '🔴 BKK API nem elérhető'}
           </p>
-          <TransitLiveMap lat={realLat} lon={realLon} stops={stops} />
-          <p className="text-[8px] text-slate-700 leading-relaxed px-0.5">
-            Megállók és járatok 1 km-en belül · 15 másodpercenként frissül · © OpenStreetMap
-          </p>
-        </div>
-      )}
-
-      {/* Data source + last update */}
-      <div className="flex items-center justify-between border-t border-white/[0.05] pt-2">
-        <p className="text-[8px] text-slate-700">
-          {data.source === 'futar'
-            ? '🟢 BKK Futár valósidejű'
-            : data.source === 'overpass'
-              ? '🟡 OpenStreetMap (Overpass)'
-              : '🔴 BKK API nem elérhető — minta megállók'}
-        </p>
-        <p className="text-[8px] text-slate-700">
-          {coordsReady && lat !== undefined
-            ? '📍 Valós helyszín'
-            : buildingAddress
-              ? '🗺 Geocódolt cím'
+          <p className="text-[8px] text-slate-700">
+            {coordsReady && lat !== undefined ? '📍 Valós helyszín'
+              : buildingAddress ? '🗺 Geocódolt cím'
               : '⚠ Budapest középpont'}
+          </p>
+        </div>
+      </div>
+
+      {/* ── Right: always-on live map ──────────────────────────────────── */}
+      <div className="flex flex-col gap-1.5">
+        <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">Élő járattérkép</p>
+        <TransitLiveMap lat={realLat} lon={realLon} stops={stops} />
+        <p className="text-[8px] text-slate-700">
+          Kattints megállóra a menetrendért · járatra az útvonalért · 15 mp-ként frissül · © OpenStreetMap
         </p>
       </div>
+
     </div>
   );
 }
