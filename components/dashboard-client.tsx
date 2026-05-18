@@ -1958,20 +1958,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               />
             </SectionCard>
 
-            <SectionCard id="transport" title="Közlekedés és tömegközl. lefedettség" icon={<Bus size={18} />} className="lg:col-span-2 xl:col-span-3" note="Közlekedési adat: BKK Zrt., CC BY 4.0">
-              <TransportPanel
-                lat={data.buildingLat}
-                lon={data.buildingLon}
-                buildingAddress={data.buildingAddress}
-              />
-            </SectionCard>
           </section>
-
-          <AirQualitySection
-            buildingLat={data.buildingLat}
-            buildingLon={data.buildingLon}
-            buildingAddress={data.buildingAddress}
-          />
 
           <section className="grid gap-6 xl:grid-cols-2">
             <SectionCard id="meetings" title="Közgyűlés, határozatok és szavazás" icon={<Vote size={18} />} action={
@@ -2274,6 +2261,21 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </div>
             </SectionCard>
           </section>
+
+          {/* ── Térképek — oldal legaljára ─────────────────────────────────── */}
+          <SectionCard id="transport" title="Közlekedés és tömegközl. lefedettség" icon={<Bus size={18} />} note="Közlekedési adat: BKK Zrt., CC BY 4.0">
+            <TransportPanel
+              lat={data.buildingLat}
+              lon={data.buildingLon}
+              buildingAddress={data.buildingAddress}
+            />
+          </SectionCard>
+
+          <AirQualitySection
+            buildingLat={data.buildingLat}
+            buildingLon={data.buildingLon}
+            buildingAddress={data.buildingAddress}
+          />
         </main>
       </div>
 

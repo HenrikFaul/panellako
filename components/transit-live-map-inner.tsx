@@ -350,6 +350,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         vehicleLayer.current = vLayer;
         shapeLayer.current   = sLayer;
         mapRef.current       = map;
+        setTimeout(() => { if (mapRef.current) (mapRef.current as any).invalidateSize(); }, 300);
 
         // ── Pan → auto-refresh stops ─────────────────────────────────────────
         map.on('moveend', () => {
