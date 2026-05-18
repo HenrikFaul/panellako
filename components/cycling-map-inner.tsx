@@ -103,6 +103,7 @@ export default function CyclingMapInner({ buildingLat, buildingLon, routes }: Pr
       }
 
       mapRef.current = map;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setTimeout(() => { if (mapRef.current) (mapRef.current as any).invalidateSize(); }, 300);
       setMapReady(true);
     })();
