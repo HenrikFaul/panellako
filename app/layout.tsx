@@ -1,5 +1,12 @@
 import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
+
+const inter = Inter({
+  subsets: ['latin', 'latin-ext'],
+  display: 'swap',
+  variable: '--font-inter',
+});
 
 export const metadata: Metadata = {
   title: 'PanelLakó – Digitális működési központ',
@@ -28,8 +35,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="hu">
-      <body className="overflow-x-hidden">{children}</body>
+    <html lang="hu" className={inter.variable}>
+      <body className="overflow-x-hidden font-sans">{children}</body>
     </html>
   );
 }
