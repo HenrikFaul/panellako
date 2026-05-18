@@ -54,9 +54,15 @@ function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): num
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// API config — public test key from BKK Apiary docs, override via BKKFUTAR_API_KEY env var
-const BKK_BASE = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
-const BKK_KEY  = process.env.BKKFUTAR_API_KEY ?? 'apaiary-test';
+const BKK_BASE    = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
+const BKK_KEY     = process.env.BKKFUTAR_API_KEY ?? 'apaiary-test';
+const APP_ORIGIN  = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://panellako.hu').replace(/\/$/, '');
+const BKK_HEADERS = {
+  'Accept':     'application/json',
+  'User-Agent': 'panellako.hu/1.0',
+  'Referer':    `${APP_ORIGIN}/`,
+  'Origin':     APP_ORIGIN,
+};
 
 // GTFS route type → RouteType
 const GTFS_TYPE_MAP: Record<number, RouteType> = {
@@ -108,14 +114,19 @@ async function fetchFutarStops(lat: number, lon: number, latSpan = 0.07, lonSpan
   });
 
   const res = await fetch(`${BKK_BASE}/stops-for-location.json?${params}`, {
-    headers: { 'Accept': 'application/json', 'User-Agent': 'panellako.hu/1.0' },
+    headers: BKK_HEADERS,
     signal:  AbortSignal.timeout(9000),
   });
 
-  if (!res.ok) throw new Error(`Futár stops HTTP ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Futár stops HTTP ${res.status}: ${body.slice(0, 300)}`);
+  }
 
   const json = await res.json();
-  if (json.status !== 'OK') throw new Error(`Futár stops status: ${json.status}`);
+  if (json.status !== 'OK') {
+    throw new Error(`Futár stops status: ${json.status} — ${JSON.stringify(json).slice(0, 300)}`);
+  }
 
   // References contain route definitions keyed by route ID
   const routeRefs: Record<string, { shortName?: string; type?: number }> =
