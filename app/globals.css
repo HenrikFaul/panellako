@@ -2,26 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Design tokens ───────────────────────────────────────────────────── */
 :root {
   color-scheme: light;
+
+  --surface-0:      #ffffff;
+  --surface-1:      #f8fafc;
+  --surface-2:      #f1f5f9;
+  --border-subtle:  rgb(15 23 42 / 0.07);
+  --border-default: rgb(15 23 42 / 0.11);
+  --shadow-card:    0 1px 3px rgb(15 23 42 / 0.06), 0 4px 16px -2px rgb(15 23 42 / 0.06);
+  --shadow-float:   0 18px 60px -8px rgb(15 23 42 / 0.12), 0 4px 16px -4px rgb(15 23 42 / 0.08);
+  --radius-card:    1.5rem;
+  --radius-section: 1.75rem;
+
+  /* Typography rhythm */
+  --text-xs:  0.6875rem; /* 11px */
+  --text-sm:  0.8125rem; /* 13px */
+  --text-base: 0.9375rem; /* 15px */
 }
 
+/* ─── Base reset extras ───────────────────────────────────────────────── */
 html {
   scroll-behavior: smooth;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   @apply bg-slate-50 text-slate-900 antialiased;
   overflow-x: hidden;
   max-width: 100%;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+/* Anchor scroll margin — accounts for sticky headers */
+[id] {
+  scroll-margin-top: 1.5rem;
 }
 
 ::selection {
   @apply bg-brand-100 text-brand-900;
 }
 
-/* Cyberpunk sidebar scrollbar */
+/* ─── Focus rings ─────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid theme('colors.brand.500');
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ─── Premium sidebar scrollbar ──────────────────────────────────────── */
 .sidebar-scroll::-webkit-scrollbar {
   width: 3px;
 }
@@ -29,17 +61,61 @@ body {
   background: transparent;
 }
 .sidebar-scroll::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, #06b6d4, #10b981);
+  background: linear-gradient(to bottom, #0d9488, #0ea5e9);
   border-radius: 2px;
-  box-shadow: 0 0 6px #06b6d455, 0 0 2px #10b98144;
 }
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(to bottom, #22d3ee, #34d399);
-  box-shadow: 0 0 10px #22d3ee77, 0 0 4px #34d39966;
+  background: linear-gradient(to bottom, #14b8a6, #38bdf8);
 }
-/* Firefox */
 .sidebar-scroll {
   scrollbar-width: thin;
-  scrollbar-color: #06b6d4 transparent;
+  scrollbar-color: #0d9488 transparent;
 }
 
+/* ─── Thin scrollbar for widgets ─────────────────────────────────────── */
+.thin-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+.thin-scroll::-webkit-scrollbar-track { background: transparent; }
+.thin-scroll::-webkit-scrollbar-thumb { background: rgb(148 163 184 / 0.5); border-radius: 2px; }
+.thin-scroll { scrollbar-width: thin; scrollbar-color: rgb(148 163 184 / 0.5) transparent; }
+
+/* ─── Card hover lift ─────────────────────────────────────────────────── */
+.card-lift {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px -8px rgb(15 23 42 / 0.14), 0 4px 16px -4px rgb(15 23 42 / 0.08);
+}
+
+/* ─── Glass surface utility ───────────────────────────────────────────── */
+.glass {
+  background: rgb(255 255 255 / 0.88);
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid rgb(255 255 255 / 0.65);
+}
+
+/* ─── Input base ──────────────────────────────────────────────────────── */
+.input-base {
+  @apply w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none
+         transition-all duration-150
+         focus:border-brand-400 focus:ring-4 focus:ring-brand-100 focus:bg-white;
+}
+
+/* ─── Button base ─────────────────────────────────────────────────────── */
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-600 px-5 py-2.5
+         text-sm font-bold text-white shadow-sm
+         transition-all duration-150
+         hover:bg-brand-700 hover:shadow-md
+         active:scale-[0.98]
+         disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-2.5
+         text-sm font-bold text-slate-700 shadow-sm
+         transition-all duration-150
+         hover:border-brand-300 hover:text-brand-700
+         active:scale-[0.98];
+}

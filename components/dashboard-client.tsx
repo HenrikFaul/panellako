@@ -375,10 +375,15 @@ function numberOrZero(value: number | string | null | undefined) {
 
 function SectionCard({ id, title, icon, children, action }: { id?: string; title: string; icon: ReactNode; children: ReactNode; action?: ReactNode }) {
   return (
-    <section id={id} className="min-w-0 overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/90 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur">
+    <section
+      id={id}
+      className="min-w-0 overflow-hidden rounded-[1.75rem] border border-slate-200/70 bg-white p-5 shadow-card-md transition-shadow hover:shadow-card-lg"
+    >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
-          <span className="rounded-2xl bg-brand-50 p-2 text-brand-700">{icon}</span>
+        <h2 className="flex items-center gap-2.5 text-base font-bold text-slate-900">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600 ring-1 ring-brand-100/60">
+            {icon}
+          </span>
           {title}
         </h2>
         {action}
@@ -390,22 +395,24 @@ function SectionCard({ id, title, icon, children, action }: { id?: string; title
 
 function MetricCard({ title, value, subtitle, icon, tone = 'brand', href }: { title: string; value: string; subtitle: string; icon: ReactNode; tone?: 'brand' | 'amber' | 'slate' | 'violet'; href?: string }) {
   const toneClass = {
-    brand: 'from-brand-600 to-cyan-500 text-white',
-    amber: 'from-amber-500 to-orange-500 text-white',
-    slate: 'from-slate-900 to-slate-700 text-white',
-    violet: 'from-violet-600 to-fuchsia-500 text-white'
+    brand:  'from-brand-600 via-brand-500 to-teal-400 text-white shadow-brand-200/60',
+    amber:  'from-amber-500 via-orange-400 to-yellow-400 text-white shadow-amber-200/60',
+    slate:  'from-slate-800 via-slate-700 to-slate-600 text-white shadow-slate-300/60',
+    violet: 'from-violet-600 via-purple-500 to-fuchsia-400 text-white shadow-violet-200/60',
   }[tone];
 
   const inner = (
     <>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium opacity-85">{title}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide opacity-75">{title}</p>
           <p className="mt-2 text-3xl font-black tracking-tight">{value}</p>
         </div>
-        <span className="rounded-2xl bg-white/18 p-3">{icon}</span>
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/15 backdrop-blur-sm ring-1 ring-white/20">
+          {icon}
+        </span>
       </div>
-      <p className="mt-4 text-xs font-medium opacity-85">{subtitle}</p>
+      <p className="mt-4 text-xs font-medium leading-relaxed opacity-75">{subtitle}</p>
     </>
   );
 
@@ -413,7 +420,7 @@ function MetricCard({ title, value, subtitle, icon, tone = 'brand', href }: { ti
     return (
       <a
         href={href}
-        className={`block rounded-[1.5rem] bg-gradient-to-br ${toneClass} p-5 shadow-lg shadow-slate-200/70 transition hover:scale-[1.02] hover:shadow-xl cursor-pointer`}
+        className={`block rounded-[1.5rem] bg-gradient-to-br ${toneClass} p-5 shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl cursor-pointer`}
       >
         {inner}
       </a>
@@ -421,7 +428,7 @@ function MetricCard({ title, value, subtitle, icon, tone = 'brand', href }: { ti
   }
 
   return (
-    <article className={`rounded-[1.5rem] bg-gradient-to-br ${toneClass} p-5 shadow-lg shadow-slate-200/70`}>
+    <article className={`rounded-[1.5rem] bg-gradient-to-br ${toneClass} p-5 shadow-lg`}>
       {inner}
     </article>
   );
@@ -429,27 +436,42 @@ function MetricCard({ title, value, subtitle, icon, tone = 'brand', href }: { ti
 
 function StatusBadge({ status }: { status: Ticket['status'] | WorkOrderItem['status'] | MeetingItem['status'] }) {
   const classes: Record<string, string> = {
-    uj: 'bg-sky-50 text-sky-700 ring-sky-100',
-    folyamatban: 'bg-amber-50 text-amber-700 ring-amber-100',
-    varakozik: 'bg-violet-50 text-violet-700 ring-violet-100',
-    lezarva: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
-    tervezett: 'bg-sky-50 text-sky-700 ring-sky-100',
-    kikuldve: 'bg-indigo-50 text-indigo-700 ring-indigo-100',
-    lezart: 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+    uj:         'bg-sky-50    text-sky-700    ring-1 ring-sky-200/60',
+    folyamatban:'bg-amber-50  text-amber-700  ring-1 ring-amber-200/60',
+    varakozik:  'bg-violet-50 text-violet-700 ring-1 ring-violet-200/60',
+    lezarva:    'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60',
+    tervezett:  'bg-sky-50    text-sky-700    ring-1 ring-sky-200/60',
+    kikuldve:   'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200/60',
+    lezart:     'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60',
+  };
+  const labels: Record<string, string> = {
+    uj: 'Új', folyamatban: 'Folyamatban', varakozik: 'Várakozik',
+    lezarva: 'Lezárva', tervezett: 'Tervezett', kikuldve: 'Kiküldve', lezart: 'Lezárt',
   };
 
-  return <span className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${classes[status] ?? classes.uj}`}>{status}</span>;
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${classes[status] ?? classes.uj}`}>
+      {labels[status] ?? status}
+    </span>
+  );
 }
 
 function PriorityBadge({ priority }: { priority: Ticket['priority'] }) {
   const classes: Record<Ticket['priority'], string> = {
-    alacsony: 'bg-slate-100 text-slate-700',
-    kozepes: 'bg-cyan-50 text-cyan-700',
-    magas: 'bg-amber-50 text-amber-700',
-    kritikus: 'bg-rose-50 text-rose-700'
+    alacsony: 'bg-slate-100 text-slate-600 ring-1 ring-slate-200/60',
+    kozepes:  'bg-sky-50    text-sky-700   ring-1 ring-sky-200/60',
+    magas:    'bg-amber-50  text-amber-700 ring-1 ring-amber-200/60',
+    kritikus: 'bg-rose-50   text-rose-700  ring-1 ring-rose-200/60',
+  };
+  const labels: Record<Ticket['priority'], string> = {
+    alacsony: 'Alacsony', kozepes: 'Közepes', magas: 'Magas', kritikus: 'Kritikus',
   };
 
-  return <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${classes[priority]}`}>{priority}</span>;
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${classes[priority]}`}>
+      {labels[priority]}
+    </span>
+  );
 }
 
 // ─── AI Triage UI Components ──────────────────────────────────────────────────
@@ -921,9 +943,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#ccfbf1_0,#f8fafc_30%,#eef2ff_100%)] text-slate-900">
-      <div className="grid min-h-screen lg:grid-cols-[280px_1fr]">
-        <aside className="hidden border-r border-slate-800/60 bg-slate-950 text-slate-200 shadow-2xl lg:block">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_left,theme(colors.brand.50)_0%,theme(colors.slate.50)_40%,theme(colors.indigo.50/30%)_100%)] text-slate-900">
+      <div className="grid min-h-screen lg:grid-cols-[272px_1fr]">
+        <aside className="hidden border-r border-slate-800/50 bg-slate-950 text-slate-200 shadow-2xl lg:block">
           <div className="relative sticky top-0 flex h-screen flex-col overflow-hidden">
 
             {/* KOMMAND OVERLAY */}
@@ -978,15 +1000,15 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
               {/* BUILDING CONTEXT */}
               {data.buildingName && (
-                <div className="mb-3 rounded-xl border border-slate-800/60 bg-black/20 px-3 py-2.5">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-700 mb-1">Aktuális épület</p>
-                  <p className="text-xs font-semibold text-slate-300 leading-snug truncate">{data.buildingName}</p>
+                <div className="mb-3 rounded-xl border border-slate-800/50 bg-white/[0.04] px-3 py-2.5">
+                  <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-slate-600">Aktuális épület</p>
+                  <p className="truncate text-xs font-semibold leading-snug text-slate-200">{data.buildingName}</p>
                   {data.buildingAddress && (
-                    <p className="text-[10px] text-slate-600 truncate mt-0.5">{data.buildingAddress}</p>
+                    <p className="mt-0.5 truncate text-[10px] text-slate-500">{data.buildingAddress}</p>
                   )}
                   <Link
                     href="/app"
-                    className="mt-2 flex items-center gap-1.5 text-[10px] font-medium text-teal-500 hover:text-teal-400 transition-colors"
+                    className="mt-2 flex items-center gap-1.5 text-[10px] font-semibold text-brand-400 transition-colors hover:text-brand-300"
                   >
                     <Layers3 size={11} />
                     Épület váltása
@@ -995,7 +1017,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               )}
 
               {/* SIGNAL NAV — scrollable, takes all remaining space */}
-              <nav className="sidebar-scroll flex-1 space-y-0.5 overflow-y-auto">
+              <nav className="sidebar-scroll flex-1 space-y-px overflow-y-auto">
                 {signalNav.map((item) => {
                   const Icon = item.icon;
                   const hasCritical = item.critical > 0;
@@ -1004,20 +1026,20 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     <a
                       key={item.href}
                       href={item.href}
-                      className="group relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all hover:bg-white/8 hover:text-white"
+                      className="group relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 hover:bg-white/[0.07] hover:text-white"
                     >
                       {hasCritical && (
                         <span className="absolute left-1.5 top-1/2 h-3.5 w-0.5 -translate-y-1/2 animate-pulse rounded-full bg-rose-500" />
                       )}
                       <Icon
                         size={15}
-                        className={hasCritical ? 'text-rose-400' : hasActivity ? 'text-slate-300' : 'text-slate-700'}
+                        className={`shrink-0 transition-colors ${hasCritical ? 'text-rose-400' : hasActivity ? 'text-slate-400' : 'text-slate-600'} group-hover:text-current`}
                       />
-                      <span className={hasCritical ? 'text-slate-300' : hasActivity ? 'text-slate-400' : 'text-slate-700'}>
+                      <span className={`transition-colors ${hasCritical ? 'text-slate-300' : hasActivity ? 'text-slate-400' : 'text-slate-600'} group-hover:text-white`}>
                         {item.label}
                       </span>
                       {hasActivity && (
-                        <span className={`ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-black tabular-nums ${hasCritical ? 'bg-rose-500/15 text-rose-400' : 'bg-white/8 text-slate-500'}`}>
+                        <span className={`ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${hasCritical ? 'bg-rose-500/20 text-rose-400' : 'bg-white/[0.07] text-slate-500'}`}>
                           {item.count}
                         </span>
                       )}
@@ -1053,19 +1075,21 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               )}
 
               {/* ROLE PANEL — compact, active role only */}
-              <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-slate-800/60 bg-black/30 px-3 py-2.5">
-                <UserRound size={13} className="shrink-0 text-slate-600" />
+              <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-slate-800/50 bg-white/[0.04] px-3 py-2.5">
+                <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-brand-900/60 text-brand-400 ring-1 ring-brand-800/40">
+                  <UserRound size={13} />
+                </div>
                 <div className="min-w-0">
-                  <p className="text-[9px] uppercase tracking-widest text-slate-700">Aktív szerepkör</p>
-                  <p className="truncate text-xs font-bold text-white">{roleLabels[data.currentUser.role]}</p>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600">Aktív szerepkör</p>
+                  <p className="truncate text-xs font-bold text-slate-200">{roleLabels[data.currentUser.role]}</p>
                 </div>
               </div>
             </div>
           </div>
         </aside>
 
-        <main className="min-w-0 overflow-x-hidden space-y-6 px-4 py-5 md:px-8 lg:px-10">
-          <header className="flex flex-col gap-4 rounded-[2rem] border border-white/70 bg-white/80 p-4 shadow-[0_18px_70px_rgba(15,23,42,0.08)] backdrop-blur md:flex-row md:items-center md:justify-between">
+        <main className="min-w-0 overflow-x-hidden space-y-5 px-4 py-5 md:px-8 lg:px-10">
+          <header className="flex flex-col gap-4 rounded-[2rem] border border-slate-200/60 bg-white/88 p-4 shadow-card-md backdrop-blur-xl md:flex-row md:items-center md:justify-between">
             <div>
               {data.buildingName ? (
                 <>
@@ -1091,10 +1115,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             <div className="flex flex-wrap items-center gap-3">
               {/* Header search with inline dropdown */}
               <div className="relative" ref={searchRef}>
-                <Search className="pointer-events-none absolute left-3 top-2.5 text-slate-400" size={18} />
+                <Search className="pointer-events-none absolute left-3 top-2.5 text-slate-400" size={15} />
                 <input
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-10 py-2 text-sm outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100 md:w-56"
-                  placeholder="Keresés..."
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-4 text-sm outline-none transition-all focus:border-brand-400 focus:bg-white focus:ring-4 focus:ring-brand-100 md:w-52"
+                  placeholder="Keresés…"
                   value={searchQuery}
                   onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
                   onFocus={() => setSearchOpen(true)}
@@ -1128,17 +1152,17 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               <button
                 type="button"
                 onClick={() => setContactOpen(true)}
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:border-brand-300 hover:text-brand-700"
+                className="btn-secondary px-3.5 py-2 text-xs"
               >
-                <Mail size={15} /> Kapcsolat
+                <Mail size={13} /> Kapcsolat
               </button>
 
-              <Link className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-slate-300 transition hover:-translate-y-0.5" href="/login">
+              <Link className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:-translate-y-px hover:bg-slate-800" href="/login">
                 {isLoggedIn ? 'Session aktív' : 'Belépés'}
               </Link>
               {isLoggedIn ? (
                 <button
-                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:border-brand-300"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                   onClick={async () => {
                     const supabase = createClient();
                     await supabase.auth.signOut();
@@ -1146,22 +1170,40 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   }}
                   type="button"
                 >
-                  <LogOut size={16} /> Kijelentkezés
+                  <LogOut size={13} /> Kilépés
                 </button>
               ) : null}
             </div>
           </header>
 
-          <section id="overview" className="overflow-hidden rounded-[2rem] bg-slate-950 text-white shadow-2xl shadow-slate-300/60">
+          <section id="overview" className="overflow-hidden rounded-[2rem] bg-slate-950 text-white shadow-2xl shadow-slate-900/25">
             <div className="grid gap-0 md:grid-cols-[1fr_auto]">
               {/* Left: hero text + CTAs */}
               <div className="p-6 md:p-8">
-                <h2 className="max-w-2xl text-4xl font-black leading-tight tracking-tight md:text-6xl">
-                  Panellakó,<br/>a társasházi<br className="md:hidden"/> app.
-                </h2>
+                {data.buildingName ? (
+                  <>
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-slate-500">Digitális műveleti központ</p>
+                    <h2 className="max-w-xl text-3xl font-black leading-tight tracking-tight text-white md:text-4xl">
+                      {data.buildingName}
+                    </h2>
+                    {data.buildingAddress && (
+                      <p className="mt-1.5 flex items-center gap-1.5 text-sm text-slate-400">
+                        <MapPin size={13} className="shrink-0 text-slate-500" />
+                        {data.buildingAddress}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-slate-500">Digitális műveleti központ</p>
+                    <h2 className="max-w-2xl text-4xl font-black leading-tight tracking-tight md:text-5xl">
+                      PanelLakó,<br/>a társasházi app.
+                    </h2>
+                  </>
+                )}
                 <div className="mt-5 flex flex-wrap gap-3">
-                  <a href="#tickets" className="rounded-2xl bg-brand-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-950/20 hover:bg-brand-400">Új bejelentés</a>
-                  <a href="#units" className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 hover:bg-slate-100">Albetétek nézete</a>
+                  <a href="#tickets" className="rounded-2xl bg-brand-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-950/30 transition-all hover:bg-brand-400 hover:-translate-y-px">Új bejelentés</a>
+                  <a href="#units" className="rounded-2xl bg-white/10 px-5 py-2.5 text-sm font-bold text-white ring-1 ring-white/15 transition-all hover:bg-white/15">Albetétek nézete</a>
                 </div>
               </div>
 
@@ -1207,14 +1249,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 }}
               >
                 <div className="grid gap-3 md:grid-cols-2">
-                  <input required className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100" placeholder="Teljes név" value={name} onChange={(e) => setName(e.target.value)} />
-                  <input className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100" placeholder="Lakás (pl. A/12)" value={unit} onChange={(e) => setUnit(e.target.value)} />
+                  <input required className="input-base" placeholder="Teljes név" value={name} onChange={(e) => setName(e.target.value)} />
+                  <input className="input-base" placeholder="Lakás (pl. A/12)" value={unit} onChange={(e) => setUnit(e.target.value)} />
                 </div>
 
                 <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4">
                   <label className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-700"><MapPin size={16} className="text-brand-600" /> Címkeresés saját GeoData adatbázisból</label>
                   <input
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                    className="input-base"
                     placeholder="Kezdj el címet írni (pl. Budapest Gidófalvy Lajos utca 9)"
                     value={addressQuery}
                     onChange={(e) => {
@@ -1246,7 +1288,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   {address ? <p className="mt-2 text-xs text-slate-600">Kiválasztott cím: {address}</p> : null}
                 </div>
 
-                <button className="rounded-2xl bg-brand-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-100 hover:bg-brand-700">Profil mentése</button>
+                <button className="btn-primary">Profil mentése</button>
                 {profileSaved ? <p className="text-sm font-semibold text-emerald-700">Profiladatok mentve demo módban.</p> : null}
               </form>
 
@@ -1298,18 +1340,20 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             <SectionCard id="tasks" title="Teendők és gyors műveletek" icon={<ClipboardCheck size={18} />}>
               <div className="grid gap-3 md:grid-cols-3">
                 {tasks.map((task) => (
-                  <article key={task.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
-                    <div className={`mb-3 inline-flex rounded-full px-3 py-1 text-xs font-black ${task.tone}`}>{task.meta}</div>
-                    <p className="font-bold text-slate-950">{task.title}</p>
-                    <button className="mt-4 inline-flex items-center gap-1 text-xs font-black text-brand-700" type="button">Megnyitás <ChevronRight size={14} /></button>
+                  <article key={task.id} className="card-lift rounded-2xl border border-slate-100/80 bg-slate-50/80 p-4">
+                    <div className={`mb-3 inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold ring-1 ring-inset ${task.tone.replace('bg-', 'bg-').replace('text-', 'text-')}`}>{task.meta}</div>
+                    <p className="text-sm font-bold leading-snug text-slate-900">{task.title}</p>
+                    <button className="mt-3.5 inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-800" type="button">
+                      Megnyitás <ChevronRight size={13} />
+                    </button>
                   </article>
                 ))}
               </div>
 
-              <div className="mt-5 grid gap-3 md:grid-cols-3">
-                <a className="rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white" href="#tickets">Ticket queue</a>
-                <a className="rounded-2xl bg-brand-600 px-4 py-3 text-center text-sm font-black text-white" href="#documents">Dokumentumtár</a>
-                <a className="rounded-2xl bg-white px-4 py-3 text-center text-sm font-black text-slate-800 ring-1 ring-slate-200" href="#meetings">Közgyűlés</a>
+              <div className="mt-4 grid gap-2.5 md:grid-cols-3">
+                <a className="rounded-xl bg-slate-900 px-4 py-2.5 text-center text-xs font-bold text-white transition-all hover:bg-slate-800" href="#tickets">Ticket queue</a>
+                <a className="rounded-xl bg-brand-600 px-4 py-2.5 text-center text-xs font-bold text-white transition-all hover:bg-brand-700" href="#documents">Dokumentumtár</a>
+                <a className="rounded-xl bg-white px-4 py-2.5 text-center text-xs font-bold text-slate-700 ring-1 ring-slate-200 transition-all hover:bg-slate-50" href="#meetings">Közgyűlés</a>
               </div>
             </SectionCard>
           </section>
@@ -1317,18 +1361,18 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
             <SectionCard id="tickets" title="Hibabejelentés és ticketing" icon={<Siren size={18} />}>
               <form className="space-y-3" onSubmit={submitTicket}>
-                <input required className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100" placeholder="Rövid cím" value={ticketTitle} onChange={(e) => setTicketTitle(e.target.value)} />
-                <textarea required className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100" placeholder="Leírás, fotó/melléklet helye későbbi storage integrációhoz" rows={3} value={ticketDescription} onChange={(e) => setTicketDescription(e.target.value)} />
+                <input required className="input-base" placeholder="Rövid cím" value={ticketTitle} onChange={(e) => setTicketTitle(e.target.value)} />
+                <textarea required className="input-base min-h-[88px] resize-none" placeholder="Leírás, fotó/melléklet helye későbbi storage integrációhoz" rows={3} value={ticketDescription} onChange={(e) => setTicketDescription(e.target.value)} />
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <input required className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100" placeholder="Helyszín (pl. A/12 vagy lépcsőház)" value={ticketLocation} onChange={(e) => setTicketLocation(e.target.value)} />
-                  <select className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100" value={ticketPriority} onChange={(e) => setTicketPriority(e.target.value as Ticket['priority'])}>
-                    <option value="kozepes">közepes</option>
-                    <option value="magas">magas</option>
-                    <option value="kritikus">kritikus</option>
-                    <option value="alacsony">alacsony</option>
+                  <input required className="input-base" placeholder="Helyszín (pl. A/12 vagy lépcsőház)" value={ticketLocation} onChange={(e) => setTicketLocation(e.target.value)} />
+                  <select className="input-base" value={ticketPriority} onChange={(e) => setTicketPriority(e.target.value as Ticket['priority'])}>
+                    <option value="kozepes">Közepes</option>
+                    <option value="magas">Magas</option>
+                    <option value="kritikus">Kritikus</option>
+                    <option value="alacsony">Alacsony</option>
                   </select>
                 </div>
-                <button className="rounded-2xl bg-brand-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-100 hover:bg-brand-700">Bejelentés rögzítése</button>
+                <button className="btn-primary">Bejelentés rögzítése</button>
                 {ticketSaved ? <p className="text-sm font-semibold text-emerald-700">A ticket mentése demo módban sikeres, megjelent a listában.</p> : null}
               </form>
             </SectionCard>
@@ -1726,7 +1770,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     <input name="description" className="rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Leírás (opcionális)" />
                   </div>
                   <input name="building_id" type="hidden" value="" />
-                  <button type="submit" disabled={chargeStatus === 'saving'} className="rounded-2xl bg-brand-600 px-4 py-2 text-sm font-black text-white hover:bg-brand-700 disabled:opacity-50">
+                  <button type="submit" disabled={chargeStatus === 'saving'} className="btn-primary disabled:opacity-50">
                     {chargeStatus === 'saving' ? 'Rögzítés...' : 'Terhelés rögzítése'}
                   </button>
                   {chargeStatus === 'done' && <p className="text-sm font-semibold text-emerald-700">Terhelés rögzítve.</p>}
@@ -1837,7 +1881,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   </div>
                   <textarea name="agenda" required rows={4} className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm" placeholder="Napirendi pontok (soronként egy)" />
                   <input name="building_id" type="hidden" value="" />
-                  <button type="submit" disabled={meetingStatus === 'saving'} className="rounded-2xl bg-brand-600 px-4 py-2 text-sm font-black text-white hover:bg-brand-700 disabled:opacity-50">
+                  <button type="submit" disabled={meetingStatus === 'saving'} className="btn-primary disabled:opacity-50">
                     {meetingStatus === 'saving' ? 'Létrehozás...' : 'Közgyűlés létrehozása'}
                   </button>
                   {meetingStatus === 'error' && <p className="text-sm font-semibold text-rose-600">{meetingError}</p>}
@@ -2113,7 +2157,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   <select
                     value={contactSubject}
                     onChange={(e) => setContactSubject(e.target.value as ContactSubject)}
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                    className="input-base"
                   >
                     {CONTACT_SUBJECTS.map((s) => (
                       <option key={s} value={s}>{s}</option>
@@ -2130,7 +2174,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     onChange={(e) => setContactMessage(e.target.value.slice(0, 2000))}
                     rows={6}
                     placeholder="Írd le röviden, miben segíthetünk…"
-                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm leading-relaxed outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                    className="input-base min-h-[120px] resize-none"
                   />
                 </div>
 
@@ -2142,7 +2186,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   type="button"
                   disabled={!contactMessage.trim() || contactStatus === 'sending'}
                   onClick={handleContactSend}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-600 px-5 py-3 text-sm font-black text-white hover:bg-brand-700 disabled:opacity-50"
+                  className="btn-primary w-full"
                 >
                   {contactStatus === 'sending' ? (
                     <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> Küldés…</>

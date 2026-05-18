@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-05-18 — v0.6.0 Premium UI/UX Refactor — Design system, Inter font, elevated components
+
+### Changed
+- **`app/layout.tsx`**: Integrated `next/font/google` Inter with `latin-ext` subset; applied CSS variable `--font-inter` and `font-sans` class to `<body>` for consistent typography everywhere.
+- **`tailwind.config.ts`**: Extended design system — `fontFamily.sans` wired to Inter CSS variable; custom shadow scale (`card`, `card-md`, `card-lg`); `border-radius` tokens `4xl/5xl`; `transitionTimingFunction.spring`; `fade-in-up`, `fade-in`, `scale-in` keyframe animations.
+- **`app/globals.css`**: Full redesign — CSS custom properties for surfaces, borders, shadows, radii; `font-feature-settings` for Inter optical improvements; `:focus-visible` ring using brand-500; `.glass`, `.card-lift`, `.input-base`, `.btn-primary`, `.btn-secondary` utility classes; refined sidebar and widget scrollbars; `scroll-margin-top` on all `[id]` elements.
+- **`app/app/page.tsx` (Building Picker)**:
+  - Header: sticky with `backdrop-blur-xl`, user avatar initials, cleaner sign-out button with red hover state.
+  - Cards: `animate-fade-in-up` staggered reveal, `card-lift` hover effect, ping dot on open tickets, gradient building icon badge, address line with `MapPin` icon, cleaner role badge with `ring-1`.
+  - Empty state: icon in rounded container, better copy layout.
+- **`app/login/page.tsx`**: `animate-scale-in` entry; `backdrop-blur-xl`; `input-base` on fields; `btn-primary` on submit; error/success status distinguished by color (red vs emerald).
+- **`components/dashboard-client.tsx`**:
+  - **Background**: gradient uses Tailwind theme tokens instead of raw hex.
+  - **Sidebar**: 272px width; nav items use `space-y-px` and `duration-150` transitions; building context block with refined opacity; role panel gets icon container.
+  - **Header**: `shadow-card-md` + `backdrop-blur-xl`; smaller, cleaner search input; `btn-secondary` contact button.
+  - **Hero section**: building name promoted into hero when `buildingName` is set; CTA buttons get `hover:-translate-y-px` microinteraction.
+  - **SectionCard**: `border-slate-200/70 bg-white shadow-card-md`; icon gets `h-8 w-8 rounded-xl` container with `ring-1`.
+  - **MetricCard**: `uppercase tracking-wide` label; icon in `h-11 w-11 rounded-2xl bg-white/15 ring-1 ring-white/20`; gradient uses `via` stops; `hover:-translate-y-0.5` lift.
+  - **StatusBadge / PriorityBadge**: Hungarian labels, `ring-1 ring-inset` style, `text-[11px]`.
+  - **Task cards**: `card-lift rounded-2xl bg-slate-50/80`; better typography.
+  - **All form inputs**: unified to `input-base` utility class.
+  - **All primary buttons**: unified to `btn-primary` / `btn-secondary` utility classes.
+
 ## 2026-05-17 — v0.5.6 UI/UX Layout Refactor — Overflow fixes, responsive grids, feed health
 
 ### Changed
