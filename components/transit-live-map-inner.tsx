@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useState, useImperativeHandle, forwardRef } from 'react';
+import { useEffect, useRef, useCallback, useState, useMemo, useImperativeHandle, forwardRef } from 'react';
 import 'leaflet/dist/leaflet.css';
 import type { NearbyStop } from '@/app/api/transit/nearby/route';
 import type { VehiclePosition } from '@/app/api/transit/vehicles/route';
@@ -191,7 +191,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
       vehicleId?: string; vehicleModel?: string;
     } | null>(null);
 
-    const alertRouteSet = new Set<string>(alertRoutes ?? []);
+    const alertRouteSet = useMemo(() => new Set<string>(alertRoutes ?? []), [alertRoutes]);
 
     useImperativeHandle(ref, () => ({
       flyToBuilding: () => {
@@ -265,38 +265,54 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         const now = new Date();
         m.setPopupContent(buildPopupHtml(stop, deps, alertRouteSet, now));
 
-        // Attach click handlers to departure rows
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const map = mapRef.current as any;
-        if (!map) return;
+        // Leaflet updates popup DOM asynchronously — wait one frame before
+        // querying for departure rows to attach the shape-draw click handlers
+        setTimeout(() => {
+          const popupEl = m.getPopup()?.getElement() as HTMLElement | null;
+          if (!popupEl) return;
 
-        const popupEl = m.getPopup()?.getElement() as HTMLElement | null;
-        if (!popupEl) return;
-
-        popupEl.querySelectorAll<HTMLElement>('.bkk-dep-row[data-tripid]').forEach(el => {
-          el.addEventListener('click', () => {
-            const tripId   = el.dataset.tripid ?? '';
-            const route    = el.dataset.route   ?? '';
-            const color    = el.dataset.color   ?? '#38bdf8';
-            const headsign = el.dataset.headsign ?? '';
-            if (tripId) drawShape(tripId, route, color, headsign);
+          popupEl.querySelectorAll<HTMLElement>('.bkk-dep-row[data-tripid]').forEach(el => {
+            el.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const tripId   = el.dataset.tripid ?? '';
+              const route    = el.dataset.route   ?? '';
+              const color    = el.dataset.color   ?? '#38bdf8';
+              const headsign = el.dataset.headsign ?? '';
+              if (tripId) drawShape(tripId, route, color, headsign);
+            });
           });
-        });
+        }, 60);
       } catch { /* departure fetch failure — leave loading state */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [alertRouteSet, drawShape]);
 
-    // ── Refresh stops at a new map center ────────────────────────────────────
+    // ── Refresh stops covering the full viewport + 5 km pre-cache buffer ────
     const refreshStopsAt = useCallback(async (newLat: number, newLon: number) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const L = (window as any).L as typeof import('leaflet') | undefined;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const stopLayer = stopLayerRef.current as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const map = mapRef.current as any;
       if (!L || !stopLayer) return;
+
+      // Compute span from current viewport bounds + ~5 km buffer on each edge
+      // 0.09 lat ≈ 10 km N-S, 0.13 lon ≈ 10 km E-W at Budapest latitude
+      let latSpan = 0.07;
+      let lonSpan = 0.10;
+      if (map) {
+        try {
+          const b = map.getBounds();
+          latSpan = (b.getNorth() - b.getSouth()) + 0.09;
+          lonSpan = (b.getEast()  - b.getWest())  + 0.13;
+        } catch { /* keep defaults */ }
+      }
 
       setIsRefreshingStops(true);
       try {
-        const res  = await fetch(`/api/transit/nearby?lat=${newLat}&lon=${newLon}`);
+        const res  = await fetch(
+          `/api/transit/nearby?lat=${newLat}&lon=${newLon}&latSpan=${latSpan.toFixed(4)}&lonSpan=${lonSpan.toFixed(4)}`
+        );
         const data = await res.json() as { stops: NearbyStop[] };
         const newStops: NearbyStop[] = data?.stops ?? [];
 
@@ -463,11 +479,6 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
     const timeStr = lastUpdate
       ? lastUpdate.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
       : null;
-
-    // ─── Trip info panel colors ───────────────────────────────────────────────
-    const tripBg = tripInfo
-      ? `${tripInfo.color}18`
-      : 'rgba(255,255,255,0.05)';
 
     return (
       <div className="flex flex-col gap-1.5">
