@@ -655,7 +655,8 @@ export default function TransportPanel({ lat, lon, buildingAddress, buildingId }
       {/* ── Right: always-on live map ──────────────────────────────────── */}
       <div className="flex flex-col gap-1.5">
         <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">Élő járattérkép</p>
-        <TransitLiveMap ref={mapRef} lat={realLat} lon={realLon} stops={stops} />
+        <TransitLiveMap ref={mapRef} lat={realLat} lon={realLon} stops={stops}
+          alertRoutes={alerts?.alerts.flatMap(a => a.routes)} />
         <p className="text-[8px] text-slate-700">
           Kattints megállóra a menetrendért · járatra az útvonalért · 15 mp-ként frissül
         </p>

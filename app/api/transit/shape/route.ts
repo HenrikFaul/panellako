@@ -4,10 +4,14 @@ import { NextRequest, NextResponse } from 'next/server';
 export interface ShapePoint { lat: number; lon: number; }
 
 export interface TripShape {
-  points:   ShapePoint[];
-  routeRef: string;
-  color:    string;
-  source:   'futar' | 'none';
+  points:       ShapePoint[];
+  routeRef:     string;
+  color:        string;
+  source:       'futar' | 'none';
+  headsign?:    string;
+  vehicleId?:   string;    // fleet label, e.g. "T9104"
+  vehicleModel?: string;   // e.g. "4. gen. SOLARIS Trollino 18 trolibusz"
+  accessible?:  boolean;
 }
 
 const BKK_BASE = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
@@ -28,8 +32,8 @@ const _cache = new Map<string, { data: TripShape; expires: number }>();
 async function fetchShape(tripId: string): Promise<TripShape> {
   const base = { key: BKK_KEY, version: '3', appVersion: 'apiary-1.0' };
 
-  // 1. Trip details → get shapeId + route color
-  const detailsParams = new URLSearchParams({ ...base, tripId, includeSchedule: 'false' });
+  // 1. Trip details → get shapeId + route color + vehicle info
+  const detailsParams = new URLSearchParams({ ...base, tripId, includeSchedule: 'false', includeReferences: 'trips,routes,stops,vehicles' });
   const detailsRes = await fetch(`${BKK_BASE}/trip-details.json?${detailsParams}`, {
     headers: { 'Accept': 'application/json', 'User-Agent': 'panellako.hu/1.0' },
     signal:  AbortSignal.timeout(7000),
@@ -46,6 +50,16 @@ async function fetchShape(tripId: string): Promise<TripShape> {
   const routeRef = route?.shortName ?? (routeId.replace(/^BKK_/, '') || '?');
   const vehicleType: string = GTFS_TYPE[route?.type ?? 3] ?? 'BUS';
   const color = ROUTE_COLORS[vehicleType] ?? '#38bdf8';
+  const headsign: string = trip?.tripHeadsign ?? '';
+  const accessible: boolean = (trip?.wheelchairAccessible ?? 0) === 1;
+
+  // Extract vehicle info from references (BKK may return assigned vehicle for active trips)
+  type VehicleRef = { id?: string; label?: string; model?: string; description?: string; vehicleType?: { vehicleDescription?: string } };
+  const vehicleRefs: Record<string, VehicleRef> = refs?.vehicles ?? {};
+  const vehicleList = Object.values(vehicleRefs);
+  const firstVehicle = vehicleList[0] as VehicleRef | undefined;
+  const vehicleId   = firstVehicle?.label ?? firstVehicle?.id?.replace(/^BKK_/, '') ?? undefined;
+  const vehicleModel = firstVehicle?.vehicleType?.vehicleDescription ?? firstVehicle?.description ?? firstVehicle?.model ?? undefined;
 
   if (!shapeId) throw new Error('No shapeId in trip-details');
 
@@ -68,7 +82,7 @@ async function fetchShape(tripId: string): Promise<TripShape> {
 
   if (points.length === 0) throw new Error('Empty shape points');
 
-  return { points, routeRef, color, source: 'futar' };
+  return { points, routeRef, color, source: 'futar', headsign, accessible, vehicleId, vehicleModel };
 }
 
 export async function GET(request: NextRequest) {
@@ -84,6 +98,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(shape);
   } catch (err) {
     console.warn('[transit/shape] failed:', err);
-    return NextResponse.json({ points: [], routeRef: '?', color: '#38bdf8', source: 'none' } satisfies TripShape);
+    return NextResponse.json({ points: [], routeRef: '?', color: '#38bdf8', source: 'none', headsign: '', accessible: false } satisfies TripShape);
   }
 }

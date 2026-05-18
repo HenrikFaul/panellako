@@ -17,12 +17,13 @@ const Inner = dynamic(() => import('./transit-live-map-inner'), {
 export type { TransitLiveMapHandle };
 
 const TransitLiveMap = forwardRef<TransitLiveMapHandle, {
-  lat:   number;
-  lon:   number;
-  stops: NearbyStop[];
-}>(function TransitLiveMap({ lat, lon, stops }, ref) {
+  lat:         number;
+  lon:         number;
+  stops:       NearbyStop[];
+  alertRoutes?: string[];
+}>(function TransitLiveMap({ lat, lon, stops, alertRoutes }, ref) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <Inner ref={ref as any} lat={lat} lon={lon} stops={stops} />;
+  return <Inner ref={ref as any} lat={lat} lon={lon} stops={stops} alertRoutes={alertRoutes} />;
 });
 
 export default TransitLiveMap;

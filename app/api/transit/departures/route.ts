@@ -8,6 +8,8 @@ export interface Departure {
   realtime:    boolean;
   vehicle:     'SUBWAY' | 'TRAM' | 'TROLLEYBUS' | 'BUS' | 'RAIL' | 'FERRY';
   tripId:      string;
+  accessible:  boolean;   // wheelchair / low-floor vehicle
+  hasAlert:    boolean;   // at least one active alert affects this route
 }
 
 export interface DepartureBoard {
@@ -44,7 +46,7 @@ async function fetchFutarDepartures(stopId: string): Promise<DepartureBoard> {
     onlyDepartures:    'true',
     minutesBefore:     '0',
     minutesAfter:      '60',
-    includeReferences: 'trips,routes,stops',
+    includeReferences: 'trips,routes,stops,alerts',
   });
 
   const url = `${BKK_BASE}/arrivals-and-departures-for-stop.json?${params}`;
@@ -67,10 +69,14 @@ async function fetchFutarDepartures(stopId: string): Promise<DepartureBoard> {
   // References: routes and trips keyed by their IDs
   const routeRefs: Record<string, { shortName?: string; type?: number }> =
     refs.routes ?? {};
-  const tripRefs: Record<string, { routeId?: string; tripHeadsign?: string }> =
+  const tripRefs: Record<string, { routeId?: string; tripHeadsign?: string; wheelchairAccessible?: number }> =
     refs.trips ?? {};
   const stopRefs: Record<string, { name?: string }> =
     refs.stops ?? {};
+  // Alert route refs: collect short names of routes that have active alerts
+  type AlertRef = { routeIds?: string[] };
+  const alertRefs: AlertRef[] = refs.alerts ?? [];
+  const alertRouteIds = new Set<string>(alertRefs.flatMap((a: AlertRef) => a.routeIds ?? []));
 
   const stopName: string = stopRefs[stopId]?.name ?? stopId;
 
@@ -115,6 +121,12 @@ async function fetchFutarDepartures(stopId: string): Promise<DepartureBoard> {
         tripRefs[tripId]?.tripHeadsign ??
         '';
 
+      // Wheelchair accessible: 1 = yes, 0/2 = unknown/no
+      const accessible = (tripRefs[tripId]?.wheelchairAccessible ?? 0) === 1;
+
+      // Alert: does any active alert affect this route?
+      const hasAlert = alertRouteIds.has(routeId);
+
       return {
         routeRef: route?.shortName ?? (routeId.replace(/^BKK_/, '') || '?'),
         headsign,
@@ -122,6 +134,8 @@ async function fetchFutarDepartures(stopId: string): Promise<DepartureBoard> {
         realtime: isRealtime,
         vehicle,
         tripId,
+        accessible,
+        hasAlert,
       };
     })
     .filter(d => d.minutesAway >= -1)
@@ -141,10 +155,10 @@ function getMockDepartures(stopId: string): DepartureBoard {
     stopId,
     stopName: 'Kerepesi út / Kőér utca',
     departures: [
-      { routeRef: '68',  headsign: 'Keleti pu.',        minutesAway: 2,  realtime: true,  vehicle: 'BUS', tripId: '' },
-      { routeRef: '37',  headsign: 'Puskás Aréna M',    minutesAway: 5,  realtime: true,  vehicle: 'BUS', tripId: '' },
-      { routeRef: '68E', headsign: 'Kelenföld vas.',     minutesAway: 8,  realtime: false, vehicle: 'BUS', tripId: '' },
-      { routeRef: '72',  headsign: 'Kőbánya-Kispest M', minutesAway: 12, realtime: true,  vehicle: 'BUS', tripId: '' },
+      { routeRef: '68',  headsign: 'Keleti pu.',        minutesAway: 2,  realtime: true,  vehicle: 'BUS', tripId: '', accessible: true,  hasAlert: false },
+      { routeRef: '37',  headsign: 'Puskás Aréna M',    minutesAway: 5,  realtime: true,  vehicle: 'BUS', tripId: '', accessible: false, hasAlert: false },
+      { routeRef: '68E', headsign: 'Kelenföld vas.',     minutesAway: 8,  realtime: false, vehicle: 'BUS', tripId: '', accessible: true,  hasAlert: false },
+      { routeRef: '72',  headsign: 'Kőbánya-Kispest M', minutesAway: 12, realtime: true,  vehicle: 'BUS', tripId: '', accessible: false, hasAlert: false },
     ],
     fetchedAt: new Date().toISOString(),
     source:    'mock',
