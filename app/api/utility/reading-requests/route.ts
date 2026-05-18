@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import type { ProviderType } from '@/app/api/utility/announcements/route';
+export const dynamic = 'force-dynamic';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

@@ -13,6 +13,8 @@ import {
 import type { NearbyStop, RouteType } from '@/app/api/transit/nearby/route';
 import type { TransitAlert, AlertEffect } from '@/app/api/transit/alerts/route';
 
+export const dynamic = 'force-dynamic';
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 const CRON_SECRET   = process.env.CRON_SECRET          ?? '';

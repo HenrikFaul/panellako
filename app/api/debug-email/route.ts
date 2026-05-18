@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendEmail } from '@/lib/email';
+export const dynamic = 'force-dynamic';
 
 // Diagnostic endpoint for email configuration.
 //

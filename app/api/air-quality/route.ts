@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+export const dynamic = 'force-dynamic';
 
 // ─── AQICN / World Air Quality Index ─────────────────────────────────────────
 const AQICN_TOKEN = process.env.AQICN_API_TOKEN ?? 'demo';

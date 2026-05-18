@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { loadAlertsFromCache, saveAlertsToCache } from '@/lib/transit-cache';
 import { parseAlerts } from '@/lib/gtfs-rt-parser';
 import { loadCatalogAlerts, upsertCatalogAlerts } from '@/lib/transit-catalog';
+export const dynamic = 'force-dynamic';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type AlertEffect =

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseTripUpdates, guessVehicleType, type GtfsVehicleType } from '@/lib/gtfs-rt-parser';
+export const dynamic = 'force-dynamic';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type VehicleLabel = 'SUBWAY' | 'TRAM' | 'TROLLEYBUS' | 'BUS' | 'RAIL' | 'FERRY';
