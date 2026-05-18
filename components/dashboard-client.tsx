@@ -373,19 +373,22 @@ function numberOrZero(value: number | string | null | undefined) {
   return Number(value ?? 0);
 }
 
-function SectionCard({ id, title, icon, children, action, className }: { id?: string; title: string; icon: ReactNode; children: ReactNode; action?: ReactNode; className?: string }) {
+function SectionCard({ id, title, icon, children, action, className, note }: { id?: string; title: string; icon: ReactNode; children: ReactNode; action?: ReactNode; className?: string; note?: string }) {
   return (
     <section
       id={id}
       className={`min-w-0 overflow-hidden rounded-[1.75rem] border border-slate-200/70 bg-white p-5 shadow-card-md transition-shadow hover:shadow-card-lg${className ? ` ${className}` : ''}`}
     >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2.5 text-base font-bold text-slate-900">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600 ring-1 ring-brand-100/60">
-            {icon}
-          </span>
-          {title}
-        </h2>
+        <div>
+          <h2 className="flex items-center gap-2.5 text-base font-bold text-slate-900">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600 ring-1 ring-brand-100/60">
+              {icon}
+            </span>
+            {title}
+          </h2>
+          {note && <p className="ml-[42px] mt-0.5 text-[9px] text-slate-400">{note}</p>}
+        </div>
         {action}
       </div>
       {children}
@@ -1818,7 +1821,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               />
             </SectionCard>
 
-            <SectionCard id="transport" title="Közlekedés és tömegközl. lefedettség" icon={<Bus size={18} />} className="lg:col-span-2 xl:col-span-3">
+            <SectionCard id="transport" title="Közlekedés és tömegközl. lefedettség" icon={<Bus size={18} />} className="lg:col-span-2 xl:col-span-3" note="Közlekedési adat: BKK Zrt., CC BY 4.0">
               <TransportPanel
                 lat={data.buildingLat}
                 lon={data.buildingLon}
