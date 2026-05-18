@@ -27,7 +27,6 @@ const GTFS_TYPE_MAP: Record<number, RouteType> = {
 };
 
 const BKK_BASE   = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
-const BKK_KEY    = process.env.BKKFUTAR_API_KEY ?? 'apaiary-test';
 const LAT_SPAN   = 0.30;
 const LON_SPAN   = 0.40;
 const DELAY_MS   = 450;
@@ -36,9 +35,9 @@ const CHUNK_SIZE = 500;
 const LAT_CENTERS = [47.22, 47.37, 47.52, 47.65, 47.78];
 const LON_CENTERS = [19.01, 19.19, 19.37];
 
-async function fetchCell(lat: number, lon: number): Promise<BkkStopRow[]> {
+async function fetchCell(lat: number, lon: number, bkkKey: string): Promise<BkkStopRow[]> {
   const params = new URLSearchParams({
-    key: BKK_KEY, version: '3', appVersion: 'apiary-1.0',
+    key: bkkKey, version: '3', appVersion: 'apiary-1.0',
     lat: String(lat), lon: String(lon),
     latSpan: String(LAT_SPAN), lonSpan: String(LON_SPAN),
   });
@@ -46,9 +45,14 @@ async function fetchCell(lat: number, lon: number): Promise<BkkStopRow[]> {
     headers: { Accept: 'application/json', 'User-Agent': 'panellako.hu/seed-1.0' },
     signal:  AbortSignal.timeout(15000),
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '(unreadable)');
+    throw new Error(`HTTP ${res.status}: ${body.slice(0, 300)}`);
+  }
   const json = await res.json();
-  if (json.status !== 'OK') throw new Error(`BKK status "${json.status}"`);
+  if (json.status !== 'OK') {
+    throw new Error(`BKK status "${json.status}" — body: ${JSON.stringify(json).slice(0, 300)}`);
+  }
 
   const routes: Record<string, { shortName?: string; type?: number }> =
     json?.data?.references?.routes ?? {};
@@ -79,18 +83,23 @@ async function fetchCell(lat: number, lon: number): Promise<BkkStopRow[]> {
 }
 
 export async function POST(req: NextRequest) {
-  // Auth check
-  const secret = process.env.SEED_TRIGGER_SECRET;
-  if (!secret) return NextResponse.json({ error: 'SEED_TRIGGER_SECRET not set' }, { status: 500 });
+  // ── Env validation ────────────────────────────────────────────────────────
+  const bkkKey      = process.env.BKKFUTAR_API_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const secret      = process.env.SEED_TRIGGER_SECRET;
+
+  if (!bkkKey)      return NextResponse.json({ error: 'Missing BKKFUTAR_API_KEY' },           { status: 500 });
+  if (!supabaseUrl) return NextResponse.json({ error: 'Missing NEXT_PUBLIC_SUPABASE_URL' },   { status: 500 });
+  if (!serviceKey)  return NextResponse.json({ error: 'Missing SUPABASE_SERVICE_ROLE_KEY' },  { status: 500 });
+  if (!secret)      return NextResponse.json({ error: 'Missing SEED_TRIGGER_SECRET' },        { status: 500 });
+
+  // ── Auth check ────────────────────────────────────────────────────────────
   const auth = req.headers.get('authorization') ?? '';
   if (auth !== `Bearer ${secret}`)
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false } }
-  );
+  const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 
   const all = new Map<string, BkkStopRow>();
   const errors: string[] = [];
@@ -99,7 +108,7 @@ export async function POST(req: NextRequest) {
   for (let i = 0; i < cells.length; i++) {
     const { lat, lon } = cells[i];
     try {
-      const stops = await fetchCell(lat, lon);
+      const stops = await fetchCell(lat, lon, bkkKey);
       for (const s of stops) all.set(s.stop_id, s);
     } catch (err) {
       errors.push(`cell(${lat},${lon}): ${(err as Error).message}`);
