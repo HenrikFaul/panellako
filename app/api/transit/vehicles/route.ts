@@ -26,7 +26,7 @@ interface CacheEntry { data: VehiclesResult; lat: number; lon: number; expires: 
 let _cache: CacheEntry | null = null;
 
 const BKK_BASE = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
-const BKK_KEY  = process.env.BKK_API_KEY ?? 'apaiary-test';
+const BKK_KEY  = process.env.BKKFUTAR_API_KEY ?? 'apaiary-test';
 
 const GTFS_TYPE_MAP: Record<number, VehicleType> = {
   0: 'TRAM', 1: 'SUBWAY', 2: 'RAIL', 3: 'BUS',

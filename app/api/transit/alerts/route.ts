@@ -36,7 +36,7 @@ let _cache: CacheEntry | null = null;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const STALE_AGE_MS = 10 * 60 * 1000;
 
-const BKK_KEY = process.env.BKK_API_KEY ?? 'apaiary-test';
+const BKK_KEY = process.env.BKKFUTAR_API_KEY ?? 'apaiary-test';
 
 // ─── BKK Futár alerts ────────────────────────────────────────────────────────
 // Uses the OTP routers/budapest/index/alerts endpoint (public, no key required)

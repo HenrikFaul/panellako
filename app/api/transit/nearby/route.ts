@@ -52,9 +52,9 @@ function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): num
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// API config — public test key from BKK Apiary docs, override via BKK_API_KEY env var
+// API config — public test key from BKK Apiary docs, override via BKKFUTAR_API_KEY env var
 const BKK_BASE = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
-const BKK_KEY  = process.env.BKK_API_KEY ?? 'apaiary-test';
+const BKK_KEY  = process.env.BKKFUTAR_API_KEY ?? 'apaiary-test';
 
 // GTFS route type → RouteType
 const GTFS_TYPE_MAP: Record<number, RouteType> = {
