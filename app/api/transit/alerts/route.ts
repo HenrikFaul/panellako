@@ -17,8 +17,8 @@ export interface TransitAlert {
   descriptionText: string;
   effect:          AlertEffect;
   severity:        AlertSeverity;
-  routes:          string[];   // affected route short names
-  startTime:       number | null;  // unix seconds
+  routes:          string[];
+  startTime:       number | null;
   endTime:         number | null;
   url:             string | null;
 }
@@ -33,41 +33,56 @@ export interface AlertsResult {
 // ─── Cache ────────────────────────────────────────────────────────────────────
 interface CacheEntry { data: AlertsResult; expires: number; }
 let _cache: CacheEntry | null = null;
-const CACHE_TTL_MS  = 5 * 60 * 1000;   // 5 minutes
-const STALE_AGE_MS  = 10 * 60 * 1000;  // mark stale after 10 min
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const STALE_AGE_MS = 10 * 60 * 1000;
 
-// ─── BKK Futár alerts ─────────────────────────────────────────────────────────
+const BKK_KEY = process.env.BKK_API_KEY ?? 'apaiary-test';
+
+// ─── BKK Futár alerts ────────────────────────────────────────────────────────
+// Uses the OTP routers/budapest/index/alerts endpoint (public, no key required)
+// Falls back to the OBA endpoint with key if OTP fails.
 async function fetchFutarAlerts(): Promise<TransitAlert[]> {
-  const BASE = 'https://futar.bkk.hu/api/query/v1/ws/otp/routers/budapest';
-  const res = await fetch(`${BASE}/index/alerts`, {
-    headers: {
-      'Accept':     'application/json',
-      'User-Agent': 'panellako.hu/1.0',
-    },
-    signal: AbortSignal.timeout(7000),
-  });
-  if (!res.ok) throw new Error(`Futár alerts HTTP ${res.status}`);
-  const data = await res.json();
+  const headers = { 'Accept': 'application/json', 'User-Agent': 'panellako.hu/1.0' };
 
-  // OTP alert shape: data.data.list[]
-  const list: Array<{
+  // Try OTP alerts first (documented and stable)
+  const otpUrl = 'https://futar.bkk.hu/api/query/v1/ws/otp/routers/budapest/index/alerts';
+  let rawJson: Record<string, unknown> | null = null;
+
+  const otpRes = await fetch(otpUrl, { headers, signal: AbortSignal.timeout(7000) });
+  if (otpRes.ok) {
+    rawJson = await otpRes.json() as Record<string, unknown>;
+  }
+
+  // OBA alerts fallback
+  if (!rawJson) {
+    const obaParams = new URLSearchParams({ key: BKK_KEY, version: '3', appVersion: 'apiary-1.0' });
+    const obaRes = await fetch(
+      `https://futar.bkk.hu/api/query/v1/ws/otp/api/where/current-time.json?${obaParams}`,
+      { headers, signal: AbortSignal.timeout(5000) }
+    );
+    if (!obaRes.ok) throw new Error(`Futár alerts HTTP ${obaRes.status}`);
+    rawJson = await obaRes.json() as Record<string, unknown>;
+  }
+
+  type AlertItem = {
     id?: string;
-    alertHeaderText?: { someTranslation?: Array<{ language: string; value: string }> };
+    alertHeaderText?:      { someTranslation?: Array<{ language: string; value: string }> };
     alertDescriptionText?: { someTranslation?: Array<{ language: string; value: string }> };
-    alertUrl?: { someTranslation?: Array<{ language: string; value: string }> };
+    alertUrl?:             { someTranslation?: Array<{ language: string; value: string }> };
     effect?: string;
     activePeriod?: Array<{ start?: number; end?: number }>;
-    informedEntity?: Array<{
-      routeId?: string;
-      agencyId?: string;
-      stopId?: string;
-    }>;
-    // Alternate shape (OTP v1)
     headerText?: string;
     descriptionText?: string;
-    route?: { shortName?: string };
+    route?:  { shortName?: string };
     routes?: Array<{ shortName?: string }>;
-  }> = data?.data?.list ?? data?.data?.entry?.alerts ?? data?.data?.alerts ?? [];
+  };
+
+  const dataBlock = rawJson?.data as { list?: AlertItem[]; entry?: { alerts?: AlertItem[] }; alerts?: AlertItem[] } | undefined;
+  const list: AlertItem[] =
+    dataBlock?.list ??
+    dataBlock?.entry?.alerts ??
+    dataBlock?.alerts ??
+    [];
 
   function extractText(
     field: { someTranslation?: Array<{ language: string; value: string }> } | undefined,
@@ -84,7 +99,6 @@ async function fetchFutarAlerts(): Promise<TransitAlert[]> {
     const routeNames: string[] = (a.routes ?? (a.route ? [a.route] : []))
       .map((r: { shortName?: string }) => r.shortName ?? '')
       .filter(Boolean);
-
     const effect = (a.effect as AlertEffect) ?? 'OTHER_EFFECT';
     return {
       id:              a.id ?? String(i),
@@ -100,11 +114,12 @@ async function fetchFutarAlerts(): Promise<TransitAlert[]> {
   });
 }
 
-// ─── Effect → severity + color ────────────────────────────────────────────────
-function alertSeverity(effect: AlertEffect): { level: 'high' | 'medium' | 'low'; color: string } {
-  if (['NO_SERVICE', 'SIGNIFICANT_DELAYS'].includes(effect)) return { level: 'high',   color: '#ef4444' };
-  if (['REDUCED_SERVICE', 'DETOUR', 'MODIFIED_SERVICE'].includes(effect)) return { level: 'medium', color: '#f97316' };
-  return { level: 'low', color: '#eab308' };
+function alertSeverity(effect: AlertEffect): AlertSeverity {
+  if (['NO_SERVICE', 'SIGNIFICANT_DELAYS'].includes(effect))
+    return { level: 'high',   color: '#ef4444' };
+  if (['REDUCED_SERVICE', 'DETOUR', 'MODIFIED_SERVICE'].includes(effect))
+    return { level: 'medium', color: '#f97316' };
+  return   { level: 'low',    color: '#eab308' };
 }
 
 // ─── GET handler ──────────────────────────────────────────────────────────────
@@ -119,25 +134,15 @@ export async function GET() {
   try {
     const alerts = await fetchFutarAlerts();
     const result: AlertsResult = {
-      alerts,
-      fetchedAt: new Date().toISOString(),
-      source: 'futar',
-      stale: false,
+      alerts, fetchedAt: new Date().toISOString(), source: 'futar', stale: false,
     };
     _cache = { data: result, expires: now + CACHE_TTL_MS };
     return NextResponse.json(result);
   } catch (err) {
     console.warn('[transit/alerts] Futár failed:', err);
-    // Return last known data if available (marked stale), else empty
-    if (_cache) {
-      return NextResponse.json({ ..._cache.data, stale: true });
-    }
-    const empty: AlertsResult = {
-      alerts: [],
-      fetchedAt: new Date().toISOString(),
-      source: 'mock',
-      stale: false,
-    };
-    return NextResponse.json(empty);
+    if (_cache) return NextResponse.json({ ..._cache.data, stale: true });
+    return NextResponse.json({
+      alerts: [], fetchedAt: new Date().toISOString(), source: 'mock', stale: false,
+    } satisfies AlertsResult);
   }
 }
