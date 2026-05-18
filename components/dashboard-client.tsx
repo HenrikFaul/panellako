@@ -2408,6 +2408,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               lat={data.buildingLat}
               lon={data.buildingLon}
               buildingAddress={data.buildingAddress}
+              buildingId={data.buildingId}
             />
           </SectionCard>
 
