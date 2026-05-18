@@ -45,11 +45,24 @@ function vehicleSvg(color: string, bearing?: number) {
     <polygon points="13,3 16,10 13,8.5 10,10" fill="${color}" transform="rotate(${rot} 13 13)"/>
   </svg>`;
 }
-function stopSvg(color: string, size = 18) {
-  const h = size / 2;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-    <circle cx="${h}" cy="${h}" r="${h - 2}" fill="white" stroke="${color}" stroke-width="2.2"/>
-    <circle cx="${h}" cy="${h}" r="${Math.max(h - 6, 2)}" fill="${color}"/>
+// BKK Futár–style teardrop pin: colored body, white border, vehicle-type letter inside
+const VEHICLE_LABEL: Record<string, string> = {
+  SUBWAY: 'M', TRAM: 'V', TROLLEYBUS: 'Tr', BUS: 'B', RAIL: 'H', FERRY: 'H', CABLE_CAR: 'D',
+};
+function stopPinSvg(color: string, vehicleType: string) {
+  const label    = VEHICLE_LABEL[vehicleType] ?? 'B';
+  const fontSize = label.length > 1 ? 8 : 10;
+  // Teardrop: 28×38 — circle top, pointed tip at bottom centre
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="38" viewBox="0 0 28 38">
+    <filter id="ds" x="-30%" y="-20%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.35)"/>
+    </filter>
+    <path d="M14,1 C7,1 1,7 1,14 C1,23 14,37 14,37 C14,37 27,23 27,14 C27,7 21,1 14,1 Z"
+      fill="${color}" stroke="white" stroke-width="1.8" filter="url(#ds)"/>
+    <circle cx="14" cy="14" r="7" fill="white" fill-opacity="0.18"/>
+    <text x="14" y="14" text-anchor="middle" dominant-baseline="central"
+      fill="white" font-weight="900" font-size="${fontSize}"
+      font-family="-apple-system,BlinkMacSystemFont,sans-serif">${label}</text>
   </svg>`;
 }
 function buildingSvg() {
@@ -217,7 +230,7 @@ export default function TransitLiveMapInner({ lat, lon, stops }: Props) {
       });
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> | Közlekedési adat: <a href="https://opendata.bkk.hu" target="_blank">BKK Zrt., CC BY 4.0</a>',
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         maxZoom: 19,
       }).addTo(map);
 
@@ -229,13 +242,14 @@ export default function TransitLiveMapInner({ lat, lon, stops }: Props) {
         .bindTooltip('<b>Az épület</b>', { sticky: false })
         .addTo(map);
 
-      // Stop markers
+      // Stop markers — BKK Futár-style teardrop pins
       const stopMarkers = new Map<string, unknown>();
       for (const stop of stops) {
         const color  = STOP_COLOR[stop.routeType] ?? '#64748b';
         const routes = stop.routeRefs.slice(0, 4).join(' · ');
         const marker = L.marker([stop.lat, stop.lon], {
-          icon: L.divIcon({ html: stopSvg(color), className: '', iconSize: [18,18], iconAnchor: [9,9], popupAnchor: [0,-12] }),
+          // iconAnchor [14,37] = tip of the teardrop; popupAnchor above the circle top
+          icon: L.divIcon({ html: stopPinSvg(color, stop.routeType), className: '', iconSize: [28,38], iconAnchor: [14,37], popupAnchor: [0,-40] }),
         })
           .bindTooltip(
             `<div style="font-size:11px"><b>${stop.name}</b><br/><span style="color:#94a3b8;font-size:9px">${routes} · ${stop.distanceM} m</span></div>`,
