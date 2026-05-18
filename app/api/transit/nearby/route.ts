@@ -90,28 +90,33 @@ function computeCoverage(stops: NearbyStop[]): CoverageScore {
 // ─── BKK Futár OTP API (serves from GTFS database) ───────────────────────────
 async function fetchFutarStops(lat: number, lon: number): Promise<NearbyStop[]> {
   const BASE = 'https://futar.bkk.hu/api/query/v1/ws/otp/routers/budapest/index/stops';
-  const res = await fetch(`${BASE}?lat=${lat}&lon=${lon}&radius=700&limit=20`, {
+  const res = await fetch(`${BASE}?lat=${lat}&lon=${lon}&radius=700`, {
     headers: { 'Accept': 'application/json', 'User-Agent': 'panellako.hu/1.0' },
-    signal: AbortSignal.timeout(7000),
+    signal: AbortSignal.timeout(9000),
   });
   if (!res.ok) throw new Error(`Futár HTTP ${res.status}`);
   const data = await res.json();
 
+  // BKK wraps results in data.data.list; some versions use data.data.entry.stops
   const list: Array<{
     id: string; code?: string; name: string; lat: number; lon: number;
     type?: string; vehicleType?: string;
-  }> = data?.data?.list ?? [];
+    routes?: Array<{ shortName?: string; type?: number }>;
+  }> = data?.data?.list ?? data?.data?.entry?.stops ?? data?.list ?? [];
+
+  if (list.length === 0) throw new Error('Futár returned empty stop list');
+
+  const typeMap: Record<string, RouteType> = {
+    SUBWAY: 'SUBWAY', TRAM: 'TRAM', BUS: 'BUS', TROLLEYBUS: 'TROLLEYBUS',
+    RAIL: 'RAIL', FERRY: 'FERRY',
+  };
 
   return list.map(s => {
     const distanceM = Math.round(haversineM(lat, lon, s.lat, s.lon));
-    // Parse route_ref from stop code patterns or use stop-level route query
-    // Futár stop type mapping
-    const typeMap: Record<string, RouteType> = {
-      SUBWAY: 'SUBWAY', TRAM: 'TRAM', BUS: 'BUS', TROLLEYBUS: 'TROLLEYBUS',
-      RAIL: 'RAIL', FERRY: 'FERRY',
-    };
     const routeType: RouteType = typeMap[s.type ?? s.vehicleType ?? ''] ?? 'BUS';
-    return { id: s.id, name: s.name, lat: s.lat, lon: s.lon, distanceM, routeRefs: [], routeType };
+    // Use inline routes array if the API returned it; otherwise populate via separate call
+    const routeRefs = (s.routes ?? []).map((r: { shortName?: string }) => r.shortName ?? '').filter(Boolean);
+    return { id: s.id, name: s.name, lat: s.lat, lon: s.lon, distanceM, routeRefs, routeType };
   }).filter(s => s.distanceM <= 700).sort((a, b) => a.distanceM - b.distanceM);
 }
 
