@@ -3,18 +3,154 @@ import { NextResponse } from 'next/server';
 const AQICN_TOKEN = process.env.AQICN_API_TOKEN ?? 'demo';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+export interface StationValidation {
+  schemaOk:        boolean;  // Check 1: numeric, finite, valid range
+  inBbox:          boolean;  // Check 2: within Hungary bounding box
+  notSwapped:      boolean;  // Check 3: lat/lon not reversed
+  nearCity:        boolean;  // Check 4: within 120km of known Hungarian settlement
+  nameMatch:       boolean;  // Check 5: station name consistent with coordinates (60km tolerance)
+  precision:       boolean;  // Check 6: not suspiciously round/placeholder coordinates
+  score:           number;   // 0–6 checks passed
+  confidence:      'high' | 'medium' | 'low'; // high=5-6, medium=3-4, low=0-2
+  issues:          string[]; // human-readable failure descriptions
+  nearestCityName: string;
+  nearestCityKm:   number;
+}
+
 export interface AQIStation {
   uid:         number;
   aqi:         number | null;
   stationName: string;
   lat:         number;
   lon:         number;
+  validation:  StationValidation;
+}
+
+// ─── Reference city dataset ───────────────────────────────────────────────────
+const REFERENCE_CITIES: { name: string; lat: number; lon: number }[] = [
+  // Major Hungarian cities
+  { name: 'Budapest',           lat: 47.4979, lon: 19.0402 },
+  { name: 'Debrecen',           lat: 47.5316, lon: 21.6273 },
+  { name: 'Miskolc',            lat: 48.1035, lon: 20.7784 },
+  { name: 'Pécs',               lat: 46.0727, lon: 18.2330 },
+  { name: 'Győr',               lat: 47.6875, lon: 17.6504 },
+  { name: 'Szeged',             lat: 46.2530, lon: 20.1414 },
+  { name: 'Szombathely',        lat: 47.2307, lon: 16.6219 },
+  { name: 'Kecskemét',          lat: 46.9067, lon: 19.6917 },
+  { name: 'Eger',               lat: 47.9025, lon: 20.3772 },
+  { name: 'Nyíregyháza',        lat: 47.9554, lon: 21.7166 },
+  { name: 'Székesfehérvár',     lat: 47.1860, lon: 18.4221 },
+  { name: 'Veszprém',           lat: 47.0930, lon: 17.9096 },
+  { name: 'Tatabánya',          lat: 47.5697, lon: 18.3985 },
+  { name: 'Kaposvár',           lat: 46.3597, lon: 17.7963 },
+  { name: 'Szolnok',            lat: 47.1760, lon: 20.1800 },
+  { name: 'Esztergom',          lat: 47.7947, lon: 18.7414 },
+  { name: 'Dunakeszi',          lat: 47.6334, lon: 19.1340 },
+  { name: 'Mosonmagyaróvár',    lat: 47.8729, lon: 17.2661 },
+  { name: 'Kazincbarcika',      lat: 48.2524, lon: 20.6409 },
+  { name: 'Ajka',               lat: 47.1009, lon: 17.5548 },
+  { name: 'Hajdúböszörmény',    lat: 47.6713, lon: 21.5074 },
+  // Budapest district centers (for Budapest station validation)
+  { name: 'Soroksár',           lat: 47.4271, lon: 19.0912 },
+  { name: 'Óbuda',              lat: 47.5380, lon: 19.0510 },
+  { name: 'Csepel',             lat: 47.4235, lon: 19.0657 },
+  { name: 'Budatétény',         lat: 47.4083, lon: 18.9667 },
+  { name: 'Pesthidegkút',       lat: 47.5533, lon: 18.9561 },
+];
+
+// ─── Haversine distance ───────────────────────────────────────────────────────
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ─── Geospatial validation ────────────────────────────────────────────────────
+function validateStation(lat: number, lon: number, stationName: string): StationValidation {
+  const issues: string[] = [];
+
+  // Check 1 — Schema: numeric, finite, non-zero, within physical range
+  const schemaOk =
+    Number.isFinite(lat) &&
+    Number.isFinite(lon) &&
+    lat !== 0 &&
+    lon !== 0 &&
+    Math.abs(lat) <= 90 &&
+    Math.abs(lon) <= 180;
+  if (!schemaOk) issues.push('Érvénytelen koordináta-séma (nem véges, nulla vagy határokon kívüli érték)');
+
+  // Check 2 — Hungary bounding box
+  const inBbox = lat >= 45.7 && lat <= 48.6 && lon >= 16.1 && lon <= 22.9;
+  if (!inBbox) issues.push('A koordináták kívül esnek Magyarország határain');
+
+  // Check 3 — Not swapped: for Hungary lat ≈ 46–49°N, lon ≈ 16–23°E
+  // Swapped coordinates would place lat in the 16–23 range and lon in 46–49
+  const notSwapped = lat > 40 && lon < 35;
+  if (!notSwapped) issues.push('Felcserélt szélességi/hosszúsági fok (lat és lon valószínűleg felcserélve)');
+
+  // Check 4 — Near city: must be within 120km of a reference settlement
+  let nearestCityName = '';
+  let nearestCityKm = Infinity;
+  for (const city of REFERENCE_CITIES) {
+    const km = haversineKm(lat, lon, city.lat, city.lon);
+    if (km < nearestCityKm) {
+      nearestCityKm = km;
+      nearestCityName = city.name;
+    }
+  }
+  const nearCity = nearestCityKm < 120;
+  if (!nearCity) issues.push(`Legközelebbi ismert helyszín (${nearestCityName}) ${nearestCityKm.toFixed(1)} km-re van (határérték: 120 km)`);
+
+  // Check 5 — Name match: if station name contains a reference city name,
+  // verify the coordinates are within 60km of that city.
+  // If no city name found in the station name → pass by default.
+  let nameMatch = true;
+  const nameLower = stationName.toLowerCase();
+  for (const city of REFERENCE_CITIES) {
+    if (nameLower.includes(city.name.toLowerCase())) {
+      const distToNamedCity = haversineKm(lat, lon, city.lat, city.lon);
+      if (distToNamedCity >= 60) {
+        nameMatch = false;
+        issues.push(`Az állomásnév „${city.name}"-t tartalmaz, de a koordináták ${distToNamedCity.toFixed(1)} km-re vannak (határérték: 60 km)`);
+      }
+      break; // first matching city is authoritative
+    }
+  }
+
+  // Check 6 — Precision: reject suspiciously round coordinates
+  // If BOTH lat AND lon are exact multiples of 0.5°, flag as low-precision placeholder
+  const precision = !(lat % 0.5 === 0 && lon % 0.5 === 0);
+  if (!precision) issues.push('Gyanúsan kerek koordináták (mindkét érték 0,5 fok többszöröse — valószínűleg helyőrző adat)');
+
+  // Score & confidence
+  const checks = [schemaOk, inBbox, notSwapped, nearCity, nameMatch, precision];
+  const score = checks.filter(Boolean).length;
+  const confidence: 'high' | 'medium' | 'low' =
+    score >= 5 ? 'high' : score >= 3 ? 'medium' : 'low';
+
+  return {
+    schemaOk,
+    inBbox,
+    notSwapped,
+    nearCity,
+    nameMatch,
+    precision,
+    score,
+    confidence,
+    issues,
+    nearestCityName,
+    nearestCityKm: parseFloat(nearestCityKm.toFixed(2)),
+  };
 }
 
 // ─── Fallback stations — Budapest OLM + major Hungarian cities ───────────────
 // Shown on the map when AQICN returns no data (e.g. demo token).
 // Negative UIDs signal these are fallback markers (no live AQI value).
-const OLM_FALLBACK: AQIStation[] = [
+// validation is populated at runtime via validateStation(); placeholders here satisfy TS.
+const _OLM_RAW: Omit<AQIStation, 'validation'>[] = [
   // Budapest OLM network — coordinates verified against official OLM network maps
   { uid: -1,  stationName: 'Budapest, Gilice tér',         lat: 47.4271, lon: 19.0912, aqi: null }, // dist XXIII, Soroksár (east bank)
   { uid: -2,  stationName: 'Budapest, Széna tér',          lat: 47.5083, lon: 19.0228, aqi: null }, // dist II, Széll Kálmán tér (Buda)
@@ -51,7 +187,12 @@ const OLM_FALLBACK: AQIStation[] = [
   { uid: -120, stationName: 'Kazincbarcika',      lat: 48.2524, lon: 20.6409, aqi: null },
 ];
 
-// ─── Hungary bounding box ─────────────────────────────────────────────────────
+const OLM_FALLBACK: AQIStation[] = _OLM_RAW.map(s => ({
+  ...s,
+  validation: validateStation(s.lat, s.lon, s.stationName),
+}));
+
+// ─── Hungary bounding box helper (used for AQICN pre-filter) ─────────────────
 function isInHungary(lat: number, lon: number): boolean {
   return lat >= 45.7 && lat <= 48.6 && lon >= 16.1 && lon <= 22.9;
 }
@@ -95,7 +236,9 @@ export async function GET() {
               uid:         item.uid,
               aqi:         isNaN(aqi as number) ? null : (aqi as number),
               stationName: item.station.name,
-              lat, lon,
+              lat,
+              lon,
+              validation:  validateStation(lat, lon, item.station.name),
             };
           });
       }
