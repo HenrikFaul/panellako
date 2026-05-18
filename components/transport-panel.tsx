@@ -235,14 +235,16 @@ function DepartureBoardPanel({ stopId, stopName, refreshKey }: {
       <div className="mb-1.5 flex items-center justify-between">
         <p className="text-[9px] font-black uppercase tracking-wider text-slate-500 truncate pr-2">{board.stopName || stopName}</p>
         {isMock && (
-          <span
-            title={mockError ?? 'BKK Futár API nem válaszolt'}
-            className="cursor-help rounded-full bg-amber-900/20 px-1.5 py-0.5 text-[7px] font-bold text-amber-500 italic"
-          >
+          <span className="rounded-full bg-amber-900/20 px-1.5 py-0.5 text-[7px] font-bold text-amber-500 italic">
             API nem elérhető
           </span>
         )}
       </div>
+      {isMock && mockError && (
+        <p className="mb-1.5 rounded-lg bg-amber-900/10 px-2 py-1 text-[8px] text-amber-600 break-words leading-snug">
+          {mockError}
+        </p>
+      )}
       <ul className="space-y-1">
         {board.departures.map((dep: Departure, i) => (
           <li key={i}

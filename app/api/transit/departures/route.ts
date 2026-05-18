@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseTripUpdates, guessVehicleType, type GtfsVehicleType } from '@/lib/gtfs-rt-parser';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+export type VehicleLabel = 'SUBWAY' | 'TRAM' | 'TROLLEYBUS' | 'BUS' | 'RAIL' | 'FERRY';
+
 export interface Departure {
   routeRef:    string;
   headsign:    string;
   minutesAway: number;
   realtime:    boolean;
-  vehicle:     'SUBWAY' | 'TRAM' | 'TROLLEYBUS' | 'BUS' | 'RAIL' | 'FERRY';
+  vehicle:     VehicleLabel;
   tripId:      string;
-  accessible:  boolean;   // wheelchair / low-floor vehicle
-  hasAlert:    boolean;   // at least one active alert affects this route
+  accessible:  boolean;
+  hasAlert:    boolean;
 }
 
 export interface DepartureBoard {
@@ -17,148 +20,143 @@ export interface DepartureBoard {
   stopName:   string;
   departures: Departure[];
   fetchedAt:  string;
-  source:     'futar' | 'mock';
+  source:     'gtfs-rt' | 'futar' | 'mock';
 }
 
-// ─── Cache ────────────────────────────────────────────────────────────────────
-interface CacheEntry { data: DepartureBoard; expires: number; }
-const _cache = new Map<string, CacheEntry>();
+// ─── Constants ────────────────────────────────────────────────────────────────
+const GTFS_RT_BASE = 'https://go.bkk.hu/api/query/v1/ws/gtfs-rt/full';
+const OBA_BASE     = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
+const APP_ORIGIN   = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://panellako.hu').replace(/\/$/, '');
+const BKK_KEY      = process.env.BKKFUTAR_API_KEY ?? '';
 
-const BKK_BASE    = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
-const BKK_KEY     = process.env.BKKFUTAR_API_KEY ?? 'apaiary-test';
-const APP_ORIGIN  = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://panellako.hu').replace(/\/$/, '');
 const BKK_HEADERS = {
-  'Accept':     'application/json',
+  'Accept':     '*/*',
   'User-Agent': 'panellako.hu/1.0',
   'Referer':    `${APP_ORIGIN}/`,
   'Origin':     APP_ORIGIN,
 };
 
-// GTFS route type → vehicle label
-const GTFS_TYPE_MAP: Record<number, Departure['vehicle']> = {
+const GTFS_TYPE_MAP: Record<number, VehicleLabel> = {
   0: 'TRAM', 1: 'SUBWAY', 2: 'RAIL', 3: 'BUS',
   4: 'FERRY', 5: 'TRAM', 11: 'TROLLEYBUS', 12: 'TRAM',
 };
 
-// ─── BKK Futár OBA arrivals-and-departures-for-stop ──────────────────────────
-async function fetchFutarDepartures(stopId: string): Promise<DepartureBoard> {
+function toVehicleLabel(g: GtfsVehicleType): VehicleLabel {
+  const m: Record<string, VehicleLabel> = {
+    SUBWAY: 'SUBWAY', TRAM: 'TRAM', TROLLEYBUS: 'TROLLEYBUS',
+    BUS: 'BUS', RAIL: 'RAIL', FERRY: 'FERRY',
+  };
+  return m[g] ?? 'BUS';
+}
+
+// ─── GTFS-RT TripUpdates global cache (15 s) ─────────────────────────────────
+// Indexed by stop_id for O(1) lookup after initial parse.
+interface StopDep { tripId: string; routeRef: string; depTime: number; }
+interface TuCache { index: Map<string, StopDep[]>; expires: number; }
+let _tuCache: TuCache | null = null;
+
+async function refreshTuCache(): Promise<TuCache> {
+  const url = `${GTFS_RT_BASE}/TripUpdates.txt?key=${BKK_KEY}`;
+  const res = await fetch(url, { headers: BKK_HEADERS, signal: AbortSignal.timeout(12_000) });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`GTFS-RT TripUpdates HTTP ${res.status}: ${body.slice(0, 150)}`);
+  }
+  const text = await res.text();
+  const updates = parseTripUpdates(text);
+
+  const index = new Map<string, StopDep[]>();
+  for (const upd of updates) {
+    for (const sd of upd.stopDelays) {
+      if (!sd.stopId || sd.departureTime === null) continue;
+      // Index under both the exact stop_id and the BKK_-toggled variant
+      const altId = sd.stopId.startsWith('BKK_')
+        ? sd.stopId.slice(4)
+        : `BKK_${sd.stopId}`;
+      const entry: StopDep = { tripId: upd.tripId, routeRef: upd.routeRef, depTime: sd.departureTime };
+      for (const k of [sd.stopId, altId]) {
+        if (!index.has(k)) index.set(k, []);
+        index.get(k)!.push(entry);
+      }
+    }
+  }
+  return { index, expires: Date.now() + 15_000 };
+}
+
+// ─── Per-stop cache ───────────────────────────────────────────────────────────
+interface BoardCache { data: DepartureBoard; expires: number; }
+const _boardCache = new Map<string, BoardCache>();
+
+// ─── OBA JSON fallback ────────────────────────────────────────────────────────
+async function fetchObaBoard(stopId: string): Promise<DepartureBoard> {
+  // Note: 'alerts' removed from includeReferences — not a valid OBA reference type
   const params = new URLSearchParams({
-    key:               BKK_KEY,
+    key:               BKK_KEY || 'apaiary-test',
     version:           '3',
     appVersion:        'apiary-1.0',
     stopId,
     onlyDepartures:    'true',
     minutesBefore:     '0',
     minutesAfter:      '60',
-    includeReferences: 'trips,routes,stops,alerts',
+    includeReferences: 'trips,routes,stops',
   });
 
-  const url = `${BKK_BASE}/arrivals-and-departures-for-stop.json?${params}`;
-
-  const res = await fetch(url, {
-    headers: BKK_HEADERS,
-    signal:  AbortSignal.timeout(8000),
+  const res = await fetch(`${OBA_BASE}/arrivals-and-departures-for-stop.json?${params}`, {
+    headers: { ...BKK_HEADERS, 'Accept': 'application/json' },
+    signal:  AbortSignal.timeout(10_000),
   });
-
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`Futár HTTP ${res.status}: ${body.slice(0, 300)}`);
+    throw new Error(`OBA HTTP ${res.status}: ${body.slice(0, 200)}`);
   }
-
   const json = await res.json();
-
-  // OBA response envelope: { status, currentTime, data: { entry, references } }
   if (json.status !== 'OK') {
-    throw new Error(`Futár status: ${json.status} — ${JSON.stringify(json).slice(0, 300)}`);
+    throw new Error(`OBA status=${json.status}: ${JSON.stringify(json).slice(0, 200)}`);
   }
 
   const entry = json?.data?.entry;
   const refs  = json?.data?.references ?? {};
+  const routeMap: Record<string, { shortName?: string; type?: number }> = refs.routes ?? {};
+  const tripMap:  Record<string, { routeId?: string; tripHeadsign?: string; wheelchairAccessible?: number }> = refs.trips ?? {};
+  const stopMap:  Record<string, { name?: string }> = refs.stops ?? {};
+  const stopName  = stopMap[stopId]?.name ?? stopId;
 
-  // References: routes and trips keyed by their IDs
-  const routeRefs: Record<string, { shortName?: string; type?: number }> =
-    refs.routes ?? {};
-  const tripRefs: Record<string, { routeId?: string; tripHeadsign?: string; wheelchairAccessible?: number }> =
-    refs.trips ?? {};
-  const stopRefs: Record<string, { name?: string }> =
-    refs.stops ?? {};
-  // Alert route refs: collect short names of routes that have active alerts
-  type AlertRef = { routeIds?: string[] };
-  const alertRefs: AlertRef[] = refs.alerts ?? [];
-  const alertRouteIds = new Set<string>(alertRefs.flatMap((a: AlertRef) => a.routeIds ?? []));
+  // BKK currentTime is in milliseconds
+  const serverNowSec = ((json.currentTime as number) ?? Date.now()) / 1000;
 
-  const stopName: string = stopRefs[stopId]?.name ?? stopId;
-
-  // currentTime from server is in milliseconds
-  const serverNowMs = (json.currentTime as number) ?? Date.now();
-  const serverNowSec = serverNowMs / 1000;
-
-  const stopTimes: Array<{
-    tripId?:                 string;
-    stopHeadsign?:           string;
-    departureTime?:          number;   // Unix seconds (scheduled)
-    predictedDepartureTime?: number;   // Unix seconds (real-time, if available)
-    arrivalTime?:            number;
-    predictedArrivalTime?:   number;
-  }> = entry?.stopTimes ?? [];
+  type ST = {
+    tripId?: string; stopHeadsign?: string;
+    departureTime?: number; predictedDepartureTime?: number;
+    arrivalTime?: number; predictedArrivalTime?: number;
+  };
+  const stopTimes: ST[] = entry?.stopTimes ?? [];
 
   const departures: Departure[] = stopTimes
     .map(st => {
-      // Prefer predicted (real-time) over scheduled
-      const depSec =
-        st.predictedDepartureTime ??
-        st.departureTime          ??
-        st.predictedArrivalTime   ??
-        st.arrivalTime            ??
-        0;
-
-      const minutesAway = Math.round((depSec - serverNowSec) / 60);
-      const isRealtime  = st.predictedDepartureTime !== undefined ||
-                          st.predictedArrivalTime   !== undefined;
-
-      // Route: look up via trip → routeId → route shortName
+      const depSec = st.predictedDepartureTime ?? st.departureTime
+                  ?? st.predictedArrivalTime   ?? st.arrivalTime ?? 0;
       const tripId  = st.tripId ?? '';
-      const routeId = tripRefs[tripId]?.routeId ?? '';
-      const route   = routeRefs[routeId];
-
-      const vehicle: Departure['vehicle'] =
-        GTFS_TYPE_MAP[route?.type ?? 3] ?? 'BUS';
-
-      // Headsign: prefer stop-level override, fall back to trip headsign
-      const headsign =
-        st.stopHeadsign ??
-        tripRefs[tripId]?.tripHeadsign ??
-        '';
-
-      // Wheelchair accessible: 1 = yes, 0/2 = unknown/no
-      const accessible = (tripRefs[tripId]?.wheelchairAccessible ?? 0) === 1;
-
-      // Alert: does any active alert affect this route?
-      const hasAlert = alertRouteIds.has(routeId);
-
+      const routeId = tripMap[tripId]?.routeId ?? '';
+      const route   = routeMap[routeId];
       return {
-        routeRef: route?.shortName ?? (routeId.replace(/^BKK_/, '') || '?'),
-        headsign,
-        minutesAway,
-        realtime: isRealtime,
-        vehicle,
+        routeRef:    route?.shortName ?? (routeId.replace(/^BKK_/, '') || '?'),
+        headsign:    st.stopHeadsign ?? tripMap[tripId]?.tripHeadsign ?? '',
+        minutesAway: Math.round((depSec - serverNowSec) / 60),
+        realtime:    st.predictedDepartureTime !== undefined || st.predictedArrivalTime !== undefined,
+        vehicle:     GTFS_TYPE_MAP[route?.type ?? 3] ?? 'BUS',
         tripId,
-        accessible,
-        hasAlert,
+        accessible:  (tripMap[tripId]?.wheelchairAccessible ?? 0) === 1,
+        hasAlert:    false,
       };
     })
     .filter(d => d.minutesAway >= -1)
     .sort((a, b) => a.minutesAway - b.minutesAway)
     .slice(0, 8);
 
-  return {
-    stopId, stopName, departures,
-    fetchedAt: new Date().toISOString(),
-    source:    'futar',
-  };
+  return { stopId, stopName, departures, fetchedAt: new Date().toISOString(), source: 'futar' };
 }
 
-// ─── Mock departure board ─────────────────────────────────────────────────────
+// ─── Mock fallback ────────────────────────────────────────────────────────────
 function getMockDepartures(stopId: string): DepartureBoard {
   return {
     stopId,
@@ -179,22 +177,65 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const stopId = searchParams.get('stopId') ?? '';
 
-  if (!stopId) {
-    return NextResponse.json({ error: 'stopId required' }, { status: 400 });
+  if (!stopId) return NextResponse.json({ error: 'stopId required' }, { status: 400 });
+
+  // Non-BKK IDs (e.g. raw Overpass node numbers) can't be queried
+  if (!stopId.startsWith('BKK_')) {
+    return NextResponse.json({
+      ...getMockDepartures(stopId), _mock: true,
+      _error: `Megálló ID nem BKK formátum: "${stopId}" — a közeli megállók adatai nem töltöttek be rendesen.`,
+    });
   }
 
-  const cached = _cache.get(stopId);
-  if (cached && cached.expires > Date.now()) {
-    return NextResponse.json(cached.data);
+  // Per-stop cache hit
+  const bc = _boardCache.get(stopId);
+  if (bc && bc.expires > Date.now()) return NextResponse.json(bc.data);
+
+  // ── Primary: GTFS-RT TripUpdates (go.bkk.hu) ─────────────────────────────
+  if (!_tuCache || _tuCache.expires <= Date.now()) {
+    try { _tuCache = await refreshTuCache(); }
+    catch (err) { console.warn('[transit/departures] GTFS-RT TripUpdates failed:', err); }
   }
 
+  if (_tuCache) {
+    const deps = _tuCache.index.get(stopId) ?? [];
+    const nowSec = Date.now() / 1000;
+    const departures: Departure[] = deps
+      .filter(d => d.depTime > nowSec - 60)
+      .map(d => ({
+        routeRef:    d.routeRef || '?',
+        headsign:    '',
+        minutesAway: Math.round((d.depTime - nowSec) / 60),
+        realtime:    true,
+        vehicle:     toVehicleLabel(guessVehicleType(d.routeRef)),
+        tripId:      d.tripId,
+        accessible:  false,
+        hasAlert:    false,
+      }))
+      .filter(d => d.minutesAway >= -1)
+      .sort((a, b) => a.minutesAway - b.minutesAway)
+      .slice(0, 8);
+
+    if (departures.length > 0) {
+      const board: DepartureBoard = {
+        stopId, stopName: '', departures,
+        fetchedAt: new Date().toISOString(), source: 'gtfs-rt',
+      };
+      _boardCache.set(stopId, { data: board, expires: Date.now() + 15_000 });
+      return NextResponse.json(board);
+    }
+    // Fall through if GTFS-RT has no trips for this stop yet
+  }
+
+  // ── Fallback: BKK OBA (futar.bkk.hu) ─────────────────────────────────────
   try {
-    const board = await fetchFutarDepartures(stopId);
-    _cache.set(stopId, { data: board, expires: Date.now() + 60_000 });
+    const board = await fetchObaBoard(stopId);
+    _boardCache.set(stopId, { data: board, expires: Date.now() + 60_000 });
     return NextResponse.json(board);
   } catch (err) {
-    console.warn('[transit/departures] Futár failed:', err);
-    const mock = getMockDepartures(stopId);
-    return NextResponse.json({ ...mock, _mock: true, _error: String(err) });
+    console.warn('[transit/departures] OBA failed:', err);
+    return NextResponse.json({
+      ...getMockDepartures(stopId), _mock: true, _error: String(err),
+    });
   }
 }
