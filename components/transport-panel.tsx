@@ -646,7 +646,8 @@ export default function TransportPanel({ lat, lon, buildingAddress }: TransportP
         <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">Élő járattérkép</p>
         <TransitLiveMap lat={realLat} lon={realLon} stops={stops} />
         <p className="text-[8px] text-slate-700">
-          Kattints megállóra a menetrendért · járatra az útvonalért · 15 mp-ként frissül · © OpenStreetMap
+          Kattints megállóra a menetrendért · járatra az útvonalért · 15 mp-ként frissül
+          <br />© OpenStreetMap · Közlekedési adat: BKK Zrt., CC BY 4.0
         </p>
       </div>
 

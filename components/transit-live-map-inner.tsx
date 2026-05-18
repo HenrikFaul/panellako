@@ -217,7 +217,7 @@ export default function TransitLiveMapInner({ lat, lon, stops }: Props) {
       });
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> | Közlekedési adat: <a href="https://opendata.bkk.hu" target="_blank">BKK Zrt., CC BY 4.0</a>',
         maxZoom: 19,
       }).addTo(map);
 
