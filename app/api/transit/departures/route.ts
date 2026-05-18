@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface Departure {
-  routeRef:    string;   // '72', 'M3', '1'
-  headsign:    string;   // 'Keleti pályaudvar'
-  minutesAway: number;   // 0 = boarding, negative = gone
+  routeRef:    string;
+  headsign:    string;
+  minutesAway: number;
   realtime:    boolean;
   vehicle:     'SUBWAY' | 'TRAM' | 'TROLLEYBUS' | 'BUS' | 'RAIL' | 'FERRY';
+  tripId:      string;
 }
 
 export interface DepartureBoard {
@@ -120,6 +121,7 @@ async function fetchFutarDepartures(stopId: string): Promise<DepartureBoard> {
         minutesAway,
         realtime: isRealtime,
         vehicle,
+        tripId,
       };
     })
     .filter(d => d.minutesAway >= -1)
@@ -139,10 +141,10 @@ function getMockDepartures(stopId: string): DepartureBoard {
     stopId,
     stopName: 'Kerepesi út / Kőér utca',
     departures: [
-      { routeRef: '68',  headsign: 'Keleti pu.',        minutesAway: 2,  realtime: true,  vehicle: 'BUS' },
-      { routeRef: '37',  headsign: 'Puskás Aréna M',    minutesAway: 5,  realtime: true,  vehicle: 'BUS' },
-      { routeRef: '68E', headsign: 'Kelenföld vas.',     minutesAway: 8,  realtime: false, vehicle: 'BUS' },
-      { routeRef: '72',  headsign: 'Kőbánya-Kispest M', minutesAway: 12, realtime: true,  vehicle: 'BUS' },
+      { routeRef: '68',  headsign: 'Keleti pu.',        minutesAway: 2,  realtime: true,  vehicle: 'BUS', tripId: '' },
+      { routeRef: '37',  headsign: 'Puskás Aréna M',    minutesAway: 5,  realtime: true,  vehicle: 'BUS', tripId: '' },
+      { routeRef: '68E', headsign: 'Kelenföld vas.',     minutesAway: 8,  realtime: false, vehicle: 'BUS', tripId: '' },
+      { routeRef: '72',  headsign: 'Kőbánya-Kispest M', minutesAway: 12, realtime: true,  vehicle: 'BUS', tripId: '' },
     ],
     fetchedAt: new Date().toISOString(),
     source:    'mock',
