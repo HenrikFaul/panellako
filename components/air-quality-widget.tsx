@@ -257,12 +257,17 @@ export default function AirQualityWidget() {
         <PollutantBar label="PM2.5" value={aq.pm25} max={75}  unit="µg" color={aq.color} />
         <PollutantBar label="NO₂"   value={aq.no2}  max={200} unit="µg" color="#60a5fa" />
         <PollutantBar label="O₃"    value={aq.o3}   max={180} unit="µg" color="#a78bfa" />
+        {'so2' in aq && (aq as { so2: number | null }).so2 !== null && (
+          <PollutantBar label="SO₂" value={(aq as { so2: number | null }).so2} max={350} unit="µg" color="#fb923c" />
+        )}
       </div>
 
       {/* Station */}
       <p className="mt-2 text-center text-[8px] leading-tight text-slate-700">
-        {aq.stationName}<br/>
-        <span className="text-slate-600">{aq.stationDistanceKm} km</span>
+        {aq.stationName}
+        {'source' in aq && (aq as { source: string }).source === 'aqicn' && (
+          <><br/><span className="text-slate-600">AQICN · OLM</span></>
+        )}
       </p>
     </div>
   );

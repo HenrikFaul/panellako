@@ -1,7 +1,9 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { forwardRef } from 'react';
 import type { NearbyStop } from '@/app/api/transit/nearby/route';
+import type { TransitLiveMapHandle } from './transit-live-map-inner';
 
 const Inner = dynamic(() => import('./transit-live-map-inner'), {
   ssr:     false,
@@ -12,12 +14,15 @@ const Inner = dynamic(() => import('./transit-live-map-inner'), {
   ),
 });
 
-export default function TransitLiveMap({
-  lat, lon, stops,
-}: {
+export type { TransitLiveMapHandle };
+
+const TransitLiveMap = forwardRef<TransitLiveMapHandle, {
   lat:   number;
   lon:   number;
   stops: NearbyStop[];
-}) {
-  return <Inner lat={lat} lon={lon} stops={stops} />;
-}
+}>(function TransitLiveMap({ lat, lon, stops }, ref) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return <Inner ref={ref as any} lat={lat} lon={lon} stops={stops} />;
+});
+
+export default TransitLiveMap;

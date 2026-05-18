@@ -5,7 +5,7 @@ import { AlertTriangle, Bike, Bus, ChevronRight, Leaf, MapPin, RefreshCw, Wifi, 
 import type { TransitNearbyResult, NearbyStop, RouteType } from '@/app/api/transit/nearby/route';
 import type { DepartureBoard, Departure } from '@/app/api/transit/departures/route';
 import type { AlertsResult, TransitAlert, AlertSeverity } from '@/app/api/transit/alerts/route';
-import TransitLiveMap from '@/components/transit-live-map';
+import TransitLiveMap, { type TransitLiveMapHandle } from '@/components/transit-live-map';
 
 // ─── Animation CSS ─────────────────────────────────────────────────────────────
 const TP_CSS = `
@@ -424,6 +424,7 @@ export default function TransportPanel({ lat, lon, buildingAddress }: TransportP
   const [tab, setTab]                 = useState<'stops' | 'bubi' | 'co2' | 'alerts'>('stops');
   const coordsReady                   = !geocoding && (realLat !== 47.4979 || realLon !== 19.0402 || lat !== undefined);
   const firstLoad                     = useRef(true);
+  const mapRef                        = useRef<TransitLiveMapHandle>(null);
 
   const fetchData = useCallback(async () => {
     if (firstLoad.current) {
@@ -509,7 +510,13 @@ export default function TransportPanel({ lat, lon, buildingAddress }: TransportP
         {/* Address + freshness row */}
         <div className="flex items-center justify-between rounded-xl bg-white/[0.04] px-3 py-1.5">
           <div className="flex min-w-0 items-center gap-1.5">
-            <MapPin size={9} className="shrink-0 text-slate-600" />
+            <button
+              onClick={() => mapRef.current?.flyToBuilding()}
+              title="Térkép centrírozása az épületre"
+              className="shrink-0 rounded p-0.5 text-slate-600 transition-colors hover:text-sky-400 hover:bg-white/[0.08]"
+            >
+              <MapPin size={9} />
+            </button>
             <p className="truncate text-[9px] text-slate-500">
               {buildingAddress
                 ? buildingAddress.replace(/^HU,\s*/i, '').slice(0, 35)
@@ -644,7 +651,7 @@ export default function TransportPanel({ lat, lon, buildingAddress }: TransportP
       {/* ── Right: always-on live map ──────────────────────────────────── */}
       <div className="flex flex-col gap-1.5">
         <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">Élő járattérkép</p>
-        <TransitLiveMap lat={realLat} lon={realLon} stops={stops} />
+        <TransitLiveMap ref={mapRef} lat={realLat} lon={realLon} stops={stops} />
         <p className="text-[8px] text-slate-700">
           Kattints megállóra a menetrendért · járatra az útvonalért · 15 mp-ként frissül
         </p>
