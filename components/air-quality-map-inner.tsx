@@ -125,16 +125,21 @@ function beaconMarkerSvg(aqi: number, color: string, confidence: StationValidati
   </svg>`;
 }
 
-// Elegant sensor dot for fallback / no-AQI stations
+// Elegant sensor beacon for fallback / no-AQI stations
+// High-confidence → blue, medium → amber, low → red (dimmer + slow blink)
 function sensorDotSvg(confidence: StationValidation['confidence']): string {
-  const ringColor = confidence === 'high' ? '#475569' : confidence === 'medium' ? '#334155' : '#1e293b';
-  const coreColor = confidence === 'high' ? '#64748b' : '#475569';
-  const cls       = confidence === 'low' ? ' class="aq-low-conf-ring"' : '';
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22" style="filter:drop-shadow(0 1px 4px rgba(0,0,0,0.6))">
-    <circle cx="11" cy="11" r="9" fill="${ringColor}" fill-opacity="0.35" stroke="${ringColor}" stroke-width="1"${cls}/>
-    <circle cx="11" cy="11" r="4" fill="${coreColor}"/>
-    <circle cx="11" cy="4.5" r="1.5" fill="${ringColor}" opacity="0.7"/>
-    <line x1="11" y1="6.5" x2="11" y2="8" stroke="${ringColor}" stroke-width="1" opacity="0.6" stroke-linecap="round"/>
+  const color = confidence === 'high' ? '#60a5fa' : confidence === 'medium' ? '#fbbf24' : '#f87171';
+  const alpha = confidence === 'low' ? '0.55' : '0.85';
+  const cls   = confidence === 'low' ? ' class="aq-low-conf-ring"' : '';
+  const glow  = `drop-shadow(0 0 7px ${color}70)`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28" style="filter:${glow};overflow:visible;opacity:${alpha}">
+    <circle cx="14" cy="14" r="12" fill="${color}" fill-opacity="0.18" stroke="${color}" stroke-width="1.5" stroke-opacity="0.65"${cls}/>
+    <circle cx="14" cy="14" r="7"  fill="${color}" fill-opacity="0.88"/>
+    <circle cx="14" cy="14" r="3"  fill="rgba(255,255,255,0.58)"/>
+    <line x1="14" y1="2"   x2="14" y2="7"   stroke="${color}" stroke-width="1.8" stroke-linecap="round"/>
+    <circle cx="14" cy="1.5" r="1.8" fill="${color}"/>
+    <line x1="10.5" y1="4.5" x2="10.5" y2="7" stroke="${color}" stroke-width="1.1" stroke-linecap="round" opacity="0.5"/>
+    <line x1="17.5" y1="4.5" x2="17.5" y2="7" stroke="${color}" stroke-width="1.1" stroke-linecap="round" opacity="0.5"/>
   </svg>`;
 }
 
@@ -148,18 +153,22 @@ function buildingMarkerSvg(): string {
 }
 
 // ─── Heatmap circle layers per station ───────────────────────────────────────
+// Opacities are NOT scaled by intensity — the COLOR encodes pollution level.
+// This ensures every station is visible on the map; sqrt gamma brightens
+// the outer rings at low pollution levels for better station coverage display.
 interface HeatCircle { radius: number; color: string; opacity: number; }
 
 function heatCircles(key: PollutantKey, value: number): HeatCircle[] {
-  const intensity = intensityFor(key, value);
-  if (intensity < 0.01) return [];
-  const col = lerpColor(intensity);
+  const raw = intensityFor(key, value);
+  if (raw < 0.001) return [];
+  const t   = Math.sqrt(raw); // gamma = 0.5: brightens low-pollution values
+  const col = lerpColor(raw); // color reflects actual pollution level
   return [
-    { radius: 62000, color: col, opacity: intensity * 0.055 },
-    { radius: 44000, color: col, opacity: intensity * 0.110 },
-    { radius: 30000, color: col, opacity: intensity * 0.210 },
-    { radius: 18000, color: col, opacity: intensity * 0.360 },
-    { radius:  9000, color: col, opacity: intensity * 0.520 },
+    { radius: 68000, color: col, opacity: Math.max(t * 0.14, 0.030) },
+    { radius: 48000, color: col, opacity: Math.max(t * 0.25, 0.055) },
+    { radius: 33000, color: col, opacity: Math.max(t * 0.44, 0.090) },
+    { radius: 19000, color: col, opacity: Math.max(t * 0.66, 0.135) },
+    { radius:  9000, color: col, opacity: Math.max(t * 0.90, 0.220) },
   ];
 }
 
@@ -385,12 +394,16 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
         }).addTo(map);
 
         // Heatmap pane (behind markers, blurred for smooth gradient effect)
+        // NOTE: do NOT set mix-blend-mode on the same element as filter — CSS
+        // filter() creates a new stacking context that isolates the element from
+        // blend-mode compositing with siblings, making the blend silently fail.
         map.createPane('heatmap');
         const heatPane = map.getPane('heatmap')!;
         heatPane.style.zIndex        = '300';
         heatPane.style.pointerEvents = 'none';
-        heatPane.style.filter        = 'blur(26px)';
-        heatPane.style.mixBlendMode  = 'screen'; // additive blending for vivid hotspots
+        heatPane.style.filter        = 'blur(22px)';
+        heatPane.style.opacity       = '0.92';
+        heatPane.style.willChange    = 'contents'; // GPU-accelerate the blur
 
         heatLayerRef.current    = L.layerGroup().addTo(map);
         stationLayerRef.current = L.layerGroup().addTo(map);
@@ -448,7 +461,7 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
             icon: L.divIcon({
               html:      sensorDotSvg(conf),
               className: 'aqi-station-pin',
-              iconSize:  [22, 22], iconAnchor: [11, 11],
+              iconSize:  [28, 28], iconAnchor: [14, 14],
             }),
           }).bindTooltip(stationTooltip(st), { sticky: true, direction: 'top' });
           marker.on('click', () => setSelectedStation(st));
@@ -479,13 +492,25 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
         })
         .filter((p): p is Pt => p !== null);
 
-      // Fallback: AQI-derived synthetic values from validated stations only
+      // Fallback: AQI-derived synthetic values from validated stations
+      // Also include null-AQI stations as geographic coverage with a
+      // "background" concentration — this shows where stations exist even
+      // when live data is unavailable, using a low blue-coded default value.
       const useSynthetic = realPts.length === 0;
-      const pts: Pt[] = useSynthetic
-        ? stations
-            .filter(st => st.aqi !== null && st.validation.confidence !== 'low')
-            .map(st => ({ lat: st.lat, lon: st.lon, val: syntheticValue(activePollutant, st.aqi!) }))
-        : realPts;
+      let pts: Pt[];
+      if (!useSynthetic) {
+        pts = realPts;
+      } else {
+        const livePoints = stations
+          .filter(st => st.aqi !== null && st.validation.confidence !== 'low')
+          .map(st => ({ lat: st.lat, lon: st.lon, val: syntheticValue(activePollutant, st.aqi!) }));
+        // Background station coverage for null-AQI validated stations (low default value)
+        const bgVal = POLLUTANTS[activePollutant].max * 0.08; // ~8% of max → blue
+        const bgPoints = stations
+          .filter(st => st.aqi === null && st.validation.confidence !== 'low')
+          .map(st => ({ lat: st.lat, lon: st.lon, val: bgVal }));
+        pts = [...livePoints, ...bgPoints];
+      }
 
       setIsSynthetic(useSynthetic);
 
