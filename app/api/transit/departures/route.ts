@@ -23,9 +23,9 @@ const _cache = new Map<string, CacheEntry>();
 
 // BKK Futár OBA-style endpoint (OneBusAway API, documented at opendata.bkk.hu)
 // Key 'apaiary-test' is the official public test key from BKK Apiary docs.
-// Override with BKK_API_KEY env var for production registered key.
+// Override with BKKFUTAR_API_KEY env var for production registered key.
 const BKK_BASE = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
-const BKK_KEY  = process.env.BKK_API_KEY ?? 'apaiary-test';
+const BKK_KEY  = process.env.BKKFUTAR_API_KEY ?? 'apaiary-test';
 
 // GTFS route type → vehicle label
 const GTFS_TYPE_MAP: Record<number, Departure['vehicle']> = {

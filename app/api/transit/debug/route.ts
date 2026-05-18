@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // Remove this file once real-data is confirmed working in production.
 
 const BKK_BASE = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
-const BKK_KEY  = process.env.BKK_API_KEY ?? 'apaiary-test';
+const BKK_KEY  = process.env.BKKFUTAR_API_KEY ?? 'apaiary-test';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
   } catch (e) { results.alerts = { error: String(e) }; }
 
   return NextResponse.json({
-    env:     { hasCustomKey: !!process.env.BKK_API_KEY, keyPrefix: BKK_KEY.slice(0, 8) },
+    env:     { hasCustomKey: !!process.env.BKKFUTAR_API_KEY, keyPrefix: BKK_KEY.slice(0, 8) },
     params:  { lat, lon, stopId },
     results,
     testedAt: new Date().toISOString(),
