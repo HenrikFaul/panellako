@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { loadStopsFromCache, saveStopsToCache } from '@/lib/transit-cache';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type RouteType = 'SUBWAY' | 'TRAM' | 'TROLLEYBUS' | 'BUS' | 'RAIL' | 'FERRY' | 'CABLE_CAR';
@@ -36,7 +38,7 @@ export interface TransitNearbyResult {
   stops:     NearbyStop[];
   bubi:      BubiStation[];
   coverage:  CoverageScore;
-  source:    'futar' | 'overpass' | 'mock';
+  source:    'futar' | 'overpass' | 'mock' | 'db';
   fetchedAt: string;
 }
 
