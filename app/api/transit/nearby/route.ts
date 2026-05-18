@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { loadStopsFromCache, saveStopsToCache } from '@/lib/transit-cache';
+import { loadBuildingStops, loadNearbyStops, upsertBuildingStops } from '@/lib/transit-catalog';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type RouteType = 'SUBWAY' | 'TRAM' | 'TROLLEYBUS' | 'BUS' | 'RAIL' | 'FERRY' | 'CABLE_CAR';
@@ -338,6 +339,26 @@ export async function GET(request: NextRequest) {
     } catch (cacheErr) {
       console.warn('[transit/nearby] DB cache read failed:', cacheErr);
     }
+  }
+
+  // ── DB: building_stops + transit_stops (fastest, no BKK call) ──────────────
+  if (buildingId) {
+    const dbStops = await loadBuildingStops(createClient(), buildingId).catch(() => null);
+    if (dbStops && dbStops.length > 0) {
+      const bubi = await fetchBubi(lat, lon).catch(() => []);
+      const result: TransitNearbyResult = { stops: dbStops, bubi, coverage: computeCoverage(dbStops), source: 'db', fetchedAt: new Date().toISOString() };
+      return NextResponse.json(result);
+    }
+  }
+
+  // ── DB: transit_stops spatial lookup (when building_stops not populated yet) ─
+  const catalogStops = await loadNearbyStops(createClient(), lat, lon, 700).catch(() => null);
+  if (catalogStops && catalogStops.length > 0) {
+    // save to building_stops if we have buildingId
+    if (buildingId) void upsertBuildingStops(createClient(), buildingId, catalogStops.map(s => ({ stop_id: s.id, distance_m: s.distanceM }))).catch(() => {});
+    const bubi = await fetchBubi(lat, lon).catch(() => []);
+    const result: TransitNearbyResult = { stops: catalogStops, bubi, coverage: computeCoverage(catalogStops), source: 'db', fetchedAt: new Date().toISOString() };
+    return NextResponse.json(result);
   }
 
   let stops: NearbyStop[] = [];

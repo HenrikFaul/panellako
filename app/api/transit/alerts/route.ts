@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { loadAlertsFromCache, saveAlertsToCache } from '@/lib/transit-cache';
 import { parseAlerts } from '@/lib/gtfs-rt-parser';
+import { loadCatalogAlerts, upsertCatalogAlerts } from '@/lib/transit-catalog';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type AlertEffect =
@@ -161,6 +162,18 @@ export async function GET() {
     return NextResponse.json({ ..._cache.data, stale: ageMs > STALE_AGE_MS });
   }
 
+  // ── New transit_alerts table (preferred) ──────────────────────────────────
+  try {
+    const catalogAlerts = await loadCatalogAlerts(createClient());
+    if (catalogAlerts) {
+      const result: AlertsResult = { alerts: catalogAlerts, fetchedAt: new Date().toISOString(), source: 'futar', stale: false };
+      _cache = { data: result, expires: now + CACHE_TTL_MS };
+      return NextResponse.json(result);
+    }
+  } catch (dbErr) {
+    console.warn('[transit/alerts] catalog DB read failed:', dbErr);
+  }
+
   // DB cache (avoids BKK round-trip within 5-min window)
   try {
     const dbAlerts = await loadAlertsFromCache(createClient());
@@ -198,6 +211,7 @@ export async function GET() {
     _cache = { data: result, expires: now + CACHE_TTL_MS };
     void saveAlertsToCache(createClient(), alerts)
       .catch(e => console.warn('[transit/alerts] DB cache save failed:', e));
+    void upsertCatalogAlerts(createClient(), alerts).catch(e => console.warn('[transit/alerts] catalog save failed:', e));
     return NextResponse.json(result);
   }
 
