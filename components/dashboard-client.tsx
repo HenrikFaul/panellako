@@ -508,6 +508,95 @@ function numberOrZero(value: number | string | null | undefined) {
   return Number(value ?? 0);
 }
 
+// ─── Panel skyline illustration ───────────────────────────────────────────────
+function PanelSkylineSvg() {
+  type Building = { x: number; top: number; w: number; h: number; cols: number; rows: number };
+  const buildings: Building[] = [
+    { x: 4,   top: 29, w: 86,  h: 89,  cols: 4, rows: 6 },
+    { x: 94,  top: 3,  w: 122, h: 115, cols: 6, rows: 8 },
+    { x: 220, top: 16, w: 104, h: 102, cols: 5, rows: 7 },
+    { x: 328, top: 42, w: 86,  h: 76,  cols: 4, rows: 5 },
+  ];
+  const GROUND = 118;
+  const winW = 12; const winH = 8;
+  const gapX = 6;  const gapY = 5;
+  const padX = 10; const padTop = 10;
+
+  const windows = buildings.flatMap((b, bi) =>
+    Array.from({ length: b.rows }, (_, r) =>
+      Array.from({ length: b.cols }, (_, c) => {
+        const lit    = (bi * 37 + r * 17 + c * 11 + bi * r) % 10 < 6;
+        const warm   = (bi * 43 + r * 19 + c * 13) % 10 < 5;
+        const wx     = b.x + padX + c * (winW + gapX);
+        const wy     = b.top + padTop + r * (winH + gapY);
+        return { wx, wy, lit, warm };
+      })
+    ).flat()
+  );
+
+  return (
+    <svg
+      viewBox="0 0 418 120"
+      xmlns="http://www.w3.org/2000/svg"
+      className="w-full h-full"
+      preserveAspectRatio="xMidYMid meet"
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id="sky-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="#05091a" />
+          <stop offset="100%" stopColor="#0d1630" />
+        </linearGradient>
+        <radialGradient id="horizon-glow" cx="50%" cy="100%" r="60%" fx="50%" fy="100%">
+          <stop offset="0%"   stopColor="#c87920" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#c87920" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="bld-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="#1a2445" />
+          <stop offset="100%" stopColor="#0e1628" />
+        </linearGradient>
+      </defs>
+
+      {/* Sky */}
+      <rect width="418" height="120" fill="url(#sky-grad)" />
+      {/* Horizon amber glow */}
+      <rect x="0" y="60" width="418" height="60" fill="url(#horizon-glow)" />
+
+      {/* Stars */}
+      {[
+        [18,8],[42,5],[70,12],[105,4],[138,9],[170,6],[205,11],[238,5],[272,8],[310,4],[350,10],[385,6],
+        [55,18],[90,22],[130,16],[160,20],[200,17],[240,22],[280,15],[320,19],[360,22],[400,14],
+      ].map(([sx, sy], i) => (
+        <circle key={i} cx={sx} cy={sy} r={i % 3 === 0 ? 1 : 0.7} fill="white" fillOpacity={0.45 + (i % 4) * 0.1} />
+      ))}
+
+      {/* Buildings */}
+      {buildings.map((b, bi) => (
+        <rect
+          key={`bld-${bi}`}
+          x={b.x} y={b.top} width={b.w} height={GROUND - b.top}
+          fill="url(#bld-grad)"
+          rx="2"
+        />
+      ))}
+
+      {/* Ground line */}
+      <rect x="0" y={GROUND} width="418" height="2" fill="#c87920" fillOpacity="0.35" />
+
+      {/* Windows */}
+      {windows.map(({ wx, wy, lit, warm }, i) => (
+        <rect
+          key={`w-${i}`}
+          x={wx} y={wy} width={winW} height={winH}
+          rx="1"
+          fill={lit ? (warm ? '#fbbf24' : '#93c5fd') : '#1e2d4a'}
+          fillOpacity={lit ? (warm ? 0.9 : 0.75) : 0.6}
+        />
+      ))}
+    </svg>
+  );
+}
+
 function SectionCard({ id, title, icon, children, action, className, note }: { id?: string; title: string; icon: ReactNode; children: ReactNode; action?: ReactNode; className?: string; note?: string }) {
   return (
     <section
@@ -1228,90 +1317,142 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         </aside>
 
         <main className="min-w-0 overflow-x-hidden space-y-5 px-4 py-5 md:px-8 lg:px-10">
-          <header className="flex flex-col gap-4 rounded-[2rem] border border-slate-200/60 bg-white/88 p-4 shadow-card-md backdrop-blur-xl md:flex-row md:items-center md:justify-between">
-            <div>
-              {data.buildingName ? (
-                <>
-                  {/* Mobile building switcher — tappable breadcrumb, hidden on lg (sidebar handles it) */}
-                  <Link
-                    href="/app"
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:text-teal-800 mb-1 lg:hidden"
-                  >
-                    <Layers3 size={12} />
-                    <span className="truncate max-w-[200px]">{data.buildingName}</span>
-                    <ChevronRight size={11} className="text-slate-400 flex-shrink-0" />
-                  </Link>
-                  <h1 className="text-2xl font-black tracking-tight text-slate-950 break-words md:text-3xl">{data.buildingName}</h1>
-                  <p className="mt-1 text-sm text-slate-500">{data.buildingAddress}</p>
-                </>
-              ) : (
-                <>
-                  <h1 className="text-2xl font-black tracking-tight text-slate-950 break-words md:text-3xl">PanelLakó</h1>
-                  <p className="mt-1 text-sm text-slate-500">Modern lakói és képviselői működés egy felületen.</p>
-                </>
-              )}
+          {/* ── Premium header ──────────────────────────────────────────────── */}
+          <header
+            className="relative overflow-hidden rounded-[2rem] shadow-2xl shadow-slate-950/60"
+            style={{ background: '#05091a' }}
+          >
+            {/* Gold accent top line */}
+            <div className="absolute inset-x-0 top-0 h-[2px]" style={{ background: 'linear-gradient(90deg, transparent 0%, #c87920 30%, #f5c842 55%, #c87920 80%, transparent 100%)' }} />
+
+            {/* Skyline illustration — right side, fades left */}
+            <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-[52%] xl:w-[44%] select-none">
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, #05091a 0%, transparent 38%)' }} />
+              <PanelSkylineSvg />
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Header search with inline dropdown */}
-              <div className="relative" ref={searchRef}>
-                <Search className="pointer-events-none absolute left-3 top-2.5 text-slate-400" size={15} />
-                <input
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-4 text-sm outline-none transition-all focus:border-brand-400 focus:bg-white focus:ring-4 focus:ring-brand-100 md:w-52"
-                  placeholder="Keresés…"
-                  value={searchQuery}
-                  onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
-                  onFocus={() => setSearchOpen(true)}
-                />
-                {searchOpen && searchQuery.trim().length > 0 && (
-                  <div className="absolute left-0 top-full z-50 mt-1.5 w-80 rounded-2xl border border-slate-200 bg-white shadow-xl">
-                    {searchResults.length === 0 ? (
-                      <p className="px-4 py-3 text-sm text-slate-400">Nincs találat</p>
-                    ) : (
-                      <ul className="py-1">
-                        {searchResults.map((item) => (
-                          <li key={item.id}>
-                            <a
-                              href={item.href}
-                              onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
-                              className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-brand-50"
-                            >
-                              <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{item.type}</span>
-                              <span className="flex-1 truncate text-slate-800">{item.label}</span>
-                              {item.meta && <span className="shrink-0 text-xs text-slate-400">{item.meta}</span>}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
+
+            {/* Content */}
+            <div className="relative flex flex-col gap-3 px-6 py-5 md:flex-row md:items-center md:justify-between md:gap-4">
+              {/* Left: branding + building info */}
+              <div className="min-w-0">
+                {/* Premium label */}
+                <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.2em]" style={{ color: '#c87920' }}>
+                  PanelLakó · Digitális Műveleti Központ
+                </p>
+
+                {data.buildingName ? (
+                  <>
+                    {/* Mobile building switcher */}
+                    <Link
+                      href="/app"
+                      className="inline-flex items-center gap-1.5 text-xs font-medium mb-1 lg:hidden"
+                      style={{ color: '#8ba3c7' }}
+                    >
+                      <Layers3 size={12} />
+                      <span className="truncate max-w-[200px]">{data.buildingName}</span>
+                      <ChevronRight size={11} className="flex-shrink-0 opacity-60" />
+                    </Link>
+                    <h1
+                      className="text-2xl font-black tracking-tight break-words md:text-3xl"
+                      style={{ color: '#f0f4ff', textShadow: '0 2px 24px rgba(200,121,32,0.18)' }}
+                    >
+                      {data.buildingName}
+                    </h1>
+                    <p className="mt-1 text-xs" style={{ color: '#4a6080' }}>{data.buildingAddress}</p>
+                  </>
+                ) : (
+                  <>
+                    <h1 className="text-2xl font-black tracking-tight md:text-3xl" style={{ color: '#f0f4ff' }}>PanelLakó</h1>
+                    <p className="mt-1 text-xs" style={{ color: '#4a6080' }}>Modern lakói és képviselői működés egy felületen.</p>
+                  </>
                 )}
               </div>
 
-              {/* Kapcsolat gomb */}
-              <button
-                type="button"
-                onClick={() => setContactOpen(true)}
-                className="btn-secondary px-3.5 py-2 text-xs"
-              >
-                <Mail size={13} /> Kapcsolat
-              </button>
+              {/* Right: actions */}
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                {/* Header search */}
+                <div className="relative" ref={searchRef}>
+                  <Search className="pointer-events-none absolute left-3 top-2.5" style={{ color: '#4a6080' }} size={14} />
+                  <input
+                    className="w-full rounded-xl py-2 pl-9 pr-4 text-sm outline-none transition-all md:w-48"
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      color: '#c8d8f0',
+                    }}
+                    placeholder="Keresés…"
+                    value={searchQuery}
+                    onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
+                    onFocus={() => setSearchOpen(true)}
+                  />
+                  {searchOpen && searchQuery.trim().length > 0 && (
+                    <div className="absolute left-0 top-full z-50 mt-1.5 w-80 rounded-2xl border border-slate-200 bg-white shadow-xl">
+                      {searchResults.length === 0 ? (
+                        <p className="px-4 py-3 text-sm text-slate-400">Nincs találat</p>
+                      ) : (
+                        <ul className="py-1">
+                          {searchResults.map((item) => (
+                            <li key={item.id}>
+                              <a
+                                href={item.href}
+                                onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
+                                className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-brand-50"
+                              >
+                                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{item.type}</span>
+                                <span className="flex-1 truncate text-slate-800">{item.label}</span>
+                                {item.meta && <span className="shrink-0 text-xs text-slate-400">{item.meta}</span>}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </div>
 
-              <Link className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:-translate-y-px hover:bg-slate-800" href="/login">
-                {isLoggedIn ? 'Session aktív' : 'Belépés'}
-              </Link>
-              {isLoggedIn ? (
+                {/* Kapcsolat — hidden for now */}
                 <button
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                  onClick={async () => {
-                    const supabase = createClient();
-                    await supabase.auth.signOut();
-                    setIsLoggedIn(false);
-                  }}
                   type="button"
+                  onClick={() => setContactOpen(true)}
+                  className="hidden btn-secondary px-3.5 py-2 text-xs"
                 >
-                  <LogOut size={13} /> Kilépés
+                  <Mail size={13} /> Kapcsolat
                 </button>
-              ) : null}
+
+                {/* Session aktív — hidden for now */}
+                <Link className="hidden rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:-translate-y-px hover:bg-slate-800" href="/login">
+                  {isLoggedIn ? 'Session aktív' : 'Belépés'}
+                </Link>
+
+                {isLoggedIn ? (
+                  <button
+                    className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all"
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      color: '#7a90aa',
+                    }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,0.12)';
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(239,68,68,0.3)';
+                      (e.currentTarget as HTMLButtonElement).style.color = '#fca5a5';
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)';
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.08)';
+                      (e.currentTarget as HTMLButtonElement).style.color = '#7a90aa';
+                    }}
+                    onClick={async () => {
+                      const supabase = createClient();
+                      await supabase.auth.signOut();
+                      setIsLoggedIn(false);
+                    }}
+                    type="button"
+                  >
+                    <LogOut size={13} /> Kilépés
+                  </button>
+                ) : null}
+              </div>
             </div>
           </header>
 
