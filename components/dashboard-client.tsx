@@ -163,28 +163,62 @@ function previewText(text: string) {
   return sentences.endsWith('.') ? sentences : `${sentences}.`;
 }
 
-// ─── Ticket Activity Heatmap (35 days, week-aligned) ──────────────────────────
+// ─── Activity Calendar ────────────────────────────────────────────────────────
 const HU_MONTHS = ['jan.','feb.','már.','ápr.','máj.','jún.','júl.','aug.','szept.','okt.','nov.','dec.'];
 
-function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; title?: string }> }) {
-  const [weekOffset, setWeekOffset] = useState(0); // 0 = current week at top; negative = back in time
+type EventScope    = 'building' | 'unit' | 'manager';
+type EventCategory = 'ticket' | 'meeting' | 'meter' | 'vote';
+
+interface CalendarEvent {
+  date:       string;        // YYYY-MM-DD
+  title:      string;
+  category:   EventCategory;
+  scope:      EventScope;
+  unitLabel?: string;
+}
+
+const CAT_CFG: Record<EventCategory, { label: string; color: string; scopeLabel: string }> = {
+  ticket:  { label: 'Hibabejelentés',    color: '#f43f5e', scopeLabel: '🏠 Albetét' },
+  meeting: { label: 'Közgyűlés',         color: '#3b82f6', scopeLabel: '🏢 Épület'  },
+  meter:   { label: 'Mérőóra határidő',  color: '#10b981', scopeLabel: '🏢 Épület'  },
+  vote:    { label: 'Szavazás',          color: '#f59e0b', scopeLabel: '🏢 Épület'  },
+};
+const SCOPE_LABEL: Record<EventScope, string> = {
+  building: '🏢 Épület', unit: '🏠 Albetét', manager: '👤 Közös képviselő',
+};
+
+// Generate meter-reading deadlines: 20th of each visible month (building-wide)
+function meterDeadlines(viewStart: Date, weeks: number): CalendarEvent[] {
+  const events: CalendarEvent[] = [];
+  const seen = new Set<string>();
+  for (let w = 0; w < weeks * 7; w++) {
+    const d = new Date(viewStart);
+    d.setDate(viewStart.getDate() + w);
+    if (d.getDate() === 20) {
+      const key = d.toISOString().slice(0, 10);
+      if (!seen.has(key)) {
+        seen.add(key);
+        events.push({ date: key, title: 'Mérőóra lejelentési határidő', category: 'meter', scope: 'building' });
+      }
+    }
+  }
+  return events;
+}
+
+interface ActivityCalendarProps {
+  tickets:  Array<{ created_at?: string; title?: string; unit_label?: string }>;
+  meetings: Array<{ scheduled_at: string; title: string; status: string; agenda_preview?: string }>;
+  currentUnit?: string;
+}
+
+function ActivityCalendar({ tickets, meetings, currentUnit }: ActivityCalendarProps) {
+  const [weekOffset, setWeekOffset] = useState(0);
   const [hovered, setHovered]       = useState<string | null>(null);
   const [mousePos, setMousePos]     = useState({ x: 0, y: 0 });
 
   const today = new Date();
   today.setHours(23, 59, 59, 999);
   const todayKey = today.toISOString().slice(0, 10);
-
-  // Build maps: 'YYYY-MM-DD' → count / title list
-  const countMap = new Map<string, number>();
-  const titleMap = new Map<string, string[]>();
-  for (const t of tickets) {
-    if (!t.created_at) continue;
-    const d = new Date(t.created_at);
-    const key = d.toISOString().slice(0, 10);
-    countMap.set(key, (countMap.get(key) ?? 0) + 1);
-    if (t.title) titleMap.set(key, [...(titleMap.get(key) ?? []), t.title]);
-  }
 
   // Monday of current real week
   const dow = today.getDay();
@@ -196,36 +230,107 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
   const viewStart = new Date(thisMon);
   viewStart.setDate(thisMon.getDate() + weekOffset * 7);
 
-  // Build 7 weeks × 7 days = 49 cells, top-to-bottom
-  const cells: Array<{ key: string; count: number; date: Date; isFuture: boolean; isToday: boolean }> = [];
+  // Build unified event list from all sources
+  const allEvents: CalendarEvent[] = [];
+
+  // Tickets → unit scope (or building if no unit)
+  for (const t of tickets) {
+    if (!t.created_at) continue;
+    const key = new Date(t.created_at).toISOString().slice(0, 10);
+    allEvents.push({
+      date:      key,
+      title:     t.title ?? 'Hibabejelentés',
+      category:  'ticket',
+      scope:     t.unit_label ? 'unit' : 'building',
+      unitLabel: t.unit_label,
+    });
+  }
+
+  // Meetings + votes → building scope
+  for (const m of meetings) {
+    if (!m.scheduled_at) continue;
+    const key = new Date(m.scheduled_at).toISOString().slice(0, 10);
+    const isVote = m.agenda_preview?.toLowerCase().includes('szavaz') ?? false;
+    allEvents.push({
+      date:     key,
+      title:    m.title,
+      category: isVote ? 'vote' : 'meeting',
+      scope:    'building',
+    });
+  }
+
+  // Meter deadlines (20th of each visible month) → building scope
+  allEvents.push(...meterDeadlines(viewStart, 7));
+
+  // Group by date
+  const eventMap = new Map<string, CalendarEvent[]>();
+  for (const ev of allEvents) {
+    eventMap.set(ev.date, [...(eventMap.get(ev.date) ?? []), ev]);
+  }
+
+  // Build 7 weeks × 7 days = 49 cells
+  const cells: Array<{ key: string; events: CalendarEvent[]; date: Date; isFuture: boolean; isToday: boolean }> = [];
   for (let i = 0; i < 49; i++) {
     const d = new Date(viewStart);
     d.setDate(viewStart.getDate() + i);
     const key = d.toISOString().slice(0, 10);
     cells.push({
       key,
-      count:    countMap.get(key) ?? 0,
+      events:   eventMap.get(key) ?? [],
       date:     d,
       isFuture: d > today,
       isToday:  key === todayKey,
     });
   }
 
-  const maxCount = Math.max(1, ...cells.filter(c => !c.isFuture).map(c => c.count));
-
-  function cellColor(count: number, isFuture: boolean, isToday: boolean) {
-    if (isToday && count === 0) return 'bg-white/[0.12] ring-1 ring-white/20';
-    if (isFuture) return 'bg-white/[0.03] opacity-40';
-    if (count === 0) return 'bg-white/[0.06]';
-    const v = count / maxCount;
-    if (v < 0.2)  return 'bg-rose-950/70';
-    if (v < 0.4)  return 'bg-rose-800/75';
-    if (v < 0.65) return 'bg-rose-600/80';
-    if (v < 0.85) return 'bg-rose-500';
-    return 'bg-rose-400 shadow-[0_0_6px_rgba(251,113,133,0.7)]';
+  // Dominant category determines cell background (past days)
+  const CAT_ORDER: EventCategory[] = ['ticket', 'vote', 'meeting', 'meter'];
+  function dominantCat(events: CalendarEvent[]): EventCategory | null {
+    for (const cat of CAT_ORDER) {
+      if (events.some(e => e.category === cat)) return cat;
+    }
+    return null;
   }
 
-  // Row labels: one per week (Monday of each row)
+  const pastTicketMax = Math.max(1, ...cells.filter(c => !c.isFuture).map(c => c.events.filter(e => e.category === 'ticket').length));
+
+  function cellBg(cell: typeof cells[0]): string {
+    if (cell.isToday && cell.events.length === 0) return 'bg-white/[0.12] ring-1 ring-white/20';
+    if (cell.isFuture) {
+      // Future: show upcoming events with a soft highlight
+      const cat = dominantCat(cell.events);
+      if (!cat) return 'bg-white/[0.03] opacity-40';
+      return 'bg-white/[0.06] opacity-70';
+    }
+    if (cell.events.length === 0) return 'bg-white/[0.06]';
+    const cat = dominantCat(cell.events);
+    if (cat === 'ticket') {
+      const n = cell.events.filter(e => e.category === 'ticket').length;
+      const v = n / pastTicketMax;
+      if (v < 0.2)  return 'bg-rose-950/70';
+      if (v < 0.4)  return 'bg-rose-800/75';
+      if (v < 0.65) return 'bg-rose-600/80';
+      if (v < 0.85) return 'bg-rose-500';
+      return 'bg-rose-400 shadow-[0_0_6px_rgba(251,113,133,0.7)]';
+    }
+    if (cat === 'vote')    return 'bg-amber-500/70';
+    if (cat === 'meeting') return 'bg-blue-600/70';
+    return 'bg-emerald-600/60';
+  }
+
+  // Colored dot indicators per category present on a cell
+  function cellDots(cell: typeof cells[0]) {
+    const cats = Array.from(new Set(cell.events.map(e => e.category)));
+    return cats.map(cat => (
+      <span
+        key={cat}
+        className="inline-block h-1 w-1 rounded-full shrink-0"
+        style={{ backgroundColor: CAT_CFG[cat].color }}
+      />
+    ));
+  }
+
+  // Row labels
   const weeks = Array.from({ length: 7 }, (_, w) => {
     const mon = new Date(viewStart);
     mon.setDate(viewStart.getDate() + w * 7);
@@ -239,19 +344,24 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
     return `${d.getFullYear()}. ${HU_MONTHS[d.getMonth()]} ${d.getDate()}.`;
   }
 
-  const hoveredTitles = hovered ? (titleMap.get(hovered) ?? []) : [];
-  const hoveredCount  = hovered ? (countMap.get(hovered) ?? 0) : 0;
   const hoveredCell   = hovered ? cells.find(c => c.key === hovered) : undefined;
+  const hoveredEvents = hoveredCell?.events ?? [];
 
-  const TT_W = 224;
+  // Group tooltip events by category for display
+  const byCategory = CAT_ORDER.reduce<Partial<Record<EventCategory, CalendarEvent[]>>>((acc, cat) => {
+    const evs = hoveredEvents.filter(e => e.category === cat);
+    if (evs.length) acc[cat] = evs;
+    return acc;
+  }, {});
+
+  const TT_W = 240;
 
   return (
     <div className="flex flex-col h-full select-none">
-      {/* Header: title + navigation arrows */}
+      {/* Header */}
       <div className="mb-2 flex items-center justify-between">
         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Aktivitás naptár</p>
         <div className="flex items-center gap-1">
-          {/* Back in time */}
           <button
             onClick={() => setWeekOffset(o => o - 1)}
             className="flex h-5 w-5 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-300"
@@ -261,7 +371,6 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
               <path d="M7 1L3 5l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
-          {/* Today label / reset */}
           {weekOffset !== 0 && (
             <button
               onClick={() => setWeekOffset(0)}
@@ -270,7 +379,6 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
               ma
             </button>
           )}
-          {/* Forward in time */}
           <button
             onClick={() => setWeekOffset(o => o + 1)}
             className="flex h-5 w-5 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-300"
@@ -310,12 +418,17 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
                 onMouseEnter={(e) => { setHovered(cell.key); setMousePos({ x: e.clientX, y: e.clientY }); }}
                 onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}
                 onMouseLeave={() => setHovered(null)}
-                className={`h-7 w-full rounded transition-colors cursor-pointer relative ${cellColor(cell.count, cell.isFuture, cell.isToday)}`}
+                className={`h-7 w-full rounded transition-colors cursor-pointer relative flex flex-col items-center justify-end pb-0.5 gap-px ${cellBg(cell)}`}
               >
                 {cell.date.getDate() === 1 && (
-                  <span className="absolute bottom-0.5 right-0.5 text-[6px] text-white/40 font-bold leading-none">
+                  <span className="absolute top-0.5 left-0.5 text-[6px] text-white/40 font-bold leading-none">
                     {HU_MONTHS[cell.date.getMonth()]}
                   </span>
+                )}
+                {cell.events.length > 0 && (
+                  <div className="flex gap-px justify-center flex-wrap px-0.5">
+                    {cellDots(cell)}
+                  </div>
                 )}
               </div>
             ))}
@@ -324,12 +437,13 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
       </div>
 
       {/* Legend */}
-      <div className="mt-3 flex items-center gap-1.5">
-        <span className="text-[9px] text-slate-700">kevés</span>
-        {['bg-white/[0.06]','bg-rose-950/70','bg-rose-800/75','bg-rose-600/80','bg-rose-500','bg-rose-400'].map((c, i) => (
-          <div key={i} className={`h-3 w-3 rounded-sm ${c}`} />
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+        {(Object.entries(CAT_CFG) as [EventCategory, typeof CAT_CFG[EventCategory]][]).map(([cat, cfg]) => (
+          <div key={cat} className="flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded-sm shrink-0" style={{ backgroundColor: cfg.color }} />
+            <span className="text-[8px] text-slate-600">{cfg.label}</span>
+          </div>
         ))}
-        <span className="text-[9px] text-slate-700">sok</span>
       </div>
 
       {/* Fixed-position tooltip */}
@@ -339,29 +453,48 @@ function TicketHeatmap({ tickets }: { tickets: Array<{ created_at?: string; titl
           style={{
             width: TT_W,
             left: Math.min(mousePos.x - TT_W / 2, (typeof window !== 'undefined' ? window.innerWidth : 1200) - TT_W - 8),
-            top: mousePos.y - 96,
+            top: mousePos.y - 130,
           }}
         >
-          <p className="mb-1.5 text-[10px] font-bold text-slate-200">{formatDate(hoveredCell.date)}</p>
-          {hoveredCell.isFuture ? (
-            <p className="text-[9px] italic text-slate-600">jövőbeli nap</p>
-          ) : hoveredCount === 0 ? (
-            <p className="text-[9px] text-slate-600">Nincs aktivitás ezen a napon.</p>
+          <p className="mb-2 text-[10px] font-bold text-slate-200">{formatDate(hoveredCell.date)}</p>
+          {hoveredEvents.length === 0 ? (
+            hoveredCell.isFuture
+              ? <p className="text-[9px] italic text-slate-600">Nincs tervezett esemény.</p>
+              : <p className="text-[9px] text-slate-600">Nincs aktivitás ezen a napon.</p>
           ) : (
-            <>
-              <p className="mb-1 text-[10px] font-semibold text-rose-400">{hoveredCount} bejelentés</p>
-              <ul className="space-y-1">
-                {hoveredTitles.slice(0, 5).map((title, i) => (
-                  <li key={i} className="flex items-start gap-1 text-[10px] text-slate-300">
-                    <span className="mt-px text-rose-500 shrink-0">·</span>
-                    <span className="leading-tight">{title}</span>
-                  </li>
-                ))}
-                {hoveredTitles.length > 5 && (
-                  <li className="text-[9px] text-slate-600">+ {hoveredTitles.length - 5} további…</li>
-                )}
-              </ul>
-            </>
+            <div className="space-y-2">
+              {(Object.entries(byCategory) as [EventCategory, CalendarEvent[]][]).map(([cat, evs]) => (
+                <div key={cat}>
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: CAT_CFG[cat].color }} />
+                    <span className="text-[9px] font-bold" style={{ color: CAT_CFG[cat].color }}>{CAT_CFG[cat].label}</span>
+                    <span className="text-[8px] text-slate-600 ml-auto">{CAT_CFG[cat].scopeLabel}</span>
+                  </div>
+                  <ul className="space-y-0.5 pl-2.5">
+                    {evs.slice(0, 4).map((ev, i) => (
+                      <li key={i} className="flex items-start gap-1 text-[9px] text-slate-300 leading-tight">
+                        <span className="shrink-0 text-slate-600">·</span>
+                        <span>
+                          {ev.title}
+                          {ev.unitLabel && (
+                            <span className="ml-1 text-[8px] text-slate-500">({ev.unitLabel})</span>
+                          )}
+                        </span>
+                      </li>
+                    ))}
+                    {evs.length > 4 && (
+                      <li className="text-[8px] text-slate-600 pl-2">+ {evs.length - 4} további…</li>
+                    )}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+          {hoveredCell.isFuture && hoveredEvents.length > 0 && (
+            <p className="mt-1.5 text-[8px] text-slate-600 italic">Közelgő esemény</p>
+          )}
+          {currentUnit && hoveredEvents.some(e => e.scope === 'unit') && (
+            <p className="mt-1.5 text-[8px] text-slate-500">{SCOPE_LABEL.unit}: {currentUnit}</p>
           )}
         </div>
       )}
@@ -1228,7 +1361,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
                 {/* Ticket activity heatmap */}
                 <div className="p-4 w-[340px] max-w-full">
-                  <TicketHeatmap tickets={tickets} />
+                  <ActivityCalendar tickets={tickets} meetings={meetings} currentUnit={unit || undefined} />
                 </div>
 
               </div>
