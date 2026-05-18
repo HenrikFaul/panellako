@@ -183,6 +183,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'stopId required' }, { status: 400 });
   }
 
+  // BKK stop IDs must start with BKK_ — Overpass/OSM numeric IDs are not valid here
+  if (!stopId.startsWith('BKK_')) {
+    const mock = getMockDepartures(stopId);
+    return NextResponse.json({
+      ...mock,
+      _mock:  true,
+      _error: `A megálló nem BKK ID (${stopId}) — a menetrend nem kérdezhető le. Ellenőrizd, hogy a helyadatok elérhetők-e.`,
+    });
+  }
+
   const cached = _cache.get(stopId);
   if (cached && cached.expires > Date.now()) {
     return NextResponse.json(cached.data);
