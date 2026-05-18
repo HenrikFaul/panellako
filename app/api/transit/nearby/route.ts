@@ -96,17 +96,15 @@ function computeCoverage(stops: NearbyStop[]): CoverageScore {
 // Uses the OneBusAway-style endpoint documented at opendata.bkk.hu
 // Stop IDs in this response already have the BKK_ prefix (e.g. "BKK_F02297")
 // which is required by the departures endpoint.
-async function fetchFutarStops(lat: number, lon: number): Promise<NearbyStop[]> {
-  // latSpan/lonSpan define a bounding box around the location (in degrees)
-  // ~0.006 lat ≈ 667m, ~0.008 lon ≈ 560m at Budapest latitude
+async function fetchFutarStops(lat: number, lon: number, latSpan = 0.07, lonSpan = 0.10): Promise<NearbyStop[]> {
   const params = new URLSearchParams({
     key:        BKK_KEY,
     version:    '3',
     appVersion: 'apiary-1.0',
     lat:        String(lat),
     lon:        String(lon),
-    latSpan:    '0.007',
-    lonSpan:    '0.009',
+    latSpan:    String(latSpan),
+    lonSpan:    String(lonSpan),
   });
 
   const res = await fetch(`${BKK_BASE}/stops-for-location.json?${params}`, {
@@ -168,9 +166,15 @@ async function fetchFutarStops(lat: number, lon: number): Promise<NearbyStop[]> 
         routeType,
       };
     })
-    .filter(s => s.distanceM <= 700)
+    .filter(s => {
+      // Dynamic max distance derived from the requested bounding box
+      const halfLatKm = (latSpan / 2) * 111;
+      const halfLonKm = (lonSpan / 2) * 75.7;
+      const maxDistM  = Math.sqrt(halfLatKm ** 2 + halfLonKm ** 2) * 1000;
+      return s.distanceM <= Math.max(maxDistM, 700);
+    })
     .sort((a, b) => a.distanceM - b.distanceM)
-    .slice(0, 12);
+    .slice(0, 50);
 }
 
 // ─── Overpass API fallback ────────────────────────────────────────────────────
@@ -293,8 +297,10 @@ function getMockResult(lat: number, lon: number): TransitNearbyResult {
 // ─── Main handler ─────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const lat        = parseFloat(searchParams.get('lat') ?? '47.4979');
-  const lon        = parseFloat(searchParams.get('lon') ?? '19.0402');
+  const lat        = parseFloat(searchParams.get('lat')     ?? '47.4979');
+  const lon        = parseFloat(searchParams.get('lon')     ?? '19.0402');
+  const latSpan    = parseFloat(searchParams.get('latSpan') ?? '0.07');
+  const lonSpan    = parseFloat(searchParams.get('lonSpan') ?? '0.10');
   const buildingId = searchParams.get('buildingId') ?? null;
 
   // 5-min TTL in-memory cache (used when no buildingId is provided)
@@ -329,7 +335,7 @@ export async function GET(request: NextRequest) {
 
   // 1. Try BKK Futár OBA stops-for-location
   try {
-    stops  = await fetchFutarStops(lat, lon);
+    stops  = await fetchFutarStops(lat, lon, latSpan, lonSpan);
     source = 'futar';
   } catch (err) {
     console.warn('[transit/nearby] Futár stops failed:', err);
