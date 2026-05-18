@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { loadAlertsFromCache, saveAlertsToCache } from '@/lib/transit-cache';
+import { parseAlerts } from '@/lib/gtfs-rt-parser';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type AlertEffect =
@@ -28,7 +29,7 @@ export interface TransitAlert {
 export interface AlertsResult {
   alerts:    TransitAlert[];
   fetchedAt: string;
-  source:    'futar' | 'mock';
+  source:    'gtfs-rt' | 'futar' | 'mock';
   stale:     boolean;
 }
 
@@ -38,31 +39,62 @@ let _cache: CacheEntry | null = null;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const STALE_AGE_MS = 10 * 60 * 1000;
 
-const BKK_KEY = process.env.BKKFUTAR_API_KEY ?? 'apaiary-test';
+const GTFS_RT_BASE = 'https://go.bkk.hu/api/query/v1/ws/gtfs-rt/full';
+const OBA_BASE     = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
+const APP_ORIGIN   = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://panellako.hu').replace(/\/$/, '');
+const BKK_KEY      = process.env.BKKFUTAR_API_KEY ?? '';
 
-// ─── BKK Futár alerts ────────────────────────────────────────────────────────
-// Uses the OTP routers/budapest/index/alerts endpoint (public, no key required)
-// Falls back to the OBA endpoint with key if OTP fails.
-async function fetchFutarAlerts(): Promise<TransitAlert[]> {
-  const headers = { 'Accept': 'application/json', 'User-Agent': 'panellako.hu/1.0' };
+const BKK_HEADERS = {
+  'Accept':     '*/*',
+  'User-Agent': 'panellako.hu/1.0',
+  'Referer':    `${APP_ORIGIN}/`,
+  'Origin':     APP_ORIGIN,
+};
 
-  // Try OTP alerts first (documented and stable)
+// ─── GTFS-RT Alerts (primary) ─────────────────────────────────────────────────
+async function fetchGtfsRtAlerts(): Promise<TransitAlert[]> {
+  const url = `${GTFS_RT_BASE}/Alerts.txt?key=${BKK_KEY}`;
+  const res = await fetch(url, {
+    headers: BKK_HEADERS,
+    signal:  AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`GTFS-RT Alerts HTTP ${res.status}: ${body.slice(0, 200)}`);
+  }
+  const text = await res.text();
+  return parseAlerts(text).map(a => ({
+    id:              a.id,
+    headerText:      a.headerText,
+    descriptionText: a.descriptionText,
+    effect:          a.effect as AlertEffect,
+    severity:        a.severity,
+    routes:          a.routes,
+    startTime:       a.startTime,
+    endTime:         a.endTime,
+    url:             a.url,
+  }));
+}
+
+// ─── OBA/OTP JSON fallback ────────────────────────────────────────────────────
+async function fetchObaAlerts(): Promise<TransitAlert[]> {
+  const headers = { ...BKK_HEADERS, 'Accept': 'application/json' };
+
   const otpUrl = 'https://futar.bkk.hu/api/query/v1/ws/otp/routers/budapest/index/alerts';
   let rawJson: Record<string, unknown> | null = null;
 
-  const otpRes = await fetch(otpUrl, { headers, signal: AbortSignal.timeout(7000) });
-  if (otpRes.ok) {
-    rawJson = await otpRes.json() as Record<string, unknown>;
-  }
+  const otpRes = await fetch(otpUrl, { headers, signal: AbortSignal.timeout(7_000) });
+  if (otpRes.ok) rawJson = await otpRes.json() as Record<string, unknown>;
 
-  // OBA alerts fallback
   if (!rawJson) {
-    const obaParams = new URLSearchParams({ key: BKK_KEY, version: '3', appVersion: 'apiary-1.0' });
+    const obaParams = new URLSearchParams({
+      key: BKK_KEY || 'apaiary-test', version: '3', appVersion: 'apiary-1.0',
+    });
     const obaRes = await fetch(
-      `https://futar.bkk.hu/api/query/v1/ws/otp/api/where/current-time.json?${obaParams}`,
-      { headers, signal: AbortSignal.timeout(5000) }
+      `${OBA_BASE}/current-time.json?${obaParams}`,
+      { headers, signal: AbortSignal.timeout(5_000) }
     );
-    if (!obaRes.ok) throw new Error(`Futár alerts HTTP ${obaRes.status}`);
+    if (!obaRes.ok) throw new Error(`OBA alerts HTTP ${obaRes.status}`);
     rawJson = await obaRes.json() as Record<string, unknown>;
   }
 
@@ -75,16 +107,12 @@ async function fetchFutarAlerts(): Promise<TransitAlert[]> {
     activePeriod?: Array<{ start?: number; end?: number }>;
     headerText?: string;
     descriptionText?: string;
-    route?:  { shortName?: string };
     routes?: Array<{ shortName?: string }>;
+    route?:  { shortName?: string };
   };
 
-  const dataBlock = rawJson?.data as { list?: AlertItem[]; entry?: { alerts?: AlertItem[] }; alerts?: AlertItem[] } | undefined;
-  const list: AlertItem[] =
-    dataBlock?.list ??
-    dataBlock?.entry?.alerts ??
-    dataBlock?.alerts ??
-    [];
+  const dataBlock = rawJson?.data as { list?: AlertItem[] } | undefined;
+  const list: AlertItem[] = dataBlock?.list ?? [];
 
   function extractText(
     field: { someTranslation?: Array<{ language: string; value: string }> } | undefined,
@@ -97,10 +125,9 @@ async function fetchFutarAlerts(): Promise<TransitAlert[]> {
   }
 
   return list.slice(0, 20).map((a, i) => {
-    const period = a.activePeriod?.[0];
-    const routeNames: string[] = (a.routes ?? (a.route ? [a.route] : []))
-      .map((r: { shortName?: string }) => r.shortName ?? '')
-      .filter(Boolean);
+    const period     = a.activePeriod?.[0];
+    const routeNames = (a.routes ?? (a.route ? [a.route] : []))
+      .map(r => r.shortName ?? '').filter(Boolean);
     const effect = (a.effect as AlertEffect) ?? 'OTHER_EFFECT';
     return {
       id:              a.id ?? String(i),
@@ -134,14 +161,13 @@ export async function GET() {
     return NextResponse.json({ ..._cache.data, stale: ageMs > STALE_AGE_MS });
   }
 
-  // DB cache (second-fastest path — avoids BKK round-trip within 5-min window)
+  // DB cache (avoids BKK round-trip within 5-min window)
   try {
     const dbAlerts = await loadAlertsFromCache(createClient());
     if (dbAlerts) {
       const result: AlertsResult = {
         alerts: dbAlerts, fetchedAt: new Date().toISOString(), source: 'futar', stale: false,
       };
-      // Warm the in-memory cache too
       _cache = { data: result, expires: now + CACHE_TTL_MS };
       return NextResponse.json(result);
     }
@@ -149,21 +175,34 @@ export async function GET() {
     console.warn('[transit/alerts] DB cache read failed:', dbErr);
   }
 
+  // Try GTFS-RT first, fall back to OBA/OTP JSON
+  let alerts: TransitAlert[] | null = null;
+  let source: 'gtfs-rt' | 'futar' = 'gtfs-rt';
+
   try {
-    const alerts = await fetchFutarAlerts();
+    alerts = await fetchGtfsRtAlerts();
+  } catch (err) {
+    console.warn('[transit/alerts] GTFS-RT failed, trying OBA fallback:', err);
+    try {
+      alerts = await fetchObaAlerts();
+      source = 'futar';
+    } catch (err2) {
+      console.warn('[transit/alerts] OBA fallback also failed:', err2);
+    }
+  }
+
+  if (alerts !== null) {
     const result: AlertsResult = {
-      alerts, fetchedAt: new Date().toISOString(), source: 'futar', stale: false,
+      alerts, fetchedAt: new Date().toISOString(), source, stale: false,
     };
     _cache = { data: result, expires: now + CACHE_TTL_MS };
-    // Fire-and-forget: persist to DB cache
     void saveAlertsToCache(createClient(), alerts)
       .catch(e => console.warn('[transit/alerts] DB cache save failed:', e));
     return NextResponse.json(result);
-  } catch (err) {
-    console.warn('[transit/alerts] Futár failed:', err);
-    if (_cache) return NextResponse.json({ ..._cache.data, stale: true });
-    return NextResponse.json({
-      alerts: [], fetchedAt: new Date().toISOString(), source: 'mock', stale: false,
-    } satisfies AlertsResult);
   }
+
+  if (_cache) return NextResponse.json({ ..._cache.data, stale: true });
+  return NextResponse.json({
+    alerts: [], fetchedAt: new Date().toISOString(), source: 'mock', stale: false,
+  } satisfies AlertsResult);
 }
