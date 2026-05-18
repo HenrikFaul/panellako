@@ -10,110 +10,143 @@ export interface Departure {
 }
 
 export interface DepartureBoard {
-  stopId:    string;
-  stopName:  string;
+  stopId:     string;
+  stopName:   string;
   departures: Departure[];
-  fetchedAt: string;
-  source:    'futar' | 'mock';
+  fetchedAt:  string;
+  source:     'futar' | 'mock';
 }
 
 // ─── Cache ────────────────────────────────────────────────────────────────────
 interface CacheEntry { data: DepartureBoard; expires: number; }
 const _cache = new Map<string, CacheEntry>();
 
-// ─── BKK Futár live arrivals ──────────────────────────────────────────────────
+// BKK Futár OBA-style endpoint (OneBusAway API, documented at opendata.bkk.hu)
+// Key 'apaiary-test' is the official public test key from BKK Apiary docs.
+// Override with BKK_API_KEY env var for production registered key.
+const BKK_BASE = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
+const BKK_KEY  = process.env.BKK_API_KEY ?? 'apaiary-test';
+
+// GTFS route type → vehicle label
+const GTFS_TYPE_MAP: Record<number, Departure['vehicle']> = {
+  0: 'TRAM', 1: 'SUBWAY', 2: 'RAIL', 3: 'BUS',
+  4: 'FERRY', 5: 'TRAM', 11: 'TROLLEYBUS', 12: 'TRAM',
+};
+
+// ─── BKK Futár OBA arrivals-and-departures-for-stop ──────────────────────────
 async function fetchFutarDepartures(stopId: string): Promise<DepartureBoard> {
-  // Use the BKK-specific arrivals-and-departures endpoint (richer than OTP /stoptimes).
-  // Arrival times are seconds-since-midnight relative to serviceDay (a unix day boundary),
-  // NOT absolute unix timestamps — must add serviceDay to get the real epoch second.
-  const BASE = 'https://futar.bkk.hu/api/query/v1/ws/otp/routers/budapest';
   const params = new URLSearchParams({
+    key:               BKK_KEY,
+    version:           '3',
+    appVersion:        'apiary-1.0',
     stopId,
-    numberOfDepartures: '8',
-    minutesAfter:       '60',
-    onlyDepartures:     'true',
+    onlyDepartures:    'true',
+    minutesBefore:     '0',
+    minutesAfter:      '60',
+    includeReferences: 'trips,routes,stops',
   });
-  const res = await fetch(`${BASE}/arrivals-and-departures-for-stop?${params}`, {
+
+  const url = `${BKK_BASE}/arrivals-and-departures-for-stop.json?${params}`;
+
+  const res = await fetch(url, {
     headers: { 'Accept': 'application/json', 'User-Agent': 'panellako.hu/1.0' },
-    signal: AbortSignal.timeout(7000),
+    signal:  AbortSignal.timeout(8000),
   });
+
   if (!res.ok) throw new Error(`Futár HTTP ${res.status}`);
-  const data = await res.json();
 
-  // References contain route/stop metadata keyed by their IDs
+  const json = await res.json();
+
+  // OBA response envelope: { status, currentTime, data: { entry, references } }
+  if (json.status !== 'OK') throw new Error(`Futár status: ${json.status}`);
+
+  const entry = json?.data?.entry;
+  const refs  = json?.data?.references ?? {};
+
+  // References: routes and trips keyed by their IDs
   const routeRefs: Record<string, { shortName?: string; type?: number }> =
-    data?.data?.references?.routes ?? {};
+    refs.routes ?? {};
+  const tripRefs: Record<string, { routeId?: string; tripHeadsign?: string }> =
+    refs.trips ?? {};
   const stopRefs: Record<string, { name?: string }> =
-    data?.data?.references?.stops ?? {};
+    refs.stops ?? {};
 
-  const stopName: string =
-    stopRefs[stopId]?.name ?? data?.data?.entry?.stopName ?? stopId;
+  const stopName: string = stopRefs[stopId]?.name ?? stopId;
 
-  const now = Math.floor(Date.now() / 1000);
+  // currentTime from server is in milliseconds
+  const serverNowMs = (json.currentTime as number) ?? Date.now();
+  const serverNowSec = serverNowMs / 1000;
 
   const stopTimes: Array<{
-    serviceDay?:        number;   // unix timestamp of the local day start
-    scheduledArrival?:  number;   // seconds since midnight
-    scheduledDeparture?: number;
-    realtimeArrival?:   number;
-    realtimeDeparture?: number;
-    realtime?:          boolean;
-    routeId?:           string;
-    headsign?:          string;
-  }> = data?.data?.entry?.stopTimes ?? [];
-
-  const gtfsTypeMap: Record<number, Departure['vehicle']> = {
-    0: 'TRAM', 1: 'SUBWAY', 2: 'RAIL', 3: 'BUS',
-    4: 'FERRY', 5: 'TRAM', 11: 'TROLLEYBUS', 12: 'TRAM',
-  };
+    tripId?:                 string;
+    stopHeadsign?:           string;
+    departureTime?:          number;   // Unix seconds (scheduled)
+    predictedDepartureTime?: number;   // Unix seconds (real-time, if available)
+    arrivalTime?:            number;
+    predictedArrivalTime?:   number;
+  }> = entry?.stopTimes ?? [];
 
   const departures: Departure[] = stopTimes
-    .map(s => {
-      const serviceDay = s.serviceDay ?? 0;
-      // Arrival is relative to serviceDay (seconds since midnight) → add to get unix epoch
-      const relArrival = s.realtimeArrival ?? s.scheduledArrival
-                      ?? s.realtimeDeparture ?? s.scheduledDeparture ?? 0;
-      const absArrival = serviceDay + relArrival;
-      const minutesAway = Math.round((absArrival - now) / 60);
+    .map(st => {
+      // Prefer predicted (real-time) over scheduled
+      const depSec =
+        st.predictedDepartureTime ??
+        st.departureTime          ??
+        st.predictedArrivalTime   ??
+        st.arrivalTime            ??
+        0;
 
-      const route = routeRefs[s.routeId ?? ''];
+      const minutesAway = Math.round((depSec - serverNowSec) / 60);
+      const isRealtime  = st.predictedDepartureTime !== undefined ||
+                          st.predictedArrivalTime   !== undefined;
+
+      // Route: look up via trip → routeId → route shortName
+      const tripId  = st.tripId ?? '';
+      const routeId = tripRefs[tripId]?.routeId ?? '';
+      const route   = routeRefs[routeId];
+
       const vehicle: Departure['vehicle'] =
-        gtfsTypeMap[route?.type ?? 3] ?? 'BUS';
+        GTFS_TYPE_MAP[route?.type ?? 3] ?? 'BUS';
+
+      // Headsign: prefer stop-level override, fall back to trip headsign
+      const headsign =
+        st.stopHeadsign ??
+        tripRefs[tripId]?.tripHeadsign ??
+        '';
 
       return {
-        routeRef:    route?.shortName ?? '?',
-        headsign:    s.headsign ?? '',
+        routeRef: route?.shortName ?? (routeId.replace(/^BKK_/, '') || '?'),
+        headsign,
         minutesAway,
-        realtime:    s.realtime ?? false,
+        realtime: isRealtime,
         vehicle,
       };
     })
     .filter(d => d.minutesAway >= -1)
     .sort((a, b) => a.minutesAway - b.minutesAway)
-    .slice(0, 6);
+    .slice(0, 8);
 
-  return { stopId, stopName, departures, fetchedAt: new Date().toISOString(), source: 'futar' };
+  return {
+    stopId, stopName, departures,
+    fetchedAt: new Date().toISOString(),
+    source:    'futar',
+  };
 }
 
 // ─── Mock departure board ─────────────────────────────────────────────────────
 function getMockDepartures(stopId: string): DepartureBoard {
-  const patterns: Record<string, DepartureBoard> = {
-    default: {
-      stopId,
-      stopName: 'Kerepesi út / Kőér utca',
-      departures: [
-        { routeRef: '68',  headsign: 'Keleti pu.',         minutesAway: 2,  realtime: true,  vehicle: 'BUS' },
-        { routeRef: '37',  headsign: 'Puskás Aréna M',     minutesAway: 5,  realtime: true,  vehicle: 'BUS' },
-        { routeRef: '68E', headsign: 'Kelenföld vas.',      minutesAway: 8,  realtime: false, vehicle: 'BUS' },
-        { routeRef: '72',  headsign: 'Kőbánya-Kispest M',  minutesAway: 12, realtime: true,  vehicle: 'BUS' },
-        { routeRef: '37',  headsign: 'Puskás Aréna M',     minutesAway: 17, realtime: false, vehicle: 'BUS' },
-        { routeRef: '68',  headsign: 'Keleti pu.',         minutesAway: 22, realtime: false, vehicle: 'BUS' },
-      ],
-      fetchedAt: new Date().toISOString(),
-      source: 'mock',
-    },
+  return {
+    stopId,
+    stopName: 'Kerepesi út / Kőér utca',
+    departures: [
+      { routeRef: '68',  headsign: 'Keleti pu.',        minutesAway: 2,  realtime: true,  vehicle: 'BUS' },
+      { routeRef: '37',  headsign: 'Puskás Aréna M',    minutesAway: 5,  realtime: true,  vehicle: 'BUS' },
+      { routeRef: '68E', headsign: 'Kelenföld vas.',     minutesAway: 8,  realtime: false, vehicle: 'BUS' },
+      { routeRef: '72',  headsign: 'Kőbánya-Kispest M', minutesAway: 12, realtime: true,  vehicle: 'BUS' },
+    ],
+    fetchedAt: new Date().toISOString(),
+    source:    'mock',
   };
-  return patterns.default;
 }
 
 // ─── GET handler ──────────────────────────────────────────────────────────────
@@ -125,7 +158,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'stopId required' }, { status: 400 });
   }
 
-  // 60-second cache per stop
   const cached = _cache.get(stopId);
   if (cached && cached.expires > Date.now()) {
     return NextResponse.json(cached.data);
@@ -138,6 +170,6 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     console.warn('[transit/departures] Futár failed:', err);
     const mock = getMockDepartures(stopId);
-    return NextResponse.json({ ...mock, _mock: true });
+    return NextResponse.json({ ...mock, _mock: true, _error: String(err) });
   }
 }
