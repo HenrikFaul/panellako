@@ -11,6 +11,16 @@ import { createClient }              from '@supabase/supabase-js';
 
 type RouteType = 'SUBWAY' | 'TRAM' | 'TROLLEYBUS' | 'BUS' | 'RAIL' | 'FERRY' | 'CABLE_CAR';
 
+interface BkkStopRow {
+  stop_id:    string;
+  name:       string;
+  lat:        number;
+  lon:        number;
+  route_refs: string[];
+  route_type: RouteType;
+  updated_at: string;
+}
+
 const GTFS_TYPE_MAP: Record<number, RouteType> = {
   0: 'TRAM', 1: 'SUBWAY', 2: 'RAIL', 3: 'BUS',
   4: 'FERRY', 5: 'CABLE_CAR', 7: 'CABLE_CAR', 11: 'TROLLEYBUS', 12: 'TRAM',
@@ -26,7 +36,7 @@ const CHUNK_SIZE = 500;
 const LAT_CENTERS = [47.22, 47.37, 47.52, 47.65, 47.78];
 const LON_CENTERS = [19.01, 19.19, 19.37];
 
-async function fetchCell(lat: number, lon: number) {
+async function fetchCell(lat: number, lon: number): Promise<BkkStopRow[]> {
   const params = new URLSearchParams({
     key: BKK_KEY, version: '3', appVersion: 'apiary-1.0',
     lat: String(lat), lon: String(lon),
@@ -82,7 +92,7 @@ export async function POST(req: NextRequest) {
     { auth: { persistSession: false } }
   );
 
-  const all = new Map<string, ReturnType<typeof fetchCell> extends Promise<infer T> ? T[number] : never>();
+  const all = new Map<string, BkkStopRow>();
   const errors: string[] = [];
   const cells = LAT_CENTERS.flatMap(lat => LON_CENTERS.map(lon => ({ lat, lon })));
 
