@@ -11,9 +11,10 @@ const VEHICLE_COLOR: Record<string, string> = {
   SUBWAY: '#ef4444', TRAM: '#fbbf24', TROLLEYBUS: '#f87171',
   BUS: '#38bdf8', RAIL: '#a78bfa', FERRY: '#2dd4bf',
 };
+// Vivid BKK-Futár style colors for stop pins — bus uses bright blue, not slate
 const STOP_COLOR: Record<string, string> = {
-  SUBWAY: '#ef4444', TRAM: '#d97706', TROLLEYBUS: '#f87171',
-  BUS: '#64748b', RAIL: '#a78bfa', FERRY: '#2dd4bf', CABLE_CAR: '#f59e0b',
+  SUBWAY: '#ef4444', TRAM: '#f59e0b', TROLLEYBUS: '#f87171',
+  BUS: '#2563eb', RAIL: '#8b5cf6', FERRY: '#14b8a6', CABLE_CAR: '#f59e0b',
 };
 
 // ─── Inline CSS injected once ────────────────────────────────────────────────
@@ -34,6 +35,7 @@ const MAP_CSS = `
   transition: opacity 0.15s, transform 0.15s;
 }
 .bkk-route-badge:hover { opacity:0.85; transform:scale(1.08); }
+.bkk-stop-pin { background:none!important; border:none!important; }
 `;
 
 // ─── SVG icon factories ────────────────────────────────────────────────────────
@@ -45,25 +47,27 @@ function vehicleSvg(color: string, bearing?: number) {
     <polygon points="13,3 16,10 13,8.5 10,10" fill="${color}" transform="rotate(${rot} 13 13)"/>
   </svg>`;
 }
-// BKK Futár–style teardrop pin
+
+// BKK Futár–style teardrop pin: vivid colored body, white border + letter
+// Uses CSS filter instead of SVG <filter> to avoid ID conflicts with multiple markers
 const VEHICLE_LABEL: Record<string, string> = {
   SUBWAY: 'M', TRAM: 'V', TROLLEYBUS: 'Tr', BUS: 'B', RAIL: 'H', FERRY: 'H', CABLE_CAR: 'D',
 };
 function stopPinSvg(color: string, vehicleType: string) {
   const label    = VEHICLE_LABEL[vehicleType] ?? 'B';
-  const fontSize = label.length > 1 ? 8 : 10;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="38" viewBox="0 0 28 38">
-    <filter id="ds" x="-30%" y="-20%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.35)"/>
-    </filter>
-    <path d="M14,1 C7,1 1,7 1,14 C1,23 14,37 14,37 C14,37 27,23 27,14 C27,7 21,1 14,1 Z"
-      fill="${color}" stroke="white" stroke-width="1.8" filter="url(#ds)"/>
-    <circle cx="14" cy="14" r="7" fill="white" fill-opacity="0.18"/>
-    <text x="14" y="14" text-anchor="middle" dominant-baseline="central"
+  const fontSize = label.length > 1 ? 7 : 11;
+  // drop-shadow on the outer SVG element — no <filter id> collision
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="44" viewBox="0 0 32 44"
+    style="filter:drop-shadow(0 2px 5px rgba(0,0,0,0.45));overflow:visible">
+    <path d="M16,1 C8,1 1,8 1,16 C1,27 16,43 16,43 C16,43 31,27 31,16 C31,8 24,1 16,1 Z"
+      fill="${color}" stroke="white" stroke-width="2"/>
+    <circle cx="16" cy="15" r="8" fill="white" fill-opacity="0.25"/>
+    <text x="16" y="15" text-anchor="middle" dominant-baseline="central"
       fill="white" font-weight="900" font-size="${fontSize}"
       font-family="-apple-system,BlinkMacSystemFont,sans-serif">${label}</text>
   </svg>`;
 }
+
 function buildingSvg() {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30">
     <circle cx="15" cy="15" r="13" fill="#6366f1" fill-opacity="0.18" stroke="#6366f1" stroke-width="1.8"/>
@@ -270,7 +274,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
           const color  = STOP_COLOR[stop.routeType] ?? '#64748b';
           const routes = stop.routeRefs.slice(0, 4).join(' · ');
           const marker = L.marker([stop.lat, stop.lon], {
-            icon: L.divIcon({ html: stopPinSvg(color, stop.routeType), className: '', iconSize: [28,38], iconAnchor: [14,37], popupAnchor: [0,-40] }),
+            icon: L.divIcon({ html: stopPinSvg(color, stop.routeType), className: 'bkk-stop-pin', iconSize: [32,44], iconAnchor: [16,43], popupAnchor: [0,-46] }),
           })
             .bindTooltip(
               `<div style="font-size:11px"><b>${stop.name}</b><br/><span style="color:#94a3b8;font-size:9px">${routes} · ${stop.distanceM} m</span></div>`,
