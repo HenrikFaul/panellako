@@ -549,36 +549,44 @@ function PanelSkylineSvg() {
     >
       <defs>
         <linearGradient id="sky-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="#241634" />
-          <stop offset="40%"  stopColor="#5b2a3d" />
-          <stop offset="75%"  stopColor="#b46437" />
-          <stop offset="100%" stopColor="#f3c98c" />
+          <stop offset="0%"   stopColor="#010610" />
+          <stop offset="40%"  stopColor="#040e24" />
+          <stop offset="75%"  stopColor="#08193a" />
+          <stop offset="100%" stopColor="#0d2248" />
         </linearGradient>
-        <radialGradient id="sun-glow" cx="55%" cy="115%" r="35%">
-          <stop offset="0%"   stopColor="#fff3d6" stopOpacity="1" />
-          <stop offset="60%"  stopColor="#f9b76c" stopOpacity="0.45" />
-          <stop offset="100%" stopColor="#f9b76c" stopOpacity="0" />
+        <radialGradient id="sun-glow" cx="50%" cy="115%" r="35%">
+          <stop offset="0%"   stopColor="#1a4a8a" stopOpacity="0.5" />
+          <stop offset="60%"  stopColor="#0e2e5e" stopOpacity="0.25" />
+          <stop offset="100%" stopColor="#0e2e5e" stopOpacity="0" />
         </radialGradient>
         <linearGradient id="bld-grad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%"   stopColor="#10182a" />
           <stop offset="100%" stopColor="#070a14" />
         </linearGradient>
         <linearGradient id="rim" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%"   stopColor="#f9b76c" stopOpacity="0" />
-          <stop offset="100%" stopColor="#f9b76c" stopOpacity="0.65" />
+          <stop offset="0%"   stopColor="#4a7ab5" stopOpacity="0" />
+          <stop offset="100%" stopColor="#4a7ab5" stopOpacity="0.4" />
         </linearGradient>
       </defs>
 
       {/* Sky — covers extended viewBox */}
       <rect x="0" y="-20" width="418" height="138" fill="url(#sky-grad)" />
-      {/* Sun glow */}
-      <ellipse cx="230" cy="138" rx="200" ry="48" fill="url(#sun-glow)" />
-      {/* Cloud bands */}
-      <rect x="0" y="60" width="418" height="1"   fill="#f9b76c" fillOpacity="0.18" />
-      <rect x="0" y="78" width="418" height="1.5" fill="#f9b76c" fillOpacity="0.12" />
-      {/* Venus */}
-      <circle cx="362" cy="18" r="3"   fill="#fffcf0" fillOpacity="0.15" />
-      <circle cx="362" cy="18" r="1.4" fill="#fffcf0" />
+      {/* City horizon glow */}
+      <ellipse cx="209" cy="138" rx="200" ry="48" fill="url(#sun-glow)" />
+      {/* Atmospheric haze */}
+      <rect x="0" y="60" width="418" height="1"   fill="#4a7ab5" fillOpacity="0.08" />
+      <rect x="0" y="78" width="418" height="1.5" fill="#4a7ab5" fillOpacity="0.06" />
+      {/* Stars */}
+      <circle cx="30"  cy="8"  r="0.8" fill="#c8dff5" fillOpacity="0.7" />
+      <circle cx="75"  cy="5"  r="1.0" fill="#d8e8ff" fillOpacity="0.8" />
+      <circle cx="145" cy="10" r="0.7" fill="#c8dff5" fillOpacity="0.6" />
+      <circle cx="200" cy="4"  r="0.9" fill="#d8e8ff" fillOpacity="0.75" />
+      <circle cx="280" cy="7"  r="0.6" fill="#c8dff5" fillOpacity="0.5" />
+      <circle cx="340" cy="12" r="0.8" fill="#d8e8ff" fillOpacity="0.7" />
+      <circle cx="390" cy="6"  r="1.0" fill="#c8dff5" fillOpacity="0.8" />
+      {/* Moon */}
+      <circle cx="362" cy="18" r="5"   fill="#d4e8ff" fillOpacity="0.12" />
+      <circle cx="362" cy="18" r="2.2" fill="#e8f4ff" fillOpacity="0.9" />
 
       {/* Buildings with architectural detail */}
       {buildings.map((b, bi) => {
@@ -632,8 +640,8 @@ function PanelSkylineSvg() {
         );
       })}
 
-      {/* Ground line — copper */}
-      <rect x="0" y={GROUND} width="418" height="2" fill="#f9b76c" fillOpacity="0.55" />
+      {/* Ground line — cool blue */}
+      <rect x="0" y={GROUND} width="418" height="2" fill="#2a5080" fillOpacity="0.6" />
 
       {/* Windows */}
       {windows.map(({ wx, wy, lit, warm }, i) => (
@@ -1409,7 +1417,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </div>
 
               {/* Center: skyline — fills available space, shrinks before title/actions do */}
-              <div className="pointer-events-none select-none relative flex-1 min-w-0 h-[68px] overflow-hidden opacity-80">
+              <div className="pointer-events-none select-none relative flex-1 min-w-0 h-[108px] overflow-hidden opacity-90">
                 <PanelSkylineSvg />
                 <div className="absolute inset-y-0 left-0 w-1/3" style={{ background: 'linear-gradient(to right, #05091a 0%, transparent 100%)' }} />
                 <div className="absolute inset-y-0 right-0 w-1/3" style={{ background: 'linear-gradient(to left, #05091a 0%, transparent 100%)' }} />
@@ -1462,6 +1470,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   type="button"
                   onClick={() => setContactOpen(true)}
                   className="hidden btn-secondary px-3.5 py-2 text-xs"
+                  style={{ display: 'none' }}
                 >
                   <Mail size={13} /> Kapcsolat
                 </button>
