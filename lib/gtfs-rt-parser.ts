@@ -124,16 +124,17 @@ export function extractTranslation(
 export type GtfsVehicleType =
   | 'SUBWAY' | 'TRAM' | 'TROLLEYBUS' | 'BUS' | 'RAIL' | 'FERRY' | 'CABLE_CAR';
 
-const SUBWAY_SET  = new Set(['M1', 'M2', 'M3', 'M4', 'H5', 'H6', 'H7', 'H8', 'H9']);
-const TRAM_SET    = new Set(['1', '2', '3', '4', '6', '17', '18', '19', '41', '47', '49', '50', '56', '59', '61', '62']);
-const TROLLEY_SET = new Set(['70', '72', '73', '74', '75', '76', '77', '78', '79', '80', '83']);
+const SUBWAY_SET  = new Set(['M1', 'M2', 'M3', 'M4']);
+const TRAM_SET    = new Set(['1','2','3','4','6','17','18','19','24','28','28A','37','41','42','44','47','49','50','56','56A','57','58','59','60','61','62']);
+const TROLLEY_SET = new Set(['70','72','73','74','75','76','77','78','79','80','82','83']);
 
 export function guessVehicleType(routeRef: string): GtfsVehicleType {
-  const ref = routeRef.toUpperCase().replace(/^0+/, '');
-  if (SUBWAY_SET.has(ref))  return 'SUBWAY';
-  if (TRAM_SET.has(routeRef)) return 'TRAM';
-  if (TROLLEY_SET.has(routeRef)) return 'TROLLEYBUS';
-  // BKK HÉV suburban rail: route refs like 'H5'–'H9' already handled above
+  // Normalise: strip BKK_ prefix + leading zeros, uppercase
+  const ref = routeRef.replace(/^BKK_/i, '').replace(/^0+(\d)/, '$1').toUpperCase().trim();
+  if (SUBWAY_SET.has(ref))   return 'SUBWAY';
+  if (TRAM_SET.has(ref))     return 'TRAM';
+  if (TROLLEY_SET.has(ref))  return 'TROLLEYBUS';
+  if (/^H[5-9]$/.test(ref))  return 'RAIL';
   return 'BUS';
 }
 

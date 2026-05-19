@@ -5,6 +5,15 @@ export const dynamic = 'force-dynamic';
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ShapePoint { lat: number; lon: number; }
 
+export interface TripStopTime {
+  stopId:   string;
+  stopName: string;
+  lat:      number;
+  lon:      number;
+  timeStr:  string;   // "HH:MM" scheduled departure or ""
+  isPast:   boolean;
+}
+
 export interface TripShape {
   points:        ShapePoint[];
   routeRef:      string;
@@ -14,6 +23,7 @@ export interface TripShape {
   vehicleId?:    string;
   vehicleModel?: string;
   accessible?:   boolean;
+  stopTimes?:    TripStopTime[];
 }
 
 const BKK_BASE = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
@@ -70,6 +80,42 @@ async function fetchShapeFromDb(tripId: string): Promise<TripShape | null> {
   const routeType = route?.type ?? 'BUS';
   const color = route?.color ?? ROUTE_COLORS[routeType] ?? '#38bdf8';
 
+  // Try to fetch stop times from gtfs_stop_times + gtfs_stops
+  let stopTimes: TripStopTime[] | undefined;
+  const nowHHMM = new Date().toLocaleTimeString('hu-HU', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    timeZone: 'Europe/Budapest',
+  }); // "HH:MM:SS"
+  try {
+    const { data: stRows } = await supabase
+      .from('gtfs_stop_times')
+      .select('stop_id, departure_time, stop_sequence, gtfs_stops(stop_name, stop_lat, stop_lon)')
+      .eq('trip_id', tripId)
+      .order('stop_sequence');
+
+    if (stRows && stRows.length > 0) {
+      stopTimes = (stRows as unknown as Array<{
+        stop_id: string;
+        departure_time: string;
+        stop_sequence: number;
+        gtfs_stops: { stop_name: string; stop_lat: number; stop_lon: number } | null;
+      }>).map(row => {
+        const depStr = row.departure_time ?? ''; // "HH:MM:SS"
+        const timeStr = depStr.length >= 5 ? depStr.slice(0, 5) : depStr;
+        const isPast = depStr.length > 0 ? depStr <= nowHHMM : false;
+        const s = row.gtfs_stops;
+        return {
+          stopId:   row.stop_id,
+          stopName: s?.stop_name ?? row.stop_id,
+          lat:      s?.stop_lat ?? 0,
+          lon:      s?.stop_lon ?? 0,
+          timeStr,
+          isPast,
+        };
+      });
+    }
+  } catch { /* gtfs_stop_times tables may not exist — stopTimes stays undefined */ }
+
   return {
     points:     pts.map(p => ({ lat: p.lat as number, lon: p.lon as number })),
     routeRef:   route?.short_name ?? '?',
@@ -77,14 +123,15 @@ async function fetchShapeFromDb(tripId: string): Promise<TripShape | null> {
     source:     'db',
     headsign:   trip.trip_headsign ?? undefined,
     accessible: trip.wheelchair_accessible === 1,
+    stopTimes,
   };
 }
 
 async function fetchShape(tripId: string): Promise<TripShape> {
   const base = { key: BKK_KEY, version: '3', appVersion: 'apiary-1.0' };
 
-  // 1. Trip details → get shapeId + route color + vehicle info
-  const detailsParams = new URLSearchParams({ ...base, tripId, includeSchedule: 'false', includeReferences: 'trips,routes,stops,vehicles' });
+  // 1. Trip details → get shapeId + route color + vehicle info + schedule
+  const detailsParams = new URLSearchParams({ ...base, tripId, includeSchedule: 'true', includeReferences: 'trips,routes,stops,vehicles' });
   const detailsRes = await fetch(`${BKK_BASE}/trip-details.json?${detailsParams}`, {
     headers: { 'Accept': 'application/json', 'User-Agent': 'panellako.hu/1.0' },
     signal:  AbortSignal.timeout(7000),
@@ -112,6 +159,34 @@ async function fetchShape(tripId: string): Promise<TripShape> {
   const vehicleId   = firstVehicle?.label ?? firstVehicle?.id?.replace(/^BKK_/, '') ?? undefined;
   const vehicleModel = firstVehicle?.vehicleType?.vehicleDescription ?? firstVehicle?.description ?? firstVehicle?.model ?? undefined;
 
+  // Parse stop times from schedule
+  const serverNowSec = Math.floor(Date.now() / 1000);
+  const rawStopTimes: Array<{ stopId?: string; departureTime?: number; predictedDepartureTime?: number }> =
+    detailsJson?.data?.entry?.stopTimes ?? [];
+  const stopRefs: Record<string, { name?: string; lat?: number; lon?: number }> = refs?.stops ?? {};
+
+  const stopTimes: TripStopTime[] = rawStopTimes.map(st => {
+    const sid = st.stopId ?? '';
+    const stopRef = stopRefs[sid] ?? {};
+    const depSec = st.departureTime ?? st.predictedDepartureTime ?? 0;
+    let timeStr = '';
+    if (depSec) {
+      const d = new Date(depSec * 1000);
+      timeStr = d.toLocaleTimeString('hu-HU', {
+        hour: '2-digit', minute: '2-digit',
+        timeZone: 'Europe/Budapest',
+      });
+    }
+    return {
+      stopId:   sid,
+      stopName: stopRef.name ?? sid,
+      lat:      stopRef.lat ?? 0,
+      lon:      stopRef.lon ?? 0,
+      timeStr,
+      isPast:   depSec > 0 && depSec < serverNowSec,
+    };
+  }).filter(st => st.stopId !== '');
+
   if (!shapeId) throw new Error('No shapeId in trip-details');
 
   // 2. Shape for shapeId
@@ -133,7 +208,7 @@ async function fetchShape(tripId: string): Promise<TripShape> {
 
   if (points.length === 0) throw new Error('Empty shape points');
 
-  return { points, routeRef, color, source: 'futar', headsign, accessible, vehicleId, vehicleModel };
+  return { points, routeRef, color, source: 'futar', headsign, accessible, vehicleId, vehicleModel, stopTimes };
 }
 
 export async function GET(request: NextRequest) {
