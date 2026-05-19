@@ -1,3 +1,18 @@
+### [LESSON-OPS-082] Manuális operátori UI-hoz külön auth/session réteg kell
+- **Dátum**: 2026-05-19
+- **Fájlok**: `lib/superadmin-auth.ts`, `app/superadmin/*`, `app/api/superadmin/*`
+- **Gyökérok**: Ha cron és integrációs jobok csak API endpointon érhetők el, a nem-fejlesztő operátorok nehezen tudnak diagnosztizálni és kézi újrafuttatást végezni.
+- **Javítás**: Külön superadmin belépés + session cookie + dashboard és manuális job-trigger API készült.
+- **Megelőzés**: Integrációs rendszerekhez mindig legyen legalább minimál operátori vezérlőfelület státusszal és futtatási visszajelzéssel.
+
+
+### [LESSON-TRANSIT-081] Vercel Cron nem küld custom Authorization Bearer tokent
+- **Dátum**: 2026-05-19
+- **Fájl**: `app/api/transit/sync/route.ts`
+- **Gyökérok**: A sync endpoint csak `Authorization: Bearer <secret>` ellenőrzést fogadott el. Vercel Cron trigger esetén tipikusan `x-vercel-cron: 1` fejléc érkezik, ezért a scheduled futások 401-re estek.
+- **Javítás**: Authorization ellenőrzés bővítve Vercel Cron fejlécre és opcionális query secretre.
+- **Megelőzés**: Minden cron endpointnál platform-specifikus auth módot is támogatni kell, és a 401 válaszban operatív hintet kell adni.
+
 # codingLessonsLearnt.md — Kapakka PubApp
 
 ## ⚠️ UTASÍTÁSOK (MINDIG OLVASD EL ELŐSZÖR!)

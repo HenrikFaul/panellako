@@ -23,9 +23,19 @@ const SYNC_SECRET   = process.env.TRANSIT_SYNC_SECRET  ?? '';
 function isAuthorized(request: NextRequest): boolean {
   const authHeader = request.headers.get('authorization') ?? '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+
+  // Vercel Cron sends x-vercel-cron: 1 and cannot attach custom Authorization headers.
+  const isVercelCron = request.headers.get('x-vercel-cron') === '1';
+
+  // Optional query/body secret support for manual invocations from simple cron systems.
+  const urlSecret = request.nextUrl.searchParams.get('secret') ?? '';
+
   return (
-    (CRON_SECRET  !== '' && token === CRON_SECRET)  ||
-    (SYNC_SECRET  !== '' && token === SYNC_SECRET)
+    (CRON_SECRET !== '' && isVercelCron) ||
+    (CRON_SECRET !== '' && token === CRON_SECRET) ||
+    (SYNC_SECRET !== '' && token === SYNC_SECRET) ||
+    (CRON_SECRET !== '' && urlSecret === CRON_SECRET) ||
+    (SYNC_SECRET !== '' && urlSecret === SYNC_SECRET)
   );
 }
 
@@ -42,7 +52,7 @@ function createServiceClient() {
 
 const BKK_OBA_BASE  = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
 const GTFS_RT_BASE  = 'https://go.bkk.hu/api/query/v1/ws/gtfs-rt/full';
-const BKK_KEY       = process.env.BKKFUTAR_API_KEY ?? 'apaiary-test';
+const BKK_KEY       = process.env.BKKFUTAR_API_KEY ?? '';
 const APP_ORIGIN    = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://panellako.hu').replace(/\/$/, '');
 
 const BKK_HEADERS = {
@@ -326,7 +336,14 @@ async function syncAlerts(): Promise<AlertsSyncResult> {
 
 async function handleRequest(request: NextRequest): Promise<NextResponse> {
   if (!isAuthorized(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({
+      error: 'Unauthorized',
+      hint: 'Use Vercel Cron (x-vercel-cron), Authorization: Bearer <CRON_SECRET|TRANSIT_SYNC_SECRET>, or ?secret=<...>',
+    }, { status: 401 });
+  }
+
+  if (!BKK_KEY) {
+    return NextResponse.json({ error: 'Missing BKKFUTAR_API_KEY' }, { status: 500 });
   }
 
   const { searchParams } = request.nextUrl;
