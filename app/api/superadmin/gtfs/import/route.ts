@@ -158,6 +158,26 @@ function transformRows(fileType: string, rows: unknown[]): TransformResult {
       return { table: 'gtfs_translations', conflictColumns: 'table_name,field_name,language,translation', transformed, skipped: 0 };
     }
 
+    case 'trips': {
+      const transformed: Record<string, unknown>[] = [];
+      let skipped = 0;
+      for (const r of rows as Record<string, unknown>[]) {
+        if (!r.trip_id || !r.route_id || !r.service_id) { skipped++; continue; }
+        transformed.push({
+          trip_id:               r.trip_id,
+          route_id:              r.route_id,
+          service_id:            r.service_id,
+          trip_headsign:         (r.trip_headsign as string) || null,
+          direction_id:          r.direction_id !== '' && r.direction_id != null ? parseInt(r.direction_id as string) : null,
+          block_id:              (r.block_id as string) || null,
+          shape_id:              (r.shape_id as string) || null,
+          wheelchair_accessible: r.wheelchair_accessible !== '' && r.wheelchair_accessible != null ? parseInt(r.wheelchair_accessible as string) : null,
+          bikes_allowed:         r.bikes_allowed !== '' && r.bikes_allowed != null ? parseInt(r.bikes_allowed as string) : null,
+        });
+      }
+      return { table: 'gtfs_trips', conflictColumns: 'trip_id', transformed, skipped };
+    }
+
     default:
       throw new Error(`Unknown fileType: ${fileType}`);
   }
