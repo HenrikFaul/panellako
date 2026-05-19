@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import SuperadminGtfsImport from '@/components/superadmin-gtfs-import';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -40,7 +40,14 @@ interface TableStat {
   count: number | null;
   lastUpdated: string | null;
   error: string | null;
+  group?: string;
 }
+
+const GROUP_LABELS: Record<string, string> = {
+  transit: 'Transit (BKK API)',
+  gtfs:    'GTFS statikus import',
+  other:   'Egyéb',
+};
 
 interface JobLog {
   id: string;
@@ -320,19 +327,34 @@ export default function SuperadminClient() {
                   </tr>
                 </thead>
                 <tbody>
-                  {stats.map(s => (
-                    <tr key={s.name} className="border-b border-slate-50 last:border-0">
-                      <td className="py-2 pr-4">
-                        <span className="font-medium text-slate-800">{s.label}</span>
-                        <span className="ml-2 font-mono text-[10px] text-slate-400">{s.name}</span>
-                        {s.error && <span className="ml-2 text-[10px] text-red-500">{s.error}</span>}
-                      </td>
-                      <td className="py-2 pr-4 text-right font-mono font-bold text-slate-900">
-                        {s.count === null ? '—' : s.count.toLocaleString('hu-HU')}
-                      </td>
-                      <td className="py-2 text-slate-500">{fmt(s.lastUpdated)}</td>
-                    </tr>
-                  ))}
+                  {stats.reduce<React.ReactNode[]>((acc, s, i) => {
+                    const prevGroup = i > 0 ? stats[i - 1].group : undefined;
+                    if (s.group && s.group !== prevGroup) {
+                      acc.push(
+                        <tr key={`group-${s.group}`}>
+                          <td colSpan={3} className="pt-4 pb-1">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                              {GROUP_LABELS[s.group] ?? s.group}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    }
+                    acc.push(
+                      <tr key={s.name} className="border-b border-slate-50 last:border-0">
+                        <td className="py-2 pr-4">
+                          <span className="font-medium text-slate-800">{s.label}</span>
+                          <span className="ml-2 font-mono text-[10px] text-slate-400">{s.name}</span>
+                          {s.error && <span className="ml-2 text-[10px] text-red-500">{s.error}</span>}
+                        </td>
+                        <td className="py-2 pr-4 text-right font-mono font-bold text-slate-900">
+                          {s.count === null ? '—' : s.count.toLocaleString('hu-HU')}
+                        </td>
+                        <td className="py-2 text-slate-500">{fmt(s.lastUpdated)}</td>
+                      </tr>
+                    );
+                    return acc;
+                  }, [])}
                 </tbody>
               </table>
             </div>
