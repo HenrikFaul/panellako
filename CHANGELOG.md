@@ -1,3 +1,12 @@
+
+## 2026-05-19 — Transit sync auth + BKK key fail-fast fix
+
+### Fixed
+- `app/api/transit/sync/route.ts`: a cron auth most már kompatibilis a Vercel Cron fejléccel (`x-vercel-cron: 1`), így a scheduled sync endpoint nem utasítja el alapból a platform-triggerelt hívásokat.
+- `app/api/transit/sync/route.ts`: bekerült opcionális `?secret=` támogatás manuális trigger rendszerekhez és diagnosztikához.
+- `app/api/transit/sync/route.ts`: `BKKFUTAR_API_KEY` hiány esetén a sync explicit 500 hibával leáll (`Missing BKKFUTAR_API_KEY`) ahelyett, hogy implicit tesztkulccsal/hibás kulccsal csendben futna.
+- `app/api/transit/sync/route.ts`: részletesebb 401 válasz (`hint`) a gyorsabb üzemeltetési hibakereséshez.
+
 # Changelog
 
 ## 2026-05-18 — v0.6.0 Premium UI/UX Refactor — Design system, Inter font, elevated components
