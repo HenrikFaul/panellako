@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import type { NearbyStop } from '@/app/api/transit/nearby/route';
 import type { VehiclePosition } from '@/app/api/transit/vehicles/route';
 import type { Departure } from '@/app/api/transit/departures/route';
-import type { TripShape } from '@/app/api/transit/shape/route';
+import type { TripShape, TripStopTime } from '@/app/api/transit/shape/route';
 
 // ─── Style constants ──────────────────────────────────────────────────────────
 const VEHICLE_COLOR: Record<string, string> = {
@@ -50,29 +50,23 @@ const MAP_CSS = `
 `;
 
 // ─── SVG icon factories ────────────────────────────────────────────────────────
-function vehicleSvg(color: string, bearing?: number) {
+function vehicleSvg(color: string, bearing?: number, vehicleType?: string) {
   const rot = bearing ?? 0;
+  let typeIndicator = '';
+  if (vehicleType === 'TRAM') {
+    typeIndicator = `<line x1="7" y1="13" x2="19" y2="13" stroke="white" stroke-width="1.2" opacity="0.7"/>`;
+  } else if (vehicleType === 'SUBWAY') {
+    typeIndicator = `<text x="13" y="15.5" text-anchor="middle" fill="white" font-size="7" font-weight="900">M</text>`;
+  } else if (vehicleType === 'RAIL') {
+    typeIndicator = `<text x="13" y="15.5" text-anchor="middle" fill="white" font-size="7" font-weight="900">H</text>`;
+  } else if (vehicleType === 'TROLLEYBUS') {
+    typeIndicator = `<text x="13" y="10" text-anchor="middle" fill="white" font-size="6" font-weight="900">~</text>`;
+  }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26">
     <circle cx="13" cy="13" r="9"  fill="${color}" fill-opacity="0.22"/>
     <circle cx="13" cy="13" r="5.5" fill="${color}"/>
     <polygon points="13,3 16,10 13,8.5 10,10" fill="${color}" transform="rotate(${rot} 13 13)"/>
-  </svg>`;
-}
-
-const VEHICLE_LABEL: Record<string, string> = {
-  SUBWAY: 'M', TRAM: 'V', TROLLEYBUS: 'Tr', BUS: 'B', RAIL: 'H', FERRY: 'H', CABLE_CAR: 'D',
-};
-function stopPinSvg(color: string, vehicleType: string) {
-  const label    = VEHICLE_LABEL[vehicleType] ?? 'B';
-  const fontSize = label.length > 1 ? 7 : 11;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="44" viewBox="0 0 32 44"
-    style="filter:drop-shadow(0 2px 5px rgba(0,0,0,0.45));overflow:visible">
-    <path d="M16,1 C8,1 1,8 1,16 C1,27 16,43 16,43 C16,43 31,27 31,16 C31,8 24,1 16,1 Z"
-      fill="${color}" stroke="white" stroke-width="2"/>
-    <circle cx="16" cy="15" r="8" fill="white" fill-opacity="0.25"/>
-    <text x="16" y="15" text-anchor="middle" dominant-baseline="central"
-      fill="white" font-weight="900" font-size="${fontSize}"
-      font-family="-apple-system,BlinkMacSystemFont,sans-serif">${label}</text>
+    ${typeIndicator}
   </svg>`;
 }
 
@@ -81,6 +75,11 @@ function buildingSvg() {
     <circle cx="15" cy="15" r="13" fill="#6366f1" fill-opacity="0.18" stroke="#6366f1" stroke-width="1.8"/>
     <circle cx="15" cy="15" r="5.5" fill="#6366f1"/>
   </svg>`;
+}
+
+// ─── CircleMarker helper (returns Leaflet circleMarker options) ────────────────
+function stopCircleOpts(color: string) {
+  return { radius: 6, fillColor: color, fillOpacity: 1, color: 'white', weight: 1.5 };
 }
 
 // ─── Stop code helper ─────────────────────────────────────────────────────────
@@ -173,23 +172,26 @@ interface Props { lat: number; lon: number; stops: NearbyStop[]; alertRoutes?: s
 
 const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
   function TransitLiveMapInner({ lat, lon, stops, alertRoutes }, ref) {
-    const containerRef   = useRef<HTMLDivElement>(null);
-    const mapRef         = useRef<unknown>(null);
-    const vehicleLayer   = useRef<unknown>(null);
-    const shapeLayer     = useRef<unknown>(null);
-    const stopLayerRef   = useRef<unknown>(null);
-    const stopMarkersRef = useRef<Map<string, unknown>>(new Map());
-    const mapCenterRef   = useRef<{ lat: number; lon: number }>({ lat, lon });
-    const [vehicleCount, setVehicleCount] = useState<number | null>(null);
-    const [lastUpdate,   setLastUpdate]   = useState<Date | null>(null);
-    const [showStops,    setShowStops]    = useState(true);
-    const [showVehicles, setShowVehicles] = useState(true);
-    const [isPanned,     setIsPanned]     = useState(false);
-    const [isRefreshingStops, setIsRefreshingStops] = useState(false);
+    const containerRef    = useRef<HTMLDivElement>(null);
+    const mapRef          = useRef<unknown>(null);
+    const vehicleLayer    = useRef<unknown>(null);
+    const shapeLayer      = useRef<unknown>(null);
+    const stopLayerRef    = useRef<unknown>(null);
+    const tripStopLayer   = useRef<unknown>(null);
+    const stopMarkersRef  = useRef<Map<string, unknown>>(new Map());
+    const mapCenterRef    = useRef<{ lat: number; lon: number }>({ lat, lon });
+    const [vehicleCount,       setVehicleCount]       = useState<number | null>(null);
+    const [lastUpdate,         setLastUpdate]          = useState<Date | null>(null);
+    const [showStops,          setShowStops]           = useState(true);
+    const [showVehicles,       setShowVehicles]        = useState(true);
+    const [isPanned,           setIsPanned]            = useState(false);
+    const [isRefreshingStops,  setIsRefreshingStops]   = useState(false);
     // Active trip info panel (shown after clicking a departure)
     const [tripInfo, setTripInfo] = useState<{
       routeRef: string; color: string; headsign: string;
       vehicleId?: string; vehicleModel?: string;
+      accessible?: boolean;
+      stopTimes?: TripStopTime[];
     } | null>(null);
 
     const alertRouteSet = useMemo(() => new Set<string>(alertRoutes ?? []), [alertRoutes]);
@@ -248,19 +250,50 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
           L.polyline(latlngs, {
             color: sd.color ?? color,
             weight: 5, opacity: 0.9,
-            // Dashed pattern for night/express routes
           }).addTo(sl);
           map.fitBounds(L.polyline(latlngs).getBounds(), { padding: [40, 40] });
         }
 
+        const routeColor = sd.color || color;
+
+        // Show trip stops on map, hide regular stops
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const oldTripLayer = tripStopLayer.current as any;
+        if (oldTripLayer) { try { oldTripLayer.remove(); } catch { /* ignore */ } }
+
+        if (sd.stopTimes && sd.stopTimes.length > 0) {
+          // Hide regular stop layer
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const regularLayer = stopLayerRef.current as any;
+          if (regularLayer) { try { regularLayer.remove(); } catch { /* ignore */ } }
+
+          const tsl = L.layerGroup().addTo(map);
+          tripStopLayer.current = tsl;
+
+          for (const st of sd.stopTimes) {
+            if (!st.lat || !st.lon) continue;
+            L.circleMarker([st.lat, st.lon], {
+              radius: 5, fillColor: routeColor, fillOpacity: 1, color: 'white', weight: 1.5,
+            })
+              .bindTooltip(
+                `<div style="font-size:11px"><b>${st.stopName}</b><br/><span style="color:#94a3b8;font-size:9px">${st.timeStr}</span></div>`,
+                { sticky: true, direction: 'top' }
+              )
+              .addTo(tsl);
+          }
+        }
+
         setTripInfo({
           routeRef:     sd.routeRef || routeRef,
-          color:        sd.color    || color,
+          color:        routeColor,
           headsign:     sd.headsign || headsign,
           vehicleId:    sd.vehicleId,
           vehicleModel: sd.vehicleModel,
+          accessible:   sd.accessible,
+          stopTimes:    sd.stopTimes,
         });
       } catch { /* shape draw failure is silent */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // ── Show departures popup ─────────────────────────────────────────────────
@@ -335,9 +368,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         for (const stop of newStops) {
           const color  = STOP_COLOR[stop.routeType] ?? '#64748b';
           const routes = stop.routeRefs.slice(0, 4).join(' · ');
-          const marker = L.marker([stop.lat, stop.lon], {
-            icon: L.divIcon({ html: stopPinSvg(color, stop.routeType), className: 'bkk-stop-pin', iconSize: [32,44], iconAnchor: [16,43], popupAnchor: [0,-46] }),
-          })
+          const marker = L.circleMarker([stop.lat, stop.lon], stopCircleOpts(color))
             .bindTooltip(
               `<div style="font-size:11px"><b>${stop.name}</b> <span style="color:#64748b;font-size:9px">${stopCode(stop.id)}</span><br/><span style="color:#94a3b8;font-size:9px">${routes} · ${stop.distanceM} m</span></div>`,
               { sticky: true, direction: 'top' }
@@ -375,7 +406,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         for (const v of data.vehicles) {
           const color = VEHICLE_COLOR[v.vehicle] ?? '#94a3b8';
           L.marker([v.lat, v.lon], {
-            icon: L.divIcon({ html: vehicleSvg(color, v.bearing), className: '', iconSize: [26,26], iconAnchor: [13,13], popupAnchor: [0,-14] }),
+            icon: L.divIcon({ html: vehicleSvg(color, v.bearing, v.vehicle), className: '', iconSize: [26,26], iconAnchor: [13,13], popupAnchor: [0,-14] }),
             zIndexOffset: 100,
           })
             .bindTooltip(`<b style="color:${color}">${v.routeRef}</b>&thinsp;${v.headsign ?? ''}`, { sticky: true })
@@ -438,9 +469,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         for (const stop of stops) {
           const color  = STOP_COLOR[stop.routeType] ?? '#64748b';
           const routes = stop.routeRefs.slice(0, 4).join(' · ');
-          const marker = L.marker([stop.lat, stop.lon], {
-            icon: L.divIcon({ html: stopPinSvg(color, stop.routeType), className: 'bkk-stop-pin', iconSize: [32,44], iconAnchor: [16,43], popupAnchor: [0,-46] }),
-          })
+          const marker = L.circleMarker([stop.lat, stop.lon], stopCircleOpts(color))
             .bindTooltip(
               `<div style="font-size:11px"><b>${stop.name}</b> <span style="color:#64748b;font-size:9px">${stopCode(stop.id)}</span><br/><span style="color:#94a3b8;font-size:9px">${routes} · ${stop.distanceM} m</span></div>`,
               { sticky: true, direction: 'top' }
@@ -549,6 +578,66 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
             </button>
           )}
 
+          {/* Trip stop list panel (left overlay) */}
+          {tripInfo?.stopTimes && tripInfo.stopTimes.length > 0 && (
+            <div
+              className="absolute left-2 top-12 z-[1000] flex flex-col rounded-xl backdrop-blur-sm overflow-hidden"
+              style={{
+                background: 'rgba(15,23,42,0.92)',
+                border: `1px solid ${tripInfo.color}40`,
+                width: '190px',
+                maxHeight: '380px',
+              }}
+            >
+              {/* Panel header */}
+              <div
+                className="flex items-center gap-2 px-2.5 py-1.5 shrink-0"
+                style={{ borderBottom: `1px solid ${tripInfo.color}30` }}
+              >
+                <span
+                  className="flex h-5 min-w-[28px] items-center justify-center rounded px-1.5 text-[10px] font-black"
+                  style={{ background: tripInfo.color, color: tripInfo.color === '#fbbf24' ? '#78350f' : '#fff' }}
+                >
+                  {tripInfo.routeRef}
+                </span>
+                <span className="truncate text-[9px] font-bold text-slate-300 flex-1">
+                  {tripInfo.headsign}
+                </span>
+              </div>
+              {/* Scrollable stop list */}
+              <div className="overflow-y-auto flex-1" style={{ maxHeight: '330px' }}>
+                {tripInfo.stopTimes.map((st, i) => (
+                  <div
+                    key={`${st.stopId}-${i}`}
+                    className="flex items-center gap-2 px-2.5 py-1"
+                    style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+                  >
+                    {/* Colored dot */}
+                    <span
+                      className="shrink-0 rounded-full"
+                      style={{ width: 6, height: 6, background: tripInfo.color, opacity: st.isPast ? 0.4 : 1 }}
+                    />
+                    {/* Time */}
+                    <span
+                      className="shrink-0 font-mono text-[9px]"
+                      style={{ color: st.isPast ? '#475569' : '#e2e8f0', minWidth: '30px' }}
+                    >
+                      {st.timeStr || '—'}
+                    </span>
+                    {/* Stop name */}
+                    <span
+                      className="truncate text-[9px] leading-tight"
+                      style={{ color: st.isPast ? '#475569' : '#94a3b8' }}
+                      title={st.stopName}
+                    >
+                      {st.stopName}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Active trip info panel */}
           {tripInfo && (
             <div
@@ -579,6 +668,16 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   const sl = shapeLayer.current as any;
                   if (sl) sl.clearLayers();
+                  // Remove trip stop layer
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const tsl = tripStopLayer.current as any;
+                  if (tsl) { try { tsl.remove(); } catch { /* ignore */ } tripStopLayer.current = null; }
+                  // Restore regular stop layer
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const map = mapRef.current as any;
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const regularLayer = stopLayerRef.current as any;
+                  if (map && regularLayer && showStops) { try { regularLayer.addTo(map); } catch { /* ignore */ } }
                   setTripInfo(null);
                 }}
                 className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/10 hover:text-white"
