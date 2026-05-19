@@ -508,14 +508,18 @@ function numberOrZero(value: number | string | null | undefined) {
   return Number(value ?? 0);
 }
 
-// ─── Panel skyline illustration · "champagne hour" ───────────────────────────
+// ─── Panel skyline illustration · v3 · architectural detail ──────────────────
 function PanelSkylineSvg() {
-  type Building = { x: number; top: number; w: number; h: number; cols: number; rows: number };
+  type Building = {
+    x: number; top: number; w: number; cols: number; rows: number;
+    chimneys: number[];
+    antenna?: boolean;
+  };
   const buildings: Building[] = [
-    { x: 4,   top: 29, w: 86,  h: 89,  cols: 4, rows: 6 },
-    { x: 94,  top: 3,  w: 122, h: 115, cols: 6, rows: 8 },
-    { x: 220, top: 16, w: 104, h: 102, cols: 5, rows: 7 },
-    { x: 328, top: 42, w: 86,  h: 76,  cols: 4, rows: 5 },
+    { x: 4,   top: 29, w: 86,  cols: 4, rows: 6, chimneys: [16, 58] },
+    { x: 94,  top: 3,  w: 122, cols: 6, rows: 8, chimneys: [16, 56, 100], antenna: true },
+    { x: 220, top: 16, w: 104, cols: 5, rows: 7, chimneys: [18, 80] },
+    { x: 328, top: 42, w: 86,  cols: 4, rows: 5, chimneys: [14, 62] },
   ];
   const GROUND = 118;
   const winW = 12; const winH = 8;
@@ -537,7 +541,7 @@ function PanelSkylineSvg() {
 
   return (
     <svg
-      viewBox="0 0 418 120"
+      viewBox="0 -20 418 138"
       xmlns="http://www.w3.org/2000/svg"
       className="w-full h-full"
       preserveAspectRatio="xMidYMid meet"
@@ -565,9 +569,9 @@ function PanelSkylineSvg() {
         </linearGradient>
       </defs>
 
-      {/* Sky */}
-      <rect width="418" height="120" fill="url(#sky-grad)" />
-      {/* Sun glow on horizon */}
+      {/* Sky — covers extended viewBox */}
+      <rect x="0" y="-20" width="418" height="138" fill="url(#sky-grad)" />
+      {/* Sun glow */}
       <ellipse cx="230" cy="138" rx="200" ry="48" fill="url(#sun-glow)" />
       {/* Cloud bands */}
       <rect x="0" y="60" width="418" height="1"   fill="#f9b76c" fillOpacity="0.18" />
@@ -576,13 +580,57 @@ function PanelSkylineSvg() {
       <circle cx="362" cy="18" r="3"   fill="#fffcf0" fillOpacity="0.15" />
       <circle cx="362" cy="18" r="1.4" fill="#fffcf0" />
 
-      {/* Buildings + copper rim light */}
-      {buildings.map((b, bi) => (
-        <g key={`bld-${bi}`}>
-          <rect x={b.x} y={b.top} width={b.w} height={GROUND - b.top} fill="url(#bld-grad)" rx="2" />
-          <rect x={b.x + b.w - 1.5} y={b.top} width="1.5" height={GROUND - b.top} fill="url(#rim)" />
-        </g>
-      ))}
+      {/* Buildings with architectural detail */}
+      {buildings.map((b, bi) => {
+        const bH = GROUND - b.top;
+        // Pilasters: left edge, between each window col, right edge
+        const pilasters = [
+          b.x + 1,
+          ...Array.from({ length: b.cols - 1 }, (_, c) =>
+            b.x + padX + (c + 1) * (winW + gapX) - 3
+          ),
+          b.x + b.w - 4,
+        ];
+        // Slab joints between every row of windows
+        const slabs = Array.from({ length: b.rows - 1 }, (_, r) =>
+          b.top + padTop + (r + 1) * (winH + gapY) - 2.5
+        );
+        return (
+          <g key={`bld-${bi}`}>
+            {/* Body */}
+            <rect x={b.x} y={b.top} width={b.w} height={bH} fill="url(#bld-grad)" rx="1.5" />
+            {/* Vertical pilasters */}
+            {pilasters.map((px, pi) => (
+              <rect key={`p-${bi}-${pi}`} x={px} y={b.top} width={3} height={bH} fill="#14202e" rx="0.5" />
+            ))}
+            {/* Horizontal slab joints */}
+            {slabs.map((sy, si) => (
+              <rect key={`s-${bi}-${si}`} x={b.x} y={sy} width={b.w} height={1.5} fill="#1b2d44" />
+            ))}
+            {/* Rooftop chimneys */}
+            {b.chimneys.map((off, ci) => {
+              const ch = 9 + (ci % 2) * 5;
+              return (
+                <g key={`ch-${bi}-${ci}`}>
+                  <rect x={b.x + off - 2.5} y={b.top - ch} width={5} height={ch} fill="#0d1520" rx="0.5" />
+                  <rect x={b.x + off - 3.5} y={b.top - ch} width={7} height={2} fill="#16253a" rx="0.3" />
+                </g>
+              );
+            })}
+            {/* Antenna — tallest building only */}
+            {b.antenna && (
+              <g opacity="0.75">
+                <line x1={b.x + b.w / 2} y1={b.top - 19} x2={b.x + b.w / 2} y2={b.top} stroke="#2a3f5c" strokeWidth="1" />
+                <line x1={b.x + b.w / 2 - 9} y1={b.top - 14} x2={b.x + b.w / 2 + 9} y2={b.top - 14} stroke="#2a3f5c" strokeWidth="0.8" />
+                <line x1={b.x + b.w / 2 - 5} y1={b.top - 9}  x2={b.x + b.w / 2 + 5} y2={b.top - 9}  stroke="#2a3f5c" strokeWidth="0.8" />
+                <circle cx={b.x + b.w / 2} cy={b.top - 20} r="1.5" fill="#e03030" fillOpacity="0.65" />
+              </g>
+            )}
+            {/* Copper rim light */}
+            <rect x={b.x + b.w - 1.5} y={b.top} width="1.5" height={bH} fill="url(#rim)" />
+          </g>
+        );
+      })}
 
       {/* Ground line — copper */}
       <rect x="0" y={GROUND} width="418" height="2" fill="#f9b76c" fillOpacity="0.55" />
@@ -1328,21 +1376,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             {/* Gold accent top line */}
             <div className="absolute inset-x-0 top-0 h-[2px]" style={{ background: 'linear-gradient(90deg, transparent 0%, #c87920 30%, #f5c842 55%, #c87920 80%, transparent 100%)' }} />
 
-            {/* Skyline illustration — centered background, fades on both sides */}
-            <div className="pointer-events-none select-none absolute inset-0 flex items-center justify-center overflow-hidden opacity-70">
-              <div className="relative w-full h-full">
-                <PanelSkylineSvg />
-                {/* Fade left */}
-                <div className="absolute inset-y-0 left-0 w-1/3" style={{ background: 'linear-gradient(to right, #05091a 0%, transparent 100%)' }} />
-                {/* Fade right */}
-                <div className="absolute inset-y-0 right-0 w-1/3" style={{ background: 'linear-gradient(to left, #05091a 0%, transparent 100%)' }} />
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="relative z-10 flex flex-col gap-3 px-6 py-5 md:flex-row md:items-center md:justify-between md:gap-4">
+            {/* Content — skyline sits inline between title and actions */}
+            <div className="relative z-10 flex items-center gap-3 px-5 py-4">
               {/* Left: building info */}
-              <div className="min-w-0">
+              <div className="min-w-0 shrink-0">
                 {data.buildingName ? (
                   <>
                     {/* Mobile building switcher */}
@@ -1371,8 +1408,15 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 )}
               </div>
 
+              {/* Center: skyline — fills available space, shrinks before title/actions do */}
+              <div className="pointer-events-none select-none relative flex-1 min-w-0 h-[68px] overflow-hidden opacity-80">
+                <PanelSkylineSvg />
+                <div className="absolute inset-y-0 left-0 w-1/3" style={{ background: 'linear-gradient(to right, #05091a 0%, transparent 100%)' }} />
+                <div className="absolute inset-y-0 right-0 w-1/3" style={{ background: 'linear-gradient(to left, #05091a 0%, transparent 100%)' }} />
+              </div>
+
               {/* Right: actions */}
-              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
                 {/* Header search */}
                 <div className="relative" ref={searchRef}>
                   <Search className="pointer-events-none absolute left-3 top-2.5" style={{ color: '#4a6080' }} size={14} />
