@@ -1,3 +1,12 @@
+
+## 2026-05-19 — Transit sync auth + BKK key fail-fast fix
+
+### Fixed
+- `app/api/transit/sync/route.ts`: a cron auth most már kompatibilis a Vercel Cron fejléccel (`x-vercel-cron: 1`), így a scheduled sync endpoint nem utasítja el alapból a platform-triggerelt hívásokat.
+- `app/api/transit/sync/route.ts`: bekerült opcionális `?secret=` támogatás manuális trigger rendszerekhez és diagnosztikához.
+- `app/api/transit/sync/route.ts`: `BKKFUTAR_API_KEY` hiány esetén a sync explicit 500 hibával leáll (`Missing BKKFUTAR_API_KEY`) ahelyett, hogy implicit tesztkulccsal/hibás kulccsal csendben futna.
+- `app/api/transit/sync/route.ts`: részletesebb 401 válasz (`hint`) a gyorsabb üzemeltetési hibakereséshez.
+
 # Changelog
 
 ## 2026-05-18 — v0.6.0 Premium UI/UX Refactor — Design system, Inter font, elevated components
@@ -303,3 +312,24 @@ Az Edge Function csak a Supabase dashboardon beállított `ANTHROPIC_API_KEY` se
 - Supabase auth kliens `persistSession`, `autoRefreshToken` és `detectSessionInUrl` beállítást kapott a magic link flow stabilizálására.
 - Login oldal modernebb UX-et és explicit redirect cél visszajelzést kapott.
 - Dashboard vizuális szerkezete modern sidebar + card layout irányba frissült regresszió nélkül: a korábbi profil, ticket, meter, hírek, dokumentum, pénzügy és közgyűlés funkciók megmaradtak.
+
+## 2026-05-19 — Superadmin Control Plane (manual jobs + integration status)
+
+### Added
+- Új superadmin belépési flow: `app/superadmin/login/page.tsx`, `app/api/superadmin/login/route.ts`, `app/api/superadmin/logout/route.ts`.
+- Új session helper: `lib/superadmin-auth.ts` (HTTP-only cookie alapú superadmin session).
+- Új superadmin dashboard: `app/superadmin/page.tsx` + `components/superadmin-client.tsx`.
+- Új manuális job trigger API: `app/api/superadmin/jobs/run/route.ts`.
+- Manuálisan indítható jobok: `bkk_full_sync`, `bkk_stops_routes`, `bkk_building_stops`, `bkk_alerts`, `air_quality_refresh` (AQI + heatmap párhuzamosan).
+
+### Security / Ops
+- A superadmin credential alapértelmezett env fallbackgel fut (`SUPERADMIN_EMAIL`, `SUPERADMIN_PASSWORD`), de production-ben env override erősen ajánlott.
+
+## 2026-05-19 — Transit ops hardening (rate-limit + env fallback + truthful job status)
+
+### Fixed
+- `app/api/transit/sync/route.ts`: Supabase service client most már fallbackgel olvassa az env neveket (`NEXT_PUBLIC_SUPABASE_URL|SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY|NEXT_SUPABASE_SERVICE_ROLE_KEY`) az "Invalid API key" hibák csökkentésére.
+- `app/api/transit/sync/route.ts`: BKK `LIMIT_EXCEEDED` válasz detektálás + cellánként retry/backoff, és 429 státusz visszaadása rate-limit esetén.
+- `app/api/superadmin/jobs/run/route.ts`: `bkk_full_sync` párhuzamos futása helyett szekvenciális futás (stops-routes → building-stops → alerts), így kisebb API burst és helyesebb függőségi sorrend.
+- `app/api/superadmin/jobs/run/route.ts`: top-level `ok` mező most valós állapotot tükröz; részleges/sikertelen esetben HTTP 207 a kezelhető operátori diagnosztikához.
+

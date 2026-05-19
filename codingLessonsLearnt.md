@@ -1,3 +1,11 @@
+
+### [LESSON-TRANSIT-081] Vercel Cron nem küld custom Authorization Bearer tokent
+- **Dátum**: 2026-05-19
+- **Fájl**: `app/api/transit/sync/route.ts`
+- **Gyökérok**: A sync endpoint csak `Authorization: Bearer <secret>` ellenőrzést fogadott el. Vercel Cron trigger esetén tipikusan `x-vercel-cron: 1` fejléc érkezik, ezért a scheduled futások 401-re estek.
+- **Javítás**: Authorization ellenőrzés bővítve Vercel Cron fejlécre és opcionális query secretre.
+- **Megelőzés**: Minden cron endpointnál platform-specifikus auth módot is támogatni kell, és a 401 válaszban operatív hintet kell adni.
+
 # codingLessonsLearnt.md — Kapakka PubApp
 
 ## ⚠️ UTASÍTÁSOK (MINDIG OLVASD EL ELŐSZÖR!)
@@ -1280,3 +1288,18 @@ if (!rows || rows.length === 0) return jsonRes({ error: 'Already locked' }, 409)
 - **Gyökérok**: Importáláskor nem lett végigkövetve, hogy a függvény tényleg használatban van-e. A Next.js production build ESLint-et is futtat (nem csak TypeScript-et).
 - **Javítás**: Unused importok törlése. Unused param → `_` prefix helyett teljes elhagyás (ha nem kell a request objekt, a POST handler paramétere kihagyható).
 - **Megelőzés**: Minden PR előtt `npx tsc --noEmit && npm run build` futtatása (vagy legalább `eslint --ext .ts,.tsx .`). Ha egy importot `// TODO` kommentként hagyunk, azt is törölni kell ha nem kerül végül felhasználásra.
+
+### [LESSON-OPS-082] Manuális operátori UI-hoz külön auth/session réteg kell
+- **Dátum**: 2026-05-19
+- **Fájlok**: `lib/superadmin-auth.ts`, `app/superadmin/*`, `app/api/superadmin/*`
+- **Gyökérok**: Ha cron és integrációs jobok csak API endpointon érhetők el, a nem-fejlesztő operátorok nehezen tudnak diagnosztizálni és kézi újrafuttatást végezni.
+- **Javítás**: Külön superadmin belépés + session cookie + dashboard és manuális job-trigger API készült.
+- **Megelőzés**: Integrációs rendszerekhez mindig legyen legalább minimál operátori vezérlőfelület státusszal és futtatási visszajelzéssel.
+
+### [LESSON-TRANSIT-083] Operátori "full sync" ne fusson párhuzamosan külső API burst mellett
+- **Dátum**: 2026-05-19
+- **Fájlok**: `app/api/superadmin/jobs/run/route.ts`, `app/api/transit/sync/route.ts`
+- **Gyökérok**: A `stops-routes` és `building-stops` párhuzamos indítása plusz több grid lekérés könnyen BKK `LIMIT_EXCEEDED` hibát okoz, és elfedheti a valódi hibaképet.
+- **Javítás**: Szekvenciális futtatás + rate-limit detektálás + retry/backoff + részleges futás 207 státusszal.
+- **Megelőzés**: Külső feedeknél az operátori "run all" mindig vegye figyelembe API limitet és függőségi sorrendet.
+
