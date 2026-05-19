@@ -197,6 +197,92 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok, job, result, ranAt: new Date().toISOString() }, { status: ok ? 200 : 207 });
   }
 
+  if (job === 'satellite_refresh') {
+    const logId = await logStart(job);
+    try {
+      const supabase = createServiceClient();
+      if (!supabase) throw new Error('No Supabase client');
+
+      const { data: buildings, error: bErr } = await supabase
+        .from('buildings')
+        .select('id, latitude, longitude')
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null);
+      if (bErr) throw new Error(bErr.message);
+
+      const { data: cached } = await supabase
+        .from('building_satellite_cache')
+        .select('building_id, computed_at')
+        .gt('computed_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+
+      const freshIds = new Set((cached ?? []).map((r: { building_id: string }) => r.building_id));
+      const toRefresh = ((buildings ?? []) as Array<{ id: string; latitude: number; longitude: number }>)
+        .filter(b => !freshIds.has(b.id));
+
+      const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      let refreshed = 0, errors = 0;
+      for (const building of toRefresh) {
+        try {
+          const url = `${base.replace(/\/$/, '')}/api/environment/satellite?lat=${building.latitude}&lon=${building.longitude}&buildingId=${building.id}`;
+          const res = await fetch(url, { cache: 'no-store' });
+          if (res.ok) refreshed++; else errors++;
+        } catch { errors++; }
+        await new Promise(r => setTimeout(r, 3000)); // 3 s between titiler calls
+      }
+
+      const result = { total: (buildings ?? []).length, skipped: freshIds.size, refreshed, errors };
+      await logEnd(logId, errors === 0 ? 'ok' : 'partial', result);
+      return NextResponse.json({ ok: errors === 0, job, result, ranAt: new Date().toISOString() }, { status: errors === 0 ? 200 : 207 });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await logEnd(logId, 'error', { error: message });
+      return NextResponse.json({ ok: false, job, error: message, ranAt: new Date().toISOString() }, { status: 500 });
+    }
+  }
+
+  if (job === 'urban_refresh') {
+    const logId = await logStart(job);
+    try {
+      const supabase = createServiceClient();
+      if (!supabase) throw new Error('No Supabase client');
+
+      const { data: buildings, error: bErr } = await supabase
+        .from('buildings')
+        .select('id, latitude, longitude')
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null);
+      if (bErr) throw new Error(bErr.message);
+
+      const { data: cached } = await supabase
+        .from('building_compact_city_cache')
+        .select('building_id, computed_at')
+        .gt('computed_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+
+      const freshIds = new Set((cached ?? []).map((r: { building_id: string }) => r.building_id));
+      const toRefresh = ((buildings ?? []) as Array<{ id: string; latitude: number; longitude: number }>)
+        .filter(b => !freshIds.has(b.id));
+
+      const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      let refreshed = 0, errors = 0;
+      for (const building of toRefresh) {
+        try {
+          const url = `${base.replace(/\/$/, '')}/api/environment/urban?lat=${building.latitude}&lon=${building.longitude}&buildingId=${building.id}`;
+          const res = await fetch(url, { cache: 'no-store' });
+          if (res.ok) refreshed++; else errors++;
+        } catch { errors++; }
+        await new Promise(r => setTimeout(r, 2000));
+      }
+
+      const result = { total: (buildings ?? []).length, skipped: freshIds.size, refreshed, errors };
+      await logEnd(logId, errors === 0 ? 'ok' : 'partial', result);
+      return NextResponse.json({ ok: errors === 0, job, result, ranAt: new Date().toISOString() }, { status: errors === 0 ? 200 : 207 });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await logEnd(logId, 'error', { error: message });
+      return NextResponse.json({ ok: false, job, error: message, ranAt: new Date().toISOString() }, { status: 500 });
+    }
+  }
+
   if (job === 'env_refresh_green') {
     const logId = await logStart(job);
     try {

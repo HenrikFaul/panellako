@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Wind, Bike, ArrowLeft, RefreshCw, Leaf, Flower2, Sun, Zap, ChevronDown, AlertCircle, Database } from 'lucide-react';
+import { Wind, Bike, ArrowLeft, RefreshCw, Leaf, Flower2, Sun, Zap, ChevronDown, AlertCircle, Database, Satellite, MapPin, Star } from 'lucide-react';
 import AirQualityMap from '@/components/air-quality-map';
 import type { AirQualityMapHandle } from '@/components/air-quality-map';
 import type { AQIStation } from '@/app/api/air-quality/stations/route';
@@ -11,11 +11,16 @@ import EnvScoreHero from '@/components/env-score-hero';
 import PollenPanel from '@/components/pollen-panel';
 import UvWindPanel from '@/components/uv-wind-panel';
 import Sparkline24h from '@/components/sparkline-24h';
+import SatelliteNdviPanel from '@/components/satellite-ndvi-panel';
+import CompactCityPanel from '@/components/compact-city-panel';
+import LiveabilityPanel from '@/components/liveability-panel';
 import type { EnvAirQualityResult } from '@/app/api/environment/air-quality/route';
 import type { EnvWeatherResult } from '@/app/api/environment/weather/route';
 import type { GreenData } from '@/app/api/environment/green/route';
 import type { SolarData } from '@/app/api/environment/solar/route';
 import type { EnvScore } from '@/app/api/environment/score/route';
+import type { SatelliteData } from '@/app/api/environment/satellite/route';
+import type { UrbanData } from '@/app/api/environment/urban/route';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface Props {
@@ -137,31 +142,41 @@ export default function EnvironmentPageClient({
   const lat = buildingLat ?? 47.4979;
   const lon = buildingLon ?? 19.0402;
 
-  const [aq,      setAq]      = useState<EnvAirQualityResult | null>(null);
-  const [weather, setWeather] = useState<EnvWeatherResult | null>(null);
-  const [green,   setGreen]   = useState<GreenData | null>(null);
-  const [solar,   setSolar]   = useState<SolarData | null>(null);
-  const [score,   setScore]   = useState<EnvScore | null>(null);
-  const [stations,setStations]= useState<AQIStation[]>([]);
-  const [routes,  setRoutes]  = useState<CyclingFeature[]>([]);
+  const [aq,         setAq]         = useState<EnvAirQualityResult | null>(null);
+  const [weather,    setWeather]    = useState<EnvWeatherResult | null>(null);
+  const [green,      setGreen]      = useState<GreenData | null>(null);
+  const [solar,      setSolar]      = useState<SolarData | null>(null);
+  const [score,      setScore]      = useState<EnvScore | null>(null);
+  const [satellite,  setSatellite]  = useState<SatelliteData | null>(null);
+  const [urban,      setUrban]      = useState<UrbanData | null>(null);
+  const [stations,   setStations]   = useState<AQIStation[]>([]);
+  const [routes,     setRoutes]     = useState<CyclingFeature[]>([]);
 
-  const [loadingAq,      setLoadingAq]      = useState(true);
-  const [loadingWeather, setLoadingWeather]  = useState(true);
-  const [loadingScore,   setLoadingScore]    = useState(true);
-  const [loadingGreen,   setLoadingGreen]    = useState(false);
-  const [loadingSolar,   setLoadingSolar]    = useState(false);
-  const [loadingCycle,   setLoadingCycle]    = useState(false);
-  const [errorGreen,     setErrorGreen]      = useState(false);
-  const [errorSolar,     setErrorSolar]      = useState(false);
-  const [errorCycle,     setErrorCycle]      = useState(false);
-  const [aqExpanded,     setAqExpanded]      = useState(true);
+  const [loadingAq,        setLoadingAq]        = useState(true);
+  const [loadingWeather,   setLoadingWeather]    = useState(true);
+  const [loadingScore,     setLoadingScore]      = useState(true);
+  const [loadingGreen,     setLoadingGreen]      = useState(false);
+  const [loadingSolar,     setLoadingSolar]      = useState(false);
+  const [loadingCycle,     setLoadingCycle]      = useState(false);
+  const [loadingSatellite, setLoadingSatellite]  = useState(false);
+  const [loadingUrban,     setLoadingUrban]      = useState(false);
+  const [errorGreen,       setErrorGreen]        = useState(false);
+  const [errorSolar,       setErrorSolar]        = useState(false);
+  const [errorCycle,       setErrorCycle]        = useState(false);
+  const [errorSatellite,   setErrorSatellite]    = useState(false);
+  const [errorUrban,       setErrorUrban]        = useState(false);
+  const [aqExpanded,       setAqExpanded]        = useState(true);
 
-  const greenRef  = useRef<HTMLDivElement>(null);
-  const solarRef  = useRef<HTMLDivElement>(null);
-  const cycleRef  = useRef<HTMLDivElement>(null);
-  const greenLoadedRef = useRef(false);
-  const solarLoadedRef = useRef(false);
-  const cycleLoadedRef = useRef(false);
+  const greenRef      = useRef<HTMLDivElement>(null);
+  const solarRef      = useRef<HTMLDivElement>(null);
+  const cycleRef      = useRef<HTMLDivElement>(null);
+  const satelliteRef  = useRef<HTMLDivElement>(null);
+  const urbanRef      = useRef<HTMLDivElement>(null);
+  const greenLoadedRef     = useRef(false);
+  const solarLoadedRef     = useRef(false);
+  const cycleLoadedRef     = useRef(false);
+  const satelliteLoadedRef = useRef(false);
+  const urbanLoadedRef     = useRef(false);
   const mapRef    = useRef<AirQualityMapHandle>(null);
 
   // Eager: AQ + weather + score + stations
@@ -234,15 +249,54 @@ export default function EnvironmentPageClient({
     obs.observe(el); return () => obs.disconnect();
   }, [fetchCycling]);
 
+  // Lazy: satellite NDVI
+  const doSatellite = useCallback(() => {
+    setLoadingSatellite(true); setErrorSatellite(false);
+    fetch(`/api/environment/satellite?buildingId=${buildingId}&lat=${lat}&lon=${lon}`)
+      .then(r => r.json() as Promise<SatelliteData>)
+      .then(d => setSatellite(d))
+      .catch(() => setErrorSatellite(true))
+      .finally(() => setLoadingSatellite(false));
+  }, [buildingId, lat, lon]);
+
+  useEffect(() => {
+    const el = satelliteRef.current; if (!el) return;
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && !satelliteLoadedRef.current) { satelliteLoadedRef.current = true; doSatellite(); }
+    }, { threshold: 0.1 });
+    obs.observe(el); return () => obs.disconnect();
+  }, [doSatellite]);
+
+  // Lazy: urban (compact city + liveability — shared Overpass query)
+  const doUrban = useCallback(() => {
+    setLoadingUrban(true); setErrorUrban(false);
+    fetch(`/api/environment/urban?buildingId=${buildingId}&lat=${lat}&lon=${lon}`)
+      .then(r => r.json() as Promise<UrbanData>)
+      .then(d => setUrban(d))
+      .catch(() => setErrorUrban(true))
+      .finally(() => setLoadingUrban(false));
+  }, [buildingId, lat, lon]);
+
+  useEffect(() => {
+    const el = urbanRef.current; if (!el) return;
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && !urbanLoadedRef.current) { urbanLoadedRef.current = true; doUrban(); }
+    }, { threshold: 0.1 });
+    obs.observe(el); return () => obs.disconnect();
+  }, [doUrban]);
+
   const forecastMax = aq?.daily?.length ? Math.max(30, ...aq.daily.map(d => d.avgPm25)) : 30;
 
   const NAV = [
-    { id: 'sec-score',   icon: '🏆', label: 'Pontszám' },
-    { id: 'sec-air',     icon: '💨', label: 'Levegő' },
-    { id: 'sec-pollen',  icon: '🌿', label: 'Pollen & UV' },
-    { id: 'sec-green',   icon: '🌳', label: 'Zöld' },
-    { id: 'sec-solar',   icon: '☀️',  label: 'Napenergia' },
-    { id: 'sec-cycling', icon: '🚲', label: 'Kerékpár' },
+    { id: 'sec-score',     icon: '🏆', label: 'Pontszám' },
+    { id: 'sec-air',       icon: '💨', label: 'Levegő' },
+    { id: 'sec-pollen',    icon: '🌿', label: 'Pollen & UV' },
+    { id: 'sec-green',     icon: '🌳', label: 'Zöld' },
+    { id: 'sec-solar',     icon: '☀️',  label: 'Napenergia' },
+    { id: 'sec-satellite', icon: '🛰️', label: 'Műhold' },
+    { id: 'sec-compact',   icon: '🏙️', label: 'Kompakt' },
+    { id: 'sec-liveable',  icon: '⭐', label: 'Élhetőség' },
+    { id: 'sec-cycling',   icon: '🚲', label: 'Kerékpár' },
   ];
 
   return (
@@ -600,7 +654,75 @@ export default function EnvironmentPageClient({
           </Section>
         </div>
 
-        {/* 6. Kerékpáros */}
+        {/* 6. Műholdas NDVI */}
+        <div ref={satelliteRef}>
+          <Section id="sec-satellite">
+            <SectionHeader icon={<Satellite size={18} className="text-sky-400" />} title="Műholdas vegetáció (NDVI)" source="Sentinel-2 · ESA STAC · Copernicus" />
+            <div className="p-6">
+              {loadingSatellite ? (
+                <div className="space-y-3 animate-pulse">
+                  <div className="grid grid-cols-3 gap-3">{[1,2,3].map(i=><div key={i} className="h-24 rounded-2xl bg-white/[0.06]" />)}</div>
+                  <div className="h-20 rounded-2xl bg-white/[0.06]" />
+                </div>
+              ) : errorSatellite ? (
+                <div className="flex flex-col items-center gap-3 py-8">
+                  <p className="text-[11px] text-slate-500">Sentinel-2 adat nem elérhető</p>
+                  <button type="button" onClick={() => { satelliteLoadedRef.current = false; doSatellite(); }}
+                    className="rounded-xl border border-white/[0.1] px-4 py-2 text-[10px] font-bold text-slate-400 hover:bg-white/[0.05] transition-colors">
+                    Újrapróbálás
+                  </button>
+                </div>
+              ) : satellite ? (
+                <SatelliteNdviPanel data={satellite} loading={false} />
+              ) : (
+                <SatelliteNdviPanel data={null} loading={false} />
+              )}
+            </div>
+          </Section>
+        </div>
+
+        {/* 7. Kompakt város + 8. Élhetőség (shared Overpass query) */}
+        <div ref={urbanRef}>
+          <Section id="sec-compact">
+            <SectionHeader icon={<MapPin size={18} className="text-orange-400" />} title="Kompakt város — 15 perces élettér" source="OSM Overpass · BKK Transit" />
+            <div className="p-6">
+              {loadingUrban ? (
+                <div className="space-y-3 animate-pulse">
+                  <div className="h-32 rounded-2xl bg-white/[0.06]" />
+                  <div className="grid grid-cols-3 gap-3">{[1,2,3].map(i=><div key={i} className="h-20 rounded-2xl bg-white/[0.06]" />)}</div>
+                </div>
+              ) : errorUrban ? (
+                <div className="flex flex-col items-center gap-3 py-8">
+                  <p className="text-[11px] text-slate-500">Overpass API nem elérhető</p>
+                  <button type="button" onClick={() => { urbanLoadedRef.current = false; doUrban(); }}
+                    className="rounded-xl border border-white/[0.1] px-4 py-2 text-[10px] font-bold text-slate-400 hover:bg-white/[0.05] transition-colors">
+                    Újrapróbálás
+                  </button>
+                </div>
+              ) : (
+                <CompactCityPanel data={urban?.compactCity ?? null} loading={false} />
+              )}
+            </div>
+          </Section>
+
+          <Section id="sec-liveable">
+            <SectionHeader icon={<Star size={18} className="text-yellow-400" />} title="Élhetőség — Lakókörnyezet minőség" source="OSM · Open-Meteo · EIU módszertan" />
+            <div className="p-6">
+              {loadingUrban ? (
+                <div className="space-y-3 animate-pulse">
+                  <div className="h-64 rounded-2xl bg-white/[0.06]" />
+                  <div className="grid grid-cols-3 gap-3">{[1,2,3,4,5,6].map(i=><div key={i} className="h-14 rounded-2xl bg-white/[0.06]" />)}</div>
+                </div>
+              ) : errorUrban ? (
+                <p className="text-center py-8 text-[11px] text-slate-600">Élhetőségi adat nem elérhető</p>
+              ) : (
+                <LiveabilityPanel data={urban?.liveability ?? null} loading={false} />
+              )}
+            </div>
+          </Section>
+        </div>
+
+        {/* 9. Kerékpáros útvonalak */}
         <div ref={cycleRef}>
           <Section id="sec-cycling">
             <SectionHeader icon={<Bike size={18} className="text-emerald-400" />} title="Kerékpáros útvonalak" badge={buildingAddress} source="OSM · Overpass" />

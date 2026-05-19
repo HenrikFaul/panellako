@@ -1,4 +1,18 @@
 
+## 2026-05-19 — v0.6.3 Műholdas NDVI + Kompakt Város + Élhetőség
+
+### Added
+- **`app/api/environment/satellite/route.ts`**: Sentinel-2 L2A NDVI lekérdezés ESA Earth Search STAC (Element84) + titiler.xyz COG point extraction; 7-napos Supabase cache (`building_satellite_cache`); NDVI osztályozás 5 szintben (kopár → sűrű növényzet).
+- **`app/api/environment/urban/route.ts`**: Egységes OSM Overpass query (15+ amenity-kategória 1,5 km sugarú körben); BKK transit stops DB lekérdezés; Walk Score-inspirált gyalogolhatóság (exponenciális decay formula); EIU/Mercer-alapú 6-dimenziós élhetőség; párhuzamos Supabase upsert `building_compact_city_cache` + `building_liveability_cache` táblákba (30-napos TTL).
+- **`components/satellite-ndvi-panel.tsx`**: NDVI szám + sávos gauge; felvétel metaadata (műhold, dátum, felhőborítottság); szezonális SVG referencia-grafikon Budapest tipikus NDVI-értékeivel + aktuális mérőpont kiemelve; WHO/tudományos kontextus kártyák.
+- **`components/compact-city-panel.tsx`**: 15-perces város összetett index SVG kördiagrammal; gyalogolhatóság + transit + vegyes hasznosítás sávok; kulcstávolságok (ABC, gyógyszertár, iskola); amenity-kategória rács; elméleti háttér kártya.
+- **`components/liveability-panel.tsx`**: Pure SVG 6-dimenziós radar-diagram (Budapest átlag benchmark); összesített élhetőség-ring; dimenzió-kártyák (Zöld&Levegő, Egészségügy, Oktatás, Kultúra, Szolgáltatások, Biztonság); EIU/Mercer módszertani magyarázat.
+- **`supabase/migrations/`**: 3 új tábla: `building_satellite_cache`, `building_compact_city_cache`, `building_liveability_cache`.
+- **Superadmin**: `satellite_refresh` + `urban_refresh` jobokk; 3 új tábla az environment stats csoportban.
+
+### Changed
+- **`components/environment-page-client.tsx`**: 6 szekciós → 9 szekciós oldal; 3 új IntersectionObserver lazy-load ref (satellite, urban); new import-ok; NAV bővítése; sec-compact és sec-liveable ugyanazt a `/api/environment/urban` hívást osztja meg.
+
 ## 2026-05-19 — v0.6.2 KörnyezetScore™ — Teljes környezetoldal újraépítés
 
 ### Added
