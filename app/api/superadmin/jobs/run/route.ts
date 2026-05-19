@@ -7,8 +7,10 @@ export const dynamic = 'force-dynamic';
 // ─── DB logging ───────────────────────────────────────────────────────────────
 
 function createServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY;
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '').trim();
+  const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY ?? '').trim();
+  const anonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim();
+  const key = serviceKey.startsWith('eyJ') ? serviceKey : (anonKey || serviceKey);
   if (!url || !key) return null;
   return createClient(url, key, { auth: { persistSession: false } });
 }
