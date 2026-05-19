@@ -4,6 +4,21 @@ import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
+// ─── Geocoder ─────────────────────────────────────────────────────────────────
+async function geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
+  try {
+    const params = new URLSearchParams({ q: address, format: 'json', countrycodes: 'hu', limit: '1', addressdetails: '0' });
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+      headers: { 'User-Agent': 'panellako.hu/1.0', 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) return null;
+    return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+  } catch { return null; }
+}
+
 // ─── DB logging ───────────────────────────────────────────────────────────────
 
 function createServiceClient() {
@@ -214,6 +229,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok, job, result, ranAt: new Date().toISOString() }, { status: ok ? 200 : 207 });
   }
 
+  // ─── Shared building+coords resolver (used by satellite/urban/green refresh) ──
+  type BuildingRow = { id: string; name: string; address: string; lat: number | null; lon: number | null };
+
+  async function resolveCoords(
+    b: BuildingRow,
+    supabase: ReturnType<typeof createServiceClient>,
+  ): Promise<{ lat: number; lon: number } | null> {
+    if (b.lat != null && b.lon != null) return { lat: b.lat, lon: b.lon };
+    const geo = await geocodeAddress(b.address);
+    if (!geo) return null;
+    // Store back so future runs skip geocoding
+    await supabase!.from('buildings').update({ lat: geo.lat, lon: geo.lon, geocoded_at: new Date().toISOString() }).eq('id', b.id);
+    return geo;
+  }
+
   if (job === 'satellite_refresh') {
     const logId = await logStart(job);
     try {
@@ -222,9 +252,7 @@ export async function POST(request: NextRequest) {
 
       const { data: buildings, error: bErr } = await supabase
         .from('buildings')
-        .select('id, lat, lon')
-        .not('lat', 'is', null)
-        .not('lon', 'is', null);
+        .select('id, name, address, lat, lon');
       if (bErr) throw new Error(bErr.message);
 
       const { data: cached } = await supabase
@@ -233,21 +261,22 @@ export async function POST(request: NextRequest) {
         .gt('computed_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
 
       const freshIds = new Set((cached ?? []).map((r: { building_id: string }) => r.building_id));
-      const toRefresh = ((buildings ?? []) as Array<{ id: string; lat: number; lon: number }>)
-        .filter(b => !freshIds.has(b.id));
+      const toRefresh = ((buildings ?? []) as BuildingRow[]).filter(b => !freshIds.has(b.id));
 
       const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      let refreshed = 0, errors = 0;
+      let refreshed = 0, errors = 0, geocodeFailed = 0;
       for (const building of toRefresh) {
+        const coords = await resolveCoords(building, supabase);
+        if (!coords) { geocodeFailed++; continue; }
         try {
-          const url = `${base.replace(/\/$/, '')}/api/environment/satellite?lat=${building.lat}&lon=${building.lon}&buildingId=${building.id}`;
+          const url = `${base.replace(/\/$/, '')}/api/environment/satellite?lat=${coords.lat}&lon=${coords.lon}&buildingId=${building.id}`;
           const res = await fetch(url, { cache: 'no-store' });
           if (res.ok) refreshed++; else errors++;
         } catch { errors++; }
-        await new Promise(r => setTimeout(r, 3000)); // 3 s between titiler calls
+        await new Promise(r => setTimeout(r, 3000));
       }
 
-      const result = { total: (buildings ?? []).length, skipped: freshIds.size, refreshed, errors };
+      const result = { total: (buildings ?? []).length, skipped: freshIds.size, refreshed, errors, geocodeFailed };
       await logEnd(logId, errors === 0 ? 'ok' : 'partial', result);
       return NextResponse.json({ ok: errors === 0, job, result, ranAt: new Date().toISOString() }, { status: errors === 0 ? 200 : 207 });
     } catch (err) {
@@ -265,9 +294,7 @@ export async function POST(request: NextRequest) {
 
       const { data: buildings, error: bErr } = await supabase
         .from('buildings')
-        .select('id, lat, lon')
-        .not('lat', 'is', null)
-        .not('lon', 'is', null);
+        .select('id, name, address, lat, lon');
       if (bErr) throw new Error(bErr.message);
 
       const { data: cached } = await supabase
@@ -276,21 +303,22 @@ export async function POST(request: NextRequest) {
         .gt('computed_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
 
       const freshIds = new Set((cached ?? []).map((r: { building_id: string }) => r.building_id));
-      const toRefresh = ((buildings ?? []) as Array<{ id: string; lat: number; lon: number }>)
-        .filter(b => !freshIds.has(b.id));
+      const toRefresh = ((buildings ?? []) as BuildingRow[]).filter(b => !freshIds.has(b.id));
 
       const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      let refreshed = 0, errors = 0;
+      let refreshed = 0, errors = 0, geocodeFailed = 0;
       for (const building of toRefresh) {
+        const coords = await resolveCoords(building, supabase);
+        if (!coords) { geocodeFailed++; continue; }
         try {
-          const url = `${base.replace(/\/$/, '')}/api/environment/urban?lat=${building.lat}&lon=${building.lon}&buildingId=${building.id}`;
+          const url = `${base.replace(/\/$/, '')}/api/environment/urban?lat=${coords.lat}&lon=${coords.lon}&buildingId=${building.id}`;
           const res = await fetch(url, { cache: 'no-store' });
           if (res.ok) refreshed++; else errors++;
         } catch { errors++; }
         await new Promise(r => setTimeout(r, 2000));
       }
 
-      const result = { total: (buildings ?? []).length, skipped: freshIds.size, refreshed, errors };
+      const result = { total: (buildings ?? []).length, skipped: freshIds.size, refreshed, errors, geocodeFailed };
       await logEnd(logId, errors === 0 ? 'ok' : 'partial', result);
       return NextResponse.json({ ok: errors === 0, job, result, ranAt: new Date().toISOString() }, { status: errors === 0 ? 200 : 207 });
     } catch (err) {
@@ -306,17 +334,12 @@ export async function POST(request: NextRequest) {
       const supabase = createServiceClient();
       if (!supabase) throw new Error('No Supabase client');
 
-      // Fetch all buildings that have coordinates
       const { data: buildings, error: bErr } = await supabase
         .from('buildings')
-        .select('id, lat, lon')
-        .not('lat', 'is', null)
-        .not('lon', 'is', null);
-
+        .select('id, name, address, lat, lon');
       if (bErr) throw new Error(bErr.message);
-      const list = (buildings ?? []) as Array<{ id: string; lat: number; lon: number }>;
+      const list = (buildings ?? []) as BuildingRow[];
 
-      // Find buildings whose cache is older than 7 days or missing
       const { data: cached } = await supabase
         .from('building_green_cache')
         .select('building_id, computed_at')
@@ -326,20 +349,20 @@ export async function POST(request: NextRequest) {
       const toRefresh = list.filter(b => !freshIds.has(b.id));
 
       const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      let refreshed = 0;
-      let errors = 0;
+      let refreshed = 0, errors = 0, geocodeFailed = 0;
 
       for (const building of toRefresh) {
+        const coords = await resolveCoords(building, supabase);
+        if (!coords) { geocodeFailed++; continue; }
         try {
-          const url = `${base.replace(/\/$/, '')}/api/environment/green?lat=${building.lat}&lon=${building.lon}&buildingId=${building.id}`;
+          const url = `${base.replace(/\/$/, '')}/api/environment/green?lat=${coords.lat}&lon=${coords.lon}&buildingId=${building.id}`;
           const res = await fetch(url, { cache: 'no-store' });
           if (res.ok) refreshed++; else errors++;
         } catch { errors++; }
-        // 2 s delay between Overpass calls to be a good citizen
         await new Promise(r => setTimeout(r, 2000));
       }
 
-      const result = { total: list.length, skipped: freshIds.size, refreshed, errors };
+      const result = { total: list.length, skipped: freshIds.size, refreshed, errors, geocodeFailed };
       await logEnd(logId, errors === 0 ? 'ok' : 'partial', result);
       return NextResponse.json({ ok: errors === 0, job, result, ranAt: new Date().toISOString() }, { status: errors === 0 ? 200 : 207 });
     } catch (err) {
