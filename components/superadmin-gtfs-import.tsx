@@ -147,13 +147,48 @@ async function sendBatchesDirect(
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function SuperadminGtfsImport() {
-  const [states,   setStates]   = useState<Record<string, ImportState>>({});
-  const [tripsMap, setTripsMap] = useState<Map<string, string> | null>(null);
-  const [tripsMsg, setTripsMsg] = useState('');
+  const [states,      setStates]      = useState<Record<string, ImportState>>({});
+  const [tripsMap,    setTripsMap]    = useState<Map<string, string> | null>(null);
+  const [tripsMsg,    setTripsMsg]    = useState('');
+  const [chainStatus, setChainStatus] = useState<string>('');
+  const [chainRunning,setChainRunning]= useState(false);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   function setState(id: string, patch: Partial<ImportState>) {
     setStates(prev => ({ ...prev, [id]: { ...(prev[id] ?? INIT), ...patch } }));
+  }
+
+  // ── Run post-import chain: derive refs → building stops ──────────────────
+
+  async function runPostImportChain() {
+    setChainRunning(true);
+    try {
+      setChainStatus('⏳ Megálló járatreferenciák levezetése…');
+      const r1 = await fetch('/api/superadmin/jobs/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job: 'gtfs_derive_refs' }),
+      });
+      const d1 = await r1.json() as { ok: boolean; result?: { updated?: number; note?: string }; error?: string };
+      if (!d1.ok) {
+        setChainStatus(`✗ Járatrefs hiba: ${d1.result?.note ?? d1.error ?? 'ismeretlen hiba'}`);
+        setChainRunning(false);
+        return;
+      }
+      setChainStatus(`✓ ${d1.result?.updated ?? 0} megálló frissítve — épület–megálló párok számítása…`);
+
+      const r2 = await fetch('/api/superadmin/jobs/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job: 'bkk_building_stops' }),
+      });
+      const d2 = await r2.json() as { ok: boolean; result?: { body?: { buildingsProcessed?: number } } };
+      const processed = d2.result?.body?.buildingsProcessed ?? 0;
+      setChainStatus(`✅ Kész! Járatrefs ✓ · Épület–megálló párok: ${processed} épület feldolgozva`);
+    } catch (err) {
+      setChainStatus(`✗ Hiba: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    setChainRunning(false);
   }
 
   // ── Generic file import ───────────────────────────────────────────────────
@@ -252,8 +287,11 @@ export default function SuperadminGtfsImport() {
 
       setState('stop_routes', {
         status: 'done', progress: 100,
-        message: `✓ ${result.imported.toLocaleString('hu-HU')} pár importálva`,
+        message: `✓ ${result.imported.toLocaleString('hu-HU')} pár importálva — automatikus levezetés indul…`,
       });
+
+      // Auto-chain: derive route refs → building stops
+      await runPostImportChain();
     } catch (err) {
       setState('stop_routes', { status: 'error', progress: 0, message: `✗ ${err instanceof Error ? err.message : String(err)}` });
     }
@@ -264,11 +302,37 @@ export default function SuperadminGtfsImport() {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="mb-1 text-lg font-black text-slate-900">GTFS Adatbetöltés</h2>
-      <p className="mb-5 text-xs text-slate-500">
+      <p className="mb-3 text-xs text-slate-500">
         Csomagold ki a BKK GTFS zip-et, majd töltsd fel a fájlokat egyenként. A megálló–járat kapcsolatokhoz
         először a <code className="rounded bg-slate-100 px-1">trips.txt</code>, majd a{' '}
-        <code className="rounded bg-slate-100 px-1">stop_times.txt</code> szükséges (böngészőben streameli).
+        <code className="rounded bg-slate-100 px-1">stop_times.txt</code> szükséges. Az import után automatikusan
+        lefut a járatrefs-levezetés és az épület–megálló párok számítása.
       </p>
+
+      {/* Auto-chain status / Finish-from-DB button */}
+      <div className="mb-5 flex flex-col gap-2 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold text-slate-700">Automatikus lezárás (ha az adatok már fenn vannak)</p>
+            <p className="text-[10px] text-slate-500">
+              Ha trips.txt + stop_times.txt már importálva volt egy korábbi session során, kattints ide —
+              lefuttatja a megálló-járatrefs levezetést és az épület–megálló számítást.
+            </p>
+          </div>
+          <button
+            onClick={runPostImportChain}
+            disabled={chainRunning}
+            className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {chainRunning ? 'Fut…' : '▶ Automatikus befejezés'}
+          </button>
+        </div>
+        {chainStatus && (
+          <p className={`text-[11px] font-medium ${chainStatus.startsWith('✅') ? 'text-emerald-700' : chainStatus.startsWith('✗') ? 'text-red-600' : 'text-indigo-700'}`}>
+            {chainStatus}
+          </p>
+        )}
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {FILE_CONFIGS.filter(c => c.id !== 'stop_routes').map(cfg => {
