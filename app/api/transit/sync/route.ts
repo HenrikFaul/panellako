@@ -48,6 +48,30 @@ function createServiceClient() {
   return createSupabaseClient(url, key, { auth: { persistSession: false } });
 }
 
+// ─── BKK rate-limit settings (loaded from platform_settings table) ───────────
+
+interface BkkRateLimits {
+  cell_delay_ms: number;  // courtesy delay between cell requests
+  retry_max:     number;  // max retries per cell on LIMIT_EXCEEDED
+  retry_wait_ms: number;  // wait before each retry
+}
+
+const BKK_DEFAULTS: BkkRateLimits = { cell_delay_ms: 3000, retry_max: 3, retry_wait_ms: 60_000 };
+
+async function loadBkkRateLimits(): Promise<BkkRateLimits> {
+  try {
+    const { data } = await createServiceClient()
+      .from('platform_settings')
+      .select('value')
+      .eq('key', 'bkk_rate_limits')
+      .single();
+    if (data?.value && typeof data.value === 'object') {
+      return { ...BKK_DEFAULTS, ...(data.value as Partial<BkkRateLimits>) };
+    }
+  } catch { /* fall through to defaults */ }
+  return { ...BKK_DEFAULTS };
+}
+
 // ─── BKK API config ───────────────────────────────────────────────────────────
 
 const BKK_OBA_BASE  = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
@@ -86,7 +110,7 @@ interface StopRouteSyncResult {
   pairsUpserted:  number;
 }
 
-async function syncStopsRoutesCell(cellIndex: number): Promise<StopRouteSyncResult> {
+async function syncStopsRoutesCell(cellIndex: number, delayMs = 3000): Promise<StopRouteSyncResult> {
   const cell = GRID[cellIndex];
 
   const params = new URLSearchParams({
@@ -202,8 +226,8 @@ async function syncStopsRoutesCell(cellIndex: number): Promise<StopRouteSyncResu
     });
   }
 
-  // Courtesy delay before returning (good API citizen)
-  await new Promise(resolve => setTimeout(resolve, 300));
+  // Courtesy delay before returning (configurable via platform_settings)
+  await new Promise(resolve => setTimeout(resolve, delayMs));
 
   const supabase = createServiceClient();
 
@@ -378,22 +402,23 @@ async function handleRequest(request: NextRequest): Promise<NextResponse> {
         return NextResponse.json({ ...result, syncedAt: new Date().toISOString() });
       }
 
-      // No cell param — process all cells sequentially with backoff for provider rate limits
+      // No cell param — process all cells sequentially with configurable delays + retry
+      const rateLimits = await loadBkkRateLimits();
       const results: StopRouteSyncResult[] = [];
       for (let i = 0; i < GRID.length; i++) {
         let attempt = 0;
         while (true) {
           attempt++;
           try {
-            const r = await syncStopsRoutesCell(i);
+            const r = await syncStopsRoutesCell(i, rateLimits.cell_delay_ms);
             results.push(r);
             break;
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             const isRate = msg.includes('BKK_RATE_LIMIT_EXCEEDED');
-            if (!isRate || attempt >= 4) throw err;
-            const waitMs = attempt * 15_000;
-            await new Promise(resolve => setTimeout(resolve, waitMs));
+            if (!isRate || attempt > rateLimits.retry_max) throw err;
+            console.warn(`[transit/sync] cell ${i} rate-limited, retry ${attempt}/${rateLimits.retry_max} in ${rateLimits.retry_wait_ms}ms`);
+            await new Promise(resolve => setTimeout(resolve, rateLimits.retry_wait_ms));
           }
         }
       }
