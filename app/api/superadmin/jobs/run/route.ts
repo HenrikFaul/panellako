@@ -4,13 +4,25 @@ import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
-// ─── Geocoder ─────────────────────────────────────────────────────────────────
-async function geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
+// ─── Geocoder (Nominatim → internal API fallback) ─────────────────────────────
+async function geocodeAddress(address: string, appBase: string): Promise<{ lat: number; lon: number } | null> {
+  // Try the internal /api/transit/geocode endpoint first (has in-memory cache)
+  try {
+    const res = await fetch(`${appBase}/api/transit/geocode?address=${encodeURIComponent(address)}`, {
+      signal: AbortSignal.timeout(8000),
+    });
+    if (res.ok) {
+      const d = await res.json() as { lat?: number; lon?: number; error?: string };
+      if (d.lat && d.lon) return { lat: d.lat, lon: d.lon };
+    }
+  } catch { /* fall through */ }
+
+  // Direct Nominatim fallback
   try {
     const params = new URLSearchParams({ q: address, format: 'json', countrycodes: 'hu', limit: '1', addressdetails: '0' });
     const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
       headers: { 'User-Agent': 'panellako.hu/1.0', 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -231,15 +243,15 @@ export async function POST(request: NextRequest) {
 
   // ─── Shared building+coords resolver (used by satellite/urban/green refresh) ──
   type BuildingRow = { id: string; name: string; address: string; lat: number | null; lon: number | null };
+  const appBase = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
 
   async function resolveCoords(
     b: BuildingRow,
     supabase: ReturnType<typeof createServiceClient>,
   ): Promise<{ lat: number; lon: number } | null> {
     if (b.lat != null && b.lon != null) return { lat: b.lat, lon: b.lon };
-    const geo = await geocodeAddress(b.address);
+    const geo = await geocodeAddress(b.address, appBase);
     if (!geo) return null;
-    // Store back so future runs skip geocoding
     await supabase!.from('buildings').update({ lat: geo.lat, lon: geo.lon, geocoded_at: new Date().toISOString() }).eq('id', b.id);
     return geo;
   }
@@ -263,13 +275,12 @@ export async function POST(request: NextRequest) {
       const freshIds = new Set((cached ?? []).map((r: { building_id: string }) => r.building_id));
       const toRefresh = ((buildings ?? []) as BuildingRow[]).filter(b => !freshIds.has(b.id));
 
-      const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
       let refreshed = 0, errors = 0, geocodeFailed = 0;
       for (const building of toRefresh) {
         const coords = await resolveCoords(building, supabase);
         if (!coords) { geocodeFailed++; continue; }
         try {
-          const url = `${base.replace(/\/$/, '')}/api/environment/satellite?lat=${coords.lat}&lon=${coords.lon}&buildingId=${building.id}`;
+          const url = `${appBase}/api/environment/satellite?lat=${coords.lat}&lon=${coords.lon}&buildingId=${building.id}`;
           const res = await fetch(url, { cache: 'no-store' });
           if (res.ok) refreshed++; else errors++;
         } catch { errors++; }
@@ -305,13 +316,12 @@ export async function POST(request: NextRequest) {
       const freshIds = new Set((cached ?? []).map((r: { building_id: string }) => r.building_id));
       const toRefresh = ((buildings ?? []) as BuildingRow[]).filter(b => !freshIds.has(b.id));
 
-      const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
       let refreshed = 0, errors = 0, geocodeFailed = 0;
       for (const building of toRefresh) {
         const coords = await resolveCoords(building, supabase);
         if (!coords) { geocodeFailed++; continue; }
         try {
-          const url = `${base.replace(/\/$/, '')}/api/environment/urban?lat=${coords.lat}&lon=${coords.lon}&buildingId=${building.id}`;
+          const url = `${appBase}/api/environment/urban?lat=${coords.lat}&lon=${coords.lon}&buildingId=${building.id}`;
           const res = await fetch(url, { cache: 'no-store' });
           if (res.ok) refreshed++; else errors++;
         } catch { errors++; }
@@ -355,7 +365,7 @@ export async function POST(request: NextRequest) {
         const coords = await resolveCoords(building, supabase);
         if (!coords) { geocodeFailed++; continue; }
         try {
-          const url = `${base.replace(/\/$/, '')}/api/environment/green?lat=${coords.lat}&lon=${coords.lon}&buildingId=${building.id}`;
+          const url = `${appBase}/api/environment/green?lat=${coords.lat}&lon=${coords.lon}&buildingId=${building.id}`;
           const res = await fetch(url, { cache: 'no-store' });
           if (res.ok) refreshed++; else errors++;
         } catch { errors++; }
