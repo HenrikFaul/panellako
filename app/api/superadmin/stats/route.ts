@@ -51,9 +51,10 @@ async function getTableStat(
   }
 
   return {
-    name: spec.name,
-    label: spec.label,
-    count: countErr ? null : (count ?? 0),
+    name:        spec.name,
+    label:       spec.label,
+    group:       spec.group ?? null,
+    count:       countErr ? null : (count ?? 0),
     lastUpdated,
     error: countErr?.message ?? null,
   };
@@ -68,8 +69,9 @@ export async function GET() {
 
   const tables = await Promise.all(
     TABLE_SPECS.map(spec => getTableStat(supabase, spec).catch(err => ({
-      name: spec.name,
+      name:  spec.name,
       label: spec.label,
+      group: spec.group ?? null,
       count: null,
       lastUpdated: null,
       error: err instanceof Error ? err.message : String(err),
