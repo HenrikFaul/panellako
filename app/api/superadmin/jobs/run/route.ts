@@ -222,9 +222,9 @@ export async function POST(request: NextRequest) {
 
       const { data: buildings, error: bErr } = await supabase
         .from('buildings')
-        .select('id, latitude, longitude')
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null);
+        .select('id, lat, lon')
+        .not('lat', 'is', null)
+        .not('lon', 'is', null);
       if (bErr) throw new Error(bErr.message);
 
       const { data: cached } = await supabase
@@ -233,14 +233,14 @@ export async function POST(request: NextRequest) {
         .gt('computed_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
 
       const freshIds = new Set((cached ?? []).map((r: { building_id: string }) => r.building_id));
-      const toRefresh = ((buildings ?? []) as Array<{ id: string; latitude: number; longitude: number }>)
+      const toRefresh = ((buildings ?? []) as Array<{ id: string; lat: number; lon: number }>)
         .filter(b => !freshIds.has(b.id));
 
       const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
       let refreshed = 0, errors = 0;
       for (const building of toRefresh) {
         try {
-          const url = `${base.replace(/\/$/, '')}/api/environment/satellite?lat=${building.latitude}&lon=${building.longitude}&buildingId=${building.id}`;
+          const url = `${base.replace(/\/$/, '')}/api/environment/satellite?lat=${building.lat}&lon=${building.lon}&buildingId=${building.id}`;
           const res = await fetch(url, { cache: 'no-store' });
           if (res.ok) refreshed++; else errors++;
         } catch { errors++; }
@@ -265,9 +265,9 @@ export async function POST(request: NextRequest) {
 
       const { data: buildings, error: bErr } = await supabase
         .from('buildings')
-        .select('id, latitude, longitude')
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null);
+        .select('id, lat, lon')
+        .not('lat', 'is', null)
+        .not('lon', 'is', null);
       if (bErr) throw new Error(bErr.message);
 
       const { data: cached } = await supabase
@@ -276,14 +276,14 @@ export async function POST(request: NextRequest) {
         .gt('computed_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
 
       const freshIds = new Set((cached ?? []).map((r: { building_id: string }) => r.building_id));
-      const toRefresh = ((buildings ?? []) as Array<{ id: string; latitude: number; longitude: number }>)
+      const toRefresh = ((buildings ?? []) as Array<{ id: string; lat: number; lon: number }>)
         .filter(b => !freshIds.has(b.id));
 
       const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
       let refreshed = 0, errors = 0;
       for (const building of toRefresh) {
         try {
-          const url = `${base.replace(/\/$/, '')}/api/environment/urban?lat=${building.latitude}&lon=${building.longitude}&buildingId=${building.id}`;
+          const url = `${base.replace(/\/$/, '')}/api/environment/urban?lat=${building.lat}&lon=${building.lon}&buildingId=${building.id}`;
           const res = await fetch(url, { cache: 'no-store' });
           if (res.ok) refreshed++; else errors++;
         } catch { errors++; }
@@ -309,12 +309,12 @@ export async function POST(request: NextRequest) {
       // Fetch all buildings that have coordinates
       const { data: buildings, error: bErr } = await supabase
         .from('buildings')
-        .select('id, latitude, longitude')
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null);
+        .select('id, lat, lon')
+        .not('lat', 'is', null)
+        .not('lon', 'is', null);
 
       if (bErr) throw new Error(bErr.message);
-      const list = (buildings ?? []) as Array<{ id: string; latitude: number; longitude: number }>;
+      const list = (buildings ?? []) as Array<{ id: string; lat: number; lon: number }>;
 
       // Find buildings whose cache is older than 7 days or missing
       const { data: cached } = await supabase
@@ -331,7 +331,7 @@ export async function POST(request: NextRequest) {
 
       for (const building of toRefresh) {
         try {
-          const url = `${base.replace(/\/$/, '')}/api/environment/green?lat=${building.latitude}&lon=${building.longitude}&buildingId=${building.id}`;
+          const url = `${base.replace(/\/$/, '')}/api/environment/green?lat=${building.lat}&lon=${building.lon}&buildingId=${building.id}`;
           const res = await fetch(url, { cache: 'no-store' });
           if (res.ok) refreshed++; else errors++;
         } catch { errors++; }
