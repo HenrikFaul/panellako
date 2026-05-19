@@ -1,4 +1,16 @@
 
+## 2026-05-19 — v0.7.0 Cycling data sources backend specification pack
+
+### Added
+- **`cycling-data-sources/`**: új specifikációs csomag 25 magyar és nemzetközi kerékpáros adatforrásra (OSM, Magyar Közút KENYI, kormany.hu, BKK Biciklivel/bringás térkép, GraphHopper, Komoot, Bikemap, Naviki, Bike Citizens, Térképem.hu, OpenCycleMap, Cycling Waymarked Trails, OsmAnd, Organic Maps, Kerékpárosklub, Merretekerjek, Bringalap, Bringamánia, Természetjáró, Balatonbringa Club, Velencei-tó, Flowcycle, Bicikliparkoló kereső). Forrásonként 36 000–53 000 karakteres MD, összesen ~1 077 000 karakter.
+- Mindegyik fájl 20 fejezete: forrás-áttekintés, jogi/licenc, adatkinyerési felület (URL/curl), hitelesítés/rate-limit, forrás- és cél-adatmodell (PostGIS DDL), 8-rétegű architektúra (L1 ingestion → L8 observability) Mermaid diagrammal, futtatható Python downloader (80–250 sor), feldolgozó pipeline (GPX/KML/PBF/PDF/HTML parserek), frissítési stratégia, storage/skálázás, monitoring/riasztások, költségbecslés (HUF/EUR), biztonság, pytest+VCR tesztek, Docker+k8s CronJob+GitHub Actions, REST API + vector tile serving, runbook, roadmap, referenciák.
+- **`versioning/190526_22_v0.7.0_cycling-data-sources-spec-pack.md`**: engineering record.
+- **`marketing/marketing_values/20260519_v0.7.0_cycling-data-sources-spec_marketing_value.md`**: marketing record.
+
+### Notes
+- A pack specifikáció, nem implementáció — futó ETL pipeline még nincs élesben, MVP forrás (OSM/Overpass + Geofabrik HU) a következő lépés v0.7.2-ben.
+- A scraping-orientált források (Kerékpárosklub, Merretekerjek, Bringalap, Bringamánia, Természetjáró, Balatonbringa, Flowcycle) MD-i kötelezően dokumentálják a partnerség-előbb politikát, `*_SCRAPE_ENABLED` env-flag kapcsolóval. Magyar Közút / kormany.hu fájlok tartalmazzák az Infotv. 28. § adatigénylés sablont.
+
 ## 2026-05-19 — v0.6.4 Bugfix: transit null name + departures ID normalizálás + kornyezet crash
 
 ### Fixed
