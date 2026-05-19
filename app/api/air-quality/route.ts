@@ -109,10 +109,9 @@ function parseFeedJson(json: unknown): AirQualityResult {
   };
 }
 
-// ─── AQICN fetch — finds nearest Budapest station first ──────────────────────
+// ─── AQICN fetch — tries multiple strategies to get a Budapest reading ────────
 async function fetchAQICN(lat: number, lon: number): Promise<AirQualityResult> {
-  // Try Budapest bounding-box lookup first (avoids geo:lat;lon returning wrong city with demo token)
-  let feedUrl = `${AQICN_BASE}/geo:${lat};${lon}/?token=${AQICN_TOKEN}`;
+  // Strategy 1: bounding-box lookup → get UID of nearest station in Budapest
   try {
     const boundsRes = await fetch(
       `https://api.waqi.info/map/bounds/?latlng=47.35,18.85,47.65,19.25&token=${AQICN_TOKEN}`,
@@ -130,12 +129,25 @@ async function fetchAQICN(lat: number, lon: number): Promise<AirQualityResult> {
             Math.hypot(a.station.geo[0] - lat, a.station.geo[1] - lon) -
             Math.hypot(b.station.geo[0] - lat, b.station.geo[1] - lon)
           )[0];
-        if (nearest) feedUrl = `${AQICN_BASE}/@${nearest.uid}/?token=${AQICN_TOKEN}`;
+        if (nearest) {
+          const res = await fetch(`${AQICN_BASE}/@${nearest.uid}/?token=${AQICN_TOKEN}`, { signal: AbortSignal.timeout(7000) });
+          if (res.ok) return parseFeedJson(await res.json());
+        }
       }
     }
-  } catch { /* fall through to geo URL */ }
+  } catch { /* fall through */ }
 
-  const res = await fetch(feedUrl, { signal: AbortSignal.timeout(7000) });
+  // Strategy 2: city-name endpoint — works even with demo token for major cities
+  const cityUrls = ['budapest', 'budapest/korakpart', 'budapest/csepel'];
+  for (const city of cityUrls) {
+    try {
+      const res = await fetch(`${AQICN_BASE}/${city}/?token=${AQICN_TOKEN}`, { signal: AbortSignal.timeout(7000) });
+      if (res.ok) return parseFeedJson(await res.json());
+    } catch { /* try next */ }
+  }
+
+  // Strategy 3: geo URL (last resort — demo token returns Shanghai, real token works)
+  const res = await fetch(`${AQICN_BASE}/geo:${lat};${lon}/?token=${AQICN_TOKEN}`, { signal: AbortSignal.timeout(7000) });
   if (!res.ok) throw new Error(`AQICN HTTP ${res.status}`);
   return parseFeedJson(await res.json());
 }
