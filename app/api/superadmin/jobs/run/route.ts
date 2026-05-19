@@ -161,25 +161,42 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Batch upsert updated stop rows
-      const BATCH = 500;
-      const rows = Array.from(byStop.entries()).map(([stop_id, v]) => ({
-        stop_id,
-        route_refs: Array.from(v.refs).sort(),
-        route_type: v.bestType,
-        synced_at:  new Date().toISOString(),
-      }));
-
-      let updated = 0;
-      for (let i = 0; i < rows.length; i += BATCH) {
-        const { error } = await supabase
+      // Pre-fetch which stop_ids actually exist in transit_stops.
+      // gtfs_derive_refs must ONLY update existing stops — never insert new ones,
+      // because new rows would lack the NOT NULL `name` column.
+      const allStopIds = Array.from(byStop.keys());
+      const CHUNK = 500;
+      const existingStopIds = new Set<string>();
+      for (let ci = 0; ci < allStopIds.length; ci += CHUNK) {
+        const { data: chunk } = await supabase
           .from('transit_stops')
-          .upsert(rows.slice(i, i + BATCH), { onConflict: 'stop_id' });
-        if (error) throw new Error(error.message);
-        updated += Math.min(BATCH, rows.length - i);
+          .select('stop_id')
+          .in('stop_id', allStopIds.slice(ci, ci + CHUNK));
+        (chunk ?? []).forEach((r: { stop_id: string }) => existingStopIds.add(r.stop_id));
       }
 
-      const result = { updated, stopsWithRoutes: byStop.size, pairsProcessed: pairs?.length ?? 0 };
+      // Only build rows for stops that exist (skip orphaned stop_route pairs)
+      const rows = Array.from(byStop.entries())
+        .filter(([stop_id]) => existingStopIds.has(stop_id))
+        .map(([stop_id, v]) => ({
+          stop_id,
+          route_refs: Array.from(v.refs).sort(),
+          route_type: v.bestType,
+          synced_at:  new Date().toISOString(),
+        }));
+
+      const orphanedCount = byStop.size - rows.length;
+
+      let updated = 0;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const { error } = await supabase
+          .from('transit_stops')
+          .upsert(rows.slice(i, i + CHUNK), { onConflict: 'stop_id' });
+        if (error) throw new Error(error.message);
+        updated += Math.min(CHUNK, rows.length - i);
+      }
+
+      const result = { updated, stopsWithRoutes: byStop.size, orphanedSkipped: orphanedCount, pairsProcessed: pairs?.length ?? 0 };
       await logEnd(logId, 'ok', result);
       return NextResponse.json({ ok: true, job, result, ranAt: new Date().toISOString() });
     } catch (err) {

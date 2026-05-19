@@ -1,4 +1,12 @@
 
+## 2026-05-19 — v0.6.4 Bugfix: transit null name + departures ID normalizálás + kornyezet crash
+
+### Fixed
+- **`app/api/superadmin/jobs/run/route.ts`** `gtfs_derive_refs` job: upsert előtt pre-fetch-eli a meglévő `transit_stops.stop_id`-kat, és csak azokat frissíti — ezzel kiküszöböli a `null value in column "name" violates not-null constraint` hibát, amit az orphaned `transit_stop_routes` sorok okoztak (ha a `stop_id` nem létezik a `transit_stops`-ban, az upsert INSERT-et próbált `name` nélkül).
+- **`app/api/transit/departures/route.ts`**: GTFS stops.txt-ből importált megállók `F00048` formátumú ID-val rendelkeznek (BKK_ prefix nélkül), de a Futár OBA API `BKK_F00048` formátumot vár. Az API route most automatikusan normalizálja (`F\d` → `BKK_F\d`) ahelyett, hogy mock-kal térne vissza — megszünteti az „API nem elérhető" badge-et ezeken a megállókon.
+- **`app/api/environment/weather/route.ts`**: Mock fallback hozzáadva — ha az Open-Meteo API blokkolva van (cloud env network policy), a route valid `current` objektumot ad vissza `{ error: "..." }` helyett; megakadályozza a `TypeError: Cannot read properties of undefined (reading 'uvIndex')` kliens-oldali crash-t.
+- **`components/environment-page-client.tsx`**: `weather?.current` guard a `setWeather` hívásnál; `doUrban` helyesen detektálja az error JSON-t (503 + `{ error: '...' }`) és `errorUrban=true`-t állít, retry UI-t jelenít meg CompactCityPanel null data helyett.
+
 ## 2026-05-19 — v0.6.3 Műholdas NDVI + Kompakt Város + Élhetőség
 
 ### Added

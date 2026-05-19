@@ -176,15 +176,21 @@ function getMockDepartures(stopId: string): DepartureBoard {
 // ─── GET handler ──────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const stopId = searchParams.get('stopId') ?? '';
+  const rawStopId = searchParams.get('stopId') ?? '';
 
-  if (!stopId) return NextResponse.json({ error: 'stopId required' }, { status: 400 });
+  if (!rawStopId) return NextResponse.json({ error: 'stopId required' }, { status: 400 });
 
-  // Non-BKK IDs (e.g. raw Overpass node numbers) can't be queried
+  // Normalize: GTFS stops.txt uses bare IDs like "F00048"; Futár API requires "BKK_F00048".
+  // If the ID starts with a letter+digit (BKK pattern) but lacks the prefix, add it.
+  const stopId = !rawStopId.startsWith('BKK_') && /^[A-Z]\d/.test(rawStopId)
+    ? `BKK_${rawStopId}`
+    : rawStopId;
+
+  // Non-BKK IDs (e.g. raw Overpass node numbers like "1234567890") can't be queried
   if (!stopId.startsWith('BKK_')) {
     return NextResponse.json({
       ...getMockDepartures(stopId), _mock: true,
-      _error: `Megálló ID nem BKK formátum: "${stopId}" — a közeli megállók adatai nem töltöttek be rendesen.`,
+      _error: `Megálló ID nem BKK formátum: "${rawStopId}" — a közeli megállók adatai nem töltöttek be rendesen.`,
     });
   }
 
