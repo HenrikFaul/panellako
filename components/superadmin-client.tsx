@@ -12,6 +12,9 @@ const JOBS: Job[] = [
   { id: 'bkk_alerts',           label: 'BKK alerts',                    description: 'transit_alerts frissítés (BKK GTFS-RT, valós idejű)' },
   { id: 'gtfs_derive_refs',     label: 'GTFS → Megálló járatrefs',      description: 'transit_stops.route_refs + route_type frissítése transit_stop_routes alapján' },
   { id: 'air_quality_refresh',  label: 'Levegőminőség frissítés',       description: 'AQI + heatmap párhuzamos frissítés' },
+  { id: 'env_refresh_green',    label: 'Zöld cache frissítés',          description: 'OSM Overpass lekérdezés minden épületre, 7 napos cache' },
+  { id: 'satellite_refresh',   label: 'Műhold NDVI frissítés',         description: 'Sentinel-2 NDVI minden épületre, 7 napos cache' },
+  { id: 'urban_refresh',       label: 'Kompakt & Élhetőség frissítés', description: 'OSM amenity + BKK transit minden épületre, 30 napos cache' },
 ];
 
 interface BkkRateLimits {
@@ -44,9 +47,10 @@ interface TableStat {
 }
 
 const GROUP_LABELS: Record<string, string> = {
-  transit: 'Transit (élő adatok)',
-  gtfs:    'GTFS statikus import',
-  other:   'Egyéb',
+  transit:     'Transit (élő adatok)',
+  gtfs:        'GTFS statikus import',
+  other:       'Egyéb',
+  environment: 'Környezeti adatok',
 };
 
 interface JobLog {

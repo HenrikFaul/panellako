@@ -1,4 +1,40 @@
 
+## 2026-05-19 — v0.6.3 Műholdas NDVI + Kompakt Város + Élhetőség
+
+### Added
+- **`app/api/environment/satellite/route.ts`**: Sentinel-2 L2A NDVI lekérdezés ESA Earth Search STAC (Element84) + titiler.xyz COG point extraction; 7-napos Supabase cache (`building_satellite_cache`); NDVI osztályozás 5 szintben (kopár → sűrű növényzet).
+- **`app/api/environment/urban/route.ts`**: Egységes OSM Overpass query (15+ amenity-kategória 1,5 km sugarú körben); BKK transit stops DB lekérdezés; Walk Score-inspirált gyalogolhatóság (exponenciális decay formula); EIU/Mercer-alapú 6-dimenziós élhetőség; párhuzamos Supabase upsert `building_compact_city_cache` + `building_liveability_cache` táblákba (30-napos TTL).
+- **`components/satellite-ndvi-panel.tsx`**: NDVI szám + sávos gauge; felvétel metaadata (műhold, dátum, felhőborítottság); szezonális SVG referencia-grafikon Budapest tipikus NDVI-értékeivel + aktuális mérőpont kiemelve; WHO/tudományos kontextus kártyák.
+- **`components/compact-city-panel.tsx`**: 15-perces város összetett index SVG kördiagrammal; gyalogolhatóság + transit + vegyes hasznosítás sávok; kulcstávolságok (ABC, gyógyszertár, iskola); amenity-kategória rács; elméleti háttér kártya.
+- **`components/liveability-panel.tsx`**: Pure SVG 6-dimenziós radar-diagram (Budapest átlag benchmark); összesített élhetőség-ring; dimenzió-kártyák (Zöld&Levegő, Egészségügy, Oktatás, Kultúra, Szolgáltatások, Biztonság); EIU/Mercer módszertani magyarázat.
+- **`supabase/migrations/`**: 3 új tábla: `building_satellite_cache`, `building_compact_city_cache`, `building_liveability_cache`.
+- **Superadmin**: `satellite_refresh` + `urban_refresh` jobokk; 3 új tábla az environment stats csoportban.
+
+### Changed
+- **`components/environment-page-client.tsx`**: 6 szekciós → 9 szekciós oldal; 3 új IntersectionObserver lazy-load ref (satellite, urban); new import-ok; NAV bővítése; sec-compact és sec-liveable ugyanazt a `/api/environment/urban` hívást osztja meg.
+
+## 2026-05-19 — v0.6.2 KörnyezetScore™ — Teljes környezetoldal újraépítés
+
+### Added
+- **`app/api/environment/air-quality/route.ts`**: Open-Meteo Air Quality API integráció (PM2.5, PM10, NO2, O3, SO2, CO, UV, pollen) 30-perces in-memory cache-sel; US EPA PM2.5→AQI konverzió; 7 napos előrejelzés.
+- **`app/api/environment/weather/route.ts`**: Open-Meteo Weather API integráció; szélirány/erősség/Beaufort-cimkék; WHO UV kategóriák; 60-perces cache.
+- **`app/api/environment/solar/route.ts`**: PVGIS EU JRC REST API integráció (kWh/kWp/év, havi bontás); 30-napos Supabase cache (`building_solar_cache`); CO₂-megtakarítás HU 2024 ráccsal.
+- **`app/api/environment/green/route.ts`**: OSM Overpass API integráció (parkok, fák, játszóterek, zajforrások 200-500m sugarú körben); Shoelace terület- és zajscore-számítás; 7-napos Supabase cache (`building_green_cache`).
+- **`app/api/environment/score/route.ts`**: KörnyezetScore™ kompozit pontszám (levegő 35% + zöld 25% + pollen 15% + UV 10% + zaj 15%); `building_env_score` Supabase upsert.
+- **`components/env-score-hero.tsx`**: Animált SVG kör-gauge a kompozit pontszámhoz; 5 alpontsáv ikonokkal; Budapest átlag benchmark; töltési skeleton.
+- **`components/sparkline-24h.tsx`**: Pure SVG 24h sparkline PM2.5 (kék) + UV (borostyán szaggatott); egér-tooltip idő/érték megjelenítéssel.
+- **`components/pollen-panel.tsx`**: Pollenpanel (nyír/fű/parlagfű) szintjelzőkkel, 7-napos forecast ráccsal, aktív szezon-detectálással.
+- **`components/uv-wind-panel.tsx`**: UV félkör-gauge + szélirány-iránytű; WHO UV-javaslatok; szél–levegőminőség összefüggés-chip.
+- **`supabase/migrations/20260520_building_green_cache.sql`**: `building_green_cache` tábla.
+- **`supabase/migrations/20260520_building_solar_cache.sql`**: `building_solar_cache` tábla.
+- **`supabase/migrations/20260520_building_env_score.sql`**: `building_env_score` tábla.
+- **`app/api/superadmin/jobs/run/route.ts`**: `env_refresh_green` job — minden épületre Overpass-frissítés 2 s közbenső késleltetéssel, 7-napos cache-kihagyással.
+- **`components/superadmin-client.tsx`**: `Zöld cache frissítés` job hozzáadva; `environment: 'Környezeti adatok'` csoport a stats táblában.
+
+### Changed
+- **`components/environment-page-client.tsx`**: Teljes újraírás — 2-tabos layoutból 6 görgethető szekció (KörnyezetScore, Levegő, Pollen/UV, Zöld, Napenergia, Kerékpár); IntersectionObserver lazy-load a nehéz szekciókhoz; AQICN→Open-Meteo csere; SolarCalculator kWp-csúszka; 10-perces auto-refresh.
+- **`app/api/superadmin/stats/route.ts`**: 3 új environment-csoport tábla hozzáadva.
+
 ## 2026-05-19 — Transit sync auth + BKK key fail-fast fix
 
 ### Fixed
