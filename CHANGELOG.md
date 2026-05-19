@@ -312,3 +312,16 @@ Az Edge Function csak a Supabase dashboardon beállított `ANTHROPIC_API_KEY` se
 - Supabase auth kliens `persistSession`, `autoRefreshToken` és `detectSessionInUrl` beállítást kapott a magic link flow stabilizálására.
 - Login oldal modernebb UX-et és explicit redirect cél visszajelzést kapott.
 - Dashboard vizuális szerkezete modern sidebar + card layout irányba frissült regresszió nélkül: a korábbi profil, ticket, meter, hírek, dokumentum, pénzügy és közgyűlés funkciók megmaradtak.
+
+## 2026-05-19 — Superadmin Control Plane (manual jobs + integration status)
+
+### Added
+- Új superadmin belépési flow: `app/superadmin/login/page.tsx`, `app/api/superadmin/login/route.ts`, `app/api/superadmin/logout/route.ts`.
+- Új session helper: `lib/superadmin-auth.ts` (HTTP-only cookie alapú superadmin session).
+- Új superadmin dashboard: `app/superadmin/page.tsx` + `components/superadmin-client.tsx`.
+- Új manuális job trigger API: `app/api/superadmin/jobs/run/route.ts`.
+- Manuálisan indítható jobok: `bkk_full_sync`, `bkk_stops_routes`, `bkk_building_stops`, `bkk_alerts`, `air_quality_refresh` (AQI + heatmap párhuzamosan).
+
+### Security / Ops
+- A superadmin credential alapértelmezett env fallbackgel fut (`SUPERADMIN_EMAIL`, `SUPERADMIN_PASSWORD`), de production-ben env override erősen ajánlott.
+
