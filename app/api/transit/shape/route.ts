@@ -1,22 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 export const dynamic = 'force-dynamic';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ShapePoint { lat: number; lon: number; }
 
 export interface TripShape {
-  points:       ShapePoint[];
-  routeRef:     string;
-  color:        string;
-  source:       'futar' | 'none';
-  headsign?:    string;
-  vehicleId?:   string;    // fleet label, e.g. "T9104"
-  vehicleModel?: string;   // e.g. "4. gen. SOLARIS Trollino 18 trolibusz"
-  accessible?:  boolean;
+  points:        ShapePoint[];
+  routeRef:      string;
+  color:         string;
+  source:        'db' | 'futar' | 'none';
+  headsign?:     string;
+  vehicleId?:    string;
+  vehicleModel?: string;
+  accessible?:   boolean;
 }
 
 const BKK_BASE = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
 const BKK_KEY  = process.env.BKKFUTAR_API_KEY ?? 'apaiary-test';
+
+function createDbClient() {
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').trim();
+  const key  = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim();
+  if (!url || !key) return null;
+  return createClient(url, key, { auth: { persistSession: false } });
+}
 
 const ROUTE_COLORS: Record<string, string> = {
   TRAM: '#fbbf24', SUBWAY: '#ef4444', RAIL: '#a78bfa',
@@ -29,6 +37,48 @@ const GTFS_TYPE: Record<number, string> = {
 
 // ─── Cache (5 min — shapes don't change often) ────────────────────────────────
 const _cache = new Map<string, { data: TripShape; expires: number }>();
+
+// ─── DB-based shape lookup (uses gtfs_trips + gtfs_shapes) ───────────────────
+
+async function fetchShapeFromDb(tripId: string): Promise<TripShape | null> {
+  const supabase = createDbClient();
+  if (!supabase) return null;
+
+  const { data: trip } = await supabase
+    .from('gtfs_trips')
+    .select('shape_id, route_id, trip_headsign, wheelchair_accessible')
+    .eq('trip_id', tripId)
+    .maybeSingle();
+
+  if (!trip?.shape_id) return null;
+
+  const [{ data: pts }, { data: route }] = await Promise.all([
+    supabase
+      .from('gtfs_shapes')
+      .select('lat, lon')
+      .eq('shape_id', trip.shape_id)
+      .order('pt_sequence'),
+    supabase
+      .from('transit_routes')
+      .select('short_name, type, color')
+      .eq('route_id', trip.route_id)
+      .maybeSingle(),
+  ]);
+
+  if (!pts || pts.length === 0) return null;
+
+  const routeType = route?.type ?? 'BUS';
+  const color = route?.color ?? ROUTE_COLORS[routeType] ?? '#38bdf8';
+
+  return {
+    points:     pts.map(p => ({ lat: p.lat as number, lon: p.lon as number })),
+    routeRef:   route?.short_name ?? '?',
+    color,
+    source:     'db',
+    headsign:   trip.trip_headsign ?? undefined,
+    accessible: trip.wheelchair_accessible === 1,
+  };
+}
 
 async function fetchShape(tripId: string): Promise<TripShape> {
   const base = { key: BKK_KEY, version: '3', appVersion: 'apiary-1.0' };
@@ -93,6 +143,16 @@ export async function GET(request: NextRequest) {
   const cached = _cache.get(tripId);
   if (cached && cached.expires > Date.now()) return NextResponse.json(cached.data);
 
+  // Try local DB first (zero BKK API cost, no rate limit)
+  try {
+    const dbShape = await fetchShapeFromDb(tripId);
+    if (dbShape) {
+      _cache.set(tripId, { data: dbShape, expires: Date.now() + 5 * 60_000 });
+      return NextResponse.json(dbShape);
+    }
+  } catch { /* fall through to BKK API */ }
+
+  // Fall back to BKK Futár OBA
   try {
     const shape = await fetchShape(tripId);
     _cache.set(tripId, { data: shape, expires: Date.now() + 5 * 60_000 });

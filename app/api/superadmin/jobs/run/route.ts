@@ -118,6 +118,77 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: result.ok, job, result, ranAt: new Date().toISOString() }, { status: result.ok ? 200 : 207 });
   }
 
+  if (job === 'gtfs_derive_refs') {
+    const logId = await logStart(job);
+    try {
+      const supabase = createServiceClient();
+      if (!supabase) throw new Error('No Supabase client');
+
+      // Check if transit_stop_routes has data
+      const { count } = await supabase
+        .from('transit_stop_routes')
+        .select('*', { count: 'exact', head: true });
+
+      if (!count || count === 0) {
+        const result = { updated: 0, note: 'transit_stop_routes tábla üres — futtasd előbb a GTFS 2-lépéses importot (trips.txt + stop_times.txt)' };
+        await logEnd(logId, 'error', result);
+        return NextResponse.json({ ok: false, job, result, ranAt: new Date().toISOString() }, { status: 409 });
+      }
+
+      // Fetch all stop_routes joined to routes to compute per-stop route_refs + best route_type
+      const TYPE_PRIORITY: Record<string, number> = {
+        SUBWAY: 0, RAIL: 1, TRAM: 2, TROLLEYBUS: 3, BUS: 4, FERRY: 5, CABLE_CAR: 6,
+      };
+
+      const { data: pairs, error: pairsErr } = await supabase
+        .from('transit_stop_routes')
+        .select('stop_id, transit_routes!inner(short_name, type)');
+
+      if (pairsErr) throw new Error(pairsErr.message);
+
+      type Pair = { stop_id: string; transit_routes: { short_name: string; type: string } };
+      const byStop = new Map<string, { refs: Set<string>; bestType: string }>();
+
+      for (const p of (pairs ?? []) as unknown as Pair[]) {
+        const stopId = p.stop_id;
+        const name   = p.transit_routes.short_name;
+        const type   = p.transit_routes.type ?? 'BUS';
+        if (!byStop.has(stopId)) byStop.set(stopId, { refs: new Set(), bestType: 'BUS' });
+        const entry = byStop.get(stopId)!;
+        entry.refs.add(name);
+        if ((TYPE_PRIORITY[type] ?? 99) < (TYPE_PRIORITY[entry.bestType] ?? 99)) {
+          entry.bestType = type;
+        }
+      }
+
+      // Batch upsert updated stop rows
+      const BATCH = 500;
+      const rows = Array.from(byStop.entries()).map(([stop_id, v]) => ({
+        stop_id,
+        route_refs: Array.from(v.refs).sort(),
+        route_type: v.bestType,
+        synced_at:  new Date().toISOString(),
+      }));
+
+      let updated = 0;
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const { error } = await supabase
+          .from('transit_stops')
+          .upsert(rows.slice(i, i + BATCH), { onConflict: 'stop_id' });
+        if (error) throw new Error(error.message);
+        updated += Math.min(BATCH, rows.length - i);
+      }
+
+      const result = { updated, stopsWithRoutes: byStop.size, pairsProcessed: pairs?.length ?? 0 };
+      await logEnd(logId, 'ok', result);
+      return NextResponse.json({ ok: true, job, result, ranAt: new Date().toISOString() });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await logEnd(logId, 'error', { error: message });
+      return NextResponse.json({ ok: false, job, error: message, ranAt: new Date().toISOString() }, { status: 500 });
+    }
+  }
+
   if (job === 'air_quality_refresh') {
     const logId = await logStart(job);
     const result = await runAirQuality().catch(err => ({ main: { ok: false, status: 500, body: { error: String(err) } }, heatmap: { ok: false, status: 500, body: {} } }));
