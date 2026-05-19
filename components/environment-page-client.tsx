@@ -189,7 +189,7 @@ export default function EnvironmentPageClient({
         fetch('/api/air-quality/stations').then(r => r.json() as Promise<AQIStation[]>),
       ]);
       if (aqR.status === 'fulfilled') setAq(aqR.value);
-      if (wxR.status === 'fulfilled') setWeather(wxR.value);
+      if (wxR.status === 'fulfilled' && wxR.value?.current) setWeather(wxR.value);
       if (scR.status === 'fulfilled') setScore(scR.value);
       if (stR.status === 'fulfilled') setStations(stR.value);
       setLoadingAq(false); setLoadingWeather(false); setLoadingScore(false);
@@ -271,8 +271,11 @@ export default function EnvironmentPageClient({
   const doUrban = useCallback(() => {
     setLoadingUrban(true); setErrorUrban(false);
     fetch(`/api/environment/urban?buildingId=${buildingId}&lat=${lat}&lon=${lon}`)
-      .then(r => r.json() as Promise<UrbanData>)
-      .then(d => setUrban(d))
+      .then(r => r.json())
+      .then(d => {
+        if (d && (d as { error?: string }).error) setErrorUrban(true);
+        else setUrban(d as UrbanData);
+      })
       .catch(() => setErrorUrban(true))
       .finally(() => setLoadingUrban(false));
   }, [buildingId, lat, lon]);
