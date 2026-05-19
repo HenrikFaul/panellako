@@ -332,7 +332,7 @@ export default function SuperadminClient() {
                     if (s.group && s.group !== prevGroup) {
                       acc.push(
                         <tr key={`group-${s.group}`}>
-                          <td colSpan={3} className="pt-4 pb-1">
+                          <td colSpan={3} className={`pb-1 ${i > 0 ? 'border-t border-slate-200 pt-4' : 'pt-1'}`}>
                             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                               {GROUP_LABELS[s.group] ?? s.group}
                             </span>
@@ -348,7 +348,7 @@ export default function SuperadminClient() {
                           {s.error && <span className="ml-2 text-[10px] text-red-500">{s.error}</span>}
                         </td>
                         <td className="py-2 pr-4 text-right font-mono font-bold text-slate-900">
-                          {s.count === null ? '—' : s.count.toLocaleString('hu-HU')}
+                          {s.count === null ? '—' : s.count.toLocaleString('en-US')}
                         </td>
                         <td className="py-2 text-slate-500">{fmt(s.lastUpdated)}</td>
                       </tr>
