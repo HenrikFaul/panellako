@@ -14,9 +14,10 @@ const JOBS: Job[] = [
 ];
 
 interface BkkRateLimits {
-  cell_delay_ms: number;
-  retry_max: number;
-  retry_wait_ms: number;
+  cell_delay_ms:  number;
+  retry_max:      number;
+  retry_wait_ms:  number;
+  cells_per_run:  number;
 }
 
 interface EnvHealth {
@@ -50,7 +51,7 @@ interface JobLog {
   finished_at: string | null;
 }
 
-const BKK_DEFAULTS: BkkRateLimits = { cell_delay_ms: 3000, retry_max: 3, retry_wait_ms: 60000 };
+const BKK_DEFAULTS: BkkRateLimits = { cell_delay_ms: 5000, retry_max: 3, retry_wait_ms: 90000, cells_per_run: 0 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -372,12 +373,24 @@ export default function SuperadminClient() {
               />
             </label>
           </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <label className="flex flex-col gap-1 sm:col-span-1">
+              <span className="text-xs font-bold text-slate-700">Cellák száma / futás</span>
+              <span className="text-[10px] text-slate-400">Budapest 3 cellára osztva. 0 = mind (3 db). Erős limit esetén állítsd 1-re.</span>
+              <input
+                type="number" min={0} max={3} step={1}
+                value={bkkSettings.cells_per_run}
+                onChange={e => setBkkSettings(s => ({ ...s, cells_per_run: Number(e.target.value) }))}
+                className="mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </label>
+          </div>
           <div className="mt-4 flex items-center gap-3">
             <button onClick={saveBkkSettings} disabled={bkkSaving} className="btn-primary px-4 py-2 text-sm">
               {bkkSaving ? 'Mentés...' : 'Beállítások mentése'}
             </button>
             {bkkSaveMsg && <span className="text-sm font-bold text-emerald-600">{bkkSaveMsg}</span>}
-            <span className="ml-auto text-xs text-slate-400">Alapértelmezett: 3 000 ms · 3 retry · 60 000 ms</span>
+            <span className="ml-auto text-xs text-slate-400">Alapértelmezett: 5 000 ms · 3 retry · 90 000 ms · 0 (mind)</span>
           </div>
         </section>
 

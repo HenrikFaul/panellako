@@ -73,12 +73,18 @@ function createSyncClient() {
 // ─── BKK rate-limit settings (loaded from platform_settings table) ───────────
 
 interface BkkRateLimits {
-  cell_delay_ms: number;  // courtesy delay between cell requests
-  retry_max:     number;  // max retries per cell on LIMIT_EXCEEDED
-  retry_wait_ms: number;  // wait before each retry
+  cell_delay_ms:  number;  // courtesy delay between cell requests
+  retry_max:      number;  // max retries per cell on LIMIT_EXCEEDED
+  retry_wait_ms:  number;  // wait before each retry
+  cells_per_run:  number;  // how many grid cells to process per invocation (0 = all)
 }
 
-const BKK_DEFAULTS: BkkRateLimits = { cell_delay_ms: 3000, retry_max: 3, retry_wait_ms: 60_000 };
+const BKK_DEFAULTS: BkkRateLimits = {
+  cell_delay_ms:  5000,
+  retry_max:      3,
+  retry_wait_ms:  90_000,
+  cells_per_run:  0,       // 0 means all cells
+};
 
 async function loadBkkRateLimits(): Promise<BkkRateLimits> {
   try {
@@ -108,14 +114,17 @@ const BKK_HEADERS = {
   'Origin':     APP_ORIGIN,
 };
 
-// ─── Budapest 2×3 grid ────────────────────────────────────────────────────────
+// ─── Budapest 1×3 grid (merged from 2×3 to halve API call count) ─────────────
+// Each cell now covers the full lat range of Budapest (47.29–47.69).
+// Overlap between the old rows is eliminated; same area, 3 calls instead of 6.
 
 const GRID = [
-  { lat: 47.40, lon: 18.98 }, { lat: 47.40, lon: 19.12 }, { lat: 47.40, lon: 19.26 },
-  { lat: 47.57, lon: 18.98 }, { lat: 47.57, lon: 19.12 }, { lat: 47.57, lon: 19.26 },
+  { lat: 47.485, lon: 18.98 },  // Western Budapest
+  { lat: 47.485, lon: 19.12 },  // Central Budapest
+  { lat: 47.485, lon: 19.26 },  // Eastern Budapest
 ] as const;
 
-const LAT_SPAN = '0.30';
+const LAT_SPAN = '0.40';   // ±0.20° → covers 47.285–47.685
 const LON_SPAN = '0.32';
 
 const GTFS_TYPE_MAP: Record<number, RouteType> = {
@@ -424,10 +433,13 @@ async function handleRequest(request: NextRequest): Promise<NextResponse> {
         return NextResponse.json({ ...result, syncedAt: new Date().toISOString() });
       }
 
-      // No cell param — process all cells sequentially with configurable delays + retry
+      // No cell param — process cells sequentially with configurable delays + retry
       const rateLimits = await loadBkkRateLimits();
+      const limit = (rateLimits.cells_per_run > 0 && rateLimits.cells_per_run < GRID.length)
+        ? rateLimits.cells_per_run
+        : GRID.length;
       const results: StopRouteSyncResult[] = [];
-      for (let i = 0; i < GRID.length; i++) {
+      for (let i = 0; i < limit; i++) {
         let attempt = 0;
         while (true) {
           attempt++;
@@ -446,6 +458,8 @@ async function handleRequest(request: NextRequest): Promise<NextResponse> {
       }
       return NextResponse.json({
         cells:          results,
+        cellsProcessed: results.length,
+        cellsTotal:     GRID.length,
         totalStops:     results.reduce((acc, r) => acc + r.stopsUpserted,  0),
         totalRoutes:    results.reduce((acc, r) => acc + r.routesUpserted, 0),
         totalPairs:     results.reduce((acc, r) => acc + r.pairsUpserted,  0),
