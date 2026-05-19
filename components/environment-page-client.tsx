@@ -271,10 +271,15 @@ export default function EnvironmentPageClient({
   const doUrban = useCallback(() => {
     setLoadingUrban(true); setErrorUrban(false);
     fetch(`/api/environment/urban?buildingId=${buildingId}&lat=${lat}&lon=${lon}`)
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) { setErrorUrban(true); setLoadingUrban(false); return; }
+        return r.json();
+      })
       .then(d => {
-        if (d && (d as { error?: string }).error) setErrorUrban(true);
-        else setUrban(d as UrbanData);
+        if (!d) return;
+        if ((d as { error?: string }).error) setErrorUrban(true);
+        else if ((d as UrbanData).compactCity && (d as UrbanData).liveability) setUrban(d as UrbanData);
+        else setErrorUrban(true);
       })
       .catch(() => setErrorUrban(true))
       .finally(() => setLoadingUrban(false));
@@ -419,7 +424,7 @@ export default function EnvironmentPageClient({
                           <div className="h-full rounded-full transition-all duration-700"
                             style={{ width: `${Math.min(d.avgPm25 / forecastMax, 1) * 100}%`, background: aq.current.aqiColor, boxShadow: `0 0 4px ${aq.current.aqiColor}60` }} />
                         </div>
-                        <span className="w-10 text-right text-[9px] tabular-nums text-slate-400">{d.avgPm25.toFixed(0)}</span>
+                        <span className="w-10 text-right text-[9px] tabular-nums text-slate-400">{(d.avgPm25 ?? 0).toFixed(0)}</span>
                       </div>
                     ))}
                   </div>
@@ -525,7 +530,7 @@ export default function EnvironmentPageClient({
                       <div className="h-1 w-full overflow-hidden rounded-full bg-white/[0.06]">
                         <div className="h-full rounded-full bg-amber-500/70" style={{ width: `${Math.min(d.uvMax / 11, 1) * 100}%` }} />
                       </div>
-                      <span className="text-[8px] text-slate-600">UV {d.uvMax.toFixed(0)}</span>
+                      <span className="text-[8px] text-slate-600">UV {(d.uvMax ?? 0).toFixed(0)}</span>
                     </div>
                   ))}
                 </div>
@@ -630,17 +635,17 @@ export default function EnvironmentPageClient({
                   <div className="space-y-4">
                     <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 text-center">
                       <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Éves termelés</p>
-                      <p className="text-4xl font-black text-amber-400">{solar.eYearKwhKwp.toFixed(0)}<span className="text-sm text-slate-500 ml-1">kWh/kWp</span></p>
+                      <p className="text-4xl font-black text-amber-400">{(solar.eYearKwhKwp ?? 0).toFixed(0)}<span className="text-sm text-slate-500 ml-1">kWh/kWp</span></p>
                       <p className="mt-1 text-[9px] text-slate-600">Budapest átlag: ~1 050 kWh/kWp/év</p>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
                         <p className="text-[9px] text-slate-500">Napi átlag</p>
-                        <p className="text-lg font-black text-amber-300">{solar.eDayKwhKwp.toFixed(2)} <span className="text-xs text-slate-500">kWh</span></p>
+                        <p className="text-lg font-black text-amber-300">{(solar.eDayKwhKwp ?? 0).toFixed(2)} <span className="text-xs text-slate-500">kWh</span></p>
                       </div>
                       <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
                         <p className="text-[9px] text-slate-500">Besugárzás</p>
-                        <p className="text-lg font-black text-amber-300">{solar.hOptKwhM2.toFixed(0)} <span className="text-xs text-slate-500">kWh/m²</span></p>
+                        <p className="text-lg font-black text-amber-300">{(solar.hOptKwhM2 ?? 0).toFixed(0)} <span className="text-xs text-slate-500">kWh/m²</span></p>
                       </div>
                     </div>
                     <p className="text-[9px] text-slate-700 text-center">EU JRC PVGIS-SARAH3 műholdas adat</p>

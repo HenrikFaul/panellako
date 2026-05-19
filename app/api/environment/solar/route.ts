@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
       .gt('computed_at', new Date(Date.now() - 30 * 24 * 60 * 60_000).toISOString())
       .maybeSingle();
 
-    if (cached) {
+    if (cached && cached.e_y_kwh_kwp != null && cached.h_i_opt != null && cached.e_d_kwh_kwp != null) {
       const solar: SolarData = {
         eYearKwhKwp:  cached.e_y_kwh_kwp,
         hOptKwhM2:    cached.h_i_opt,
