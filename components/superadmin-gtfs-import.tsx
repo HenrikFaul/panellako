@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { unzip } from 'fflate';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -297,6 +298,187 @@ export default function SuperadminGtfsImport() {
     }
   }
 
+  // ── ZIP import ────────────────────────────────────────────────────────────
+
+  const [zipStatus,   setZipStatus]   = useState<'idle' | 'extracting' | 'importing' | 'done' | 'error'>('idle');
+  const [zipMessage,  setZipMessage]  = useState('');
+  const [zipFileProgress, setZipFileProgress] = useState<Record<string, { label: string; pct: number; done: boolean; err: boolean }>>({});
+  const zipFileRef = useRef<HTMLInputElement | null>(null);
+
+  function setZipFilePct(filename: string, label: string, pct: number, done = false, err = false) {
+    setZipFileProgress(prev => ({ ...prev, [filename]: { label, pct, done, err } }));
+  }
+
+  async function importZip(zipFile: File) {
+    setZipStatus('extracting');
+    setZipMessage('ZIP kibontása…');
+    setZipFileProgress({});
+
+    try {
+      const buf = await zipFile.arrayBuffer();
+      const data = await new Promise<Record<string, Uint8Array>>((resolve, reject) => {
+        unzip(new Uint8Array(buf), (err, files) => {
+          if (err) reject(err);
+          else resolve(files);
+        });
+      });
+
+      // Only top-level .txt files (ignore sub-folders / __MACOSX)
+      const entries = Object.entries(data).filter(([name]) => {
+        const basename = name.split('/').pop() ?? '';
+        return basename.endsWith('.txt') && !name.startsWith('__MACOSX');
+      });
+
+      setZipStatus('importing');
+
+      // Build per-file lookup: basename → Uint8Array
+      const byName: Record<string, Uint8Array> = {};
+      for (const [name, arr] of entries) {
+        const basename = name.split('/').pop()!;
+        byName[basename] = arr;
+      }
+
+      // Decode helper
+      function toText(arr: Uint8Array): string {
+        return new TextDecoder('utf-8').decode(arr);
+      }
+
+      // Process simple files (everything except trips.txt + stop_times.txt)
+      const SIMPLE_NAMES = ['feed_info.txt', 'stops.txt', 'routes.txt', 'calendar_dates.txt', 'pathways.txt', 'shapes.txt', 'translations.txt'];
+      for (const filename of SIMPLE_NAMES) {
+        const arr = byName[filename];
+        if (!arr) { setZipFilePct(filename, filename, 0, false, false); continue; }
+
+        const cfg = FILE_CONFIGS.find(c => c.filename === filename);
+        if (!cfg) continue;
+
+        setZipFilePct(filename, cfg.description, 5, false, false);
+        setState(cfg.id, { status: 'reading', progress: 5, message: 'ZIP-ből olvasva…', total: 0, sent: 0 });
+        try {
+          const text = toText(arr);
+          const rows = parseCsvText(text);
+          setState(cfg.id, { status: 'uploading', progress: 30, total: rows.length, message: `${rows.length} sor…` });
+          setZipFilePct(filename, cfg.description, 30, false, false);
+          const result = await sendBatches(cfg.id, rows, (sent, total) => {
+            const pct = 30 + Math.round(sent / total * 70);
+            setState(cfg.id, { progress: pct, sent, total });
+            setZipFilePct(filename, cfg.description, pct, false, false);
+          });
+          setState(cfg.id, { status: 'done', progress: 100, message: `✓ ${result.imported} importálva` });
+          setZipFilePct(filename, cfg.description, 100, true, false);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          setState(cfg.id, { status: 'error', progress: 0, message: `✗ ${msg}` });
+          setZipFilePct(filename, cfg.description, 0, false, true);
+        }
+      }
+
+      // Step 1 of 2-step: trips.txt → gtfs_trips + memory map
+      let localTripsMap: Map<string, string> | null = null;
+      const tripsArr = byName['trips.txt'];
+      if (tripsArr) {
+        setZipFilePct('trips.txt', 'Trips', 5, false, false);
+        setTripsMsg('trips.txt olvasása (ZIP-ből)…');
+        try {
+          const text = toText(tripsArr);
+          const rows = parseCsvText(text);
+          const map = new Map<string, string>();
+          for (const r of rows) {
+            if (r.trip_id && r.route_id) map.set(r.trip_id, r.route_id);
+          }
+          localTripsMap = map;
+          setTripsMap(map);
+          setZipFilePct('trips.txt', 'Trips', 30, false, false);
+          setTripsMsg(`${map.size.toLocaleString('hu-HU')} trip — DB-be feltöltés…`);
+          const result = await sendBatches('trips', rows, (sent, total) => {
+            const pct = 30 + Math.round(sent / total * 70);
+            setZipFilePct('trips.txt', 'Trips', pct, false, false);
+            setTripsMsg(`DB feltöltés: ${sent.toLocaleString('hu-HU')} / ${total.toLocaleString('hu-HU')}…`);
+          });
+          setTripsMap(map);
+          setTripsMsg(`✓ ${result.imported.toLocaleString('hu-HU')} trip importálva`);
+          setZipFilePct('trips.txt', 'Trips', 100, true, false);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          setTripsMsg(`✗ ${msg}`);
+          setZipFilePct('trips.txt', 'Trips', 0, false, true);
+        }
+      }
+
+      // Step 2 of 2-step: stop_times.txt → stream from Uint8Array
+      const stopTimesArr = byName['stop_times.txt'];
+      if (stopTimesArr && localTripsMap) {
+        setZipFilePct('stop_times.txt', 'Stop times', 0, false, false);
+        setState('stop_routes', { status: 'processing', progress: 0, message: 'ZIP stop_times streaming…', total: 0, sent: 0 });
+
+        const pairSet = new Set<string>();
+        let lineNum = 0;
+        let headers: string[] | null = null;
+        let stopIdx = -1, tripIdx = -1;
+        const totalBytes = stopTimesArr.byteLength;
+
+        try {
+          const text = new TextDecoder('utf-8').decode(stopTimesArr);
+          const lines = text.replace(/^﻿/, '').split(/\r?\n/);
+          for (let li = 0; li < lines.length; li++) {
+            const line = lines[li].trim();
+            if (!line) continue;
+            if (headers === null) {
+              headers = parseCsvRow(line).map(h => h.trim());
+              stopIdx = headers.indexOf('stop_id');
+              tripIdx = headers.indexOf('trip_id');
+              continue;
+            }
+            lineNum++;
+            if (stopIdx === -1 || tripIdx === -1) continue;
+            const vals = parseCsvRow(line);
+            const stopId  = vals[stopIdx]?.trim();
+            const tripId  = vals[tripIdx]?.trim();
+            if (!stopId || !tripId) continue;
+            const routeId = localTripsMap.get(tripId);
+            if (!routeId) continue;
+            pairSet.add(`${stopId}|${routeId}`);
+
+            if (lineNum % 200_000 === 0) {
+              const pct = Math.round(li / lines.length * 60);
+              setState('stop_routes', { progress: pct, message: `${(lineNum / 1_000_000).toFixed(1)}M sor → ${pairSet.size.toLocaleString('hu-HU')} pár` });
+              setZipFilePct('stop_times.txt', 'Stop times', pct, false, false);
+              // yield to UI
+              await new Promise(r => setTimeout(r, 0));
+            }
+          }
+          void totalBytes; // suppress unused warning
+
+          const pairs = Array.from(pairSet).map(k => {
+            const [stop_id, route_id] = k.split('|');
+            return { stop_id, route_id };
+          });
+
+          setState('stop_routes', { status: 'uploading', progress: 60, total: pairs.length, message: `${pairs.length.toLocaleString('hu-HU')} pár feltöltése…` });
+          const result = await sendBatchesDirect('stop_routes', pairs, (sent, total) => {
+            const pct = 60 + Math.round(sent / total * 40);
+            setState('stop_routes', { progress: pct, sent, total });
+            setZipFilePct('stop_times.txt', 'Stop times', pct, false, false);
+          });
+          setState('stop_routes', { status: 'done', progress: 100, message: `✓ ${result.imported.toLocaleString('hu-HU')} pár importálva` });
+          setZipFilePct('stop_times.txt', 'Stop times', 100, true, false);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          setState('stop_routes', { status: 'error', progress: 0, message: `✗ ${msg}` });
+          setZipFilePct('stop_times.txt', 'Stop times', 0, false, true);
+        }
+      }
+
+      setZipStatus('done');
+      setZipMessage('✅ ZIP importálva — automatikus levezetés indul…');
+      await runPostImportChain();
+      setZipMessage('✅ ZIP import kész, chain lefutott.');
+    } catch (err) {
+      setZipStatus('error');
+      setZipMessage(`✗ ZIP hiba: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -308,6 +490,71 @@ export default function SuperadminGtfsImport() {
         <code className="rounded bg-slate-100 px-1">stop_times.txt</code> szükséges. Az import után automatikusan
         lefut a járatrefs-levezetés és az épület–megálló párok számítása.
       </p>
+
+      {/* ZIP import card */}
+      <div className="mb-4 flex flex-col gap-3 rounded-xl border-2 border-emerald-200 bg-emerald-50/60 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-black text-slate-800">📦 GTFS ZIP import</p>
+            <p className="text-[11px] text-slate-500">
+              Töltsd fel az egész BKK GTFS zip-et — a böngésző kicsomagolja és automatikusan importálja az összes fájlt.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <input
+              type="file"
+              accept=".zip"
+              className="hidden"
+              ref={zipFileRef}
+              onChange={async e => {
+                const f = e.target.files?.[0];
+                if (f) await importZip(f);
+                if (e.target) e.target.value = '';
+              }}
+            />
+            <button
+              onClick={() => zipFileRef.current?.click()}
+              disabled={zipStatus === 'extracting' || zipStatus === 'importing'}
+              className={`rounded-lg px-4 py-2 text-xs font-bold transition-colors disabled:opacity-50 ${
+                zipStatus === 'done'
+                  ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700'
+              }`}
+            >
+              {zipStatus === 'extracting' ? 'Kibontás…'
+                : zipStatus === 'importing' ? 'Importálás…'
+                : zipStatus === 'done' ? '↻ ZIP újra'
+                : '📂 ZIP fájl választása'}
+            </button>
+          </div>
+        </div>
+
+        {zipMessage && (
+          <p className={`text-[11px] font-semibold ${zipStatus === 'error' ? 'text-red-600' : zipStatus === 'done' ? 'text-emerald-700' : 'text-slate-700'}`}>
+            {zipMessage}
+          </p>
+        )}
+
+        {Object.keys(zipFileProgress).length > 0 && (
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">
+            {Object.entries(zipFileProgress).map(([fname, info]) => (
+              <div key={fname} className="rounded-lg border border-slate-200 bg-white p-2">
+                <p className="truncate text-[10px] font-bold text-slate-700">{info.label}</p>
+                <p className="truncate font-mono text-[9px] text-slate-400">{fname}</p>
+                <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${info.err ? 'bg-red-400' : info.done ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                    style={{ width: `${info.err ? 100 : info.pct}%` }}
+                  />
+                </div>
+                <p className={`mt-0.5 text-[9px] font-medium ${info.err ? 'text-red-500' : info.done ? 'text-emerald-600' : 'text-slate-500'}`}>
+                  {info.err ? '✗ hiba' : info.done ? '✓ kész' : `${info.pct}%`}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Auto-chain status / Finish-from-DB button */}
       <div className="mb-5 flex flex-col gap-2 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3">
