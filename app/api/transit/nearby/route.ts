@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { loadStopsFromCache, saveStopsToCache } from '@/lib/transit-cache';
-import { loadBuildingStops, loadNearbyStops, upsertBuildingStops } from '@/lib/transit-catalog';
+import { loadBuildingStops, loadNearbyStops, loadStopsInBbox, upsertBuildingStops } from '@/lib/transit-catalog';
 export const dynamic = 'force-dynamic';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -352,10 +352,28 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // ── DB: transit_stops spatial lookup (when building_stops not populated yet) ─
+  // ── DB: MAP view — full-viewport bbox query (when explicit latSpan/lonSpan are
+  // passed, which the map component always does on pan/zoom). Returns ALL stops
+  // in the viewport up to 400, sorted by distance from center. No BKK API call.
+  const hasExplicitSpan = request.nextUrl.searchParams.has('latSpan');
+  if (hasExplicitSpan) {
+    const minLat = lat - latSpan / 2;
+    const maxLat = lat + latSpan / 2;
+    const minLon = lon - lonSpan / 2;
+    const maxLon = lon + lonSpan / 2;
+    // Scale limit with zoom: bigger viewport → more stops (max 400)
+    const bboxLimit = Math.min(400, Math.round(200 / (latSpan * lonSpan + 0.001)));
+    const bboxStops = await loadStopsInBbox(createClient(), minLat, maxLat, minLon, maxLon, lat, lon, bboxLimit).catch(() => null);
+    if (bboxStops && bboxStops.length > 0) {
+      const bubi = await fetchBubi(lat, lon).catch(() => []);
+      const result: TransitNearbyResult = { stops: bboxStops, bubi, coverage: computeCoverage(bboxStops.slice(0, 20)), source: 'db', fetchedAt: new Date().toISOString() };
+      return NextResponse.json(result);
+    }
+  }
+
+  // ── DB: radius fallback (building context, no explicit viewport span) ────────
   const catalogStops = await loadNearbyStops(createClient(), lat, lon, 700).catch(() => null);
   if (catalogStops && catalogStops.length > 0) {
-    // save to building_stops if we have buildingId
     if (buildingId) void upsertBuildingStops(createClient(), buildingId, catalogStops.map(s => ({ stop_id: s.id, distance_m: s.distanceM }))).catch(() => {});
     const bubi = await fetchBubi(lat, lon).catch(() => []);
     const result: TransitNearbyResult = { stops: catalogStops, bubi, coverage: computeCoverage(catalogStops), source: 'db', fetchedAt: new Date().toISOString() };

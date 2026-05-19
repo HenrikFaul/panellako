@@ -183,6 +183,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
     const [vehicleCount, setVehicleCount] = useState<number | null>(null);
     const [lastUpdate,   setLastUpdate]   = useState<Date | null>(null);
     const [showStops,    setShowStops]    = useState(true);
+    const [showVehicles, setShowVehicles] = useState(true);
     const [isPanned,     setIsPanned]     = useState(false);
     const [isRefreshingStops, setIsRefreshingStops] = useState(false);
     // Active trip info panel (shown after clicking a departure)
@@ -209,6 +210,18 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
       if (!map || !sl) return;
       setShowStops(v => {
         if (v) { sl.remove(); } else { sl.addTo(map); }
+        return !v;
+      });
+    }, []);
+
+    const toggleVehicles = useCallback(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const map = mapRef.current as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const vl  = vehicleLayer.current as any;
+      if (!map || !vl) return;
+      setShowVehicles(v => {
+        if (v) { vl.remove(); } else { vl.addTo(map); }
         return !v;
       });
     }, []);
@@ -489,7 +502,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
             style={{ background: '#1e293b' }}
           />
 
-          {/* Stop toggle */}
+          {/* Layer toggles */}
           <div className="absolute right-2 top-2 z-[1000] flex flex-col gap-1">
             <button
               onClick={toggleStops}
@@ -499,6 +512,15 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
               <span className="h-2 w-2 shrink-0 rounded-full transition-colors"
                 style={{ background: showStops ? '#38bdf8' : '#475569' }} />
               Megállók
+            </button>
+            <button
+              onClick={toggleVehicles}
+              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-slate-900/90 px-2.5 py-1 text-[9px] font-black backdrop-blur-sm transition-all hover:bg-slate-800/90"
+              style={{ color: showVehicles ? '#34d399' : '#64748b' }}
+            >
+              <span className="h-2 w-2 shrink-0 rounded-full transition-colors"
+                style={{ background: showVehicles ? '#34d399' : '#475569' }} />
+              Járművek
             </button>
           </div>
 
