@@ -1,6 +1,5 @@
 'use client';
 
-import { Flower2 } from 'lucide-react';
 
 interface PollenCurrent {
   grassPollen:  number | null;
