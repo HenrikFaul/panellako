@@ -92,6 +92,44 @@ export async function loadBuildingStops(
 }
 
 /**
+ * Load all stops within a bounding box — used for the map view where the
+ * frontend passes the full viewport bounds via latSpan/lonSpan.
+ * Returns null only if the table is empty (not seeded yet).
+ */
+export async function loadStopsInBbox(
+  supabase: SupabaseClient,
+  minLat: number,
+  maxLat: number,
+  minLon: number,
+  maxLon: number,
+  centerLat: number,
+  centerLon: number,
+  limit = 400,
+): Promise<NearbyStop[] | null> {
+  const { data, error } = await supabase
+    .from('transit_stops')
+    .select('stop_id, name, lat, lon, route_type, route_refs')
+    .gte('lat', minLat).lte('lat', maxLat)
+    .gte('lon', minLon).lte('lon', maxLon)
+    .limit(limit);
+
+  if (error) return null;
+  if (!data || data.length === 0) return null;
+
+  return (data as StopRow[])
+    .map(s => ({
+      id:        s.stop_id,
+      name:      s.name,
+      lat:       s.lat,
+      lon:       s.lon,
+      distanceM: Math.round(haversineM(centerLat, centerLon, s.lat, s.lon)),
+      routeRefs: s.route_refs ?? [],
+      routeType: (s.route_type as RouteType) ?? 'BUS',
+    }))
+    .sort((a, b) => a.distanceM - b.distanceM);
+}
+
+/**
  * Load stops near a lat/lon using a bounding-box query on transit_stops.
  * Uses haversine to compute exact distances, filters to ≤maxDistM, sorts, slices 12.
  * Returns null if the table is empty (signals: not seeded yet).
