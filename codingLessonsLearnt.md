@@ -1,10 +1,3 @@
-### [LESSON-OPS-082] Manuális operátori UI-hoz külön auth/session réteg kell
-- **Dátum**: 2026-05-19
-- **Fájlok**: `lib/superadmin-auth.ts`, `app/superadmin/*`, `app/api/superadmin/*`
-- **Gyökérok**: Ha cron és integrációs jobok csak API endpointon érhetők el, a nem-fejlesztő operátorok nehezen tudnak diagnosztizálni és kézi újrafuttatást végezni.
-- **Javítás**: Külön superadmin belépés + session cookie + dashboard és manuális job-trigger API készült.
-- **Megelőzés**: Integrációs rendszerekhez mindig legyen legalább minimál operátori vezérlőfelület státusszal és futtatási visszajelzéssel.
-
 
 ### [LESSON-TRANSIT-081] Vercel Cron nem küld custom Authorization Bearer tokent
 - **Dátum**: 2026-05-19
@@ -1295,3 +1288,11 @@ if (!rows || rows.length === 0) return jsonRes({ error: 'Already locked' }, 409)
 - **Gyökérok**: Importáláskor nem lett végigkövetve, hogy a függvény tényleg használatban van-e. A Next.js production build ESLint-et is futtat (nem csak TypeScript-et).
 - **Javítás**: Unused importok törlése. Unused param → `_` prefix helyett teljes elhagyás (ha nem kell a request objekt, a POST handler paramétere kihagyható).
 - **Megelőzés**: Minden PR előtt `npx tsc --noEmit && npm run build` futtatása (vagy legalább `eslint --ext .ts,.tsx .`). Ha egy importot `// TODO` kommentként hagyunk, azt is törölni kell ha nem kerül végül felhasználásra.
+
+### [LESSON-OPS-082] Manuális operátori UI-hoz külön auth/session réteg kell
+- **Dátum**: 2026-05-19
+- **Fájlok**: `lib/superadmin-auth.ts`, `app/superadmin/*`, `app/api/superadmin/*`
+- **Gyökérok**: Ha cron és integrációs jobok csak API endpointon érhetők el, a nem-fejlesztő operátorok nehezen tudnak diagnosztizálni és kézi újrafuttatást végezni.
+- **Javítás**: Külön superadmin belépés + session cookie + dashboard és manuális job-trigger API készült.
+- **Megelőzés**: Integrációs rendszerekhez mindig legyen legalább minimál operátori vezérlőfelület státusszal és futtatási visszajelzéssel.
+
