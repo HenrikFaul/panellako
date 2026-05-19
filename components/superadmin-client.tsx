@@ -7,11 +7,11 @@ import SuperadminGtfsImport from '@/components/superadmin-gtfs-import';
 
 type Job = { id: string; label: string; description: string };
 const JOBS: Job[] = [
-  { id: 'bkk_full_sync',       label: 'BKK teljes szinkron',      description: 'stops/routes + building_stops + alerts' },
-  { id: 'bkk_stops_routes',    label: 'BKK stops/routes',         description: 'transit_stops, transit_routes, transit_stop_routes' },
-  { id: 'bkk_building_stops',  label: 'Building stops',           description: 'building_stops újraszámítás' },
-  { id: 'bkk_alerts',          label: 'BKK alerts',               description: 'transit_alerts frissítés' },
-  { id: 'air_quality_refresh', label: 'Levegőminőség frissítés',  description: 'AQI + heatmap párhuzamos frissítés' },
+  { id: 'bkk_full_sync',        label: 'BKK teljes szinkron',           description: 'stops/routes + building_stops + alerts (BKK API)' },
+  { id: 'bkk_building_stops',   label: 'BKK épület–megálló számítás',   description: 'building_stops újraszámítás DB-ből (transit_stops)' },
+  { id: 'bkk_alerts',           label: 'BKK alerts',                    description: 'transit_alerts frissítés (BKK GTFS-RT, valós idejű)' },
+  { id: 'gtfs_derive_refs',     label: 'GTFS → Megálló járatrefs',      description: 'transit_stops.route_refs + route_type frissítése transit_stop_routes alapján' },
+  { id: 'air_quality_refresh',  label: 'Levegőminőség frissítés',       description: 'AQI + heatmap párhuzamos frissítés' },
 ];
 
 interface BkkRateLimits {
@@ -44,7 +44,7 @@ interface TableStat {
 }
 
 const GROUP_LABELS: Record<string, string> = {
-  transit: 'Transit (BKK API)',
+  transit: 'Transit (élő adatok)',
   gtfs:    'GTFS statikus import',
   other:   'Egyéb',
 };
