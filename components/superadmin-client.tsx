@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import SuperadminGtfsImport from '@/components/superadmin-gtfs-import';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -470,6 +471,9 @@ export default function SuperadminClient() {
             </div>
           )}
         </section>
+
+        {/* ── GTFS Import ─────────────────────────────────────────────── */}
+        <SuperadminGtfsImport />
 
       </div>
     </main>
