@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSuperadminCreds, setSuperadminSession } from '@/lib/superadmin-auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   const { email, password } = await request.json() as { email?: string; password?: string };
   const creds = getSuperadminCreds();
