@@ -6,7 +6,7 @@ import { useRef, useState } from 'react';
 
 type FileType =
   | 'feed_info' | 'stops' | 'routes' | 'calendar_dates'
-  | 'pathways'  | 'shapes' | 'translations' | 'stop_routes';
+  | 'pathways'  | 'shapes' | 'translations' | 'stop_routes' | 'trips';
 
 interface FileConfig {
   id:          FileType;
@@ -36,7 +36,7 @@ const FILE_CONFIGS: FileConfig[] = [
   { id: 'pathways',        filename: 'pathways.txt',         table: 'gtfs_pathways',          description: 'Állomás átjárók' },
   { id: 'shapes',          filename: 'shapes.txt',           table: 'gtfs_shapes',            description: 'Járat vonalak', hint: 'Nagy fájl — eltarthat egy ideig' },
   { id: 'translations',    filename: 'translations.txt',     table: 'gtfs_translations',      description: 'Fordítások' },
-  { id: 'stop_routes',     filename: 'trips.txt + stop_times.txt', table: 'transit_stop_routes', description: 'Megálló–járat kapcsolatok', hint: 'Először trips.txt, aztán stop_times.txt (nagy fájl)' },
+  { id: 'stop_routes',     filename: 'trips.txt + stop_times.txt', table: 'gtfs_trips + transit_stop_routes', description: 'Trips + megálló–járat kapcsolatok', hint: 'trips.txt → gtfs_trips-be importál + memória-map, aztán stop_times.txt streamelve' },
 ];
 
 const STATUS_COLOR: Record<Status, string> = {
@@ -177,7 +177,7 @@ export default function SuperadminGtfsImport() {
     }
   }
 
-  // ── Special: trips.txt → builds in-browser trip→route map ────────────────
+  // ── Special: trips.txt → imports to gtfs_trips AND builds in-memory map ─────
 
   async function loadTrips(file: File) {
     setTripsMsg('trips.txt olvasása…');
@@ -189,7 +189,11 @@ export default function SuperadminGtfsImport() {
         if (r.trip_id && r.route_id) map.set(r.trip_id, r.route_id);
       }
       setTripsMap(map);
-      setTripsMsg(`✓ ${map.size.toLocaleString('hu-HU')} trip betöltve — most add meg a stop_times.txt-t`);
+      setTripsMsg(`${map.size.toLocaleString('hu-HU')} trip — feltöltés DB-be…`);
+      const result = await sendBatches('trips', rows, (sent, total) => {
+        setTripsMsg(`DB feltöltés: ${sent.toLocaleString('hu-HU')} / ${total.toLocaleString('hu-HU')}…`);
+      });
+      setTripsMsg(`✓ ${result.imported.toLocaleString('hu-HU')} trip importálva (gtfs_trips) — most add meg a stop_times.txt-t`);
     } catch (err) {
       setTripsMsg(`✗ ${err instanceof Error ? err.message : String(err)}`);
     }
