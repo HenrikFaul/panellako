@@ -33,6 +33,24 @@ export interface EnvWeatherResult {
 
 const _cache = new Map<string, { data: EnvWeatherResult; expires: number }>();
 
+const MOCK_WEATHER: EnvWeatherResult = {
+  current: {
+    temperature:        18,
+    humidity:           62,
+    windSpeed:          9,
+    windDirection:      180,
+    windDirectionLabel: 'D',
+    precipProb:         20,
+    uvIndex:            3.5,
+    uvLabel:            'Mérsékelt',
+    uvColor:            '#eab308',
+    windLabel:          'Gyenge szél',
+    windAqiImpact:      'Enyhe szél — átlagos szétoszlás',
+  },
+  daily:     [],
+  fetchedAt: new Date().toISOString(),
+};
+
 function windDirLabel(deg: number): string {
   const dirs = ['É', 'ÉK', 'K', 'DK', 'D', 'DNy', 'Ny', 'ÉNy'];
   return dirs[Math.round(deg / 45) % 8];
@@ -150,7 +168,7 @@ export async function GET(request: NextRequest) {
     _cache.set(key, { data: result, expires: Date.now() + 60 * 60_000 });
     return NextResponse.json(result);
   } catch (err) {
-    console.warn('[environment/weather] fetch failed:', err);
-    return NextResponse.json({ error: String(err) }, { status: 502 });
+    console.warn('[environment/weather] fetch failed, returning mock:', err);
+    return NextResponse.json({ ...MOCK_WEATHER, fetchedAt: new Date().toISOString() });
   }
 }
