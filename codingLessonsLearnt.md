@@ -1296,3 +1296,10 @@ if (!rows || rows.length === 0) return jsonRes({ error: 'Already locked' }, 409)
 - **Javítás**: Külön superadmin belépés + session cookie + dashboard és manuális job-trigger API készült.
 - **Megelőzés**: Integrációs rendszerekhez mindig legyen legalább minimál operátori vezérlőfelület státusszal és futtatási visszajelzéssel.
 
+### [LESSON-TRANSIT-083] Operátori "full sync" ne fusson párhuzamosan külső API burst mellett
+- **Dátum**: 2026-05-19
+- **Fájlok**: `app/api/superadmin/jobs/run/route.ts`, `app/api/transit/sync/route.ts`
+- **Gyökérok**: A `stops-routes` és `building-stops` párhuzamos indítása plusz több grid lekérés könnyen BKK `LIMIT_EXCEEDED` hibát okoz, és elfedheti a valódi hibaképet.
+- **Javítás**: Szekvenciális futtatás + rate-limit detektálás + retry/backoff + részleges futás 207 státusszal.
+- **Megelőzés**: Külső feedeknél az operátori "run all" mindig vegye figyelembe API limitet és függőségi sorrendet.
+

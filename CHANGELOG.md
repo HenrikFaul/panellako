@@ -325,3 +325,11 @@ Az Edge Function csak a Supabase dashboardon beállított `ANTHROPIC_API_KEY` se
 ### Security / Ops
 - A superadmin credential alapértelmezett env fallbackgel fut (`SUPERADMIN_EMAIL`, `SUPERADMIN_PASSWORD`), de production-ben env override erősen ajánlott.
 
+## 2026-05-19 — Transit ops hardening (rate-limit + env fallback + truthful job status)
+
+### Fixed
+- `app/api/transit/sync/route.ts`: Supabase service client most már fallbackgel olvassa az env neveket (`NEXT_PUBLIC_SUPABASE_URL|SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY|NEXT_SUPABASE_SERVICE_ROLE_KEY`) az "Invalid API key" hibák csökkentésére.
+- `app/api/transit/sync/route.ts`: BKK `LIMIT_EXCEEDED` válasz detektálás + cellánként retry/backoff, és 429 státusz visszaadása rate-limit esetén.
+- `app/api/superadmin/jobs/run/route.ts`: `bkk_full_sync` párhuzamos futása helyett szekvenciális futás (stops-routes → building-stops → alerts), így kisebb API burst és helyesebb függőségi sorrend.
+- `app/api/superadmin/jobs/run/route.ts`: top-level `ok` mező most valós állapotot tükröz; részleges/sikertelen esetben HTTP 207 a kezelhető operátori diagnosztikához.
+
