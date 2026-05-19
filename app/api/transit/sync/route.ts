@@ -39,12 +39,34 @@ function isAuthorized(request: NextRequest): boolean {
   );
 }
 
-// ─── Supabase service-role client (bypasses RLS — safe for cron context) ──────
+// ─── Supabase client (service role preferred, anon key fallback) ───────────────
+// All transit write policies are FOR ALL WITH CHECK (true) with no role
+// restriction, so the anon key has the same effective access on these tables.
+// Trimming prevents trailing-whitespace env var issues from Vercel's dashboard.
 
-function createServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL|SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY|NEXT_SUPABASE_SERVICE_ROLE_KEY');
+function createSyncClient() {
+  const url = (
+    process.env.NEXT_PUBLIC_SUPABASE_URL ??
+    process.env.SUPABASE_URL ?? ''
+  ).trim();
+
+  const serviceKey = (
+    process.env.SUPABASE_SERVICE_ROLE_KEY ??
+    process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY ?? ''
+  ).trim();
+
+  const anonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim();
+
+  // Use service role if it looks like a JWT, otherwise fall back to anon key.
+  const key = serviceKey.startsWith('eyJ') ? serviceKey : (anonKey || serviceKey);
+
+  if (!url || !key) {
+    throw new Error(
+      'Missing Supabase env vars: need NEXT_PUBLIC_SUPABASE_URL + ' +
+      '(SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY)',
+    );
+  }
+
   return createSupabaseClient(url, key, { auth: { persistSession: false } });
 }
 
@@ -60,7 +82,7 @@ const BKK_DEFAULTS: BkkRateLimits = { cell_delay_ms: 3000, retry_max: 3, retry_w
 
 async function loadBkkRateLimits(): Promise<BkkRateLimits> {
   try {
-    const { data } = await createServiceClient()
+    const { data } = await createSyncClient()
       .from('platform_settings')
       .select('value')
       .eq('key', 'bkk_rate_limits')
@@ -229,7 +251,7 @@ async function syncStopsRoutesCell(cellIndex: number, delayMs = 3000): Promise<S
   // Courtesy delay before returning (configurable via platform_settings)
   await new Promise(resolve => setTimeout(resolve, delayMs));
 
-  const supabase = createServiceClient();
+  const supabase = createSyncClient();
 
   // Upsert in dependency order: routes first, then stops, then pairs
   await upsertTransitRoutes(supabase, routeRows);
@@ -252,7 +274,7 @@ interface BuildingStopsSyncResult {
 }
 
 async function syncBuildingStops(): Promise<BuildingStopsSyncResult> {
-  const supabase = createServiceClient();
+  const supabase = createSyncClient();
 
   const { data: buildings, error } = await supabase
     .from('buildings')
@@ -280,7 +302,7 @@ async function syncBuildingStops(): Promise<BuildingStopsSyncResult> {
       chunk.map(async (building) => {
         try {
           const stops: NearbyStop[] | null = await loadNearbyStops(
-            createServiceClient(),
+            createSyncClient(),
             building.lat,
             building.lon,
             700,
@@ -292,7 +314,7 @@ async function syncBuildingStops(): Promise<BuildingStopsSyncResult> {
           }
 
           await upsertBuildingStops(
-            createServiceClient(),
+            createSyncClient(),
             building.id,
             stops.map(s => ({ stop_id: s.id, distance_m: s.distanceM })),
           );
@@ -349,7 +371,7 @@ async function syncAlerts(): Promise<AlertsSyncResult> {
     url:             a.url,
   }));
 
-  const supabase = createServiceClient();
+  const supabase = createSyncClient();
 
   await upsertCatalogAlerts(supabase, alerts);
 

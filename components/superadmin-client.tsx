@@ -19,6 +19,19 @@ interface BkkRateLimits {
   retry_wait_ms: number;
 }
 
+interface EnvHealth {
+  envVars: Record<string, { set: boolean; length: number; prefix: string }>;
+  keyAnalysis: {
+    serviceKeyIsJwt: boolean;
+    anonKeyIsJwt: boolean;
+    serviceKeyHasWhitespace: boolean;
+    urlHasWhitespace: boolean;
+    effectiveKeyUsed: string;
+  };
+  supabaseTests: Array<{ label: string; ok: boolean; count: number | null; error: string | null }>;
+  checkedAt: string;
+}
+
 interface TableStat {
   name: string;
   label: string;
@@ -79,6 +92,10 @@ export default function SuperadminClient() {
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsFetchedAt, setStatsFetchedAt] = useState<string | null>(null);
 
+  // Health check
+  const [health, setHealth]           = useState<EnvHealth | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+
   // Job logs
   const [logs, setLogs]           = useState<JobLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
@@ -97,6 +114,15 @@ export default function SuperadminClient() {
         }
       })
       .catch(() => { /* keep defaults */ });
+  }, []);
+
+  const loadHealth = useCallback(() => {
+    setHealthLoading(true);
+    fetch('/api/superadmin/health')
+      .then(r => r.json())
+      .then((data: EnvHealth) => setHealth(data))
+      .catch(() => { /* ignore */ })
+      .finally(() => setHealthLoading(false));
   }, []);
 
   const loadStats = useCallback(() => {
@@ -120,7 +146,7 @@ export default function SuperadminClient() {
       .finally(() => setLogsLoading(false));
   }, []);
 
-  useEffect(() => { loadStats(); loadLogs(); }, [loadStats, loadLogs]);
+  useEffect(() => { loadStats(); loadLogs(); loadHealth(); }, [loadStats, loadLogs, loadHealth]);
 
   // ── Actions ──────────────────────────────────────────────────────────────
 
@@ -184,6 +210,81 @@ export default function SuperadminClient() {
               <p className="mt-1 text-xs text-slate-500">Kulcs: {key}</p>
             </div>
           ))}
+        </section>
+
+        {/* Env / connectivity health */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-lg font-black text-slate-900">Környezeti változók és kapcsolat</h2>
+            <button
+              onClick={loadHealth}
+              disabled={healthLoading}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {healthLoading ? 'Töltés…' : '↻ Ellenőrzés'}
+            </button>
+          </div>
+          {!health ? (
+            <p className="text-sm text-slate-400">Töltés…</p>
+          ) : (
+            <div className="space-y-4">
+              {/* Env vars table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-left text-[10px] font-bold uppercase text-slate-400">
+                      <th className="pb-1.5 pr-4">Változó</th>
+                      <th className="pb-1.5 pr-3">Be van állítva?</th>
+                      <th className="pb-1.5 pr-3">Hossz</th>
+                      <th className="pb-1.5">Eleje</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(health.envVars).map(([k, v]) => (
+                      <tr key={k} className="border-b border-slate-50 last:border-0">
+                        <td className="py-1.5 pr-4 font-mono font-bold text-slate-700">{k}</td>
+                        <td className="py-1.5 pr-3">
+                          <span className={`rounded-full px-2 py-0.5 font-bold ${v.set ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                            {v.set ? '✓ igen' : '✗ hiányzik'}
+                          </span>
+                        </td>
+                        <td className="py-1.5 pr-3 font-mono text-slate-500">{v.length || '—'}</td>
+                        <td className="py-1.5 font-mono text-slate-400">{v.prefix || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* Key analysis */}
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: 'Service role JWT?',       ok: health.keyAnalysis.serviceKeyIsJwt },
+                  { label: 'Anon key JWT?',            ok: health.keyAnalysis.anonKeyIsJwt },
+                  { label: 'Service key whitespace?',  ok: !health.keyAnalysis.serviceKeyHasWhitespace },
+                  { label: 'URL whitespace?',          ok: !health.keyAnalysis.urlHasWhitespace },
+                ].map(item => (
+                  <span key={item.label} className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${item.ok ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                    {item.ok ? '✓' : '✗'} {item.label}
+                  </span>
+                ))}
+                <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-bold text-blue-700">
+                  Aktív kulcs: {health.keyAnalysis.effectiveKeyUsed}
+                </span>
+              </div>
+              {/* Supabase connectivity */}
+              <div className="flex flex-wrap gap-3">
+                {health.supabaseTests.map(t => (
+                  <div key={t.label} className={`rounded-xl border px-3 py-2 text-xs ${t.ok ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
+                    <p className="font-bold text-slate-700">{t.label}</p>
+                    {t.ok
+                      ? <p className="text-emerald-700">✓ OK — buildings rekord: {t.count}</p>
+                      : <p className="text-red-600">✗ {t.error}</p>
+                    }
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         {/* DB stats */}
