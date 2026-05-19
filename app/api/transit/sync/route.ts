@@ -278,12 +278,20 @@ async function syncStopsRoutesCell(cellIndex: number, delayMs = 3000): Promise<S
 // ─── building-stops sync ──────────────────────────────────────────────────────
 
 interface BuildingStopsSyncResult {
-  buildingsProcessed: number;
-  buildingsSkipped:   number;
+  buildingsTotal:      number;
+  buildingsWithCoords: number;
+  buildingsProcessed:  number;
+  buildingsSkipped:    number;
+  note?:               string;
 }
 
 async function syncBuildingStops(): Promise<BuildingStopsSyncResult> {
   const supabase = createSyncClient();
+
+  // Count all buildings first so we can tell the caller why processed=0
+  const { count: totalCount } = await supabase
+    .from('buildings')
+    .select('*', { count: 'exact', head: true });
 
   const { data: buildings, error } = await supabase
     .from('buildings')
@@ -298,6 +306,16 @@ async function syncBuildingStops(): Promise<BuildingStopsSyncResult> {
 
   type BuildingRow = { id: string; lat: number; lon: number };
   const rows = buildings as BuildingRow[];
+
+  const buildingsTotal      = totalCount ?? 0;
+  const buildingsWithCoords = rows.length;
+
+  if (rows.length === 0) {
+    const note = buildingsTotal === 0
+      ? 'No buildings in database yet. Add buildings to start.'
+      : `${buildingsTotal} building(s) exist but none have lat/lon coordinates set. Set coordinates on each building to enable stop lookup.`;
+    return { buildingsTotal, buildingsWithCoords: 0, buildingsProcessed: 0, buildingsSkipped: 0, note };
+  }
 
   let buildingsProcessed = 0;
   let buildingsSkipped   = 0;
@@ -335,7 +353,7 @@ async function syncBuildingStops(): Promise<BuildingStopsSyncResult> {
     );
   }
 
-  return { buildingsProcessed, buildingsSkipped };
+  return { buildingsTotal, buildingsWithCoords, buildingsProcessed, buildingsSkipped };
 }
 
 // ─── alerts sync ──────────────────────────────────────────────────────────────

@@ -201,14 +201,15 @@ export default function SuperadminClient() {
         {/* Integration status cards */}
         <section className="grid gap-4 md:grid-cols-3">
           {[
-            ['BKK Futár',    'Aktív (env kulcs alapján)', 'BKKFUTAR_API_KEY'],
-            ['Supabase',     'Aktív (env kulcs alapján)', 'NEXT_PUBLIC_SUPABASE_URL'],
-            ['Air Quality',  'Aktív (env kulcs alapján)', 'AQICN_API_TOKEN'],
-          ].map(([name, status, key]) => (
+            { name: 'BKK Futár',   key: 'BKKFUTAR_API_KEY',        note: 'LIMIT_EXCEEDED esetén várj éjfélig (UTC reset)' },
+            { name: 'Supabase',    key: 'NEXT_PUBLIC_SUPABASE_URL', note: '' },
+            { name: 'Air Quality', key: 'AQICN_API_TOKEN',          note: 'Ha Sanghaj jelenik meg, a demo token aktív — regisztrálj valódi kulcsot: aqicn.org/data-platform/token' },
+          ].map(({ name, key, note }) => (
             <div key={name} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <h3 className="text-sm font-bold text-slate-700">{name}</h3>
-              <p className="mt-2 text-lg font-black text-emerald-600">{status}</p>
+              <p className="mt-2 text-lg font-black text-emerald-600">Aktív (env kulcs alapján)</p>
               <p className="mt-1 text-xs text-slate-500">Kulcs: {key}</p>
+              {note && <p className="mt-2 text-[11px] text-amber-600">{note}</p>}
             </div>
           ))}
         </section>
@@ -340,7 +341,17 @@ export default function SuperadminClient() {
         {/* BKK Rate Limit Settings */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-1 text-lg font-black text-slate-900">BKK API rate-limit beállítások</h2>
-          <p className="mb-4 text-xs text-slate-500">Ha a szinkron LIMIT_EXCEEDED hibát ad, növeld a késleltetést és az újrapróbálkozási időt.</p>
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 space-y-1">
+            <p className="font-bold">ℹ️ BKK Futár API rate limit — amit tudunk</p>
+            <p>A BKK nem publikálja pontosan a limiteket, de a következők érvényesek a tapasztalatok alapján:</p>
+            <ul className="ml-4 list-disc space-y-0.5">
+              <li>A <code className="bg-amber-100 px-1 rounded">LIMIT_EXCEEDED</code> (HTTP 400, code: 400) a napi/óránkénti kvóta kimerülését jelzi</li>
+              <li>Az ingyenes tesztkulcs valószínűleg <strong>~100–500 kérés/nap</strong> korláttal rendelkezik</li>
+              <li>A kvóta valószínűleg <strong>éjfélkor UTC-ben resetel</strong> — ekkor próbáld újra</li>
+              <li>Produkciós kulcsért vedd fel a kapcsolatot a BKK-val: <strong>futar@bkk.hu</strong></li>
+              <li>A sync most <strong>3 cellát</strong> használ (korábbi 6 helyett) — felére csökkentve az API hívásokat</li>
+            </ul>
+          </div>
           <div className="grid gap-4 sm:grid-cols-3">
             <label className="flex flex-col gap-1">
               <span className="text-xs font-bold text-slate-700">Cellák közötti késleltetés (ms)</span>
