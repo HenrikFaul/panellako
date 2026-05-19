@@ -33,18 +33,18 @@ export async function POST(request: NextRequest) {
   const { job } = await request.json() as { job?: string };
 
   if (job === 'bkk_full_sync') {
-    const [stopsRoutes, buildingStops, alerts] = await Promise.all([
-      runTransit('stops-routes'),
-      runTransit('building-stops'),
-      runTransit('alerts'),
-    ]);
-    return NextResponse.json({ ok: true, job, result: { stopsRoutes, buildingStops, alerts }, ranAt: new Date().toISOString() });
+    // Run sequentially to avoid BKK/OBA burst limits and to ensure building-stops sees fresh stop catalog.
+    const stopsRoutes = await runTransit('stops-routes');
+    const buildingStops = stopsRoutes.ok ? await runTransit('building-stops') : { ok: false, status: 424, body: { error: 'Skipped: stops-routes failed' } };
+    const alerts = await runTransit('alerts');
+    const ok = stopsRoutes.ok && buildingStops.ok && alerts.ok;
+    return NextResponse.json({ ok, job, result: { stopsRoutes, buildingStops, alerts }, ranAt: new Date().toISOString() }, { status: ok ? 200 : 207 });
   }
 
-  if (job === 'bkk_stops_routes') return NextResponse.json({ ok: true, job, result: await runTransit('stops-routes'), ranAt: new Date().toISOString() });
-  if (job === 'bkk_building_stops') return NextResponse.json({ ok: true, job, result: await runTransit('building-stops'), ranAt: new Date().toISOString() });
-  if (job === 'bkk_alerts') return NextResponse.json({ ok: true, job, result: await runTransit('alerts'), ranAt: new Date().toISOString() });
-  if (job === 'air_quality_refresh') return NextResponse.json({ ok: true, job, result: await runAirQuality(), ranAt: new Date().toISOString() });
+  if (job === 'bkk_stops_routes') { const result = await runTransit('stops-routes'); return NextResponse.json({ ok: result.ok, job, result, ranAt: new Date().toISOString() }, { status: result.ok ? 200 : 207 }); }
+  if (job === 'bkk_building_stops') { const result = await runTransit('building-stops'); return NextResponse.json({ ok: result.ok, job, result, ranAt: new Date().toISOString() }, { status: result.ok ? 200 : 207 }); }
+  if (job === 'bkk_alerts') { const result = await runTransit('alerts'); return NextResponse.json({ ok: result.ok, job, result, ranAt: new Date().toISOString() }, { status: result.ok ? 200 : 207 }); }
+  if (job === 'air_quality_refresh') { const result = await runAirQuality(); const ok = result.main.ok && result.heatmap.ok; return NextResponse.json({ ok, job, result, ranAt: new Date().toISOString() }, { status: ok ? 200 : 207 }); }
 
   return NextResponse.json({ error: 'Unknown job' }, { status: 400 });
 }
