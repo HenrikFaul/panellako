@@ -1,4 +1,13 @@
 
+## 2026-05-21 — v0.7.10 Demo building force-UPDATE + runtime safety net (semmilyen körülmény közt nem maradhat az Alkotás u. 42)
+
+### Fixed
+- **`supabase/migrations/20260521_force_demo_building_gidofalvy.sql`** (új migráció): a v0.7.9-es UPDATE migráció defenzív `WHERE name = 'Alkotás utca 42.'` guard-dal működött, ami a felhasználói visszajelzés alapján nem mindig garantálta a felülírást (pl. ha valami szuper-edge-case-ben más név volt a régi rekordban, vagy ha a guard máshogy nem matcholt). Ez az új migráció **FELTÉTEL NÉLKÜL** UPDATE-eli a demo épület UUID-ját (`bbbbbbbb-0001-...`) a Gidófalvy Lajos utca 9. értékekre, lat/lon-nal expliciten. Verifikációs NOTICE/WARNING utána.
+- **`app/api/superadmin/jobs/run/route.ts` `resolveCoords` runtime safety net**: ha a demo building rekordban a lat/lon még mindig null, és a `b.id === 'bbbbbbbb-...'`, a függvény **hardkódolt értékkel** (`lat=47.5278845, lon=19.0705657`) visszatér és átírja a DB-rekordot is. Ez biztosítja, hogy a job futtatása **akkor is sikerül**, ha a migráció valamiért még nem futott le. A `source` mezőben `'hardcoded-demo'` jelölésű ez az eset.
+
+### Verified
+- Forráskód-szinten **NULLA hardkódolt** `Alkotás utca 42` előfordulás a runtime kódban (`*.ts`/`*.tsx`/`*.js`/`*.sql` non-doc, non-migration fájlokban). A megmaradt 5 hivatkozás mind történeti rekord: CHANGELOG.md, 2 versioning/ entry, 1 marketing_values/ entry, és a v0.7.9 migráció ami a régi guard-clause-ban hivatkozik rá (`WHERE name = 'Alkotás utca 42.'`). Ezek a fix történetét dokumentálják, **nem futáskor használt értékek**.
+
 ## 2026-05-20 — v0.7.9 Demo prod DB migration + NDVI Lanczos3 upscale + Élhetőség módszertan + Budapest OSM fallback
 
 ### Fixed
