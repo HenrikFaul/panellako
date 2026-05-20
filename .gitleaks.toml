@@ -1,0 +1,72 @@
+title = "panellako gitleaks config"
+
+# Start from gitleaks' built-in default rules, then layer panellako-specific
+# detectors for the secrets the repo is most likely to leak: Supabase
+# service-role JWTs, Stripe keys, Resend keys, Sentry DSNs.
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Custom rules
+# ---------------------------------------------------------------------------
+
+[[rules]]
+id = "supabase-service-role-key"
+description = "Supabase service-role JWT (server-only secret)"
+regex = '''eyJ[A-Za-z0-9_-]{15,}\.eyJ[A-Za-z0-9_-]{50,}\.[A-Za-z0-9_-]{40,}'''
+tags = ["supabase", "jwt", "secret"]
+
+[[rules]]
+id = "supabase-service-role-key-assignment"
+description = "Assignment to SUPABASE_SERVICE_ROLE_KEY with a JWT-looking value"
+regex = '''SUPABASE_SERVICE_ROLE_KEY\s*[:=]\s*['"]?eyJ[A-Za-z0-9_-]+'''
+tags = ["supabase"]
+
+[[rules]]
+id = "stripe-secret-key"
+description = "Stripe secret API key (sk_live_/sk_test_)"
+regex = '''sk_(live|test)_[0-9A-Za-z]{24,}'''
+tags = ["stripe", "secret"]
+
+[[rules]]
+id = "stripe-webhook-secret"
+description = "Stripe webhook signing secret"
+regex = '''whsec_[0-9A-Za-z]{24,}'''
+tags = ["stripe"]
+
+[[rules]]
+id = "resend-api-key"
+description = "Resend API key"
+regex = '''re_[A-Za-z0-9_-]{24,}'''
+tags = ["resend"]
+
+[[rules]]
+id = "sentry-dsn-with-secret"
+description = "Sentry DSN containing legacy secret portion"
+regex = '''https://[a-f0-9]{32}:[a-f0-9]{32}@'''
+tags = ["sentry"]
+
+# ---------------------------------------------------------------------------
+# Allowlist — paths and regexes that may legitimately look secret-like
+# ---------------------------------------------------------------------------
+[allowlist]
+description = "Documentation, lockfiles, and report packs that contain illustrative or already-rotated secrets"
+paths = [
+  '''node_modules/''',
+  '''\.next/''',
+  '''pnpm-lock\.yaml$''',
+  '''package-lock\.json$''',
+  '''CHANGELOG\.md$''',
+  '''codingLessonsLearnt\.md$''',
+  '''cycling-data-sources/.*\.md$''',
+  '''stack_audits/.*\.md$''',
+  '''map_styles/.*\.md$''',
+  '''growth_strategy/.*''',
+  '''valuation/.*''',
+  '''doc creation/.*''',
+  '''marketing/.*\.md$''',
+  '''versioning/.*\.md$''',
+]
+regexes = [
+  '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJleGFtcGxlIjoidHJ1ZSJ9''',
+]

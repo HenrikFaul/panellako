@@ -1,0 +1,79 @@
+rules:
+  # ---------------------------------------------------------------------------
+  # 1) NEVER reference the Supabase service-role key from a client component
+  #    or from a non-API server component. Service-role bypasses RLS — it is a
+  #    god key. The repo isolates it to app/api/** and the superadmin tree.
+  # ---------------------------------------------------------------------------
+  - id: no-service-role-in-client-or-page-component
+    pattern: SUPABASE_SERVICE_ROLE_KEY
+    paths:
+      include:
+        - 'app/**'
+        - 'components/**'
+      exclude:
+        - 'app/api/**'
+        - 'app/superadmin/**'
+        - 'app/**/route.ts'
+    message: |
+      SUPABASE_SERVICE_ROLE_KEY must never appear in a 'use client'
+      component or a non-API server component. Only app/api/**, app/**/route.ts,
+      server actions, or the superadmin tree may reference it.
+    severity: ERROR
+    languages: [typescript, tsx]
+
+  # ---------------------------------------------------------------------------
+  # 2) Inside superadmin API routes prefer service-role over anon (RLS will
+  #    fight the admin otherwise — anon-key paths there are usually a bug).
+  # ---------------------------------------------------------------------------
+  - id: no-anon-key-in-superadmin-api
+    pattern: NEXT_PUBLIC_SUPABASE_ANON_KEY
+    paths:
+      include:
+        - 'app/api/superadmin/**'
+    message: |
+      Superadmin API routes typically use the service-role key — the anon-key
+      path hits RLS gates the admin does not want to fight. Confirm this is
+      intentional or switch to the service-role client.
+    severity: WARNING
+    languages: [typescript]
+
+  # ---------------------------------------------------------------------------
+  # 3) fetch() in serverless / lib code must use AbortSignal.timeout(), or it
+  #    can hang until the Vercel function-budget runs out (300 s on Pro,
+  #    10 s on Hobby).
+  # ---------------------------------------------------------------------------
+  - id: no-fetch-without-timeout
+    patterns:
+      - pattern: fetch($URL)
+      - pattern-not-inside: |
+          fetch($URL, { ..., signal: $SIG, ... })
+      - pattern-not-inside: |
+          fetch($URL, { ..., signal: AbortSignal.timeout(...) })
+    paths:
+      include:
+        - 'app/api/**'
+        - 'lib/**'
+    message: |
+      fetch() without AbortSignal.timeout() can hang until the Vercel function
+      budget runs out. Pass `signal: AbortSignal.timeout(N_MS)` (recommended
+      5_000–15_000 ms depending on the upstream provider's SLA).
+    severity: WARNING
+    languages: [typescript]
+
+  # ---------------------------------------------------------------------------
+  # 4) Production code paths must use the structured logger (lib/log.ts) so
+  #    log lines are correlatable with traces. Raw console.log breaks that.
+  # ---------------------------------------------------------------------------
+  - id: no-console-log-in-production-route
+    pattern: console.log(...)
+    paths:
+      include:
+        - 'app/api/**'
+        - 'app/w/**'
+        - 'app/superadmin/**'
+    message: |
+      Use the structured logger (lib/log.ts) instead of console.log in
+      production code paths. Raw console.log is not correlatable with traces
+      and pollutes Vercel log search.
+    severity: INFO
+    languages: [typescript]
