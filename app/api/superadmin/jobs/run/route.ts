@@ -358,7 +358,6 @@ export async function POST(request: NextRequest) {
       const freshIds = new Set((cached ?? []).map((r: { building_id: string }) => r.building_id));
       const toRefresh = list.filter(b => !freshIds.has(b.id));
 
-      const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
       let refreshed = 0, errors = 0, geocodeFailed = 0;
 
       for (const building of toRefresh) {
