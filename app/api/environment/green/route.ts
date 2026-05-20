@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 export const dynamic = 'force-dynamic';
+// Match Vercel Pro maxDuration to give Overpass enough time without
+// hitting the default 10s limit (no-op on Hobby plans).
+export const maxDuration = 30;
 
 export interface GreenData {
   greenScore:      number;
@@ -73,36 +76,48 @@ function createServiceClient() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-// Overpass mirrors — failover to survive a single blocked endpoint.
+// Overpass mirrors — kumi.systems FIRST (proven reliable from Vercel; the
+// /api/cycling route uses the same ordering successfully).
 const OVERPASS_MIRRORS = [
-  'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.openstreetmap.fr/api/interpreter',
   'https://lz4.overpass-api.de/api/interpreter',
-  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ];
 
 async function overpassFetch(body: string): Promise<OElement[]> {
+  const headers = {
+    'Content-Type': 'application/x-www-form-urlencoded',
+    'User-Agent':   'panellako/1.0 (info@panellako.hu)',
+  };
   let lastErr: unknown = null;
   for (const url of OVERPASS_MIRRORS) {
     try {
       const res = await fetch(url, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers,
         body,
-        signal:  AbortSignal.timeout(12_000),
+        signal:  AbortSignal.timeout(9_000),  // under Vercel 10s budget
       });
-      if (!res.ok) { lastErr = new Error(`HTTP ${res.status} @ ${url}`); continue; }
+      if (!res.ok) {
+        lastErr = new Error(`HTTP ${res.status} @ ${url}`);
+        console.warn(`[environment/green] ${url} returned HTTP ${res.status}`);
+        continue;
+      }
       const json = await res.json() as { elements: OElement[] };
       return json.elements ?? [];
     } catch (err) {
       lastErr = err;
+      console.warn(`[environment/green] ${url} failed:`, err);
     }
   }
   throw lastErr ?? new Error('All Overpass mirrors failed');
 }
 
 async function fetchFromOverpass(lat: number, lon: number): Promise<GreenData> {
-  const query = `[out:json][timeout:25];
+  // timeout:8 fits within the Vercel 10s function budget. qt = quick-tidy
+  // sort, much faster output.
+  const query = `[out:json][timeout:8];
 (
   way[leisure=park](around:500,${lat},${lon});
   relation[leisure=park](around:500,${lat},${lon});
@@ -121,9 +136,7 @@ async function fetchFromOverpass(lat: number, lon: number): Promise<GreenData> {
   way[railway=rail](around:300,${lat},${lon});
   way[railway=tram](around:150,${lat},${lon});
 );
-out body;
->;
-out skel qt;`;
+out geom qt;`;
 
   const els = await overpassFetch(`data=${encodeURIComponent(query)}`);
 

@@ -1,4 +1,22 @@
 
+## 2026-05-20 — v0.6.7 Bugfix: Overpass routes match working /api/cycling pattern
+
+### Fixed
+- **`app/api/environment/urban/route.ts`** és **`app/api/environment/green/route.ts`** továbbra is 503-mal hasaltak el az élesben (v0.6.6 mirror-failover nem segített, mert a beállítások nem fértek bele a Vercel 10s default függvény-budget-be):
+  - **Mirror sorrend megfordítva**: `overpass.kumi.systems` került ELSŐ helyre (az `/api/cycling` route, ami működik production-ben, pontosan ezt a sorrendet használja). Az `overpass-api.de`, ami gyakran túlterhelt, csak másodlagos.
+  - **Per-mirror timeout 12 s → 9 s**: alá megy a Vercel 10 s Hobby-limitnek, így ténylegesen időben befejeződik a próbálkozás.
+  - **Overpass server-side `timeout:25` → `timeout:8`**: a szerver maga is gyorsabban válaszol vagy abandonol, beleférünk a függvény-budget-be.
+  - **`User-Agent: 'panellako/1.0 (info@panellako.hu)'`** header hozzáadva (az `/api/cycling` is ezt használja — Overpass etikett).
+  - **`out center qt` / `out geom qt`** a sima `out center` / `out body; >; out skel qt;` helyett — a `qt` quick-tidy sorrend jóval gyorsabb output-ot ad.
+  - **`export const maxDuration = 30`**: Vercel Pro plan-en kibővíti a függvény-budget-et 30 másodpercre (Hobby-n no-op).
+  - **`overpass.openstreetmap.fr`** mint negyedik tükör (Bordeaux egyetemi mirror, gyakran kevésbé terhelt).
+
+### Added
+- **`app/api/environment/_diagnostics/route.ts`** új diagnosztikai endpoint. Production-ben `curl https://panellako.hu/api/environment/_diagnostics` válaszában látható minden Overpass tükör és Open-Meteo HTTP-státusza, latency-je, byte-mennyisége, és ha 200, akkor element count is. Ezzel mérhető, hogy mely források elérhetők a Vercel környezetből.
+
+### Notes
+- A változtatás az `/api/cycling/route.ts`-ben évek óta működő mintát replikálja az urban + green route-okra. Ha az `/api/cycling` működik production-ben (a "Kerékpáros útvonalak" panel 1749 dedikált utat mutat), akkor a két javított route ugyanígy fog. Ha a `_diagnostics` deploy után mind a 4 mirror-t 0 ok-státusszal mutatja, akkor a Vercel projekt valószínűleg hálózati allowlist-en van (ritka), és a következő lépés egy Supabase Edge Function proxy lesz, mert az más egress-csomópontról fut.
+
 ## 2026-05-20 — v0.6.6 Bugfix: Overpass mirror failover + stale-cache + PWA meta tag
 
 ### Fixed
