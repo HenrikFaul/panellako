@@ -5,16 +5,57 @@ import SuperadminGtfsImport from '@/components/superadmin-gtfs-import';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Job = { id: string; label: string; description: string };
+type JobEndpoint = { url: string; note?: string };
+type Job = { id: string; label: string; description: string; endpoints?: JobEndpoint[]; envVars?: string[] };
 const JOBS: Job[] = [
-  { id: 'bkk_full_sync',        label: 'BKK teljes szinkron',           description: 'stops/routes + building_stops + alerts (BKK API)' },
-  { id: 'bkk_building_stops',   label: 'BKK épület–megálló számítás',   description: 'building_stops újraszámítás DB-ből (transit_stops)' },
-  { id: 'bkk_alerts',           label: 'BKK alerts',                    description: 'transit_alerts frissítés (BKK GTFS-RT, valós idejű)' },
-  { id: 'gtfs_derive_refs',     label: 'GTFS → Megálló járatrefs',      description: 'transit_stops.route_refs + route_type frissítése transit_stop_routes alapján' },
-  { id: 'air_quality_refresh',  label: 'Levegőminőség frissítés',       description: 'AQI + heatmap párhuzamos frissítés' },
-  { id: 'env_refresh_green',    label: 'Zöld cache frissítés',          description: 'OSM Overpass lekérdezés minden épületre, 7 napos cache' },
-  { id: 'satellite_refresh',   label: 'Műhold NDVI frissítés',         description: 'Sentinel-2 NDVI minden épületre, 7 napos cache' },
-  { id: 'urban_refresh',       label: 'Kompakt & Élhetőség frissítés', description: 'OSM amenity + BKK transit minden épületre, 30 napos cache' },
+  {
+    id: 'bkk_full_sync', label: 'BKK teljes szinkron', description: 'stops/routes + building_stops + alerts (BKK API)',
+    endpoints: [{ url: 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where/*', note: 'Futár OBA REST API' }],
+    envVars: ['BKKFUTAR_API_KEY'],
+  },
+  {
+    id: 'bkk_building_stops', label: 'BKK épület–megálló számítás', description: 'building_stops újraszámítás DB-ből (transit_stops)',
+  },
+  {
+    id: 'bkk_alerts', label: 'BKK alerts', description: 'transit_alerts frissítés (BKK GTFS-RT, valós idejű)',
+    endpoints: [{ url: 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where/*', note: 'Futár OBA REST API' }],
+    envVars: ['BKKFUTAR_API_KEY'],
+  },
+  {
+    id: 'gtfs_derive_refs', label: 'GTFS → Megálló járatrefs', description: 'transit_stops.route_refs + route_type frissítése transit_stop_routes alapján',
+  },
+  {
+    id: 'air_quality_refresh', label: 'Levegőminőség frissítés', description: 'AQI + heatmap párhuzamos frissítés',
+    endpoints: [
+      { url: 'https://api.waqi.info/feed/{city}/', note: 'AQICN AQI feed' },
+      { url: 'https://api.waqi.info/map/bounds/', note: 'AQICN map bounds' },
+    ],
+    envVars: ['AQICN_API_TOKEN'],
+  },
+  {
+    id: 'env_refresh_green', label: 'Zöld cache frissítés', description: 'OSM Overpass lekérdezés minden épületre, 7 napos cache',
+    endpoints: [
+      { url: 'https://overpass-api.de/api/interpreter', note: 'OSM Overpass QL — szabad, kulcs nélkül' },
+      { url: 'https://nominatim.openstreetmap.org/search', note: 'Geocódolás — szabad, kulcs nélkül' },
+    ],
+    envVars: [],
+  },
+  {
+    id: 'satellite_refresh', label: 'Műhold NDVI frissítés', description: 'Sentinel-2 NDVI minden épületre, 7 napos cache',
+    endpoints: [
+      { url: 'https://earth-search.aws.element84.com/v1/search', note: 'Element84 STAC (Sentinel-2) — szabad, kulcs nélkül' },
+      { url: 'https://titiler.xyz/cog/point/{lon},{lat}', note: 'Titiler COG pixel lekérdezés — szabad, kulcs nélkül' },
+    ],
+    envVars: [],
+  },
+  {
+    id: 'urban_refresh', label: 'Kompakt & Élhetőség frissítés', description: 'OSM amenity + BKK transit minden épületre, 30 napos cache',
+    endpoints: [
+      { url: 'https://overpass-api.de/api/interpreter', note: 'OSM Overpass QL — szabad, kulcs nélkül' },
+      { url: 'https://nominatim.openstreetmap.org/search', note: 'Geocódolás — szabad, kulcs nélkül' },
+    ],
+    envVars: [],
+  },
 ];
 
 interface BkkRateLimits {
@@ -439,11 +480,36 @@ export default function SuperadminClient() {
             {JOBS.map(j => (
               <div key={j.id} className="rounded-xl border border-slate-200 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="font-bold text-slate-900">{j.label}</p>
                     <p className="text-xs text-slate-500">{j.description}</p>
+                    {/* API endpoints */}
+                    {j.endpoints && j.endpoints.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {j.endpoints.map(ep => (
+                          <span key={ep.url} title={ep.note} className="inline-flex max-w-full items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] text-slate-600">
+                            <span className="shrink-0 text-slate-400">🌐</span>
+                            <span className="truncate">{ep.url}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {/* Env var requirements */}
+                    {j.envVars !== undefined && (
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {j.envVars.length === 0 ? (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-600">
+                            ✓ Nincs API kulcs szükséges
+                          </span>
+                        ) : j.envVars.map(v => (
+                          <span key={v} className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 font-mono text-[10px] font-bold text-amber-700">
+                            🔑 {v}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <button onClick={() => runJob(j.id)} disabled={running === j.id} className="btn-primary px-4 py-2 text-sm">
+                  <button onClick={() => runJob(j.id)} disabled={running === j.id} className="btn-primary shrink-0 px-4 py-2 text-sm">
                     {running === j.id ? 'Fut...' : 'Azonnali indítás'}
                   </button>
                 </div>
