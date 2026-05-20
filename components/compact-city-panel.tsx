@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import type { CompactCityData } from '@/app/api/environment/urban/route';
+import CompactCityMap from '@/components/compact-city-map';
 
 // ─── Score gauge (horizontal bar with value) ──────────────────────────────────
 function ScoreBar({ label, value, color }: { label: string; value: number; color: string }) {
@@ -50,9 +52,25 @@ function scoreLabel(s: number) {
   return 'Autó-függő';
 }
 
-interface Props { data: CompactCityData | null; loading: boolean }
+type ViewMode = 'stats' | 'map';
 
-export default function CompactCityPanel({ data, loading }: Props) {
+interface Props {
+  data:           CompactCityData | null;
+  loading:        boolean;
+  buildingLat?:   number;
+  buildingLon?:   number;
+  /** When the user opens the map view but the data came from cache (no POIs),
+   *  the panel calls this so the parent can re-fetch with `?withPois=1`. */
+  onRequestLivePois?: () => void;
+  /** True while the parent's live re-fetch is in flight. */
+  loadingPois?:   boolean;
+}
+
+export default function CompactCityPanel({
+  data, loading, buildingLat, buildingLon, onRequestLivePois, loadingPois,
+}: Props) {
+  const [view, setView] = useState<ViewMode>('stats');
+
   if (loading) {
     return (
       <div className="space-y-4 animate-pulse">
@@ -64,9 +82,78 @@ export default function CompactCityPanel({ data, loading }: Props) {
   if (!data) return <p className="text-center py-8 text-[11px] text-slate-600">Overpass API nem elérhető</p>;
 
   const mainColor = scoreColor(data.score15min);
+  const hasPois   = Array.isArray(data.pois) && data.pois.length > 0;
+  const canShowMap = buildingLat !== undefined && buildingLon !== undefined;
+
+  // ── Toggle bar (same visual style as satellite-ndvi-panel) ───────────────
+  const ToggleBar = (
+    <div className="inline-flex rounded-2xl border border-white/[0.08] bg-white/[0.02] p-1">
+      <button
+        type="button"
+        onClick={() => setView('stats')}
+        className={`rounded-xl px-4 py-2 text-[11px] font-bold transition-colors ${
+          view === 'stats' ? 'bg-orange-500/20 text-orange-300' : 'text-slate-400 hover:text-slate-200'
+        }`}
+      >
+        📊 Statisztika
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setView('map');
+          if (!hasPois && onRequestLivePois) onRequestLivePois();
+        }}
+        disabled={!canShowMap}
+        className={`rounded-xl px-4 py-2 text-[11px] font-bold transition-colors ${
+          view === 'map' ? 'bg-orange-500/20 text-orange-300' : 'text-slate-400 hover:text-slate-200'
+        } ${!canShowMap ? 'opacity-40 cursor-not-allowed' : ''}`}
+      >
+        🗺️ Térkép
+      </button>
+    </div>
+  );
+
+  // ── Map view ─────────────────────────────────────────────────────────────
+  if (view === 'map') {
+    return (
+      <div className="space-y-5">
+        {ToggleBar}
+        {!canShowMap ? (
+          <p className="text-center py-8 text-[11px] text-slate-600">
+            Térkép nem elérhető (épület koordináta hiányzik).
+          </p>
+        ) : loadingPois ? (
+          <div className="flex flex-col items-center gap-2 py-12">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-orange-500/30 border-t-orange-500" />
+            <p className="text-[11px] text-slate-600">POI-k lekérdezése az OpenStreetMap-ből…</p>
+          </div>
+        ) : !hasPois ? (
+          <div className="flex flex-col items-center gap-3 py-12">
+            <p className="text-[11px] text-slate-500">A jelenlegi adatcsomag (cache) nem tartalmazza a POI listát.</p>
+            {onRequestLivePois && (
+              <button
+                type="button"
+                onClick={onRequestLivePois}
+                className="rounded-xl border border-white/[0.1] px-4 py-2 text-[10px] font-bold text-slate-300 hover:bg-white/[0.05] transition-colors"
+              >
+                Live POI-k lekérése
+              </button>
+            )}
+          </div>
+        ) : (
+          <CompactCityMap
+            buildingLat={buildingLat as number}
+            buildingLon={buildingLon as number}
+            pois={data.pois ?? []}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
+      {ToggleBar}
       {/* Hero row */}
       <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
         <div className="flex flex-col items-center gap-1">

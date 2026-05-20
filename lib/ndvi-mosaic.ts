@@ -161,3 +161,123 @@ export async function downscalePng(masterPng: Buffer, targetWidth: number, targe
     .png({ compressionLevel: 9 })
     .toBuffer();
 }
+
+// ─── Tiled render (for very large outputs > GIBS single-call limit) ──────────
+//
+// NASA GIBS WMS has a practical single-request size limit around 8192 px.
+// To build a higher-resolution mosaic we slice the Hungary bbox into a
+// regular tileMax × tileMax grid (with the right-most / bottom-most tiles
+// possibly smaller), fetch each tile via WMS GetMap with its own bbox, and
+// composite them together with sharp.  All tiles use a single TIME value
+// (the one resolved from the first successful slot lookup) so the mosaic
+// is visually consistent.
+
+export interface TiledRenderOpts {
+  width:    number;     // desired output width  in px
+  height:   number;     // desired output height in px
+  /** Max single WMS GetMap call dimensions. NASA GIBS practical limit ~8192. */
+  tileMax?: number;     // default 4096 (safe under GIBS limits, faster per-tile)
+}
+
+/**
+ * Render NDVI for Hungary at an arbitrarily large pixel size by stitching
+ * multiple GIBS WMS GetMap tiles together with sharp.composite.  Picks the
+ * TIME slot via the same lookup as `renderHungaryNdvi` (using a small probe
+ * call), then fetches every tile at that TIME and mosaics them.
+ */
+export async function renderHungaryNdviTiled(opts: TiledRenderOpts): Promise<GibsRenderResult> {
+  const tileMax = Math.max(256, Math.min(8192, opts.tileMax ?? 4096));
+  const W = opts.width;
+  const H = opts.height;
+
+  // 1. Resolve a single (layer, time, windowEnd) by probing with a small render.
+  //    This reuses the slot-cycling/fallback logic in renderHungaryNdvi.
+  const probe = await renderHungaryNdvi({ width: 64, height: 32 });
+  const layer     = probe.layer;
+  const time      = probe.time;
+  const windowEnd = probe.windowEnd;
+
+  // 2. Compute the tile grid.
+  const cols = Math.ceil(W / tileMax);
+  const rows = Math.ceil(H / tileMax);
+
+  // Pixel-space slicing — each tile owns its pixel offsets and size.  We then
+  // map those pixel offsets into bbox-space via lat/lon linear interpolation
+  // across the Hungary bbox.  HU_BBOX = [lonMin, latMin, lonMax, latMax].
+  const lonMin = HU_BBOX[0], latMin = HU_BBOX[1], lonMax = HU_BBOX[2], latMax = HU_BBOX[3];
+  const lonSpan = lonMax - lonMin;
+  const latSpan = latMax - latMin;
+
+  // 3. Fetch every tile.
+  type TilePart = { input: Buffer; left: number; top: number };
+  const parts: TilePart[] = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const xStart = col * tileMax;
+      const yStart = row * tileMax;
+      const tileW  = Math.min(tileMax, W - xStart);
+      const tileH  = Math.min(tileMax, H - yStart);
+
+      // bbox for this tile (note: image y=0 is the NORTH edge, so latMax at top).
+      const tLonMin = lonMin + (xStart           / W) * lonSpan;
+      const tLonMax = lonMin + ((xStart + tileW) / W) * lonSpan;
+      const tLatMax = latMax - (yStart           / H) * latSpan;
+      const tLatMin = latMax - ((yStart + tileH) / H) * latSpan;
+
+      const params = new URLSearchParams({
+        SERVICE:     'WMS',
+        REQUEST:     'GetMap',
+        VERSION:     '1.3.0',
+        LAYERS:      layer,
+        STYLES:      '',
+        CRS:         'EPSG:4326',
+        // WMS 1.3.0 + EPSG:4326 → "minLat,minLon,maxLat,maxLon"
+        BBOX:        `${tLatMin},${tLonMin},${tLatMax},${tLonMax}`,
+        WIDTH:       String(tileW),
+        HEIGHT:      String(tileH),
+        FORMAT:      'image/png',
+        TRANSPARENT: 'TRUE',
+        TIME:        time,
+      });
+      const url = `${GIBS_WMS_URL}?${params.toString()}`;
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'panellako-ndvi-mosaic/1.0 (info@panellako.hu)', 'Accept': 'image/png' },
+        signal:  AbortSignal.timeout(120_000),
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`GIBS tile HTTP ${res.status} @ row=${row} col=${col}: ${txt.slice(0, 200)}`);
+      }
+      const ct = res.headers.get('content-type') ?? '';
+      if (!ct.startsWith('image/')) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`GIBS tile non-image (ct=${ct}) @ row=${row} col=${col}: ${txt.slice(0, 300)}`);
+      }
+      const buf = Buffer.from(await res.arrayBuffer());
+      parts.push({ input: buf, left: xStart, top: yStart });
+    }
+  }
+
+  // 4. Composite onto a blank transparent canvas of the target size.
+  const canvas = sharp({
+    create: {
+      width:      W,
+      height:     H,
+      channels:   4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
+  });
+  const mosaic = await canvas
+    .composite(parts)
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+
+  return {
+    png:       mosaic,
+    width:     W,
+    height:    H,
+    layer,
+    time,
+    windowEnd,
+  };
+}

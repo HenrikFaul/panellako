@@ -16,6 +16,21 @@ export interface AmenityDetail {
   icon:      string;
 }
 
+// ─── POI export (used by map view) ────────────────────────────────────────────
+// NOTE: AmenityCategory is declared further down (`type AmenityCategory = ...`).
+// We re-export it as a type below so the panel/map components can `import type`.
+export interface CompactCityPoi {
+  osmId:      number;
+  osmType:    'node' | 'way' | 'relation';
+  category:   AmenityCategory;
+  label:      string;
+  name:       string | null;
+  lat:        number;
+  lon:        number;
+  distM:      number;
+  tags:       Record<string, string>;
+}
+
 export interface CompactCityData {
   walkabilityScore:    number;
   transitScore:        number;
@@ -28,6 +43,7 @@ export interface CompactCityData {
   transitStops500m:    number;
   source:              'cache' | 'overpass' | 'stale-cache' | 'unavailable';
   computedAt:          string;
+  pois?:               CompactCityPoi[];
 }
 
 export interface LiveabilityDimension {
@@ -74,6 +90,7 @@ function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): num
 
 interface OsmElement {
   type: 'node' | 'way' | 'relation';
+  id?:  number;
   lat?: number;
   lon?: number;
   center?: { lat: number; lon: number };
@@ -90,7 +107,7 @@ function elemCoords(el: OsmElement): { lat: number; lon: number } | null {
 
 // ─── Amenity classification ───────────────────────────────────────────────────
 
-type AmenityCategory =
+export type AmenityCategory =
   | 'supermarket' | 'pharmacy' | 'bakery' | 'daily'
   | 'school' | 'education'
   | 'hospital' | 'healthcare'
@@ -178,7 +195,35 @@ out center qt;`;
 
 // ─── Score computation ────────────────────────────────────────────────────────
 
-interface AmenityRecord { cat: AmenityCategory; distM: number; name: string }
+interface AmenityRecord {
+  cat: AmenityCategory;
+  distM: number;
+  name: string;
+  osmId: number;
+  osmType: 'node' | 'way' | 'relation';
+  lat: number;
+  lon: number;
+  tags: Record<string, string>;
+}
+
+// Hungarian category labels — also exposed via CompactCityPoi.label
+const CATEGORY_LABELS: Record<AmenityCategory, string> = {
+  supermarket: 'Élelmiszer',
+  pharmacy:    'Gyógyszertár',
+  bakery:      'Pékség / kisbolt',
+  daily:       'Napi cikkek',
+  school:      'Iskola / óvoda',
+  education:   'Oktatás',
+  hospital:    'Kórház / rendelő',
+  healthcare:  'Egészségügy',
+  restaurant:  'Étterem',
+  cafe:        'Kávézó / bár',
+  food:        'Vendéglátás',
+  culture:     'Kultúra',
+  sport:       'Sport',
+  safety:      'Biztonság',
+  services:    'Szolgáltatás',
+};
 
 function computeScores(
   elements: OsmElement[],
@@ -192,7 +237,16 @@ function computeScores(
     const cat = classifyElement(el.tags);
     if (!cat) continue;
     const distM = haversineM(lat, lon, coords.lat, coords.lon);
-    records.push({ cat, distM, name: el.tags.name ?? '' });
+    records.push({
+      cat,
+      distM,
+      name: el.tags.name ?? '',
+      osmId: el.id ?? 0,
+      osmType: el.type,
+      lat: coords.lat,
+      lon: coords.lon,
+      tags: el.tags,
+    });
   }
 
   // --- Walkability (Walk Score–inspired decay) --------------------------------
@@ -291,6 +345,23 @@ function computeScores(
     + Math.min(20, transitCount * 3),
   ));
 
+  // --- POI list for map view (max 300, closest first, ≤ 1500m) -------------
+  const pois: CompactCityPoi[] = records
+    .filter(r => r.distM <= 1500)
+    .sort((a, b) => a.distM - b.distM)
+    .slice(0, 300)
+    .map<CompactCityPoi>(r => ({
+      osmId:   r.osmId,
+      osmType: r.osmType,
+      category: r.cat,
+      label:   CATEGORY_LABELS[r.cat] ?? String(r.cat),
+      name:    r.name || null,
+      lat:     r.lat,
+      lon:     r.lon,
+      distM:   Math.round(r.distM),
+      tags:    r.tags,
+    }));
+
   return {
     walkabilityScore, transitScore, mixedUseScore, score15min,
     amenities,
@@ -303,8 +374,10 @@ function computeScores(
     totalEd:     countOf(['school','education']),
     totalFood2:  countOf(['restaurant','cafe','food']),
     totalCulture:countOf(['culture']),
+    pois,
   };
 }
+
 
 function liveabilityLabel(score: number): { label: string; color: string } {
   if (score >= 80) return { label: 'Kiváló lakókörnyezet',  color: '#22c55e' };
@@ -320,6 +393,9 @@ export async function GET(request: NextRequest) {
   const lat        = parseFloat(searchParams.get('lat') ?? '47.4979');
   const lon        = parseFloat(searchParams.get('lon') ?? '19.0402');
   const buildingId = searchParams.get('buildingId') ?? null;
+  // ?withPois=1 forces a live Overpass query (cache bypass) so the response
+  // includes the `pois` array required by the map view.
+  const withPois   = searchParams.get('withPois') === '1';
 
   if (Number.isNaN(lat) || Number.isNaN(lon)) {
     return NextResponse.json({ error: 'Invalid coords' }, { status: 400 });
@@ -327,8 +403,8 @@ export async function GET(request: NextRequest) {
 
   const supabase = buildingId ? supabaseClient() : null;
 
-  // ── 1. Check DB cache (30-day TTL) ─────────────────────────────────────────
-  if (supabase && buildingId) {
+  // ── 1. Check DB cache (30-day TTL) — skipped when withPois=1 ──────────────
+  if (!withPois && supabase && buildingId) {
     const [{ data: cc }, { data: lc }] = await Promise.all([
       supabase
         .from('building_compact_city_cache')
@@ -531,6 +607,7 @@ export async function GET(request: NextRequest) {
       transitStops500m:    transitCount,
       source:              'overpass',
       computedAt:          now,
+      pois:                s.pois,
     },
     liveability: {
       totalScore:  lvTotal,

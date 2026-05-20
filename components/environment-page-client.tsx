@@ -303,21 +303,32 @@ export default function EnvironmentPageClient({
   }, [doSatellite]);
 
   // Lazy: urban (compact city + liveability — shared Overpass query)
-  const doUrban = useCallback(() => {
-    setLoadingUrban(true); setErrorUrban(false);
-    fetch(`/api/environment/urban?buildingId=${buildingId}&lat=${lat}&lon=${lon}`)
+  // When the panel switches to map view and the cached payload has no POI list,
+  // we re-fetch with `?withPois=1` (bypasses cache) so the map can render.
+  const [loadingPois, setLoadingPois] = useState(false);
+  const doUrban = useCallback((withPois = false) => {
+    if (withPois) setLoadingPois(true);
+    else          { setLoadingUrban(true); setErrorUrban(false); }
+    const qs = `buildingId=${buildingId}&lat=${lat}&lon=${lon}${withPois ? '&withPois=1' : ''}`;
+    fetch(`/api/environment/urban?${qs}`)
       .then(r => {
-        if (!r.ok) { setErrorUrban(true); setLoadingUrban(false); return; }
+        if (!r.ok) {
+          if (!withPois) setErrorUrban(true);
+          return null;
+        }
         return r.json();
       })
       .then(d => {
         if (!d) return;
-        if ((d as { error?: string }).error) setErrorUrban(true);
+        if ((d as { error?: string }).error) { if (!withPois) setErrorUrban(true); }
         else if ((d as UrbanData).compactCity && (d as UrbanData).liveability) setUrban(d as UrbanData);
-        else setErrorUrban(true);
+        else if (!withPois) setErrorUrban(true);
       })
-      .catch(() => setErrorUrban(true))
-      .finally(() => setLoadingUrban(false));
+      .catch(() => { if (!withPois) setErrorUrban(true); })
+      .finally(() => {
+        if (withPois) setLoadingPois(false);
+        else          setLoadingUrban(false);
+      });
   }, [buildingId, lat, lon]);
 
   useEffect(() => {
@@ -879,7 +890,14 @@ export default function EnvironmentPageClient({
                   </button>
                 </div>
               ) : (
-                <CompactCityPanel data={urban?.compactCity ?? null} loading={false} />
+                <CompactCityPanel
+                  data={urban?.compactCity ?? null}
+                  loading={false}
+                  buildingLat={lat}
+                  buildingLon={lon}
+                  onRequestLivePois={() => doUrban(true)}
+                  loadingPois={loadingPois}
+                />
               )}
             </div>
           </Section>

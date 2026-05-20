@@ -73,10 +73,39 @@ const JOBS: Job[] = [
     envVars: [],
   },
   {
-    id: 'ndvi_hungary_render', label: 'NDVI Magyarország render', description: 'MODIS Terra/Aqua 8-Day NDVI Magyarország bbox-re, 4 felbontásban (1024×430 → 8192×3440 px). 100% ingyenes — NASA GIBS WMS (kulcs nélkül). Felhasználó-oldalon toggle barral váltható a panelen.',
+    id: 'ndvi_hungary_render', label: 'NDVI Magyarország render', description: 'MODIS Terra/Aqua 8-Day NDVI Magyarország bbox-re, 5 felbontásban (1024×430 → 16384×6880 Brutális tiled mozaik px). 100% ingyenes — NASA GIBS WMS (kulcs nélkül). Felhasználó-oldalon toggle barral váltható a panelen.',
     endpoints: [
       { url: 'https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi', note: 'NASA GIBS WMS — MODIS Terra/Aqua 8-Day NDVI rétegek, EOSDIS-CDN-en, kulcs nélkül' },
     ],
+    envVars: [],
+  },
+  // ── Cycling data sources (v0.7.8) ───────────────────────────────────────
+  {
+    id: 'cycling_bkk_gbfs_status',
+    label: 'Cycling · BKK Bubi GBFS station_status',
+    description: 'MOL Bubi állomások aktuális kerékpár/dokkoló státusza percenként → gbfs.station_status (partíciós havi tábla)',
+    endpoints: [{ url: 'https://gbfs.bubi.bkk.hu/gbfs/v3/station_status.json', note: 'BKK GBFS v3 — szabad, kulcs nélkül' }],
+    envVars: [],
+  },
+  {
+    id: 'cycling_bkk_gbfs_info',
+    label: 'Cycling · BKK Bubi GBFS station_information',
+    description: 'MOL Bubi állomások meta (név, lat, lon, capacity) → gbfs.station_information',
+    endpoints: [{ url: 'https://gbfs.bubi.bkk.hu/gbfs/v3/station_information.json', note: 'BKK GBFS v3' }],
+    envVars: [],
+  },
+  {
+    id: 'cycling_waymarked_trails',
+    label: 'Cycling · Waymarked Trails Magyarország',
+    description: 'EuroVelo + nemzeti/regionális/lokális kerékpárrelációk OSM-derived REST API-ról → cycling.route (1 req/sec rate-limit, várhatóan ~50-200 reláció)',
+    endpoints: [{ url: 'https://cycling.waymarkedtrails.org/api/v1/list/by_area', note: 'Waymarked Trails REST — szabad, kulcs nélkül' }],
+    envVars: [],
+  },
+  {
+    id: 'cycling_kenyi_import',
+    label: 'Cycling · Magyar Közút KENYI (placeholder)',
+    description: 'KENYI állami kerékpárút-nyilvántartás — FOIA-snapshot manuális XLSX upload-ra vár (még nincs UI)',
+    endpoints: [{ url: 'manual', note: 'kormany.hu PDF + Infotv. 28. § adatigénylés Magyar Közút Nzrt.-től' }],
     envVars: [],
   },
 ];
