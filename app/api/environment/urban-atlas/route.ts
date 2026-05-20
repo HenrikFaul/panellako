@@ -49,7 +49,7 @@ interface UAFeature {
   };
 }
 
-export async function fetchUrbanAtlas(lat: number, lon: number): Promise<UrbanAtlasData> {
+async function fetchUrbanAtlas(lat: number, lon: number): Promise<UrbanAtlasData> {
   // ~500m radius bbox
   const BBOX_LAT = 0.0045;
   const bboxLon  = BBOX_LAT / Math.cos(lat * Math.PI / 180);
