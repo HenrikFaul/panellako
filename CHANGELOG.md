@@ -1,4 +1,24 @@
 
+## 2026-05-20 — v0.7.17 OSM custom map style spec (≥31k karakter, 4 téma, 30 layer-blokk, z0–z20 szabályok)
+
+## 2026-05-20 — v0.7.16 AI-stack-optimalizációs audit (3 cost-tier, ≈8–15k karakteres jelentés)
+
+### Added
+- **`stack_audits/panellako_ai_stack_optimization_audit.md`** — új, önálló audit-jelentés a teljes panellako stack-re, **3 cost-tier szerkezetben** (Tier 1 ≈7 €/hó, Tier 2 ≈99 €/hó, Tier 3 ≈248 €/hó). A jelentés 10 réteget vizsgál (Frontend / Backend / Data / CI/CD / AI / Event-driven / Observability / Security / Data-integrity / Edge-WASM) és minden rétegre tier-szinten ad konkrét vendor-választást, EUR-számot és repo-specifikus érvelést. A "Belül 7+ iterációs" finomítás során azonosított extra technológiák: **pgmq+pg_cron+pg_net** mint Kafka-helyettesítő (már enabled a repo-ban), **OpenTelemetry+Grafana Cloud** (free tier), **Sentry Dev**, **Cloudflare R2 zero-egress** a NDVI master tier-hez, **Cloudflare Worker + WASM sharp** a NDVI Lanczos3 upscale off-loading-jához, **Inngest/Trigger.dev** opcionális (de a tanulmány javaslata szerint **nem szükséges** mert a pgmq elég), **Snyk Code**, **gitleaks pre-commit**, **Semgrep CE**, **Trivy lockfile-scan**, **Renovate Bot**, **Chromatic visual diff**, **PostHog free**, **Neon read-replica branching**.
+- **`stack_audits/`** mappa létrehozva (eddig nem létezett).
+- **`versioning/200526_28_v0.7.16_stack_audit.md`** — engineering record.
+- **`marketing/marketing_values/20260521_v0.7.16_stack_audit_marketing_value.md`** — marketing record.
+
+### Changed
+- Semmilyen alkalmazás-kód (route.ts, components/*, lib/*, supabase/* stb.) **NEM** módosult — ez tisztán auditing-task volt, nem development-task. A repo viselkedése, build-output, deploy-target változatlan.
+
+### Notes
+- A jelentés repo-specifikus erősségeket aknáz ki: a meglévő `pgmq + pg_cron + pg_net` Supabase-extension-mátrixot (Kafka helyett 0 €), a `SHA-256 snapshot hash` mintát a cycling-data spec-ből (idempotens upsertek), a 25-source `cycling-data-sources/*.md` few-shot library-t (AI-asszisztált adapter-generálás ~25 € one-off), a `crazy_innovations/system.md` 5-iteration kreativitás-protokollt (v0.7.15 hero ennek köszönhető), a `full-stack-e2e-prompt-ecosystem/end_to_end_full_stack_verification.prompt`-ot (free CI gate Sonnet API-n keresztül), és a Stripe + `tenant_subscriptions.tier_id` + `superadmin_change_workspace_tier` RPC párost (AI-feature-ek tier-gating-jéhez kész billing-rail).
+- 10 hidden-risk megfogalmazva (Nominatim ToS, sharp cold start, zero CI test gate, superadmin single-secret, `platform_job_logs` unbounded, service-role-leak audit grep, Cloudflare in front of Vercel, NDVI 100 MB lambda-ceiling, in-memory cache cold-start evaporation, no off-site WAL archive).
+- A jelentés **NEM tartalmazza** az "internal 7+ iteration story"-t (a spec szerint a iterációk eredménye, nem a folyamat kerül a outputba), de a végeredmény minden rétegen tükrözi: 1) raw draft → 2) Kafka/WASM extra → 3) cost-tier balancing → 4) hiányzó observability+security+test rétegek → 5) AI-strategy per tier → 6) hidden-risk walkthrough → 7) 90-day execution roadmap.
+- **Cost-tier vég-összegek**: Tier 1 = **7 €/hó (≈84 €/év)**, Tier 2 = **99 €/hó (≈1 188 €/év)**, Tier 3 = **248 €/hó (≈2 976 €/év)**. Tier 3 / Tier 2 = +150%.
+- **Nem érintett**: dashboard hero, address-autocomplete, Budapest-transit, satellite/NDVI, superadmin, cycling-jobs, environment-page — minden korábbi modul változatlan.
+
 ## 2026-05-20 — v0.7.15 Dashboard hero — napszak- és évszak-aware animált jelenet
 
 ### Added
