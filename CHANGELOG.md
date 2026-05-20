@@ -1,4 +1,32 @@
 
+## 2026-05-20 — v0.7.4 NDVI render NASA GIBS-re + diagnosztika UI kontraszt fix
+
+### Fixed
+- **`lib/ndvi-mosaic.ts` + `app/api/superadmin/jobs/run/route.ts`**: a v0.7.3-ban bevezetett **Earth Search STAC + titiler.xyz** alapú pipeline 100%-ban elhasalt élesben (`"All 28 scene renders failed: fetch failed"` minden MGRS tile-ra). A `titiler.xyz` `/stac/preview` endpoint nem érhető el Vercel egress-ből (a `/cog/point/` igen, ami a meglévő `satellite_refresh` job-ban működik — de a STAC-mód láthatóan nincs deployolva titiler.xyz-en, vagy URL-séma másképp van). Lecserélve **NASA GIBS WMS**-re: egyetlen HTTP GET = teljes Magyarország NDVI PNG, semmilyen mozaikolás nem kell, semmilyen API kulcs nem kell.
+  - Forrás: `MODIS_Terra_NDVI_8Day` (primer) + `MODIS_Aqua_NDVI_8Day` (fallback), 250 m natív felbontás, 8 napos rolling composite, naponta frissül
+  - Endpoint: `https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi` (NASA EOSDIS, AWS CloudFront-CDN-en, ingyenes, kulcs nélkül, rate-limit-mentes normál használatra)
+  - 8 napos slot-kereső: a job kipróbálja a legfrissebb 8-napos composite-ot, majd 4 héten visszafelé, ha valamelyik nem ad ki adatot (`< 1 KB payload` = NASA "no data" placeholder → következő próbálkozás)
+  - Trade-off: 250 m forrás-felbontás (Sentinel-2 10 m helyett) — egy Magyarország-overview-hez ez teljesen elég, és a workflow nem igényel mozaikolást és cross-UTM reprojection-t (ami sharp/proj4-rel kezelhetetlen lenne Vercel-en)
+- **`components/superadmin-diagnostics.tsx`** teljes UI rewrite: a v0.6.8-ban bevezetett dark-theme színek (`bg-white/[0.02]`, `text-slate-400` stb.) **láthatatlanok** voltak a `/superadmin` light-theme alapon (`bg-slate-100`/`bg-white`). Minden szín lecserélve a többi superadmin szekció paletta-stílusára:
+  - Szekció: `bg-white` + `border-slate-200` + `shadow-sm` (a többi card-dal egyezően)
+  - Címek: `text-slate-900` / `text-slate-800`
+  - Body: `text-slate-700`; secondary: `text-slate-500`; tertiary: `text-slate-400`
+  - Form: `bg-white` border-elt szürke, `focus:ring-sky-500`
+  - Primary gombok: `bg-sky-600 text-white hover:bg-sky-700` (kontrasztos)
+  - Success gomb (Overpass batch): `bg-emerald-600 text-white hover:bg-emerald-700`
+  - Code/preformatted blokkok: **`bg-slate-900` + `text-slate-100`** (sötét háttér + világos szöveg = magas kontraszt a body / headers megjelenítésére)
+  - Status badge-ek: solid pasztell hátterek (rose-100/emerald-100/amber-100) + sötét szöveg = jól olvasható szín-kódolás
+- 2 új preset gomb a curl-runnerhez: `gibs-ndvi` (NASA GIBS MODIS NDVI próba-lekérés) és `earth-search` (Element84 STAC POST keresés Budapest pontra) — kifejezetten az új NDVI render-pipeline tesztelésére.
+
+### Removed
+- titiler.xyz STAC preview hívások (`renderSceneNdvi`, `buildHungaryMosaic`, `searchSentinel2Scenes`, `pickBestScenePerTile`, `MosaicSceneSelection`, `StacItem` lib-API-k) — élesben nem működtek, NASA GIBS váltja ki
+- A `cycling.source` style MGRS-tile per-scene compositing logic — egyetlen WMS hívás váltja ki
+
+### Notes
+- `sharp` dep megmarad: a master render (8192×3440) Lanczos3-mal downscale-elődik a 4 felbontásra ahelyett, hogy 4-szer hívnánk a GIBS-et (sávszélesség- és időtakarékos)
+- Felhasználói toggle bar + viewer komponens változatlan
+- Source-attribution mostantól a `ndvi_hungary_renders.source_provider = 'nasa-gibs-wms'` és `source_satellite = 'MODIS Terra/Aqua 8-Day NDVI'`
+
 ## 2026-05-20 — v0.7.3 NDVI Magyarország — Sentinel Hub helyett 100% ingyenes pipeline
 
 ### Changed (breaking)

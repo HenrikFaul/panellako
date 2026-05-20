@@ -3,9 +3,7 @@ import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
 import { createClient } from '@supabase/supabase-js';
 import {
   HU_BBOX,
-  searchSentinel2Scenes,
-  pickBestScenePerTile,
-  buildHungaryMosaic,
+  renderHungaryNdvi,
   downscalePng,
 } from '@/lib/ndvi-mosaic';
 
@@ -611,11 +609,10 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // ─── NDVI Hungary render (Earth Search STAC + titiler.xyz, 100% free) ─────
-  // No API keys.  Uses the same open-data workflow you used in your thesis:
-  // Sentinel-2 L2A scenes from AWS S3 (indexed by Earth Search), NDVI
-  // computed on-the-fly by titiler, then composited with sharp into a
-  // single Hungary mosaic at 4 progressive resolutions.
+  // ─── NDVI Hungary render (NASA GIBS WMS, 100% free, no API key) ───────────
+  // Single GIBS GetMap call per resolution renders the entire Hungary bbox
+  // as a ready-to-display NDVI PNG.  Source: MODIS Terra 8-day composite
+  // (250 m native, ~daily updates).  Aqua fallback if Terra is missing data.
   if (job === 'ndvi_hungary_render') {
     const logId = await logStart(job);
     const t0 = Date.now();
@@ -632,26 +629,16 @@ export async function POST(request: NextRequest) {
       { key: 'very_very_large',             label: 'Nagyon nagyon nagy',                  width: 4096, height: 1720 },
       { key: 'very_very_very_very_large',   label: 'Nagyon nagyon nagyon nagyon nagy',    width: 8192, height: 3440 },
     ];
-    // Master canvas = largest target; we downscale to all the smaller sizes.
+    // Render the master at the largest size, downscale to the smaller ones.
     const masterRes = RESOLUTIONS[RESOLUTIONS.length - 1];
-
-    // 60-day time window — gives every Hungarian MGRS tile a couple of
-    // revisits, so we can always find at least one near-cloud-free scene.
-    const now    = new Date();
-    const from   = new Date(now.getTime() - 60 * 24 * 3600_000);
-    const timeRangeFrom = from.toISOString();
-    const timeRangeTo   = now.toISOString();
-    const maxCloudCover = 30;
 
     const { data: runRow, error: runErr } = await supabase
       .from('ndvi_hungary_renders')
       .insert({
         status:           'running',
-        source_provider:  'earth-search-stac+titiler',
-        source_satellite: 'Sentinel-2 L2A',
-        acquisition_from: timeRangeFrom,
-        acquisition_to:   timeRangeTo,
-        cloud_cover_pct:  maxCloudCover,
+        source_provider:  'nasa-gibs-wms',
+        source_satellite: 'MODIS Terra/Aqua 8-Day NDVI',
+        cloud_cover_pct:  null,
         bbox:             HU_BBOX,
         triggered_by:     'superadmin',
       })
@@ -665,14 +652,12 @@ export async function POST(request: NextRequest) {
     const runId = runRow.run_id as string;
     const publicBase = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '').trim().replace(/\/$/, '');
 
-    // ── 1. Discover Sentinel-2 scenes covering Hungary ─────────────────────
-    let scenes;
+    // ── 1. Render the master NDVI PNG from GIBS ─────────────────────────────
+    let master;
     try {
-      const items = await searchSentinel2Scenes({ bbox: HU_BBOX, timeRangeFrom, timeRangeTo, maxCloudCover });
-      scenes = pickBestScenePerTile(items);
-      if (scenes.length === 0) throw new Error('STAC returned no scenes for the time window');
+      master = await renderHungaryNdvi({ width: masterRes.width, height: masterRes.height });
     } catch (err) {
-      const msg = `STAC search failed: ${err instanceof Error ? err.message : String(err)}`;
+      const msg = `GIBS render failed: ${err instanceof Error ? err.message : String(err)}`;
       await supabase.from('ndvi_hungary_renders').update({
         status: 'failure', finished_at: new Date().toISOString(),
         duration_ms: Date.now() - t0, error_message: msg,
@@ -681,29 +666,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, job, error: msg, runId }, { status: 502 });
     }
 
-    // ── 2. Render the master mosaic via titiler.xyz per scene + composite ──
-    let mosaicResult;
-    try {
-      mosaicResult = await buildHungaryMosaic(scenes, masterRes.width, masterRes.height, 2048);
-    } catch (err) {
-      const msg = `Mosaic build failed: ${err instanceof Error ? err.message : String(err)}`;
-      await supabase.from('ndvi_hungary_renders').update({
-        status: 'failure', finished_at: new Date().toISOString(),
-        duration_ms: Date.now() - t0, error_message: msg,
-      }).eq('run_id', runId);
-      await logEnd(logId, 'error', { error: msg });
-      return NextResponse.json({ ok: false, job, error: msg, runId }, { status: 502 });
-    }
-
-    // ── 3. Upload all 4 resolutions (downscaled from the master) ──────────
+    // ── 2. Upload all 4 resolutions (downscaled from the master) ──────────
     const renderedResolutions: Record<string, { width: number; height: number; storage_path: string; url: string; bytes: number; label: string }> = {};
     let totalBytes = 0;
     const uploadErrors: Array<{ key: string; error: string }> = [];
     for (const r of RESOLUTIONS) {
       try {
         const png = r.key === masterRes.key
-          ? mosaicResult.png
-          : await downscalePng(mosaicResult.png, r.width, r.height);
+          ? master.png
+          : await downscalePng(master.png, r.width, r.height);
         const storagePath = `${runId}/${r.key}.png`;
         const { error: upErr } = await supabase.storage.from('ndvi-maps').upload(
           storagePath,
@@ -726,13 +697,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const sceneIds = mosaicResult.scenes.map(s => s.scene.id);
     const ok = uploadErrors.length === 0 && Object.keys(renderedResolutions).length === RESOLUTIONS.length;
     const finalStatus = ok
       ? 'success'
       : (Object.keys(renderedResolutions).length > 0 ? 'partial' : 'failure');
     const duration_ms = Date.now() - t0;
-    const combinedErrors = [...mosaicResult.errors, ...uploadErrors];
+    // GIBS reports the composite by its START date.  The acquisition window
+    // ends 7 days later.  Display "windowEnd" as the user-facing date.
+    const acquisitionLatest = new Date(`${master.windowEnd}T00:00:00Z`).toISOString();
+    const acquisitionFrom   = new Date(`${master.time}T00:00:00Z`).toISOString();
 
     await supabase
       .from('ndvi_hungary_renders')
@@ -742,10 +715,11 @@ export async function POST(request: NextRequest) {
         duration_ms,
         resolutions:        renderedResolutions,
         total_bytes:        totalBytes,
-        acquisition_latest: mosaicResult.latestSensingTime,
-        source_scene_ids:   sceneIds,
-        cloud_cover_pct:    mosaicResult.cloudCoverMax || maxCloudCover,
-        error_message:      combinedErrors.length > 0 ? JSON.stringify(combinedErrors).slice(0, 4000) : null,
+        acquisition_from:   acquisitionFrom,
+        acquisition_to:     acquisitionLatest,
+        acquisition_latest: acquisitionLatest,
+        source_scene_ids:   [`${master.layer}:${master.time}`],
+        error_message:      uploadErrors.length > 0 ? JSON.stringify(uploadErrors).slice(0, 4000) : null,
       })
       .eq('run_id', runId);
 
@@ -753,14 +727,18 @@ export async function POST(request: NextRequest) {
       runId,
       status:     finalStatus,
       duration_ms,
-      scenesUsed: mosaicResult.scenes.length,
+      source: {
+        provider:  'NASA GIBS WMS',
+        layer:     master.layer,
+        timeStart: master.time,
+        timeEnd:   master.windowEnd,
+      },
       resolutions: Object.fromEntries(
         Object.entries(renderedResolutions).map(([k, v]) => [k, { width: v.width, height: v.height, url: v.url, bytes: v.bytes }]),
       ),
-      acquisitionLatest: mosaicResult.latestSensingTime,
-      cloudCoverMax:     mosaicResult.cloudCoverMax,
+      acquisitionLatest,
       totalBytes,
-      errors:            combinedErrors,
+      errors:    uploadErrors,
     };
     await logEnd(logId, ok ? 'ok' : (Object.keys(renderedResolutions).length > 0 ? 'partial' : 'error'), result);
     return NextResponse.json({ ok, job, result, ranAt: new Date().toISOString() }, { status: ok ? 200 : (Object.keys(renderedResolutions).length === 0 ? 500 : 207) });

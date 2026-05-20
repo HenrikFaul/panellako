@@ -73,11 +73,9 @@ const JOBS: Job[] = [
     envVars: [],
   },
   {
-    id: 'ndvi_hungary_render', label: 'NDVI Magyarország render', description: 'Sentinel-2 L2A NDVI mozaik Magyarország bbox-re, 4 felbontásban (1024×430 → 8192×3440 px). 100% ingyenes — Earth Search STAC + titiler.xyz (kulcs nélkül). Felhasználó-oldalon toggle barral váltható a panelen.',
+    id: 'ndvi_hungary_render', label: 'NDVI Magyarország render', description: 'MODIS Terra/Aqua 8-Day NDVI Magyarország bbox-re, 4 felbontásban (1024×430 → 8192×3440 px). 100% ingyenes — NASA GIBS WMS (kulcs nélkül). Felhasználó-oldalon toggle barral váltható a panelen.',
     endpoints: [
-      { url: 'https://earth-search.aws.element84.com/v1/search',            note: 'Earth Search STAC (Element84) — Sentinel-2 L2A index AWS S3-on, kulcs nélkül' },
-      { url: 'https://titiler.xyz/stac/preview.png',                        note: 'titiler.xyz STAC preview — NDVI expression + colormap szervert oldalon, kulcs nélkül' },
-      { url: 'https://cog.titiler.eoapi.dev/stac/preview.png',              note: 'titiler eoapi.dev mirror — failover ha titiler.xyz nem válaszol' },
+      { url: 'https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi', note: 'NASA GIBS WMS — MODIS Terra/Aqua 8-Day NDVI rétegek, EOSDIS-CDN-en, kulcs nélkül' },
     ],
     envVars: [],
   },
