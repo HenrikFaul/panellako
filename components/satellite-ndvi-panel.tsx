@@ -1,6 +1,9 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import type { SatelliteData } from '@/app/api/environment/satellite/route';
+import type { NdviHungaryRender } from '@/app/api/environment/ndvi-hungary/route';
+import NdviHungaryViewer from '@/components/ndvi-hungary-viewer';
 
 // ─── Budapest seasonal NDVI reference (monthly averages) ─────────────────────
 const SEASONAL_NDVI = [
@@ -31,7 +34,34 @@ interface Props {
   loading: boolean;
 }
 
+type ViewMode = 'building' | 'hungary';
+
 export default function SatelliteNdviPanel({ data, loading }: Props) {
+  const [view, setView] = useState<ViewMode>('building');
+  const [huData, setHuData] = useState<NdviHungaryRender | null>(null);
+  const [huLoading, setHuLoading] = useState(false);
+  const [huError, setHuError] = useState<string | null>(null);
+  const huLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (view !== 'hungary' || huLoadedRef.current) return;
+    huLoadedRef.current = true;
+    setHuLoading(true);
+    setHuError(null);
+    fetch('/api/environment/ndvi-hungary')
+      .then(async r => {
+        if (!r.ok) {
+          const j = (await r.json().catch(() => ({}))) as { error?: string };
+          setHuError(j.error ?? `HTTP ${r.status}`);
+          return null;
+        }
+        return r.json() as Promise<NdviHungaryRender>;
+      })
+      .then(d => { if (d) setHuData(d); })
+      .catch(e => setHuError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setHuLoading(false));
+  }, [view]);
+
   const colW = (SVG_W - PAD_L - PAD_R) / 12;
   const curMonth = new Date().getMonth() + 1;
   const sceneMonth = data?.sceneDate ? new Date(data.sceneDate).getMonth() + 1 : curMonth;
@@ -71,8 +101,46 @@ export default function SatelliteNdviPanel({ data, loading }: Props) {
     );
   }
 
+  // ── Toggle bar between "épület közeli" and "Magyarország" nézet ──────────
+  const ToggleBar = (
+    <div className="inline-flex rounded-2xl border border-white/[0.08] bg-white/[0.02] p-1">
+      <button
+        type="button"
+        onClick={() => setView('building')}
+        className={`rounded-xl px-4 py-2 text-[11px] font-bold transition-colors ${
+          view === 'building'
+            ? 'bg-emerald-500/20 text-emerald-300'
+            : 'text-slate-400 hover:text-slate-200'
+        }`}
+      >
+        🏠 Épület közeli NDVI
+      </button>
+      <button
+        type="button"
+        onClick={() => setView('hungary')}
+        className={`rounded-xl px-4 py-2 text-[11px] font-bold transition-colors ${
+          view === 'hungary'
+            ? 'bg-emerald-500/20 text-emerald-300'
+            : 'text-slate-400 hover:text-slate-200'
+        }`}
+      >
+        🇭🇺 Magyarország NDVI
+      </button>
+    </div>
+  );
+
+  if (view === 'hungary') {
+    return (
+      <div className="space-y-5">
+        {ToggleBar}
+        <NdviHungaryViewer data={huData} loading={huLoading} error={huError} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
+      {ToggleBar}
       {/* NDVI value + classification */}
       <div className="grid gap-3 sm:grid-cols-3">
         {/* Big number */}

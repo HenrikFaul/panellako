@@ -72,6 +72,15 @@ const JOBS: Job[] = [
     ],
     envVars: [],
   },
+  {
+    id: 'ndvi_hungary_render', label: 'NDVI Magyarország render', description: 'Sentinel-2 L2A NDVI mozaik Magyarország bbox-re, 4 felbontásban (1024×430 → 8192×3440 px). Felhasználó-oldalon toggle barral váltható a panelen.',
+    endpoints: [
+      { url: 'https://services.sentinel-hub.com/oauth/token',  note: 'Sentinel Hub OAuth 2 client_credentials' },
+      { url: 'https://services.sentinel-hub.com/api/v1/process', note: 'Sentinel Hub Process API — NDVI mozaik renderelés' },
+      { url: 'https://earth-search.aws.element84.com/v1/search', note: 'Earth Search STAC — legutolsó cloud-free Sentinel-2 scene felfedezés' },
+    ],
+    envVars: ['SENTINEL_HUB_CLIENT_ID', 'SENTINEL_HUB_CLIENT_SECRET'],
+  },
 ];
 
 interface BkkRateLimits {

@@ -1,4 +1,23 @@
 
+## 2026-05-20 — v0.7.2 Magyarország-szintű NDVI mozaik (Sentinel Hub) + toggle UI
+
+### Added — backend
+- **`lib/sentinel-hub.ts`**: Sentinel Hub Process API kliens. OAuth 2 client-credentials token-cache, NDVI evalscript v3 (Scene Classification Layer alapú felhő/árnyék/hó kiszűréssel, 6 színkód sűrű növényzettől víz/beépített-ig), `processNdviMosaic({ bbox, width, height, timeRange, maxCloudCover })`, és Earth Search STAC `findLatestSentinel2Scene` helper a felvétel-dátum kinyeréséhez.
+- **`supabase/migrations/20260520_ndvi_hungary_renders.sql`**: `ndvi_hungary_renders` tábla (run_id, status, source_satellite, acquisition_from/to/latest, cloud_cover_pct, bbox, **resolutions jsonb** — 4 felbontás URL+méret), `ndvi_hungary_latest` view a legutolsó sikeres render-re, RLS-szel publikus read csak `status='success'`-re. **`ndvi-maps` Supabase Storage bucket** (public read, 500 MB file limit, PNG/WebP/JPEG MIME engedélyezve).
+- **`app/api/superadmin/jobs/run/route.ts`** új `ndvi_hungary_render` job: pre-flight ellenőrzi a `SENTINEL_HUB_CLIENT_ID/SECRET` env-eket (503-mal és pontos hibaüzenettel áll meg ha hiányoznak), létrehoz egy `running` rekordot, lekérdezi az Earth Search STAC-ből a legutolsó cloud-free Sentinel-2 jelenetet a Magyarország bbox-ra (16.0, 45.7, 22.9, 48.6) az utolsó 30 napra, majd **4 felbontásban** (1024×430 Nagy → 2048×860 → 4096×1720 → 8192×3440 Nagyon nagyon nagyon nagyon nagy) PNG-be rendereli az NDVI-t a Process API-val. Minden képet feltölt a `ndvi-maps` bucket-be `<run_id>/<resolution>.png` útvonalra, és a rekordot `success`/`partial`/`failure` státuszra állítja a feltöltött felbontások számától függően. `maxDuration = 300` (Pro plan). PU-fogyasztás logolva (`x-processingunits-spent` header).
+- **`app/api/environment/ndvi-hungary/route.ts`**: publikus GET végpont. A legutolsó `status='success'` render-t adja vissza JSON-ban (runId, acquisitionLatest dátum, renderelési dátum, bbox, 4 felbontás URL+méret+bytes). 5 perces s-maxage cache.
+
+### Added — frontend
+- **`components/ndvi-hungary-viewer.tsx`**: új komponens. Metaadat-banner (forrás műhold, felvétel dátuma, renderelés dátuma, run_id), felbontás-választó tab (Nagy/Nagyon nagy/Nagyon nagyon nagy/Nagyon nagyon nagyon nagyon nagy), interaktív kép-viewport egér-görgős zoom-mal (1×–20×, 1.15× lépés), drag-mozgatással zoom>1 esetén, "Visszaállít" + "Új lapon ↗" gombok (az "Új lapon" linket a böngésző natív zoom-mal teszi végtelen-nagyíthatóvá), NDVI színkód-legenda 6 sávval. Felvétel-dátum overlay a kép bal-alsó sarkán.
+- **`components/satellite-ndvi-panel.tsx`**: új **toggle bar** a panel tetején (`🏠 Épület közeli NDVI` ↔ `🇭🇺 Magyarország NDVI`). Magyarország mód lazy-load-olja a `/api/environment/ndvi-hungary` adatot, és átadja a `NdviHungaryViewer`-nek. Hibaüzenet ha a render még nincs (megmondja a usernek, hogy a superadminnak el kell indítania a `ndvi_hungary_render` job-ot).
+- **`components/superadmin-client.tsx`** JOBS listához: `ndvi_hungary_render` (label "NDVI Magyarország render", description tartalmazza a szükséges env vars-okat).
+
+### Required env vars (Vercel project settings)
+- `SENTINEL_HUB_CLIENT_ID` — Sentinel Hub OAuth client ID
+- `SENTINEL_HUB_CLIENT_SECRET` — Sentinel Hub OAuth client secret
+
+**Beállítás:** ingyenes regisztráció a https://www.sentinel-hub.com oldalon → Dashboard → User Settings → OAuth clients → "Create new OAuth client" → mentsd a client_id-t és secret-et a Vercel env-be. Free tier 30 000 processing units / hónap, 4-felbontásos render kb. 150 PU, tehát havonta 200 render is belefér.
+
 ## 2026-05-20 — v0.6.8 Superadmin külső-API diagnosztika (curl-runner) + 404 fix
 
 ### Fixed
