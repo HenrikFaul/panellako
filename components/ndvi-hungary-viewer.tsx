@@ -9,14 +9,7 @@ interface Props {
   error:   string | null;
 }
 
-const RESOLUTION_LABELS: Record<string, string> = {
-  large:                       'Nagy',
-  very_large:                  'Nagyon nagy',
-  very_very_large:             'Nagyon nagyon nagy',
-  very_very_very_very_large:   'Nagyon nagyon nagyon nagyon nagy',
-};
-
-const RESOLUTION_ORDER = ['large', 'very_large', 'very_very_large', 'very_very_very_very_large'];
+const RESOLUTION_ORDER = ['large', 'very_large', 'very_very_large', 'very_very_very_very_large', 'brutal'];
 
 function fmtMB(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -152,23 +145,28 @@ export default function NdviHungaryViewer({ data, loading, error }: Props) {
 
       {/* Resolution + zoom controls */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex flex-wrap gap-1 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-1">
-          {availableResolutions.map(k => {
-            const r = data.resolutions[k];
-            return (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setActiveRes(k)}
-                className={`rounded-xl px-3 py-1.5 text-[10px] font-bold transition-colors ${
-                  k === activeRes ? 'bg-sky-500/20 text-sky-300' : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title={`${r.width} × ${r.height} px · ${fmtMB(r.bytes)}`}
-              >
-                {RESOLUTION_LABELS[k] ?? k}
-              </button>
-            );
-          })}
+        <div className="flex flex-col">
+          <div className="inline-flex flex-wrap gap-1 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-1">
+            {availableResolutions.map(k => {
+              const r = data.resolutions[k];
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setActiveRes(k)}
+                  className={`rounded-xl px-3 py-1.5 text-[10px] font-bold tabular-nums transition-colors ${
+                    k === activeRes ? 'bg-sky-500/20 text-sky-300' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                  title={`${r.width} × ${r.height} px · ${fmtMB(r.bytes)}`}
+                >
+                  {r.width.toLocaleString('hu-HU')} × {r.height.toLocaleString('hu-HU')}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-slate-500 mt-1">
+            Forrás natív felbontása ~250 m/pixel (MODIS). A 8 192 × 3 440 fölött a kép upsampled — bigger PNG, nem több részlet.
+          </p>
         </div>
         <div className="ml-auto flex items-center gap-2 text-[10px] text-slate-500">
           <span>Zoom: <span className="tabular-nums text-slate-300">{zoom.toFixed(1)}×</span></span>

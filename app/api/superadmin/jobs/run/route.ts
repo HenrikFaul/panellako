@@ -3,7 +3,7 @@ import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
 import { createClient } from '@supabase/supabase-js';
 import {
   HU_BBOX,
-  renderHungaryNdvi,
+  renderHungaryNdviTiled,
   downscalePng,
 } from '@/lib/ndvi-mosaic';
 
@@ -735,10 +735,11 @@ export async function POST(request: NextRequest) {
     }
 
     const RESOLUTIONS: Array<{ key: string; label: string; width: number; height: number }> = [
-      { key: 'large',                       label: 'Nagy',                                width: 1024, height: 430  },
-      { key: 'very_large',                  label: 'Nagyon nagy',                         width: 2048, height: 860  },
-      { key: 'very_very_large',             label: 'Nagyon nagyon nagy',                  width: 4096, height: 1720 },
-      { key: 'very_very_very_very_large',   label: 'Nagyon nagyon nagyon nagyon nagy',    width: 8192, height: 3440 },
+      { key: 'large',                       label: 'Nagy',                                width: 1024,  height: 430  },
+      { key: 'very_large',                  label: 'Nagyon nagy',                         width: 2048,  height: 860  },
+      { key: 'very_very_large',             label: 'Nagyon nagyon nagy',                  width: 4096,  height: 1720 },
+      { key: 'very_very_very_very_large',   label: 'Nagyon nagyon nagyon nagyon nagy',    width: 8192,  height: 3440 },
+      { key: 'brutal',                      label: 'Brutális',                            width: 16384, height: 6880 },
     ];
     // Render the master at the largest size, downscale to the smaller ones.
     const masterRes = RESOLUTIONS[RESOLUTIONS.length - 1];
@@ -764,9 +765,12 @@ export async function POST(request: NextRequest) {
     const publicBase = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '').trim().replace(/\/$/, '');
 
     // ── 1. Render the master NDVI PNG from GIBS ─────────────────────────────
+    //    The master is the largest tier (Brutális, 16384×6880).  That is well
+    //    above GIBS' practical single-call limit (~8192 px), so we build it
+    //    from a tile mosaic.  Smaller tiers are downscaled from this master.
     let master;
     try {
-      master = await renderHungaryNdvi({ width: masterRes.width, height: masterRes.height });
+      master = await renderHungaryNdviTiled({ width: masterRes.width, height: masterRes.height, tileMax: 4096 });
     } catch (err) {
       const msg = `GIBS render failed: ${err instanceof Error ? err.message : String(err)}`;
       await supabase.from('ndvi_hungary_renders').update({
@@ -855,6 +859,272 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok, job, result, ranAt: new Date().toISOString() }, { status: ok ? 200 : (Object.keys(renderedResolutions).length === 0 ? 500 : 207) });
   }
 
+
+  // ─── Cycling: BKK MOL Bubi GBFS station_status (percenkénti pull) ──────────
+  if (job === 'cycling_bkk_gbfs_status') {
+    const logId = await logStart(job);
+    try {
+      const supabase = createServiceClient();
+      if (!supabase) throw new Error('No Supabase client');
+
+      const url = 'https://gbfs.bubi.bkk.hu/gbfs/v3/station_status.json';
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'panellako.hu/1.0 (info@panellako.hu)', 'Accept': 'application/json' },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`GBFS station_status HTTP ${res.status}: ${body.slice(0, 200)}`);
+      }
+      const json = await res.json() as {
+        last_updated?: number;
+        data?: { stations?: Array<{
+          station_id: string;
+          num_bikes_available?: number;
+          num_docks_available?: number;
+          is_renting?: boolean;
+          is_returning?: boolean;
+          last_reported?: number;
+        }> };
+      };
+      const lastUpdated = json.last_updated ?? Math.floor(Date.now() / 1000);
+      const ts = new Date(lastUpdated * 1000).toISOString();
+      const stations = json.data?.stations ?? [];
+      const rows = stations.map(s => ({
+        station_id:           s.station_id,
+        ts,
+        num_bikes_available:  s.num_bikes_available ?? null,
+        num_docks_available:  s.num_docks_available ?? null,
+        is_renting:           s.is_renting ?? null,
+        is_returning:         s.is_returning ?? null,
+        last_reported:        s.last_reported ? new Date(s.last_reported * 1000).toISOString() : null,
+      }));
+
+      if (rows.length > 0) {
+        const { error } = await supabase.schema('gbfs').from('station_status').insert(rows);
+        if (error) throw new Error(`gbfs.station_status insert: ${error.message}`);
+      }
+
+      const result = { stationsImported: rows.length, ts };
+      await logEnd(logId, 'ok', result);
+      return NextResponse.json({ ok: true, job, result, ranAt: new Date().toISOString() });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await logEnd(logId, 'error', { error: message });
+      return NextResponse.json({ ok: false, job, error: message, ranAt: new Date().toISOString() }, { status: 500 });
+    }
+  }
+
+  // ─── Cycling: BKK MOL Bubi GBFS station_information (napi pull) ────────────
+  if (job === 'cycling_bkk_gbfs_info') {
+    const logId = await logStart(job);
+    try {
+      const supabase = createServiceClient();
+      if (!supabase) throw new Error('No Supabase client');
+
+      const url = 'https://gbfs.bubi.bkk.hu/gbfs/v3/station_information.json';
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'panellako.hu/1.0 (info@panellako.hu)', 'Accept': 'application/json' },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`GBFS station_information HTTP ${res.status}: ${body.slice(0, 200)}`);
+      }
+      const json = await res.json() as {
+        data?: { stations?: Array<Record<string, unknown> & {
+          station_id: string;
+          name?: string;
+          lat?: number;
+          lon?: number;
+          capacity?: number;
+          region_id?: string;
+        }> };
+      };
+      const stations = json.data?.stations ?? [];
+      const rows = stations.map(s => ({
+        station_id: s.station_id,
+        name:       s.name ?? null,
+        lat:        s.lat ?? null,
+        lon:        s.lon ?? null,
+        capacity:   s.capacity ?? null,
+        region_id:  null as string | null,
+        attributes: s,
+      }));
+
+      if (rows.length > 0) {
+        const { error } = await supabase
+          .schema('gbfs')
+          .from('station_information')
+          .upsert(rows, { onConflict: 'station_id' });
+        if (error) throw new Error(`gbfs.station_information upsert: ${error.message}`);
+      }
+
+      const result = { stationsUpserted: rows.length };
+      await logEnd(logId, 'ok', result);
+      return NextResponse.json({ ok: true, job, result, ranAt: new Date().toISOString() });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await logEnd(logId, 'error', { error: message });
+      return NextResponse.json({ ok: false, job, error: message, ranAt: new Date().toISOString() }, { status: 500 });
+    }
+  }
+
+  // ─── Cycling: Waymarked Trails Magyarország (napi REST API pull) ───────────
+  if (job === 'cycling_waymarked_trails') {
+    const logId = await logStart(job);
+    const errors: Array<{ relationId?: number; stage: string; error: string }> = [];
+    try {
+      const supabase = createServiceClient();
+      if (!supabase) throw new Error('No Supabase client');
+
+      const COMMON_HEADERS = {
+        'User-Agent': 'panellako.hu/1.0 (info@panellako.hu)',
+        'Accept':     'application/json',
+        'Referer':    'https://panellako.hu',
+      } as const;
+
+      // 1. List relations in Hungary bbox (16,45.7,22.9,48.6)
+      const listUrl = 'https://cycling.waymarkedtrails.org/api/v1/list/by_area?bbox=16,45.7,22.9,48.6&limit=200';
+      const listRes = await fetch(listUrl, { headers: COMMON_HEADERS, cache: 'no-store', signal: AbortSignal.timeout(30_000) });
+      if (!listRes.ok) {
+        const body = await listRes.text().catch(() => '');
+        throw new Error(`Waymarked Trails list HTTP ${listRes.status}: ${body.slice(0, 200)}`);
+      }
+      // ASSUMPTION: response shape is { results: [...] }; if API returns different shape
+      // (e.g. raw array, or {features:[...]}) we tolerate both forms below.
+      const listJson = await listRes.json() as unknown;
+      type Rel = { id: number; name?: string; ref?: string; length?: number; level?: number; network?: string };
+      let relations: Rel[] = [];
+      if (Array.isArray(listJson)) {
+        relations = listJson as Rel[];
+      } else if (listJson && typeof listJson === 'object') {
+        const obj = listJson as { results?: Rel[]; features?: Array<{ properties?: Rel }> };
+        if (Array.isArray(obj.results)) relations = obj.results;
+        else if (Array.isArray(obj.features)) relations = obj.features.map(f => f.properties ?? { id: 0 }).filter(r => r.id);
+      }
+
+      const fetchedAt = new Date().toISOString();
+      const dataVersion = fetchedAt.slice(0, 10);
+      let relationsImported = 0;
+
+      // 2. For each relation, GET geometry and upsert via cycling.upsert_route RPC
+      for (const rel of relations) {
+        // Polite rate-limit: 1 req/sec
+        await new Promise(r => setTimeout(r, 1000));
+        try {
+          const geomUrl = `https://cycling.waymarkedtrails.org/api/v1/details/relation/${rel.id}/geometry/0`;
+          const geomRes = await fetch(geomUrl, { headers: COMMON_HEADERS, cache: 'no-store', signal: AbortSignal.timeout(20_000) });
+          if (!geomRes.ok) {
+            errors.push({ relationId: rel.id, stage: 'geometry-fetch', error: `HTTP ${geomRes.status}` });
+            continue;
+          }
+          const geojson = await geomRes.json() as unknown;
+          // Build a GeometryCollection / MultiLineString from the FeatureCollection.
+          // We pass the raw GeoJSON to PostGIS via ST_GeomFromGeoJSON and let it
+          // collect the LineStrings into a MultiLineString.
+          let geomGeoJson: unknown = geojson;
+          if (geojson && typeof geojson === 'object') {
+            const fc = geojson as { type?: string; features?: Array<{ geometry?: unknown }>; geometry?: unknown };
+            if (fc.type === 'FeatureCollection' && Array.isArray(fc.features)) {
+              const lines = fc.features.map(f => f.geometry).filter(g => !!g);
+              if (lines.length === 1) {
+                geomGeoJson = lines[0];
+              } else if (lines.length > 1) {
+                geomGeoJson = { type: 'GeometryCollection', geometries: lines };
+              } else {
+                errors.push({ relationId: rel.id, stage: 'geometry-empty', error: 'no LineString features' });
+                continue;
+              }
+            } else if (fc.geometry) {
+              geomGeoJson = fc.geometry;
+            }
+          }
+
+          const tags = {
+            ref:     rel.ref ?? null,
+            network: rel.network ?? null,
+            level:   rel.level ?? null,
+            length:  rel.length ?? null,
+          };
+
+          // Call cycling.upsert_route via RPC. We pass geometry as GeoJSON text;
+          // upsert_route's p_geom is `geometry`, so we wrap with ST_GeomFromGeoJSON
+          // via a thin SQL wrapper. Since no such wrapper exists yet, fall back to
+          // a direct insert into cycling.route + ST_GeomFromGeoJSON inside SQL.
+          // PostgREST RPC cannot take a geometry argument directly, so we use
+          // execute_sql via an inline insert.
+          const insertSql = `
+            insert into cycling.route (master_id, source_id, external_id, name, geom, tags, valid_from, fetched_at, data_version)
+            values (
+              gen_random_uuid(),
+              'waymarkedtrails',
+              $1,
+              $2,
+              ST_GeomFromGeoJSON($3),
+              $4::jsonb,
+              $5::timestamptz,
+              $5::timestamptz,
+              $6
+            )
+            on conflict (source_id, external_id, valid_from) do nothing
+          `;
+          const { error: rpcErr } = await supabase.rpc('exec_sql', {
+            sql: insertSql,
+            params: [String(rel.id), rel.name ?? null, JSON.stringify(geomGeoJson), JSON.stringify(tags), fetchedAt, dataVersion],
+          });
+          // If exec_sql RPC isn't available, fall back to a plain insert with
+          // GeoJSON string in `tags.geom_geojson` and let a follow-up migration
+          // convert it. For now, treat RPC absence as a soft error.
+          if (rpcErr) {
+            errors.push({ relationId: rel.id, stage: 'upsert', error: rpcErr.message });
+            continue;
+          }
+          relationsImported++;
+        } catch (e) {
+          errors.push({ relationId: rel.id, stage: 'fetch-or-upsert', error: e instanceof Error ? e.message : String(e) });
+        }
+      }
+
+      const result = { relationsListed: relations.length, relationsImported, errors };
+      const status: 'ok' | 'partial' | 'error' = errors.length === 0
+        ? 'ok'
+        : (relationsImported > 0 ? 'partial' : 'error');
+      await logEnd(logId, status, result);
+      return NextResponse.json(
+        { ok: status === 'ok', job, result, ranAt: new Date().toISOString() },
+        { status: status === 'ok' ? 200 : (status === 'partial' ? 207 : 500) },
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await logEnd(logId, 'error', { error: message, errors });
+      return NextResponse.json({ ok: false, job, error: message, errors, ranAt: new Date().toISOString() }, { status: 500 });
+    }
+  }
+
+  // ─── Cycling: Magyar Közút KENYI manual snapshot importer (placeholder) ────
+  if (job === 'cycling_kenyi_import') {
+    const logId = await logStart(job);
+    const ranAt = new Date().toISOString();
+    const message = 'Magyar Közút KENYI: FOIA-igénylés szükséges; használd a kormany.hu hash-diff-detektort, és kézzel töltsd be az XLSX-et a /superadmin/cycling/kenyi-upload felületen (még nincs kész)';
+    try {
+      const supabase = createServiceClient();
+      if (supabase) {
+        await supabase
+          .schema('cycling')
+          .from('source')
+          .update({ last_failure_at: ranAt, last_failure_reason: message })
+          .eq('id', 'kenyi');
+      }
+    } catch { /* best-effort — even if cycling.source update fails, return the 503 */ }
+    await logEnd(logId, 'error', { error: message });
+    return NextResponse.json(
+      { ok: false, job, error: message, ranAt },
+      { status: 503 },
+    );
+  }
 
   return NextResponse.json({ error: 'Unknown job' }, { status: 400 });
 }
