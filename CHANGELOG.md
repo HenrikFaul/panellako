@@ -1,4 +1,23 @@
 
+## 2026-05-20 — v0.7.13 Budapest tömegközlekedés-elemzés (interaktív ArcGIS-stílusú térkép)
+
+### Added
+- **Új oldal `/elemzes/budapest-kozlekedes`** — önálló analitikus térkép Budapest tömegközlekedéséről, GTFS-adatok alapján, a felhasználó szakdolgozati ArcGIS-stílusát követve, interaktív Leaflet-felülettel és **10 be-kikapcsolható réteggel**:
+  - **6 közlekedési mód** (alapban bekapcsolva): 🟡 Villamos `#facc15`, 🔵 Metró/Földalatti `#1e3a8a`, 🟦 Busz `#22d3ee`, 🟢 HÉV `#22c55e`, 🔴 Troli `#dc2626`, 🟤 Hajó `#92400e`. A kötöttpályás módok (TRAM/METRO/HEV) vastagabb vonallal és nagyobb opacity-vel.
+  - **Megálló-sűrűség hőtérkép** (alpha-kompozit halvány körökkel — Leaflet.heat plugin telepítése nélkül)
+  - **Nappali járatok 420 m bufferzónája** (lime halo, `weight: 40, opacity: 0.15` — turf-mentes vizuális közelítés)
+  - **Éjszakai járatok 420 m bufferzónája** (csak 9XX route-refek, sárga csíkozott halo — `dashArray: '10,8'`)
+  - **Lakóövezet OSM** (`landuse=residential` polygons, **lazy loading** az első aktiváláskor Overpass API-ról)
+- **Új API endpoint `app/api/transit/budapest-overview/route.ts`** — egy GET-hívásra visszaadja az összes Budapest-bbox-on belüli megállót és shape-et, csoportosítva route_type szerint a `gtfs_trips ↔ transit_routes` join-on keresztül. Server-oldali decimáció `POINT_BUDGET = 80 000`-re. `availableRouteTypes` és `meta.warnings[]` debug-mezőkkel a hibakeresés érdekében. `Cache-Control: max-age=600, s-maxage=3600, stale-while-revalidate=86400`.
+- **`components/budapest-transit-analysis.tsx`** — Leaflet `preferCanvas: true` üzemmódban (1000+ polyline-hoz kötelező), CartoCDN `light_all` basemap-pel, bal-felül chip-stílusú réteg-toggle panel, jobb-felül ℹ módszertan-popup.
+
+### Notes
+- **Nulla új npm dep:** se `@turf/buffer`, se `leaflet.heat`, se másik plugin. Csak a meglévő `leaflet` + `@types/leaflet`. A buffer-effekt vastag `weight: 40` polyline-nal van közelítve.
+- **Day/night heurisztika:** BKK konvenció szerint a 9-cel kezdődő háromjegyű route-refek éjszakaiak (907, 914, 950 stb.) — `/^9\d{2}$/`. Egyszerűsített a `gtfs_calendar_dates.service_id`-alapú szétválasztáshoz képest, de a BKK-feed-re 99%-ban helyes.
+- **`route_type` mapping:** GTFS-standardhoz illeszt (`TRAM`, `METRO/SUBWAY`, `BUS`, `RAIL/HEV/SUBURBAN`, `TROLLEY/TROLLEYBUS`, `FERRY/BOAT`). Ha a DB-ben más enum van, a `availableRouteTypes` debug-mezőben látszik runtime-ban.
+- **SSR-mentes Leaflet:** `next/dynamic { ssr: false }` egy thin client-only wrapper-en keresztül (`app/elemzes/budapest-kozlekedes/mount.tsx`) — a Leaflet `window`-on dolgozik importáláskor.
+- **Nem érintett:** satellite NDVI, superadmin, compact-city, environment-page-client, dashboard-client — minden korábbi modul változatlan.
+
 ## 2026-05-21 — v0.7.12 NDVI Brutális (16 384 × 6 880) tier verifikációs lánc
 
 ### Fixed
