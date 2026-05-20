@@ -2580,6 +2580,19 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               Megnyitás →
             </div>
           </a>
+
+          {/* Decorative footer skyline — static SVG panel-building band that
+              echoes the original v0.6.x branding. Kept as a subtle, low-
+              opacity visual signature at the bottom of every dashboard view
+              (the live animated DashboardHeroScene is in the header). */}
+          <div className="mt-8 pointer-events-none select-none" aria-hidden="true">
+            <div className="relative mx-auto h-32 max-w-3xl overflow-hidden opacity-40">
+              <PanelSkylineSvg />
+            </div>
+            <p className="mt-2 text-center text-[10px] font-medium tracking-widest text-slate-400 uppercase">
+              PanelLakó · a társasházak digitális központja
+            </p>
+          </div>
         </main>
       </div>
 
