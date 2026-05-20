@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 // Temporary debug endpoint — removes itself from production by checking env.
 // Tests BKK Futár API connectivity and response shapes.
-// Usage: GET /api/transit/debug?lat=47.4979&lon=19.0402
+// Usage: GET /api/transit/debug?lat=47.5278845&lon=19.0705657
 // Remove this file once real-data is confirmed working in production.
 
 const BKK_BASE    = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
@@ -13,8 +13,8 @@ const BKK_HEADERS = { 'Accept': 'application/json', 'User-Agent': 'panellako.hu/
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
-  const lat    = searchParams.get('lat') ?? '47.4979';
-  const lon    = searchParams.get('lon') ?? '19.0402';
+  const lat    = searchParams.get('lat') ?? '47.5278845';
+  const lon    = searchParams.get('lon') ?? '19.0705657';
   const stopId = searchParams.get('stopId') ?? 'BKK_F02297';
 
   const results: Record<string, unknown> = {};

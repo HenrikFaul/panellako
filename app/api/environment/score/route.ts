@@ -23,8 +23,8 @@ function createServiceClient() {
 export async function GET(request: NextRequest) {
   const sp         = request.nextUrl.searchParams;
   const buildingId = sp.get('buildingId') ?? '';
-  const lat        = parseFloat(sp.get('lat') ?? '47.4979');
-  const lon        = parseFloat(sp.get('lon') ?? '19.0402');
+  const lat        = parseFloat(sp.get('lat') ?? '47.5278845');
+  const lon        = parseFloat(sp.get('lon') ?? '19.0705657');
 
   const base = new URL(request.url);
   base.pathname = '';

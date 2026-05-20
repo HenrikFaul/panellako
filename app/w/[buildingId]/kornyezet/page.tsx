@@ -61,8 +61,8 @@ export default async function KornyezetPage({ params }: PageProps) {
 
   if (!building) redirect('/app');
 
-  let lat: number = (building as { lat?: number | null }).lat ?? 47.4979;
-  let lon: number = (building as { lon?: number | null }).lon ?? 19.0402;
+  let lat: number = (building as { lat?: number | null }).lat ?? 47.5278845;
+  let lon: number = (building as { lon?: number | null }).lon ?? 19.0705657;
 
   if (!lat || !lon) {
     const geo = await geocodeAddress(building.address);

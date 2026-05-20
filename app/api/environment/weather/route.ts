@@ -156,8 +156,8 @@ async function fetchWeather(lat: number, lon: number): Promise<EnvWeatherResult>
 
 export async function GET(request: NextRequest) {
   const sp  = request.nextUrl.searchParams;
-  const lat = parseFloat(sp.get('lat') ?? '47.4979');
-  const lon = parseFloat(sp.get('lon') ?? '19.0402');
+  const lat = parseFloat(sp.get('lat') ?? '47.5278845');
+  const lon = parseFloat(sp.get('lon') ?? '19.0705657');
   const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
 
   const cached = _cache.get(key);

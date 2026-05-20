@@ -151,8 +151,8 @@ function estimateVegPct(nirStats: CogBandStats, redStats: CogBandStats): number 
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const lat        = parseFloat(searchParams.get('lat') ?? '47.4979');
-  const lon        = parseFloat(searchParams.get('lon') ?? '19.0402');
+  const lat        = parseFloat(searchParams.get('lat') ?? '47.5278845');
+  const lon        = parseFloat(searchParams.get('lon') ?? '19.0705657');
   const buildingId = searchParams.get('buildingId') ?? null;
 
   if (Number.isNaN(lat) || Number.isNaN(lon)) {

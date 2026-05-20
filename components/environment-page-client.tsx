@@ -141,8 +141,8 @@ function SectionHeader({ icon, title, badge, source }: {
 export default function EnvironmentPageClient({
   buildingId, buildingName, buildingAddress, buildingLat, buildingLon,
 }: Props) {
-  const lat = buildingLat ?? 47.4979;
-  const lon = buildingLon ?? 19.0402;
+  const lat = buildingLat ?? 47.5278845;
+  const lon = buildingLon ?? 19.0705657;
 
   const [aq,           setAq]           = useState<EnvAirQualityResult | null>(null);
   const [weather,      setWeather]      = useState<EnvWeatherResult | null>(null);
