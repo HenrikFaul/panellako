@@ -69,13 +69,32 @@ export default async function KornyezetPage({ params }: PageProps) {
     if (geo) { lat = geo.lat; lon = geo.lon; }
   }
 
+  // v0.7.14 — Ha a usernek van mentett referencia-címe (`user_reference_addresses`),
+  // akkor a környezeti adatokat az alapján számoljuk, nem a buildingét.
+  // RLS biztosítja, hogy csak saját rekordot lát.
+  let displayAddress = building.address;
+  let usedReferenceAddress = false;
+  const { data: refAddr } = await supabase
+    .from('user_reference_addresses')
+    .select('display_name, lat, lon')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (refAddr && typeof refAddr.lat === 'number' && typeof refAddr.lon === 'number') {
+    lat = refAddr.lat;
+    lon = refAddr.lon;
+    displayAddress = refAddr.display_name ?? building.address;
+    usedReferenceAddress = true;
+  }
+
   return (
     <EnvironmentPageClient
       buildingId={buildingId}
       buildingName={building.name}
-      buildingAddress={building.address}
+      buildingAddress={displayAddress}
       buildingLat={lat}
       buildingLon={lon}
+      usedReferenceAddress={usedReferenceAddress}
     />
   );
 }

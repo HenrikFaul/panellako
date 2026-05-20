@@ -1,4 +1,36 @@
 
+## 2026-05-20 — v0.7.15 Dashboard hero — napszak- és évszak-aware animált jelenet
+
+### Added
+- **`components/dashboard-hero-scene.tsx`** — új önálló kliens-komponens, ami a Dashboard hero-jét egy **élő, ambient SVG-jelenetté** alakítja. Hét napszak (hajnal/reggel/nappal/délután/naplemente/este/éjszaka) és négy évszak (tavasz/nyár/ősz/tél) kombinációi alapján váltja a sky-gradient palettát, az égitestet (nap vs. hold + krátermintázat), a felhők/csillagok/villogó épület-ablakok motívumait, és a fák megjelenését (rügyes tavaszi rózsaszín virágok / sűrű nyári lomb + alkalmi pillangó / őszi színes lomb + hulló levelek / téli csupasz törzs + hósapkák).
+- **BKK-villamos sziluett**: 25–45 mp-enként random átkel a hero alján bal→jobb (`requestAnimationFrame` helyett pure CSS `@keyframes panellako-tram`, GPU-friendly `transform: translateX()`), éjszaka világító ablakokkal és fényszóróval, nappal pasztel-üveg ablakokkal.
+- **Háttérben forgó csillagképek**: 3 kis cluster lassan rotál (8–18 mp-es ciklus), 38 véletlenszerű "twinkle" csillag pulzál, és egy ritka shooting-star animáció (30 mp-es ciklus) ad finom mozgalmasságot — anélkül, hogy elvonná a figyelmet a tartalomról.
+
+### Changed
+- **`components/dashboard-client.tsx`** hero blokkjában a statikus `PanelSkylineSvg` helyett `<DashboardHeroScene />` van. A header magassága (108 px) és a layout (left: cím / center: jelenet / right: search + actions) változatlan. A bal- és jobb-szélső gradient-fade-ek 1/3-ról 1/4-re csökkentek, hogy az élő ég jobban látszódjon, de a cím + a search-chip kontrasztja megmarad.
+
+### Notes
+- **Nulla új npm dep** — minden tisztán inline SVG + scope-olt CSS `@keyframes`. Nincs framer-motion, lottie, anime.js.
+- **Performance**: a véletlenszerű elemek (csillag-pozíciók, hópelyhek, levelek, felhők) `useMemo`-val egyszer generálódnak a mount-kor (mulberry32 deterministic seed), és csak `transform` + `opacity` animálódik (compositor-only).
+- **Akadálymentesség**: `prefers-reduced-motion: reduce` esetén minden animáció `animation: none` (csak a helyes napszak-paletta marad). A jelenet `aria-hidden="true"` — dekoratív, nem hordoz fontos információt.
+- **Re-evaluation**: `setInterval` 60 mp-enként frissíti a napszakot — egy nap alatt felhasználó nélkül is kíséri az időt. Az évszak a session során állandó.
+- **API**: `forceTimeOfDay` és `forceSeason` prop-okkal a komponens bármikor manuálisan állítható (teszt / preview / superadmin demo).
+- **Nem érintett**: address-autocomplete, satellite/NDVI, superadmin, Budapest-transit, environment-page — minden korábbi modul változatlan.
+
+## 2026-05-20 — v0.7.14 Magyarország-szintű címkereső (Nominatim fallback) + profil-mentés + környezeti referencia-cím
+
+### Added
+- **`/api/location/autocomplete` Nominatim fallback** — eddig csak a `osm_addresses` Supabase-táblát kereste, ami a production-ben jelenleg üres / hiányzik. Most ha a Supabase 0 eredményt ad vagy nem elérhető, **automatikusan visszaesik OpenStreetMap Nominatim-re** (`countrycodes=hu`, `limit=8`, `addressdetails=1`), és a teljes Magyarország címkészlete kereshetővé válik. Politikus használat: 1 req/sec/IP throttle, 24 h in-memory cache, `User-Agent: panellako.hu/1.0`, csak `q.length >= 4` esetén hívódik a külső API. A response payload-ban a `source` mező (`'supabase' | 'nominatim'`) jelzi a forrást, és minden javaslat hordozza a teljes címet (lat/lon/utca/házszám/város/kerület/irányítószám), nem csak a label-t.
+- **Új tábla `public.user_reference_addresses`** (`supabase/migrations/20260521_user_reference_addresses.sql`) — egy user, egy referencia-cím (PK = user_id). Tárolja a `display_name`, `lat/lon`, és a strukturált összetevőket (street, house_number, city, district, postcode), valamint opcionális `floor`/`door` mezőket. RLS-sel védve: user csak a saját rekordját látja/írhatja.
+- **Új API endpoint `app/api/user/reference-address/route.ts`** — `GET` lekéri a session-user referencia-címét, `POST` upsert-eli a kiválasztott címet. A session-cookie-ból jövő `auth.uid()` és az RLS a single source of truth (nincs service_role write).
+- **Címkereső UI újraírva (`components/dashboard-client.tsx` Profil-szekció)** — a javaslat-lista mostantól objektum-tömböt fogad (id/label/lat/lon/source), minden javaslat-soron forrás-badge (`GeoData` vagy `OSM`), külön státusz-sor a teljes forrás-megnevezéssel. Cím-kiválasztás után megjelenik **két új input**: emelet és ajtó (mindkettő opcionális). A "Profil mentése" gomb a kiválasztott címet (a strukturált komponenseivel együtt) elmenti a `user_reference_addresses` táblába a saját userhez. Sikeres mentés után zöld toast 3 mp-re ("Cím elmentve"), hiba esetén piros üzenet.
+- **Referencia-cím override a környezeti oldalon (`app/w/[buildingId]/kornyezet/page.tsx`)** — ha a usernek van mentett `user_reference_addresses` rekordja, az `EnvironmentPageClient` annak lat/lon-jával hívódik (nem a building lat/lon-jával). Az összes downstream API-call (`/api/environment/*`, `/api/cycling`, `/api/air-quality/*`, satellite stb.) ehhez a koordinátához igazítva számol. Új `usedReferenceAddress: boolean` prop a kliens-oldali komponensben — ha igaz, a környezet-oldal tetején emerald banner jelenik meg "Az alábbi adatok az Ön referencia-címe alapján számítódnak: …" felirattal.
+
+### Notes
+- **Nulla új npm dep:** csak a meglévő `@supabase/ssr` (server client) és a beépített `fetch` (Nominatim). A user kérése szerint **minimális** logika — a táblát szándékosan egyszerűre szabtuk, mert a user jelezte hogy hamarosan egy "brutálabb" táblára cseréli.
+- **Backward-compat a frontenden:** a régi `suggestions: string[]` response-formátum helyett most `suggestions: AddressOption[]` jön. A `dashboard-client.tsx` autocomplete-effect tartalmaz egy normalizáló guard-ot is, ami a stringeket (ha jönnének) objektummá alakítja, így nem törik a UI még részleges deploy alatt sem.
+- **Nem érintett:** Hero section, satellite/NDVI komponensek, Budapest-transit elemzés, building-seed (Gidófalvy Lajos u. 9 marad), superadmin, cycling-jobs.
+
 ## 2026-05-20 — v0.7.13 Budapest tömegközlekedés-elemzés (interaktív ArcGIS-stílusú térkép)
 
 ### Added

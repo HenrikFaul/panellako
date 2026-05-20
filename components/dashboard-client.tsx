@@ -72,6 +72,24 @@ import { createCharge as createChargeAction, recordPayment as recordPaymentActio
 import { createMeeting as createMeetingAction, closeMeeting as closeMeetingAction, sendAssemblyInvitation as sendInvitationAction, getMeetingWithDetails } from '@/app/actions/meetings';
 import MeetingDetailPanel from '@/components/meeting-detail-panel';
 import AnnouncementComposer from '@/components/announcement-composer';
+import DashboardHeroScene from '@/components/dashboard-hero-scene';
+
+// v0.7.14 — Magyarország-szintű címkereső eredmény-shape
+// (api/location/autocomplete válasz egy eleme)
+type AddressOption = {
+  id: string;
+  label: string;
+  countryCode?: string;
+  postcode?: string;
+  settlement?: string;
+  street?: string;
+  district?: string;
+  houseNumber?: string;
+  lat: number | null;
+  lon: number | null;
+  source: 'supabase' | 'nominatim';
+  confidence?: number;
+};
 
 type DashboardData = {
   source: string;
@@ -849,9 +867,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [unit, setUnit] = useState('');
   const [address, setAddress] = useState('');
   const [addressQuery, setAddressQuery] = useState('');
-  const [addressOptions, setAddressOptions] = useState<string[]>([]);
+  const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
+  const [addressSource, setAddressSource] = useState<'supabase' | 'nominatim' | null>(null);
   const [addressError, setAddressError] = useState('');
   const [isAddressLoading, setIsAddressLoading] = useState(false);
+  const [selectedAddress, setSelectedAddress] = useState<AddressOption | null>(null);
+  const [floor, setFloor] = useState('');
+  const [door, setDoor] = useState('');
+  const [profileSaveError, setProfileSaveError] = useState('');
 
   const [ticketTitle, setTicketTitle] = useState('');
   const [ticketDescription, setTicketDescription] = useState('');
@@ -1064,6 +1087,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   useEffect(() => {
     if (!addressQuery || addressQuery.length < 3) {
       setAddressOptions([]);
+      setAddressSource(null);
       setAddressError('');
       return;
     }
@@ -1084,10 +1108,20 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         if (!response.ok) {
           setAddressError(payload?.message || 'Címkeresés most nem elérhető.');
           setAddressOptions([]);
+          setAddressSource(null);
           return;
         }
 
-        setAddressOptions(payload.suggestions ?? []);
+        // v0.7.14 — `suggestions` is now an array of AddressOption objects (was string[])
+        const raw = Array.isArray(payload.suggestions) ? payload.suggestions : [];
+        // Backward-compat guard: if some legacy caller returns strings, normalize to objects
+        const normalized: AddressOption[] = raw.map((item: AddressOption | string, idx: number) =>
+          typeof item === 'string'
+            ? { id: `legacy:${idx}:${item}`, label: item, lat: null, lon: null, source: 'supabase' as const }
+            : item
+        );
+        setAddressOptions(normalized);
+        setAddressSource(payload.source ?? null);
       } catch {
         if (!controller.signal.aborted) {
           setAddressError('Címkeresés hiba történt.');
@@ -1416,11 +1450,13 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 )}
               </div>
 
-              {/* Center: skyline — fills available space, shrinks before title/actions do */}
-              <div className="pointer-events-none select-none relative flex-1 min-w-0 h-[108px] overflow-hidden opacity-90">
-                <PanelSkylineSvg />
-                <div className="absolute inset-y-0 left-0 w-1/3" style={{ background: 'linear-gradient(to right, #05091a 0%, transparent 100%)' }} />
-                <div className="absolute inset-y-0 right-0 w-1/3" style={{ background: 'linear-gradient(to left, #05091a 0%, transparent 100%)' }} />
+              {/* Center: animated time/season-aware skyline scene (v0.7.15) */}
+              <div className="pointer-events-none select-none relative flex-1 min-w-0 h-[108px] overflow-hidden">
+                <DashboardHeroScene />
+                {/* Edge fades blend the live sky into the dark header chrome
+                    so the title (left) and search/logout chips (right) stay legible. */}
+                <div className="absolute inset-y-0 left-0 w-1/4" style={{ background: 'linear-gradient(to right, #05091a 0%, transparent 100%)' }} />
+                <div className="absolute inset-y-0 right-0 w-1/4" style={{ background: 'linear-gradient(to left, #05091a 0%, transparent 100%)' }} />
               </div>
 
               {/* Right: actions */}
@@ -1579,9 +1615,45 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             <SectionCard id="profile" title="Profil adatok és címkereső" icon={<UserRound size={18} />}>
               <form
                 className="space-y-4"
-                onSubmit={(event) => {
+                onSubmit={async (event) => {
                   event.preventDefault();
+                  setProfileSaveError('');
+
+                  // Ha van kiválasztott cím, mentsük el a Supabase-be
+                  if (selectedAddress && selectedAddress.lat !== null && selectedAddress.lon !== null) {
+                    try {
+                      const res = await fetch('/api/user/reference-address', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          display_name: selectedAddress.label,
+                          lat: selectedAddress.lat,
+                          lon: selectedAddress.lon,
+                          street: selectedAddress.street ?? null,
+                          house_number: selectedAddress.houseNumber ?? null,
+                          city: selectedAddress.settlement ?? null,
+                          district: selectedAddress.district ?? null,
+                          postcode: selectedAddress.postcode ?? null,
+                          floor: floor || null,
+                          door: door || null,
+                          source: selectedAddress.source,
+                        }),
+                      });
+                      if (!res.ok) {
+                        const payload = await res.json().catch(() => ({}));
+                        // 401 = nem belépett user; demo mód — ne zavarjuk
+                        if (res.status !== 401) {
+                          setProfileSaveError(payload?.message || 'A cím mentése nem sikerült.');
+                        }
+                      }
+                    } catch {
+                      setProfileSaveError('Hálózati hiba — a cím mentése nem sikerült.');
+                    }
+                  }
+
                   setProfileSaved(true);
+                  // Toast auto-hide 3s
+                  setTimeout(() => setProfileSaved(false), 3000);
                 }}
               >
                 <div className="grid gap-3 md:grid-cols-2">
@@ -1590,7 +1662,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 </div>
 
                 <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4">
-                  <label className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-700"><MapPin size={16} className="text-brand-600" /> Címkeresés saját GeoData adatbázisból</label>
+                  <label className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-700"><MapPin size={16} className="text-brand-600" /> Címkeresés (Magyarország)</label>
                   <input
                     className="input-base"
                     placeholder="Kezdj el címet írni (pl. Budapest Gidófalvy Lajos utca 9)"
@@ -1598,6 +1670,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     onChange={(e) => {
                       setAddressQuery(e.target.value);
                       setAddress(e.target.value);
+                      setSelectedAddress(null);
                     }}
                   />
                   {isAddressLoading ? <p className="mt-2 text-xs text-slate-500">Címek keresése...</p> : null}
@@ -1605,27 +1678,47 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   {addressOptions.length > 0 ? (
                     <ul className="mt-3 space-y-1 rounded-2xl border border-slate-100 bg-white p-2 shadow-sm">
                       {addressOptions.map((option) => (
-                        <li key={option}>
+                        <li key={option.id}>
                           <button
-                            className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-brand-50 hover:text-brand-800"
+                            className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm hover:bg-brand-50 hover:text-brand-800"
                             type="button"
                             onClick={() => {
-                              setAddress(option);
-                              setAddressQuery(option);
+                              setAddress(option.label);
+                              setAddressQuery(option.label);
+                              setSelectedAddress(option);
                               setAddressOptions([]);
                             }}
                           >
-                            {option}
+                            <span className="truncate">{option.label}</span>
+                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${option.source === 'supabase' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>
+                              {option.source === 'supabase' ? 'GeoData' : 'OSM'}
+                            </span>
                           </button>
                         </li>
                       ))}
                     </ul>
                   ) : null}
-                  {address ? <p className="mt-2 text-xs text-slate-600">Kiválasztott cím: {address}</p> : null}
+                  {addressSource ? (
+                    <p className="mt-2 text-[10px] uppercase tracking-wider text-slate-400">
+                      Forrás: {addressSource === 'supabase' ? 'PanelLakó GeoData' : 'OpenStreetMap (Nominatim)'}
+                    </p>
+                  ) : null}
+                  {selectedAddress ? (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs text-slate-600">Kiválasztott cím: <span className="font-semibold">{selectedAddress.label}</span></p>
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <input className="input-base" placeholder="Emelet (opcionális)" value={floor} onChange={(e) => setFloor(e.target.value)} />
+                        <input className="input-base" placeholder="Ajtó (opcionális)" value={door} onChange={(e) => setDoor(e.target.value)} />
+                      </div>
+                    </div>
+                  ) : address ? (
+                    <p className="mt-2 text-xs text-slate-600">Kiválasztott cím: {address}</p>
+                  ) : null}
                 </div>
 
                 <button className="btn-primary">Profil mentése</button>
-                {profileSaved ? <p className="text-sm font-semibold text-emerald-700">Profiladatok mentve demo módban.</p> : null}
+                {profileSaved ? <p className="text-sm font-semibold text-emerald-700">{selectedAddress ? 'Cím elmentve.' : 'Profiladatok mentve.'}</p> : null}
+                {profileSaveError ? <p className="text-sm font-semibold text-rose-700">{profileSaveError}</p> : null}
               </form>
 
               {/* Push notification toggle */}
