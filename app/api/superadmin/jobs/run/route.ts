@@ -977,18 +977,100 @@ export async function POST(request: NextRequest) {
 
 
   // ─── Cycling: BKK MOL Bubi GBFS station_status (percenkénti pull) ──────────
+  // ─── Cycling: BKK MOL Bubi GBFS station_status (percenkénti pull) ─────────
+  // Több candidate hostot próbál (a gbfs.bubi.bkk.hu időnként nem érhető el),
+  // előbb az auto-discovery gbfs.json-en keresztül szerzi meg a tényleges
+  // station_status URL-t, majd onnan szedi az adatokat.
   if (job === 'cycling_bkk_gbfs_status') {
     const logId = await logStart(job);
+    const attempts: Array<{ url: string; ok: boolean; status?: number; error?: string; bytes?: number }> = [];
     try {
       const supabase = createServiceClient();
       if (!supabase) throw new Error('No Supabase client');
 
-      const url = 'https://gbfs.bubi.bkk.hu/gbfs/v3/station_status.json';
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'panellako.hu/1.0 (info@panellako.hu)', 'Accept': 'application/json' },
-        cache: 'no-store',
-        signal: AbortSignal.timeout(15_000),
-      });
+      // Step 1: GBFS auto-discovery — try multiple candidate gbfs.json endpoints
+      const GBFS_DISCOVERY_CANDIDATES = [
+        'https://opendata.bkk.hu/gbfs/gbfs.json',
+        'https://gbfs.bubi.bkk.hu/gbfs/gbfs.json',
+        'https://gbfs.bubi.bkk.hu/gbfs/v3/gbfs.json',
+        'https://api.molbubi.hu/gbfs/gbfs.json',
+        'https://molbubi.bkk.hu/gbfs/gbfs.json',
+      ];
+      const HEADERS = { 'User-Agent': 'panellako.hu/1.0 (info@panellako.hu)', 'Accept': 'application/json' } as const;
+
+      async function probeJson(url: string): Promise<unknown | null> {
+        try {
+          const res = await fetch(url, { headers: HEADERS, cache: 'no-store', signal: AbortSignal.timeout(8_000) });
+          if (!res.ok) {
+            attempts.push({ url, ok: false, status: res.status, error: `HTTP ${res.status}` });
+            return null;
+          }
+          const ct = res.headers.get('content-type') ?? '';
+          if (!ct.includes('json')) {
+            attempts.push({ url, ok: false, status: res.status, error: `non-json: ${ct}` });
+            return null;
+          }
+          const json = await res.json();
+          attempts.push({ url, ok: true, status: res.status });
+          return json;
+        } catch (err) {
+          attempts.push({ url, ok: false, error: err instanceof Error ? `${err.name}: ${err.message}` : String(err) });
+          return null;
+        }
+      }
+
+      // Resolve station_status feed URL — either via gbfs.json discovery, OR
+      // by trying the canonical direct URLs.
+      let statusFeedUrl: string | null = null;
+      for (const discoveryUrl of GBFS_DISCOVERY_CANDIDATES) {
+        const disco = await probeJson(discoveryUrl);
+        if (!disco) continue;
+        // GBFS v1/v2 shape: {data:{en:{feeds:[{name,url}]}}}; v3 shape: {data:{feeds:[{name,url}]}}
+        type Feed = { name: string; url: string };
+        const d = disco as { data?: Record<string, unknown> };
+        const langKeys = Object.keys(d.data ?? {});
+        let feeds: Feed[] | undefined;
+        for (const k of langKeys) {
+          const blk = (d.data as Record<string, unknown>)[k] as { feeds?: Feed[] } | undefined;
+          if (blk?.feeds) { feeds = blk.feeds; break; }
+        }
+        if (!feeds) feeds = (d.data as { feeds?: Feed[] })?.feeds;
+        const status = feeds?.find(f => f.name === 'station_status')?.url;
+        if (status) { statusFeedUrl = status; break; }
+      }
+
+      // Fallback: try direct URLs without discovery
+      if (!statusFeedUrl) {
+        const DIRECT_STATUS_URLS = [
+          'https://opendata.bkk.hu/gbfs/v3/station_status.json',
+          'https://opendata.bkk.hu/gbfs/station_status.json',
+          'https://gbfs.bubi.bkk.hu/gbfs/v3/station_status.json',
+          'https://gbfs.bubi.bkk.hu/gbfs/en/station_status.json',
+          'https://api.molbubi.hu/gbfs/v3/station_status.json',
+        ];
+        for (const url of DIRECT_STATUS_URLS) {
+          try {
+            const res = await fetch(url, { headers: HEADERS, cache: 'no-store', signal: AbortSignal.timeout(8_000) });
+            if (res.ok && (res.headers.get('content-type') ?? '').includes('json')) {
+              statusFeedUrl = url;
+              attempts.push({ url, ok: true, status: res.status, bytes: 0 });
+              break;
+            }
+            attempts.push({ url, ok: false, status: res.status });
+          } catch (err) {
+            attempts.push({ url, ok: false, error: err instanceof Error ? err.message : String(err) });
+          }
+        }
+      }
+
+      if (!statusFeedUrl) {
+        const message = 'No reachable BKK Bubi GBFS station_status feed';
+        await logEnd(logId, 'error', { error: message, attempts });
+        return NextResponse.json({ ok: false, job, error: message, attempts, ranAt: new Date().toISOString() }, { status: 502 });
+      }
+
+      // Step 2: Fetch the resolved status feed
+      const res = await fetch(statusFeedUrl, { headers: HEADERS, cache: 'no-store', signal: AbortSignal.timeout(15_000) });
       if (!res.ok) {
         const body = await res.text().catch(() => '');
         throw new Error(`GBFS station_status HTTP ${res.status}: ${body.slice(0, 200)}`);
@@ -1022,29 +1104,89 @@ export async function POST(request: NextRequest) {
         if (error) throw new Error(`gbfs.station_status insert: ${error.message}`);
       }
 
-      const result = { stationsImported: rows.length, ts };
+      const result = { stationsImported: rows.length, ts, resolvedFeedUrl: statusFeedUrl, attempts };
       await logEnd(logId, 'ok', result);
       return NextResponse.json({ ok: true, job, result, ranAt: new Date().toISOString() });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      await logEnd(logId, 'error', { error: message });
-      return NextResponse.json({ ok: false, job, error: message, ranAt: new Date().toISOString() }, { status: 500 });
+      await logEnd(logId, 'error', { error: message, attempts });
+      return NextResponse.json({ ok: false, job, error: message, attempts, ranAt: new Date().toISOString() }, { status: 500 });
     }
   }
 
   // ─── Cycling: BKK MOL Bubi GBFS station_information (napi pull) ────────────
+  // Ugyanaz a discovery-fallback minta mint a station_status-ban.
   if (job === 'cycling_bkk_gbfs_info') {
     const logId = await logStart(job);
+    const attempts: Array<{ url: string; ok: boolean; status?: number; error?: string }> = [];
     try {
       const supabase = createServiceClient();
       if (!supabase) throw new Error('No Supabase client');
 
-      const url = 'https://gbfs.bubi.bkk.hu/gbfs/v3/station_information.json';
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'panellako.hu/1.0 (info@panellako.hu)', 'Accept': 'application/json' },
-        cache: 'no-store',
-        signal: AbortSignal.timeout(15_000),
-      });
+      const HEADERS = { 'User-Agent': 'panellako.hu/1.0 (info@panellako.hu)', 'Accept': 'application/json' } as const;
+
+      // 1) Discovery-first
+      const GBFS_DISCOVERY_CANDIDATES = [
+        'https://opendata.bkk.hu/gbfs/gbfs.json',
+        'https://gbfs.bubi.bkk.hu/gbfs/gbfs.json',
+        'https://gbfs.bubi.bkk.hu/gbfs/v3/gbfs.json',
+        'https://api.molbubi.hu/gbfs/gbfs.json',
+        'https://molbubi.bkk.hu/gbfs/gbfs.json',
+      ];
+      let infoFeedUrl: string | null = null;
+      for (const discoveryUrl of GBFS_DISCOVERY_CANDIDATES) {
+        try {
+          const dres = await fetch(discoveryUrl, { headers: HEADERS, cache: 'no-store', signal: AbortSignal.timeout(8_000) });
+          if (!dres.ok) { attempts.push({ url: discoveryUrl, ok: false, status: dres.status }); continue; }
+          const ct = dres.headers.get('content-type') ?? '';
+          if (!ct.includes('json')) { attempts.push({ url: discoveryUrl, ok: false, error: `non-json: ${ct}` }); continue; }
+          const disco = await dres.json() as { data?: Record<string, unknown> };
+          attempts.push({ url: discoveryUrl, ok: true, status: dres.status });
+          type Feed = { name: string; url: string };
+          let feeds: Feed[] | undefined;
+          for (const k of Object.keys(disco.data ?? {})) {
+            const blk = (disco.data as Record<string, unknown>)[k] as { feeds?: Feed[] } | undefined;
+            if (blk?.feeds) { feeds = blk.feeds; break; }
+          }
+          if (!feeds) feeds = (disco.data as { feeds?: Feed[] })?.feeds;
+          const info = feeds?.find(f => f.name === 'station_information')?.url;
+          if (info) { infoFeedUrl = info; break; }
+        } catch (err) {
+          attempts.push({ url: discoveryUrl, ok: false, error: err instanceof Error ? err.message : String(err) });
+        }
+      }
+
+      // 2) Direct fallback
+      if (!infoFeedUrl) {
+        const DIRECT = [
+          'https://opendata.bkk.hu/gbfs/v3/station_information.json',
+          'https://opendata.bkk.hu/gbfs/station_information.json',
+          'https://gbfs.bubi.bkk.hu/gbfs/v3/station_information.json',
+          'https://gbfs.bubi.bkk.hu/gbfs/en/station_information.json',
+          'https://api.molbubi.hu/gbfs/v3/station_information.json',
+        ];
+        for (const u of DIRECT) {
+          try {
+            const r = await fetch(u, { headers: HEADERS, cache: 'no-store', signal: AbortSignal.timeout(8_000) });
+            if (r.ok && (r.headers.get('content-type') ?? '').includes('json')) {
+              infoFeedUrl = u;
+              attempts.push({ url: u, ok: true, status: r.status });
+              break;
+            }
+            attempts.push({ url: u, ok: false, status: r.status });
+          } catch (err) {
+            attempts.push({ url: u, ok: false, error: err instanceof Error ? err.message : String(err) });
+          }
+        }
+      }
+
+      if (!infoFeedUrl) {
+        const message = 'No reachable BKK Bubi GBFS station_information feed';
+        await logEnd(logId, 'error', { error: message, attempts });
+        return NextResponse.json({ ok: false, job, error: message, attempts, ranAt: new Date().toISOString() }, { status: 502 });
+      }
+
+      const res = await fetch(infoFeedUrl, { headers: HEADERS, cache: 'no-store', signal: AbortSignal.timeout(15_000) });
       if (!res.ok) {
         const body = await res.text().catch(() => '');
         throw new Error(`GBFS station_information HTTP ${res.status}: ${body.slice(0, 200)}`);
@@ -1078,13 +1220,13 @@ export async function POST(request: NextRequest) {
         if (error) throw new Error(`gbfs.station_information upsert: ${error.message}`);
       }
 
-      const result = { stationsUpserted: rows.length };
+      const result = { stationsUpserted: rows.length, resolvedFeedUrl: infoFeedUrl, attempts };
       await logEnd(logId, 'ok', result);
       return NextResponse.json({ ok: true, job, result, ranAt: new Date().toISOString() });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      await logEnd(logId, 'error', { error: message });
-      return NextResponse.json({ ok: false, job, error: message, ranAt: new Date().toISOString() }, { status: 500 });
+      await logEnd(logId, 'error', { error: message, attempts });
+      return NextResponse.json({ ok: false, job, error: message, attempts, ranAt: new Date().toISOString() }, { status: 500 });
     }
   }
 
@@ -1102,24 +1244,67 @@ export async function POST(request: NextRequest) {
         'Referer':    'https://panellako.hu',
       } as const;
 
-      // 1. List relations in Hungary bbox (16,45.7,22.9,48.6)
-      const listUrl = 'https://cycling.waymarkedtrails.org/api/v1/list/by_area?bbox=16,45.7,22.9,48.6&limit=200';
-      const listRes = await fetch(listUrl, { headers: COMMON_HEADERS, cache: 'no-store', signal: AbortSignal.timeout(30_000) });
-      if (!listRes.ok) {
-        const body = await listRes.text().catch(() => '');
-        throw new Error(`Waymarked Trails list HTTP ${listRes.status}: ${body.slice(0, 200)}`);
-      }
-      // ASSUMPTION: response shape is { results: [...] }; if API returns different shape
-      // (e.g. raw array, or {features:[...]}) we tolerate both forms below.
-      const listJson = await listRes.json() as unknown;
+      // 1. List relations in Hungary bbox — try multiple endpoint variants.
+      // Waymarked Trails has had several API URL shapes over the years; the
+      // 200-OK-but-empty response we saw in production tells us the URL we
+      // hit returned a non-result-bearing JSON shape, so we try alternatives.
       type Rel = { id: number; name?: string; ref?: string; length?: number; level?: number; network?: string };
       let relations: Rel[] = [];
-      if (Array.isArray(listJson)) {
-        relations = listJson as Rel[];
-      } else if (listJson && typeof listJson === 'object') {
-        const obj = listJson as { results?: Rel[]; features?: Array<{ properties?: Rel }> };
-        if (Array.isArray(obj.results)) relations = obj.results;
-        else if (Array.isArray(obj.features)) relations = obj.features.map(f => f.properties ?? { id: 0 }).filter(r => r.id);
+      let lastRawSample = '';
+      const listAttempts: Array<{ url: string; ok: boolean; status?: number; resultCount: number; sample?: string }> = [];
+
+      const LIST_URLS = [
+        // bbox=minLon,minLat,maxLon,maxLat (most-common waymarkedtrails order)
+        'https://cycling.waymarkedtrails.org/api/v1/list/by_area?bbox=16.0,45.7,22.9,48.6&limit=200',
+        // Some forks expose `/list/segments` for bbox queries
+        'https://cycling.waymarkedtrails.org/api/v1/list/segments?bbox=16.0,45.7,22.9,48.6&limit=200',
+        // Alternate axis ordering
+        'https://cycling.waymarkedtrails.org/api/v1/list/by_area?bbox=45.7,16.0,48.6,22.9&limit=200',
+        // Older path style
+        'https://cycling.waymarkedtrails.org/api/list?bbox=16.0,45.7,22.9,48.6&limit=200',
+      ];
+      for (const u of LIST_URLS) {
+        try {
+          const res = await fetch(u, { headers: COMMON_HEADERS, cache: 'no-store', signal: AbortSignal.timeout(20_000) });
+          if (!res.ok) {
+            listAttempts.push({ url: u, ok: false, status: res.status, resultCount: 0 });
+            continue;
+          }
+          const raw = await res.text();
+          lastRawSample = raw.slice(0, 500);
+          let parsed: unknown;
+          try { parsed = JSON.parse(raw); }
+          catch {
+            listAttempts.push({ url: u, ok: false, status: res.status, resultCount: 0, sample: lastRawSample });
+            continue;
+          }
+          let r: Rel[] = [];
+          if (Array.isArray(parsed)) {
+            r = parsed as Rel[];
+          } else if (parsed && typeof parsed === 'object') {
+            const obj = parsed as { results?: Rel[]; features?: Array<{ properties?: Rel; id?: number }>; rows?: Rel[]; segments?: Rel[] };
+            if (Array.isArray(obj.results))       r = obj.results;
+            else if (Array.isArray(obj.rows))     r = obj.rows;
+            else if (Array.isArray(obj.segments)) r = obj.segments;
+            else if (Array.isArray(obj.features)) {
+              r = obj.features
+                .map(f => (f.properties && f.properties.id) ? f.properties : (f.id ? { id: f.id } as Rel : null))
+                .filter((x): x is Rel => !!x);
+            }
+          }
+          listAttempts.push({ url: u, ok: true, status: res.status, resultCount: r.length, sample: r.length === 0 ? lastRawSample : undefined });
+          if (r.length > 0) { relations = r; break; }
+        } catch (err) {
+          listAttempts.push({ url: u, ok: false, resultCount: 0, sample: err instanceof Error ? `${err.name}: ${err.message}` : String(err) });
+        }
+      }
+      if (relations.length === 0) {
+        // All endpoint variants returned empty — surface a useful diagnostic
+        // (includes raw response sample) so the user can see what the API
+        // actually returned.
+        const message = 'Waymarked Trails: all list endpoints returned 0 results — API shape likely changed. Inspect `attempts[*].sample` to see what the server returned.';
+        await logEnd(logId, 'error', { error: message, attempts: listAttempts });
+        return NextResponse.json({ ok: false, job, error: message, attempts: listAttempts, ranAt: new Date().toISOString() }, { status: 502 });
       }
 
       const fetchedAt = new Date().toISOString();
