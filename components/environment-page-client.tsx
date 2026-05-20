@@ -26,11 +26,12 @@ import type { BudapestTreesData } from '@/app/api/environment/budapest-trees/rou
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface Props {
-  buildingId:      string;
-  buildingName:    string;
-  buildingAddress: string;
-  buildingLat:     number;
-  buildingLon:     number;
+  buildingId:           string;
+  buildingName:         string;
+  buildingAddress:      string;
+  buildingLat:          number;
+  buildingLon:          number;
+  usedReferenceAddress?: boolean;
 }
 
 // ─── AQI advice ───────────────────────────────────────────────────────────────
@@ -139,7 +140,7 @@ function SectionHeader({ icon, title, badge, source }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function EnvironmentPageClient({
-  buildingId, buildingName, buildingAddress, buildingLat, buildingLon,
+  buildingId, buildingName, buildingAddress, buildingLat, buildingLon, usedReferenceAddress,
 }: Props) {
   const lat = buildingLat ?? 47.5278845;
   const lon = buildingLon ?? 19.0705657;
@@ -383,6 +384,18 @@ export default function EnvironmentPageClient({
       </header>
 
       <main className="mx-auto max-w-6xl space-y-4 px-4 py-6 sm:px-6">
+
+        {/* v0.7.14 — Reference-address banner: ha a user mentett saját referencia-címet, jelezzük. */}
+        {usedReferenceAddress ? (
+          <div className="flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-3">
+            <span className="text-base leading-none">📍</span>
+            <p className="text-[11px] leading-relaxed text-emerald-200">
+              Az alábbi adatok az Ön <span className="font-bold">referencia-címe</span> alapján számítódnak:
+              {' '}<span className="font-bold">{buildingAddress}</span>
+              {' '}(lakó-szinten). A környezeti mérések (levegő, NDVI, kerékpáros infrastruktúra) ehhez a koordinátához vannak igazítva.
+            </p>
+          </div>
+        ) : null}
 
         {/* 1. KörnyezetScore */}
         <Section id="sec-score">

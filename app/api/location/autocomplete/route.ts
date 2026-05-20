@@ -4,6 +4,89 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 type MatchType = 'exact' | 'house' | 'street' | 'settlement' | 'fuzzy' | 'reverse';
+type SuggestionSource = 'supabase' | 'nominatim';
+
+// ─── Nominatim fallback (Magyarország-szintű címkereső) ──────────────────────
+// Egyszerű in-memory cache 24h-ra (query -> {suggestions, expiresAt}).
+// Per-IP throttling 1 req/sec — Nominatim usage policy.
+const NOMINATIM_TTL_MS = 24 * 60 * 60 * 1000;
+const nominatimCache = new Map<string, { suggestions: AddressSuggestion[]; expiresAt: number }>();
+const nominatimLastHitByIp = new Map<string, number>();
+
+type NominatimRow = {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+  address?: {
+    city?: string; town?: string; village?: string; municipality?: string;
+    road?: string; pedestrian?: string; house_number?: string;
+    postcode?: string; suburb?: string; city_district?: string;
+    county?: string; country?: string;
+  };
+  type?: string;
+  importance?: number;
+};
+
+async function nominatimFallback(query: string, clientIp: string): Promise<AddressSuggestion[]> {
+  const cacheKey = query.trim().toLowerCase();
+  const cached = nominatimCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.suggestions;
+
+  // Polite throttle: max 1 req/sec/IP
+  const now = Date.now();
+  const last = nominatimLastHitByIp.get(clientIp) ?? 0;
+  if (now - last < 1000) return [];
+  nominatimLastHitByIp.set(clientIp, now);
+
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=jsonv2&countrycodes=hu&addressdetails=1&limit=8`;
+  let data: NominatimRow[] = [];
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'panellako.hu/1.0 (info@panellako.hu)',
+        'Accept': 'application/json',
+        'Referer': 'https://panellako.hu',
+      },
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) return [];
+    data = (await res.json()) as NominatimRow[];
+  } catch {
+    return [];
+  }
+
+  const suggestions: AddressSuggestion[] = data.map((r) => {
+    const street = r.address?.road || r.address?.pedestrian || '';
+    const houseNumber = r.address?.house_number || '';
+    const settlement = r.address?.city || r.address?.town || r.address?.village || r.address?.municipality || '';
+    const district = r.address?.city_district || r.address?.suburb || '';
+    const postcode = r.address?.postcode || '';
+    return {
+      id: `nominatim:${r.place_id}`,
+      label: r.display_name,
+      countryCode: 'HU',
+      postcode,
+      settlement,
+      street: street + (street && r.address?.pedestrian && !r.address?.road ? '' : ''),
+      district,
+      houseNumber,
+      lat: parseFloat(r.lat),
+      lon: parseFloat(r.lon),
+      confidence: typeof r.importance === 'number' ? Math.max(0.05, Math.min(0.99, r.importance)) : 0.5,
+      matchType: 'fuzzy' as MatchType,
+      source: 'nominatim' as SuggestionSource,
+    };
+  });
+
+  nominatimCache.set(cacheKey, { suggestions, expiresAt: Date.now() + NOMINATIM_TTL_MS });
+  // Cap cache size
+  if (nominatimCache.size > 500) {
+    const oldestKey = nominatimCache.keys().next().value;
+    if (oldestKey !== undefined) nominatimCache.delete(oldestKey);
+  }
+  return suggestions;
+}
 
 const geodataSupabaseUrl = process.env.SUPABASE_URL;
 const geodataSupabaseKey = process.env.GEODATA_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
@@ -55,11 +138,13 @@ type AddressSuggestion = {
   postcode: string;
   settlement: string;
   street: string;
+  district?: string;
   houseNumber: string;
   lat: number | null;
   lon: number | null;
   confidence: number;
   matchType: MatchType;
+  source: SuggestionSource;
 };
 
 const SELECT_COLUMNS = [
@@ -269,7 +354,21 @@ function buildOrFilters(searchTerms: string[]) {
 
 function toSuggestion(row: OsmAddressRow, rawQuery: string): AddressSuggestion {
   const scored = scoreAddress(row, rawQuery);
-  return { id: String(row.id || row.external_id || makeLabel(row)), label: makeLabel(row), countryCode: cleanPart(row.country_code || row.country || 'HU').toUpperCase(), postcode: cleanPart(row.postcode), settlement: getSettlement(row), street: getStreet(row), houseNumber: getHouseNumber(row), lat: row.lat, lon: row.lon, confidence: Number(scored.confidence.toFixed(2)), matchType: scored.matchType };
+  return {
+    id: String(row.id || row.external_id || makeLabel(row)),
+    label: makeLabel(row),
+    countryCode: cleanPart(row.country_code || row.country || 'HU').toUpperCase(),
+    postcode: cleanPart(row.postcode),
+    settlement: getSettlement(row),
+    street: getStreet(row),
+    district: cleanPart(row.district || row.suburb || row.neighbourhood) || undefined,
+    houseNumber: getHouseNumber(row),
+    lat: row.lat,
+    lon: row.lon,
+    confidence: Number(scored.confidence.toFixed(2)),
+    matchType: scored.matchType,
+    source: 'supabase',
+  };
 }
 
 function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -288,20 +387,25 @@ async function reverseLookup(lat: number, lon: number) {
   return ((data ?? []) as unknown as OsmAddressRow[]).map((row) => ({ row, distance: row.lat !== null && row.lon !== null ? distanceKm(lat, lon, row.lat, row.lon) : Number.POSITIVE_INFINITY })).sort((a, b) => a.distance - b.distance).slice(0, 8).map(({ row, distance }) => ({ ...toSuggestion(row, ''), matchType: 'reverse' as MatchType, confidence: Number(Math.max(0, 1 - distance / 3).toFixed(2)) }));
 }
 
+function getClientIp(request: NextRequest): string {
+  const xff = request.headers.get('x-forwarded-for');
+  if (xff) return xff.split(',')[0]!.trim();
+  return request.headers.get('x-real-ip') ?? 'unknown';
+}
+
 export async function GET(request: NextRequest) {
   const rawQuery = request.nextUrl.searchParams.get('q')?.trim() ?? '';
   const normalizedQuery = normalizeText(rawQuery);
   const lat = Number(request.nextUrl.searchParams.get('lat'));
   const lon = Number(request.nextUrl.searchParams.get('lon'));
+  const clientIp = getClientIp(request);
 
-  if (!hasSupabaseConfig || !supabase) {
-    return NextResponse.json({ error: 'GEODATA_SUPABASE_CONFIG_MISSING', message: 'Hiányzik a GeoData Supabase konfiguráció. Állítsd be: SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY. A NEXT_PUBLIC_SUPABASE_URL a Panellakó saját backendjéhez tartozik, ezt a címkereső nem használja.' }, { status: 503 });
-  }
-
+  // Reverse geocode (Supabase-only)
   if (!rawQuery && Number.isFinite(lat) && Number.isFinite(lon)) {
+    if (!hasSupabaseConfig || !supabase) return NextResponse.json({ suggestions: [], results: [] });
     try {
       const suggestions = await reverseLookup(lat, lon);
-      return NextResponse.json({ suggestions: suggestions.map((item) => item.label), results: suggestions });
+      return NextResponse.json({ suggestions, results: suggestions });
     } catch (error) {
       return NextResponse.json({ error: 'SUPABASE_REVERSE_GEOCODE_ERROR', message: error instanceof Error ? error.message : 'Ismeretlen reverse geocode hiba.' }, { status: 500 });
     }
@@ -309,44 +413,60 @@ export async function GET(request: NextRequest) {
 
   if (normalizedQuery.length < 2) return NextResponse.json({ suggestions: [], results: [] });
 
-  try {
-    const searchTerms = buildSearchTerms(rawQuery);
-    if (searchTerms.length === 0) return NextResponse.json({ suggestions: [], results: [] });
+  let supabaseResults: AddressSuggestion[] = [];
 
-    let data: OsmAddressRow[] | null = null;
-    let error: { message: string } | null = null;
+  // 1) Try Supabase first (osm_addresses) — if configured & query yields tokens
+  if (hasSupabaseConfig && supabase) {
+    try {
+      const searchTerms = buildSearchTerms(rawQuery);
+      if (searchTerms.length > 0) {
+        let data: OsmAddressRow[] | null = null;
+        let error: { message: string } | null = null;
 
-    if (process.env.GEODATA_USE_RPC === 'true') {
-      const rpcResult = await supabase.rpc('search_osm_addresses', { search_query: rawQuery, result_limit: 120 });
-      data = rpcResult.data as unknown as OsmAddressRow[] | null;
-      error = rpcResult.error;
+        if (process.env.GEODATA_USE_RPC === 'true') {
+          const rpcResult = await supabase.rpc('search_osm_addresses', { search_query: rawQuery, result_limit: 120 });
+          data = rpcResult.data as unknown as OsmAddressRow[] | null;
+          error = rpcResult.error;
+        }
+
+        if (!data || error) {
+          const restResult = await supabase.from(addressTable).select(SELECT_COLUMNS).or(buildOrFilters(searchTerms).join(',')).limit(220);
+          data = restResult.data as unknown as OsmAddressRow[] | null;
+          error = restResult.error;
+        }
+
+        // Schema-cache / missing-table / RLS errors → silently fall through to Nominatim
+        if (!error && data) {
+          const ranked = data
+            .map((row) => ({ row, ...scoreAddress(row, rawQuery) }))
+            .filter((item) => Boolean(makeLabel(item.row)) && item.score > 0)
+            .sort((a, b) => b.score - a.score || makeLabel(a.row).localeCompare(makeLabel(b.row), 'hu'));
+          const seen = new Set<string>();
+          for (const item of ranked) {
+            const suggestion = toSuggestion(item.row, rawQuery);
+            const key = normalizeText(suggestion.label);
+            if (seen.has(key)) continue;
+            seen.add(key);
+            supabaseResults.push(suggestion);
+            if (supabaseResults.length >= 8) break;
+          }
+        }
+      }
+    } catch {
+      // Fall through to Nominatim
+      supabaseResults = [];
     }
-
-    if (!data || error) {
-      const restResult = await supabase.from(addressTable).select(SELECT_COLUMNS).or(buildOrFilters(searchTerms).join(',')).limit(220);
-      data = restResult.data as unknown as OsmAddressRow[] | null;
-      error = restResult.error;
-    }
-
-    if (error) {
-      const looksLikeSchemaCacheIssue = /schema cache|Could not find the table/i.test(error.message);
-      return NextResponse.json({ error: 'SUPABASE_QUERY_FAILED', message: 'Az adatbázisos címkeresés nem elérhető.', details: error.message, hint: looksLikeSchemaCacheIssue ? `A ${addressSchema}.${addressTable} tábla nem látszik a GeoData Supabase PostgREST schema cache-ben. Ellenőrizd, hogy a SUPABASE_URL tényleg a GeoData projektre mutat, majd futtasd: NOTIFY pgrst, 'reload schema';` : undefined }, { status: 500 });
-    }
-
-    const ranked = (data ?? []).map((row) => ({ row, ...scoreAddress(row, rawQuery) })).filter((item) => Boolean(makeLabel(item.row)) && item.score > 0).sort((a, b) => b.score - a.score || makeLabel(a.row).localeCompare(makeLabel(b.row), 'hu'));
-    const seen = new Set<string>();
-    const results: AddressSuggestion[] = [];
-    for (const item of ranked) {
-      const suggestion = toSuggestion(item.row, rawQuery);
-      const key = normalizeText(suggestion.label);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      results.push(suggestion);
-      if (results.length >= 8) break;
-    }
-
-    return NextResponse.json({ suggestions: results.map((item) => item.label), results });
-  } catch (error) {
-    return NextResponse.json({ error: 'SUPABASE_AUTOCOMPLETE_ERROR', message: error instanceof Error ? error.message : 'Ismeretlen Supabase címkeresési hiba.' }, { status: 500 });
   }
+
+  if (supabaseResults.length > 0) {
+    return NextResponse.json({ suggestions: supabaseResults, results: supabaseResults, source: 'supabase' });
+  }
+
+  // 2) Fallback to Nominatim — only if query >= 4 chars (polite usage)
+  if (normalizedQuery.length >= 4) {
+    const nominatimResults = await nominatimFallback(rawQuery, clientIp);
+    return NextResponse.json({ suggestions: nominatimResults, results: nominatimResults, source: 'nominatim' });
+  }
+
+  return NextResponse.json({ suggestions: [], results: [] });
 }
