@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
+// Match Vercel Pro maxDuration to give Overpass enough time without
+// hitting the default 10s limit (no-op on Hobby plans).
+export const maxDuration = 30;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -121,40 +124,53 @@ function classifyElement(tags: Record<string, string>): AmenityCategory | null {
 
 // ─── Overpass query ───────────────────────────────────────────────────────────
 
-// Overpass mirrors — some are blocked by Vercel's cloud network policy, so we
-// fail over instead of returning 503 immediately.
+// Overpass mirrors — kumi.systems FIRST because it's the proven-reliable
+// mirror in production (the /api/cycling route uses the same ordering and
+// works). overpass-api.de is frequently overloaded and is kept only as a
+// secondary fallback.
 const OVERPASS_MIRRORS = [
-  'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.openstreetmap.fr/api/interpreter',
   'https://lz4.overpass-api.de/api/interpreter',
-  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ];
 
 async function fetchAmenities(lat: number, lon: number): Promise<OsmElement[]> {
-  const query = `[out:json][timeout:25];
+  // Server-side timeout:8 (within the Vercel 10s budget). qt = quick-and-tidy
+  // sort, much faster output. Radii kept generous but compatible with 8s.
+  const query = `[out:json][timeout:8];
 (
   node["amenity"~"supermarket|pharmacy|hospital|clinic|doctor|dentist|school|kindergarten|university|college|library|restaurant|cafe|fast_food|food_court|bar|theatre|cinema|museum|gallery|arts_centre|community_centre|police|fire_station|bank|post_office|atm"](around:1500,${lat},${lon});
   node["shop"~"supermarket|convenience|bakery|butcher|greengrocer|grocery"](around:1000,${lat},${lon});
   node["leisure"~"fitness_centre|sports_centre|swimming_pool"](around:1000,${lat},${lon});
   way["amenity"~"hospital|clinic|school|university|theatre|cinema|museum|sports_centre"](around:1500,${lat},${lon});
 );
-out center;`;
+out center qt;`;
   const body = `data=${encodeURIComponent(query)}`;
+  const headers = {
+    'Content-Type': 'application/x-www-form-urlencoded',
+    'User-Agent':   'panellako/1.0 (info@panellako.hu)',
+  };
 
   let lastErr: unknown = null;
   for (const url of OVERPASS_MIRRORS) {
     try {
       const res = await fetch(url, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers,
         body,
-        signal:  AbortSignal.timeout(12_000),
+        signal:  AbortSignal.timeout(9_000),  // per-mirror, under Vercel 10s
       });
-      if (!res.ok) { lastErr = new Error(`HTTP ${res.status} @ ${url}`); continue; }
+      if (!res.ok) {
+        lastErr = new Error(`HTTP ${res.status} @ ${url}`);
+        console.warn(`[environment/urban] ${url} returned HTTP ${res.status}`);
+        continue;
+      }
       const json = await res.json() as { elements?: OsmElement[] };
       return json.elements ?? [];
     } catch (err) {
       lastErr = err;
+      console.warn(`[environment/urban] ${url} failed:`, err);
     }
   }
   throw lastErr ?? new Error('All Overpass mirrors failed');
