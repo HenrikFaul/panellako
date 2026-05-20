@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
 import dns from 'node:dns/promises';
+import type { LookupAddress } from 'node:dns';
 import net from 'node:net';
 
 export const dynamic = 'force-dynamic';
@@ -98,7 +99,7 @@ async function ssrfGuard(targetUrl: URL): Promise<{ ok: true } | { ok: false; re
     return { ok: true };
   }
   // Resolve hostname; reject if ANY resolved address is private
-  let addrs: dns.LookupAddress[];
+  let addrs: LookupAddress[];
   try {
     addrs = await dns.lookup(host, { all: true });
   } catch (err) {
