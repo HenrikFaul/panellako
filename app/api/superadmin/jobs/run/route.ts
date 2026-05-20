@@ -292,8 +292,23 @@ export async function POST(request: NextRequest) {
   async function resolveCoords(
     b: BuildingRow,
     supabase: ReturnType<typeof createServiceClient>,
-  ): Promise<{ ok: true; lat: number; lon: number; source: 'db' | 'internal' | 'nominatim' } | { ok: false; reason: string; attempts: GeocodeAttempt[] }> {
+  ): Promise<{ ok: true; lat: number; lon: number; source: 'db' | 'internal' | 'nominatim' | 'hardcoded-demo' } | { ok: false; reason: string; attempts: GeocodeAttempt[] }> {
     if (b.lat != null && b.lon != null) return { ok: true, lat: b.lat, lon: b.lon, source: 'db' };
+    // Runtime safety net for the demo building: even if the migration hasn't
+    // applied yet and the row still has the un-geocodable old address, force
+    // the Nominatim-verified Gidófalvy Lajos u. 9 coords so no environment
+    // job ever stalls on the demo account.  Also persists back to the DB so
+    // subsequent runs don't need this fallback.
+    if (b.id === 'bbbbbbbb-0001-0001-0001-000000000001') {
+      const lat = 47.5278845, lon = 19.0705657;
+      await supabase!.from('buildings').update({
+        name:        'Gidófalvy Lajos utca 9.',
+        address:     'Budapest, XIII. kerület, Gidófalvy Lajos utca 9.',
+        lat, lon,
+        geocoded_at: new Date().toISOString(),
+      }).eq('id', b.id);
+      return { ok: true, lat, lon, source: 'hardcoded-demo' };
+    }
     const geo = await geocodeAddress(b.address, appBase);
     if (!geo.ok) return { ok: false, reason: geo.reason, attempts: geo.attempts };
     await supabase!.from('buildings').update({ lat: geo.lat, lon: geo.lon, geocoded_at: new Date().toISOString() }).eq('id', b.id);
