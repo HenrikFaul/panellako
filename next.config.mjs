@@ -1,4 +1,5 @@
 import withPWA from 'next-pwa';
+import { withSentryConfig } from '@sentry/nextjs';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -17,4 +18,20 @@ const pwaConfig = withPWA({
   },
 });
 
-export default pwaConfig(nextConfig);
+const composed = pwaConfig(nextConfig);
+
+const sentryEnabled = !!process.env.SENTRY_ORG && !!process.env.SENTRY_PROJECT;
+
+export default sentryEnabled
+  ? withSentryConfig(composed, {
+      silent: true,
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      widenClientFileUpload: true,
+      reactComponentAnnotation: { enabled: true },
+      tunnelRoute: '/monitoring',
+      hideSourceMaps: true,
+      disableLogger: true,
+      automaticVercelMonitors: true,
+    })
+  : composed;

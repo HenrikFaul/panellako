@@ -1,0 +1,66 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":dependencyDashboard",
+    ":automergeMinor",
+    ":prHourlyLimit2",
+    "group:allNonMajor"
+  ],
+  "timezone": "Europe/Budapest",
+  "schedule": ["after 4am and before 7am on monday"],
+  "labels": ["dependencies", "renovate"],
+  "commitMessagePrefix": "chore(deps):",
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["patch"],
+      "matchPackagePatterns": ["*"],
+      "groupName": "all patch updates",
+      "automerge": true,
+      "automergeType": "branch"
+    },
+    {
+      "matchPackagePatterns": ["next", "react", "@next/*"],
+      "groupName": "Next.js + React"
+    },
+    {
+      "matchPackagePatterns": ["@supabase/*"],
+      "groupName": "Supabase"
+    },
+    {
+      "matchPackagePatterns": ["@sentry/*"],
+      "groupName": "Sentry"
+    },
+    {
+      "matchPackagePatterns": ["@stripe/.*", "^stripe$"],
+      "groupName": "Stripe"
+    },
+    {
+      "matchDepTypes": ["devDependencies"],
+      "automerge": true
+    },
+    {
+      "matchPackageNames": ["sharp"],
+      "groupName": "sharp (heavy native dep)",
+      "automerge": false,
+      "stabilityDays": 7
+    },
+    {
+      "matchPackageNames": ["@react-pdf/renderer"],
+      "groupName": "react-pdf (heavy native dep)",
+      "automerge": false,
+      "stabilityDays": 7
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "automerge": false
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 5am on monday"]
+  },
+  "prConcurrentLimit": 5,
+  "rangeStrategy": "auto"
+}

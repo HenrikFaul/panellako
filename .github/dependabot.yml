@@ -1,0 +1,75 @@
+version: 2
+updates:
+  # ---------------------------------------------------------------------------
+  # npm — application dependencies (root package.json)
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '04:00'
+      timezone: Europe/Budapest
+    open-pull-requests-limit: 10
+    groups:
+      next-react:
+        patterns:
+          - 'next'
+          - 'react'
+          - 'react-dom'
+          - '@next/*'
+        update-types:
+          - minor
+          - patch
+      supabase:
+        patterns:
+          - '@supabase/*'
+      tailwind:
+        patterns:
+          - 'tailwindcss'
+          - 'autoprefixer'
+          - 'postcss'
+      sentry:
+        patterns:
+          - '@sentry/*'
+      typescript:
+        patterns:
+          - 'typescript'
+          - '@types/*'
+        update-types:
+          - minor
+          - patch
+      eslint:
+        patterns:
+          - 'eslint*'
+          - '@typescript-eslint/*'
+      dev-dependencies:
+        patterns:
+          - '*'
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: 'chore(deps)'
+      include: scope
+    labels:
+      - dependencies
+      - automerge-candidate
+
+  # ---------------------------------------------------------------------------
+  # GitHub Actions — workflow action versions
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '04:00'
+      timezone: Europe/Budapest
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'chore(ci)'
+    labels:
+      - dependencies
+      - ci
