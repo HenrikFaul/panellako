@@ -88,6 +88,22 @@ export default function NdviHungaryViewer({ data, loading, error }: Props) {
 
   const resetView = useCallback(() => { setZoom(1); setPanX(0); setPanY(0); }, []);
 
+  // Verified image dimensions (from naturalWidth/Height) — populated on img load.
+  // If the actual loaded image doesn't match the tier's declared size, the
+  // panel surfaces a warning so the user can see the brutal (16384×6880)
+  // tier wasn't silently substituted with a smaller one.
+  const [loadedDims, setLoadedDims] = useState<{ w: number; h: number } | null>(null);
+  const [imgLoading, setImgLoading] = useState(false);
+  useEffect(() => { setLoadedDims(null); setImgLoading(true); }, [activeRes, data?.runId]);
+  const onImgLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    setLoadedDims({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight });
+    setImgLoading(false);
+  }, []);
+  const onImgError = useCallback(() => { setImgLoading(false); }, []);
+  const dimensionMatch = current && loadedDims
+    ? loadedDims.w === current.width && loadedDims.h === current.height
+    : null;
+
   // ─────────────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -208,9 +224,12 @@ export default function NdviHungaryViewer({ data, loading, error }: Props) {
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
+          key={`${data?.runId}-${activeRes}`}
           src={current.url}
           alt={`Magyarország NDVI · ${fmtDateOnly(data.acquisitionLatest)} · ${current.width}×${current.height}`}
           draggable={false}
+          onLoad={onImgLoad}
+          onError={onImgError}
           className="absolute inset-0 h-full w-full select-none object-contain"
           style={{
             transform:        `translate(${panX}px, ${panY}px) scale(${zoom})`,
@@ -219,6 +238,11 @@ export default function NdviHungaryViewer({ data, loading, error }: Props) {
             imageRendering:   zoom > 4 ? 'pixelated' : 'auto',
           }}
         />
+        {imgLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <p className="text-[11px] font-bold text-slate-300">Töltés… {current.width.toLocaleString('hu-HU')} × {current.height.toLocaleString('hu-HU')} ({fmtMB(current.bytes)})</p>
+          </div>
+        )}
         {/* Acquisition badge */}
         <div className="absolute bottom-3 left-3 rounded-xl bg-black/60 px-3 py-1.5 backdrop-blur-sm">
           <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-300">Sentinel-2 felvétel</p>
@@ -226,7 +250,17 @@ export default function NdviHungaryViewer({ data, loading, error }: Props) {
         </div>
         <div className="absolute bottom-3 right-3 rounded-xl bg-black/60 px-3 py-1.5 backdrop-blur-sm">
           <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Felbontás</p>
-          <p className="text-[11px] font-bold text-white tabular-nums">{current.width} × {current.height}</p>
+          <p className="text-[11px] font-bold text-white tabular-nums">{current.width.toLocaleString('hu-HU')} × {current.height.toLocaleString('hu-HU')}</p>
+          {loadedDims && dimensionMatch === false && (
+            <p className="text-[9px] font-bold text-amber-300 mt-0.5">
+              ⚠ Valóban betöltött: {loadedDims.w.toLocaleString('hu-HU')} × {loadedDims.h.toLocaleString('hu-HU')}
+            </p>
+          )}
+          {loadedDims && dimensionMatch === true && activeRes === 'brutal' && (
+            <p className="text-[9px] font-bold text-emerald-300 mt-0.5">
+              ✓ Verifikálva: {loadedDims.w.toLocaleString('hu-HU')} × {loadedDims.h.toLocaleString('hu-HU')}
+            </p>
+          )}
         </div>
       </div>
 
