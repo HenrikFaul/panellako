@@ -1,4 +1,23 @@
 
+## 2026-05-21 — v0.7.11 Cycling jobok — GBFS auto-discovery + Waymarked Trails endpoint-variánsok
+
+### Fixed
+- **`cycling_bkk_gbfs_status` + `cycling_bkk_gbfs_info`**: a hardkódolt `https://gbfs.bubi.bkk.hu/gbfs/v3/...` URL **DNS-szinten halott** (`fetch failed`) — a host nem oldódik fel. Új viselkedés:
+  1. **GBFS auto-discovery**: 5 candidate `gbfs.json` URL-en (`opendata.bkk.hu`, `gbfs.bubi.bkk.hu`, `gbfs.bubi.bkk.hu/v3`, `api.molbubi.hu`, `molbubi.bkk.hu`) megpróbál csatlakozni
+  2. **Sub-feed URL kinyerés**: a sikeres `gbfs.json`-ből kiolvassa a `station_status` / `station_information` feed URL-jét (v1/v2/v3 GBFS séma is támogatva)
+  3. **Direct-fallback**: ha mind az 5 discovery URL bukik, 5 közvetlen kanonikus URL-t próbál (`/v3/`, `/`, `/en/`, `api.molbubi.hu` variánsok)
+  4. **Diagnosztika**: a `attempts: [{ url, ok, status, error }]` mező a response body-ban visszaadja MINDEN URL-próbálkozás eredményét, hogy a user pontosan lássa melyik bukott el milyen módon
+
+- **`cycling_waymarked_trails`**: a v0.7.7-ben hardkódolt `https://cycling.waymarkedtrails.org/api/v1/list/by_area?bbox=...` endpoint **200 OK + 0 eredményt** adott — az API shape láthatóan változott. Új viselkedés:
+  1. **4 endpoint variáns** próbálkozás (eredeti URL + `/list/segments` + alternate axis order + legacy `/api/list` path)
+  2. **Tolerált válasz-formák**: `[...]` (raw array), `{results:[]}`, `{rows:[]}`, `{segments:[]}`, `{features:[]}` (GeoJSON FeatureCollection)
+  3. **Nyers válasz minta**: ha minden variáns 0-t ad vissza, a `attempts[*].sample` mezőben az első 500 karakter a server valós válaszáról kerül vissza — így a user pontosan látja milyen shape-t kapott (vagy hogy az API "API moved" / hibaüzenetet ad)
+  4. **Diagnostikus 502**: minden URL eredmény nélkül → 502 + részletes `attempts` lista
+
+### Notes
+- A user a `/superadmin` → "Diagnosztika — külső API curl" felületen mostantól pontosan ellenőrizheti melyik BKK GBFS URL működik az ő Vercel deploy-jából (curl preset-ekkel)
+- Mind a 3 új cycling-job most már produkál hasznos diagnostikus üzenetet a UI-on, nem csak "fetch failed"-et
+
 ## 2026-05-21 — v0.7.10 Demo building force-UPDATE + runtime safety net (semmilyen körülmény közt nem maradhat az Alkotás u. 42)
 
 ### Fixed
