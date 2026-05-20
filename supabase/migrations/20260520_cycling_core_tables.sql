@@ -60,7 +60,13 @@ create table if not exists cycling.route (
 );
 
 create index if not exists route_geom_gist on cycling.route using gist (geom);
-create index if not exists route_master    on cycling.route (master_id);
+-- The btree on master_id was originally named `route_master`, which collides
+-- with the materialized view `cycling.route_master` declared later in this
+-- file (Postgres puts indexes, tables and MVs in the same per-schema
+-- namespace). Drop any leftover conflicting index from a partial previous
+-- run, then recreate under a non-colliding name.
+drop index if exists cycling.route_master;
+create index if not exists route_master_id_idx on cycling.route (master_id);
 create index if not exists route_source    on cycling.route (source_id);
 create index if not exists route_external  on cycling.route (external_id);
 create index if not exists route_tags_gin  on cycling.route using gin (tags);
