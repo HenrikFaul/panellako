@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import SuperadminGtfsImport from '@/components/superadmin-gtfs-import';
+import SuperadminDiagnostics from '@/components/superadmin-diagnostics';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -500,6 +501,9 @@ export default function SuperadminClient() {
 
         {/* ── GTFS Import ─────────────────────────────────────────────── */}
         <SuperadminGtfsImport />
+
+        {/* ── External-API diagnostics (custom curl runner) ───────────── */}
+        <SuperadminDiagnostics />
 
       </div>
     </main>
