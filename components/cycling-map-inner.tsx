@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import type { CyclingFeature } from '@/app/api/cycling/route';
+import type { MapTheme } from '@/lib/map-theme';
+import { useMapTheme } from '@/hooks/use-map-theme';
 
 // ─── Route type config ────────────────────────────────────────────────────────
 type RouteType = CyclingFeature['type'];
@@ -18,10 +20,10 @@ const ROUTE_CFG: Record<RouteType, { label: string; color: string; weight: numbe
 const ALL_TYPES: RouteType[] = ['cycleway', 'track', 'lane', 'shared', 'other'];
 
 // ─── Building dot SVG ─────────────────────────────────────────────────────────
-function buildingSvg(): string {
+function buildingSvg(color: string): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">
-    <circle cx="14" cy="14" r="12" fill="#6366f1" fill-opacity="0.2" stroke="#6366f1" stroke-width="1.5"/>
-    <circle cx="14" cy="14" r="5" fill="#6366f1"/>
+    <circle cx="14" cy="14" r="12" fill="${color}" fill-opacity="0.2" stroke="${color}" stroke-width="1.5"/>
+    <circle cx="14" cy="14" r="5" fill="${color}"/>
   </svg>`;
 }
 
@@ -32,9 +34,12 @@ interface Props {
   buildingLat: number;
   buildingLon: number;
   routes:      CyclingFeature[];
+  theme?:      MapTheme;
 }
 
-export default function CyclingMapInner({ buildingLat, buildingLon, routes }: Props) {
+export default function CyclingMapInner({ buildingLat, buildingLon, routes, theme: themeProp }: Props) {
+  const themeFromHook = useMapTheme();
+  const theme = themeProp ?? themeFromHook;
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef       = useRef<any>(null);
@@ -45,7 +50,7 @@ export default function CyclingMapInner({ buildingLat, buildingLon, routes }: Pr
   const [activeTypes, setActiveTypes] = useState<Set<RouteType>>(new Set(ALL_TYPES));
   const [mapReady, setMapReady]       = useState(false);
 
-  // ── Map init — runs only when building location changes ───────────────────
+  // ── Map init — runs only when building location or theme changes ──────────
   useEffect(() => {
     if (!document.getElementById('cycling-map-css')) {
       const s = document.createElement('style');
@@ -64,15 +69,15 @@ export default function CyclingMapInner({ buildingLat, buildingLon, routes }: Pr
         zoomControl: true, attributionControl: true,
       });
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a> · Adatok: <a href="https://www.openstreetmap.org/copyright">ODbL</a>',
+      L.tileLayer(theme.tileUrl, {
+        attribution: theme.attribution + ' · Adatok: <a href="https://www.openstreetmap.org/copyright">ODbL</a>',
         maxZoom: 19,
       }).addTo(map);
 
       // Building marker
       L.marker([buildingLat, buildingLon], {
         icon: L.divIcon({
-          html: buildingSvg(), className: 'cycling-bldg-pin',
+          html: buildingSvg(theme.colors.building), className: 'cycling-bldg-pin',
           iconSize: [28,28], iconAnchor: [14,14],
         }),
         zIndexOffset: 1000,
@@ -96,7 +101,7 @@ export default function CyclingMapInner({ buildingLat, buildingLon, routes }: Pr
       setMapReady(false);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buildingLat, buildingLon]);
+  }, [buildingLat, buildingLon, theme.id]);
 
   // ── Render routes — updates layers without destroying the map ─────────────
   useEffect(() => {
@@ -182,7 +187,7 @@ export default function CyclingMapInner({ buildingLat, buildingLon, routes }: Pr
       </div>
 
       {/* Map */}
-      <div className="relative overflow-hidden rounded-2xl" style={{ height: 520, background: '#060c18' }}>
+      <div className="relative overflow-hidden rounded-2xl" style={{ height: 520, background: theme.colors.background }}>
         <div ref={containerRef} className="absolute inset-0" />
 
         {!mapReady && (

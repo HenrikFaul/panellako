@@ -1,4 +1,31 @@
 
+## 2026-05-22 — v0.8.1 Dinamikus térképstílus-rendszer — 4 téma + superadmin témaváltó
+
+### Added
+- **`lib/map-theme.ts`** — 4 kanonikus téma definíciója (`minimal`, `nature`, `dark`, `dlc`) egységes `MapTheme` típussal: tile URL, attribúció, color palette (primary, secondary, accent, building, text, background), swatch preview.
+- **`hooks/use-map-theme.ts`** — kliens-oldali hook, modul-szintű cache-sel; egy API-hívás per oldalbetöltés, minden térkép-komponens osztja.
+- **`app/api/settings/map-theme/route.ts`** — nyilvános GET endpoint, visszaadja az aktuális téma ID-t a `platform_settings` táblából; `DEFAULT_THEME_ID = 'dark'` fallback.
+- **`supabase/migrations/20260522001_map_theme_default.sql`** — alapértelmezett `map_theme = {"id":"dark"}` beillesztése a `platform_settings` táblába.
+- **Superadmin témaváltó UI** (`components/superadmin-client.tsx`) — 4 gombos kártyarács, color swatch preview, aktív téma kiemelés; PATCH `/api/superadmin/settings` → azonnali mentés + cache invalidálás.
+- **5 prompt-response dokumentum** (`map_styles/prompt-responses/`):
+  - `01-mapbox-vs-leaflet.md` — Mapbox GL JS vs Leaflet vizuális testreszabhatóság teljes összehasonlítás, döntési útmutató
+  - `02-maputnik-integration.md` — Maputnik stílusok exportja + MapLibre GL / Leaflet integráció lépésről-lépésre
+  - `03-osm-vector-rendering.md` — OSM vektortérkép réteg-hierarchia, egyedi vizuális rétegek (heatmap/choropleth/highlight/3D extrude), zoom-vezérelt viselkedés
+  - `04-minimalist-design.md` — minimalista térképdesign nagy adathalmaz mellett, adat-szűrési és aggregációs technikák, checklist
+  - `05-tilejson-specification.md` — TileJSON spec alapjai, automatikus generálás, eszközök, template, AI-prompt példaszöveg
+
+### Changed
+- **`components/cycling-map-inner.tsx`** — `theme?: MapTheme` prop + `useMapTheme()` hook; tile URL és building marker szín témafüggő; `theme.id` a useEffect dependency listában.
+- **`components/air-quality-map-inner.tsx`** — ua. pattern; CARTO dark_all hardcode → `theme.tileUrl`.
+- **`components/transit-live-map-inner.tsx`** — ua. pattern; OSM standard tiles → `theme.tileUrl`.
+- **`components/compact-city-map.tsx`** — ua. pattern; tile URL témafüggő.
+- **`components/budapest-transit-analysis.tsx`** — `useMapTheme()` hook; CARTO light_all hardcode → `theme.tileUrl`.
+
+### Notes
+- Az összes térkép-komponens visszaesik `'dark'` témára, ha az API-hívás sikertelen (offline / DB-hiba).
+- Témaváltás után a felhasználók az **oldal újratöltésekor** látják az új témát (modul-szintű cache nem invalidálódik live).
+- Szuperadmin témaváltás azonnali cache-invalidálást is végez (`invalidateMapThemeCache()`), így az ugyanazon oldalbetöltésen belüli próba is az új témát mutatja.
+
 ## 2026-05-21 — v0.8.0 Tier 1 CI/CD + observability + security setup (audit Tier 1)
 
 ### Added — CI/CD + Security (this agent)

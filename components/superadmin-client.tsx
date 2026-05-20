@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import SuperadminGtfsImport from '@/components/superadmin-gtfs-import';
 import SuperadminDiagnostics from '@/components/superadmin-diagnostics';
+import { MAP_THEMES, MAP_THEME_IDS, DEFAULT_THEME_ID, type MapThemeId } from '@/lib/map-theme';
+import { invalidateMapThemeCache } from '@/hooks/use-map-theme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -188,6 +190,11 @@ export default function SuperadminClient() {
   const [running, setRunning]   = useState<string | null>(null);
   const [results, setResults]   = useState<Record<string, unknown>>({});
 
+  // Map theme settings
+  const [mapTheme, setMapTheme]     = useState<MapThemeId>(DEFAULT_THEME_ID);
+  const [themeSaving, setThemeSaving] = useState(false);
+  const [themeSaveMsg, setThemeSaveMsg] = useState('');
+
   // BKK rate-limit settings
   const [bkkSettings, setBkkSettings] = useState<BkkRateLimits>(BKK_DEFAULTS);
   const [bkkSaving, setBkkSaving]     = useState(false);
@@ -210,13 +217,17 @@ export default function SuperadminClient() {
   // ── Load on mount ────────────────────────────────────────────────────────
 
   useEffect(() => {
-    // Load BKK settings
     fetch('/api/superadmin/settings')
       .then(r => r.json())
       .then((data: { settings?: Array<{ key: string; value: unknown }> }) => {
-        const row = data.settings?.find(s => s.key === 'bkk_rate_limits');
-        if (row?.value && typeof row.value === 'object') {
-          setBkkSettings({ ...BKK_DEFAULTS, ...(row.value as Partial<BkkRateLimits>) });
+        const bkkRow = data.settings?.find(s => s.key === 'bkk_rate_limits');
+        if (bkkRow?.value && typeof bkkRow.value === 'object') {
+          setBkkSettings({ ...BKK_DEFAULTS, ...(bkkRow.value as Partial<BkkRateLimits>) });
+        }
+        const themeRow = data.settings?.find(s => s.key === 'map_theme');
+        if (themeRow?.value && typeof themeRow.value === 'object') {
+          const id = (themeRow.value as { id?: string }).id;
+          if (id && MAP_THEME_IDS.includes(id as MapThemeId)) setMapTheme(id as MapThemeId);
         }
       })
       .catch(() => { /* keep defaults */ });
@@ -255,6 +266,21 @@ export default function SuperadminClient() {
   useEffect(() => { loadStats(); loadLogs(); loadHealth(); }, [loadStats, loadLogs, loadHealth]);
 
   // ── Actions ──────────────────────────────────────────────────────────────
+
+  async function saveMapTheme(id: MapThemeId) {
+    setMapTheme(id);
+    setThemeSaving(true);
+    setThemeSaveMsg('');
+    const res = await fetch('/api/superadmin/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'map_theme', value: { id } }),
+    });
+    setThemeSaveMsg(res.ok ? '✓ Mentve' : '✗ Hiba');
+    setThemeSaving(false);
+    if (res.ok) invalidateMapThemeCache();
+    setTimeout(() => setThemeSaveMsg(''), 3000);
+  }
 
   async function saveBkkSettings() {
     setBkkSaving(true);
@@ -456,6 +482,51 @@ export default function SuperadminClient() {
               </table>
             </div>
           )}
+        </section>
+
+        {/* Map Theme Selector */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-black text-slate-900">Térképstílus</h2>
+              <p className="text-xs text-slate-500">A kiválasztott stílus minden felhasználói térképnézeten érvényes — oldalfrissítés után életbe lép.</p>
+            </div>
+            {themeSaveMsg && (
+              <span className={`rounded-full px-3 py-1 text-xs font-bold ${themeSaveMsg.startsWith('✓') ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                {themeSaveMsg}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {MAP_THEME_IDS.map(id => {
+              const t = MAP_THEMES[id];
+              const active = mapTheme === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => saveMapTheme(id)}
+                  disabled={themeSaving}
+                  className={`rounded-xl border-2 p-3 text-left transition-all duration-150 disabled:opacity-60 ${
+                    active
+                      ? 'border-indigo-500 bg-indigo-50'
+                      : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50'
+                  }`}
+                >
+                  {/* Color swatches */}
+                  <div className="mb-2 flex gap-1">
+                    {t.swatchColors.map((c, i) => (
+                      <span key={i} className="h-4 w-4 rounded-full border border-white/20 shadow-sm" style={{ background: c }} />
+                    ))}
+                  </div>
+                  <p className={`text-xs font-black ${active ? 'text-indigo-700' : 'text-slate-800'}`}>{t.labelHu}</p>
+                  <p className="mt-0.5 text-[10px] leading-tight text-slate-500 line-clamp-2">{t.description.split(' — ')[0]}</p>
+                  {active && (
+                    <span className="mt-2 inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">✓ Aktív</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </section>
 
         {/* BKK Rate Limit Settings */}

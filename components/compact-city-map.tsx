@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import type { CompactCityPoi, AmenityCategory } from '@/app/api/environment/urban/route';
+import type { MapTheme } from '@/lib/map-theme';
+import { useMapTheme } from '@/hooks/use-map-theme';
 
 // ─── Panel-level category groups ─────────────────────────────────────────────
 // We render markers grouped into these 8 user-facing buckets (matches the
@@ -130,11 +132,14 @@ interface Props {
   /** When set, after mount the map zooms to this POI and opens its popup
    *  (the right-hand detail card). Changing the value re-applies the effect. */
   zoomToPoiId?:              number | null;
+  theme?:                    MapTheme;
 }
 
 export default function CompactCityMap({
-  buildingLat, buildingLon, pois, initialFilterGroups, zoomToPoiId,
+  buildingLat, buildingLon, pois, initialFilterGroups, zoomToPoiId, theme: themeProp,
 }: Props) {
+  const themeFromHook = useMapTheme();
+  const theme = themeProp ?? themeFromHook;
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef       = useRef<any>(null);
@@ -191,8 +196,8 @@ export default function CompactCityMap({
         zoomControl: true, attributionControl: true,
       });
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>',
+      L.tileLayer(theme.tileUrl, {
+        attribution: theme.attribution,
         maxZoom: 19,
       }).addTo(map);
 
@@ -223,7 +228,7 @@ export default function CompactCityMap({
       setMapReady(false);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buildingLat, buildingLon]);
+  }, [buildingLat, buildingLon, theme.id]);
 
   // ── Render POI markers — updates layers when `pois` change ───────────────
   useEffect(() => {

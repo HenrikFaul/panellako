@@ -3,6 +3,8 @@
 import { useEffect, useRef, useCallback, useState, useMemo, useImperativeHandle, forwardRef } from 'react';
 import 'leaflet/dist/leaflet.css';
 import type { NearbyStop } from '@/app/api/transit/nearby/route';
+import type { MapTheme } from '@/lib/map-theme';
+import { useMapTheme } from '@/hooks/use-map-theme';
 import type { VehiclePosition } from '@/app/api/transit/vehicles/route';
 import type { Departure } from '@/app/api/transit/departures/route';
 import type { TripShape, TripStopTime } from '@/app/api/transit/shape/route';
@@ -168,10 +170,12 @@ export interface TransitLiveMapHandle {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-interface Props { lat: number; lon: number; stops: NearbyStop[]; alertRoutes?: string[]; }
+interface Props { lat: number; lon: number; stops: NearbyStop[]; alertRoutes?: string[]; theme?: MapTheme; }
 
 const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
-  function TransitLiveMapInner({ lat, lon, stops, alertRoutes }, ref) {
+  function TransitLiveMapInner({ lat, lon, stops, alertRoutes, theme: themeProp }, ref) {
+    const themeFromHook = useMapTheme();
+    const theme = themeProp ?? themeFromHook;
     const containerRef    = useRef<HTMLDivElement>(null);
     const mapRef          = useRef<unknown>(null);
     const vehicleLayer    = useRef<unknown>(null);
@@ -448,8 +452,8 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
           zoomControl: true, attributionControl: true,
         });
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        L.tileLayer(theme.tileUrl, {
+          attribution: theme.attribution,
           maxZoom: 19,
         }).addTo(map);
 
@@ -516,7 +520,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         }
       };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [lat, lon]);
+    }, [lat, lon, theme.id]);
 
     const timeStr = lastUpdate
       ? lastUpdate.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })

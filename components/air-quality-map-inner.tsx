@@ -5,6 +5,8 @@ import 'leaflet/dist/leaflet.css';
 import { X, Navigation, ChevronDown, CheckCircle, XCircle, AlertCircle, ShieldCheck } from 'lucide-react';
 import type { AQIStation, StationValidation } from '@/app/api/air-quality/stations/route';
 import type { HeatmapStation } from '@/app/api/air-quality/heatmap/route';
+import type { MapTheme } from '@/lib/map-theme';
+import { useMapTheme } from '@/hooks/use-map-theme';
 
 // ─── Pollutant config ─────────────────────────────────────────────────────────
 type PollutantKey = 'pm25' | 'pm10' | 'no2' | 'o3' | 'so2' | 'co' | 'no' | 'nox';
@@ -216,6 +218,7 @@ interface Props {
   buildingLon:      number;
   stations:         AQIStation[];
   onSelectStation?: (uid: number) => void;
+  theme?:           MapTheme;
 }
 
 // ─── Validation Report Panel ──────────────────────────────────────────────────
@@ -354,7 +357,9 @@ function ValidationReportPanel({ stations }: { stations: AQIStation[] }) {
 
 // ─── Main component ────────────────────────────────────────────────────────────
 const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
-  function AirQualityMapInner({ buildingLat, buildingLon, stations, onSelectStation }, ref) {
+  function AirQualityMapInner({ buildingLat, buildingLon, stations, onSelectStation, theme: themeProp }, ref) {
+    const themeFromHook = useMapTheme();
+    const theme = themeProp ?? themeFromHook;
     const containerRef    = useRef<HTMLDivElement>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mapRef          = useRef<any>(null);
@@ -405,9 +410,8 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
           zoomControl: true, attributionControl: true,
         });
 
-        // CARTO Voyager Dark — premium dark basemap
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-          attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
+        L.tileLayer(theme.tileUrl, {
+          attribution: theme.attribution,
           maxZoom: 19, subdomains: 'abcd',
         }).addTo(map);
 
@@ -447,7 +451,7 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
         setMapReady(false);
       };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [buildingLat, buildingLon]);
+    }, [buildingLat, buildingLon, theme.id]);
 
     // ── Station markers (re-render on stations change) ────────────────────────
     useEffect(() => {
