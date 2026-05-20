@@ -162,122 +162,77 @@ export async function downscalePng(masterPng: Buffer, targetWidth: number, targe
     .toBuffer();
 }
 
-// ─── Tiled render (for very large outputs > GIBS single-call limit) ──────────
+// ─── Tiled / upsampled render (for outputs larger than MODIS native) ──────────
 //
-// NASA GIBS WMS has a practical single-request size limit around 8192 px.
-// To build a higher-resolution mosaic we slice the Hungary bbox into a
-// regular tileMax × tileMax grid (with the right-most / bottom-most tiles
-// possibly smaller), fetch each tile via WMS GetMap with its own bbox, and
-// composite them together with sharp.  All tiles use a single TIME value
-// (the one resolved from the first successful slot lookup) so the mosaic
-// is visually consistent.
+// MODIS_Terra_NDVI_8Day is a 250 m/pixel raster.  Hungary spans ~525 km × 322
+// km, so MODIS-native dimensions for the Hungary bbox are ≈ 2100 × 1290 px.
+//
+// When the user requests a much bigger output (4 096+, 8 192+, 16 384+), GIBS
+// upsamples the source with nearest-neighbor and the result is **blocky** —
+// you can see individual 250 m MODIS cells as squares in the PNG.  That's
+// what made the v0.7.6 "Brutális" tier look identical to the 1024-px tier.
+//
+// Fix: fetch the master at a **slightly-oversampled MODIS-native resolution**
+// (one GIBS WMS call, fast & cheap), then **Lanczos3-upscale locally with
+// sharp** to the requested target.  Lanczos3 produces a smooth edges without
+// the blocky look, and we don't need GIBS to upsample at all.
+//
+// We still keep `renderHungaryNdviTiled` as the canonical name for backward
+// compat — but it no longer tiles GIBS calls (one call is enough), it just
+// resamples locally.
 
 export interface TiledRenderOpts {
   width:    number;     // desired output width  in px
   height:   number;     // desired output height in px
-  /** Max single WMS GetMap call dimensions. NASA GIBS practical limit ~8192. */
-  tileMax?: number;     // default 4096 (safe under GIBS limits, faster per-tile)
+  /** Kept for backward compatibility; unused in the local-upscale path. */
+  tileMax?: number;
 }
 
+// Hungary @ MODIS 250 m native is ~2100 × 1290.  We oversample a bit for
+// safety (avoid losing edge detail to integer rounding) — 2880 × 1160 keeps
+// the 2.4:1 aspect close to the Hungary bbox and adds a small Lanczos3
+// budget.  GIBS happily serves this size in a single GetMap call.
+const MODIS_FETCH_WIDTH  = 2880;
+const MODIS_FETCH_HEIGHT = 1160;
+
 /**
- * Render NDVI for Hungary at an arbitrarily large pixel size by stitching
- * multiple GIBS WMS GetMap tiles together with sharp.composite.  Picks the
- * TIME slot via the same lookup as `renderHungaryNdvi` (using a small probe
- * call), then fetches every tile at that TIME and mosaics them.
+ * Render NDVI for Hungary at an arbitrarily large pixel size.  Strategy:
+ *   1. Fetch the master once at MODIS-native(-ish) resolution via GIBS WMS
+ *      (using the same TIME-slot fallback logic as `renderHungaryNdvi`).
+ *   2. Upscale to the requested W × H with sharp Lanczos3.
+ *   3. Re-encode as PNG.
+ *
+ * Result: smooth, anti-aliased NDVI map at any output size.  At true MODIS
+ * scale you still see only ~250 m of detail; we cannot fabricate detail
+ * that isn't in the source.  But the image no longer looks pixel-blocky.
  */
 export async function renderHungaryNdviTiled(opts: TiledRenderOpts): Promise<GibsRenderResult> {
-  const tileMax = Math.max(256, Math.min(8192, opts.tileMax ?? 4096));
   const W = opts.width;
   const H = opts.height;
 
-  // 1. Resolve a single (layer, time, windowEnd) by probing with a small render.
-  //    This reuses the slot-cycling/fallback logic in renderHungaryNdvi.
-  const probe = await renderHungaryNdvi({ width: 64, height: 32 });
-  const layer     = probe.layer;
-  const time      = probe.time;
-  const windowEnd = probe.windowEnd;
+  // 1. Fetch master at native-ish resolution.  `renderHungaryNdvi` already
+  //    cycles through TIME slots + Terra/Aqua fallback.
+  const master = await renderHungaryNdvi({ width: MODIS_FETCH_WIDTH, height: MODIS_FETCH_HEIGHT });
 
-  // 2. Compute the tile grid.
-  const cols = Math.ceil(W / tileMax);
-  const rows = Math.ceil(H / tileMax);
-
-  // Pixel-space slicing — each tile owns its pixel offsets and size.  We then
-  // map those pixel offsets into bbox-space via lat/lon linear interpolation
-  // across the Hungary bbox.  HU_BBOX = [lonMin, latMin, lonMax, latMax].
-  const lonMin = HU_BBOX[0], latMin = HU_BBOX[1], lonMax = HU_BBOX[2], latMax = HU_BBOX[3];
-  const lonSpan = lonMax - lonMin;
-  const latSpan = latMax - latMin;
-
-  // 3. Fetch every tile.
-  type TilePart = { input: Buffer; left: number; top: number };
-  const parts: TilePart[] = [];
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const xStart = col * tileMax;
-      const yStart = row * tileMax;
-      const tileW  = Math.min(tileMax, W - xStart);
-      const tileH  = Math.min(tileMax, H - yStart);
-
-      // bbox for this tile (note: image y=0 is the NORTH edge, so latMax at top).
-      const tLonMin = lonMin + (xStart           / W) * lonSpan;
-      const tLonMax = lonMin + ((xStart + tileW) / W) * lonSpan;
-      const tLatMax = latMax - (yStart           / H) * latSpan;
-      const tLatMin = latMax - ((yStart + tileH) / H) * latSpan;
-
-      const params = new URLSearchParams({
-        SERVICE:     'WMS',
-        REQUEST:     'GetMap',
-        VERSION:     '1.3.0',
-        LAYERS:      layer,
-        STYLES:      '',
-        CRS:         'EPSG:4326',
-        // WMS 1.3.0 + EPSG:4326 → "minLat,minLon,maxLat,maxLon"
-        BBOX:        `${tLatMin},${tLonMin},${tLatMax},${tLonMax}`,
-        WIDTH:       String(tileW),
-        HEIGHT:      String(tileH),
-        FORMAT:      'image/png',
-        TRANSPARENT: 'TRUE',
-        TIME:        time,
-      });
-      const url = `${GIBS_WMS_URL}?${params.toString()}`;
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'panellako-ndvi-mosaic/1.0 (info@panellako.hu)', 'Accept': 'image/png' },
-        signal:  AbortSignal.timeout(120_000),
-      });
-      if (!res.ok) {
-        const txt = await res.text().catch(() => '');
-        throw new Error(`GIBS tile HTTP ${res.status} @ row=${row} col=${col}: ${txt.slice(0, 200)}`);
-      }
-      const ct = res.headers.get('content-type') ?? '';
-      if (!ct.startsWith('image/')) {
-        const txt = await res.text().catch(() => '');
-        throw new Error(`GIBS tile non-image (ct=${ct}) @ row=${row} col=${col}: ${txt.slice(0, 300)}`);
-      }
-      const buf = Buffer.from(await res.arrayBuffer());
-      parts.push({ input: buf, left: xStart, top: yStart });
-    }
+  // 2. If the caller asked for exactly the native size, just hand it over.
+  if (W === MODIS_FETCH_WIDTH && H === MODIS_FETCH_HEIGHT) {
+    return master;
   }
 
-  // 4. Composite onto a blank transparent canvas of the target size.
-  const canvas = sharp({
-    create: {
-      width:      W,
-      height:     H,
-      channels:   4,
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    },
-  });
-  const mosaic = await canvas
-    .composite(parts)
+  // 3. Resample locally with Lanczos3.  For DOWNSCALES (W*H < native*native)
+  //    sharp will use proper area-aggregation under the hood.  For UPSCALES
+  //    Lanczos3 is the canonical sharp resampler.
+  const upscaled = await sharp(master.png)
+    .resize({ width: W, height: H, fit: 'fill', kernel: 'lanczos3' })
     .png({ compressionLevel: 9 })
     .toBuffer();
 
   return {
-    png:       mosaic,
+    png:       upscaled,
     width:     W,
     height:    H,
-    layer,
-    time,
-    windowEnd,
+    layer:     master.layer,
+    time:      master.time,
+    windowEnd: master.windowEnd,
   };
 }

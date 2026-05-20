@@ -121,12 +121,20 @@ function PoiDetailCard({ poi, onClose }: { poi: CompactCityPoi; onClose: () => v
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface Props {
-  buildingLat: number;
-  buildingLon: number;
-  pois:        CompactCityPoi[];
+  buildingLat:               number;
+  buildingLon:               number;
+  pois:                      CompactCityPoi[];
+  /** When set, the map's filter chips start with ONLY these groups active.
+   *  `null` / `undefined` means "all groups active" (default behaviour). */
+  initialFilterGroups?:      Set<CatGroup> | null;
+  /** When set, after mount the map zooms to this POI and opens its popup
+   *  (the right-hand detail card). Changing the value re-applies the effect. */
+  zoomToPoiId?:              number | null;
 }
 
-export default function CompactCityMap({ buildingLat, buildingLon, pois }: Props) {
+export default function CompactCityMap({
+  buildingLat, buildingLon, pois, initialFilterGroups, zoomToPoiId,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef       = useRef<any>(null);
@@ -134,9 +142,26 @@ export default function CompactCityMap({ buildingLat, buildingLon, pois }: Props
   const leafletRef   = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const layerRefs    = useRef<Record<CatGroup, any>>({} as Record<CatGroup, any>);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const markerRefs   = useRef<Record<number, any>>({});
   const [mapReady, setMapReady]       = useState(false);
-  const [activeGroups, setActiveGroups] = useState<Set<CatGroup>>(new Set(ALL_GROUPS));
+  const [activeGroups, setActiveGroups] = useState<Set<CatGroup>>(
+    initialFilterGroups && initialFilterGroups.size > 0
+      ? new Set(initialFilterGroups)
+      : new Set(ALL_GROUPS),
+  );
   const [selected, setSelected]         = useState<CompactCityPoi | null>(null);
+
+  // If the parent updates the requested initial filter groups (e.g. user
+  // clicked a different "Nearest" card while already on the map view), sync
+  // the active-group state so the chips reflect the new selection.
+  useEffect(() => {
+    if (initialFilterGroups && initialFilterGroups.size > 0) {
+      setActiveGroups(new Set(initialFilterGroups));
+    } else if (initialFilterGroups === null) {
+      setActiveGroups(new Set(ALL_GROUPS));
+    }
+  }, [initialFilterGroups]);
 
   // Per-group counts (re-used by filter chips + stats)
   const counts = useMemo(() => {
@@ -209,6 +234,7 @@ export default function CompactCityMap({ buildingLat, buildingLon, pois }: Props
       const group = layerRefs.current[g];
       if (group) group.clearLayers();
     }
+    markerRefs.current = {};
 
     for (const poi of pois) {
       const g    = groupOf(poi.category);
@@ -230,8 +256,30 @@ export default function CompactCityMap({ buildingLat, buildingLon, pois }: Props
       );
       marker.on('click', () => setSelected(poi));
       marker.addTo(grp);
+      markerRefs.current[poi.osmId] = marker;
     }
   }, [mapReady, pois]);
+
+  // ── Zoom to a specific POI + open its detail card ────────────────────────
+  // Triggered when the parent panel asks us to focus a single POI (typically
+  // because the user clicked one of the "Legközelebbi" cards). We zoom in,
+  // pop the tooltip, AND open the right-hand detail card so the user can
+  // immediately read the full OSM tag table.
+  useEffect(() => {
+    if (!mapReady || zoomToPoiId == null) return;
+    const map = mapRef.current;
+    if (!map) return;
+    const poi = pois.find(p => p.osmId === zoomToPoiId);
+    if (!poi) return;
+    map.setView([poi.lat, poi.lon], 17, { animate: true });
+    const marker = markerRefs.current[zoomToPoiId];
+    if (marker && typeof marker.openTooltip === 'function') {
+      // Defer so the layer is definitely visible (filter effect may have
+      // just (re-)added the group) and the pan animation has started.
+      setTimeout(() => { try { marker.openTooltip(); } catch { /* noop */ } }, 250);
+    }
+    setSelected(poi);
+  }, [mapReady, zoomToPoiId, pois]);
 
   // ── Toggle category layers ───────────────────────────────────────────────
   useEffect(() => {
