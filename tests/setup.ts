@@ -9,10 +9,10 @@ import '@testing-library/jest-dom/vitest';
 // like @supabase/ssr touch them indirectly).
 import { TextDecoder, TextEncoder } from 'node:util';
 if (typeof globalThis.TextEncoder === 'undefined') {
-  // @ts-expect-error — jsdom env lacks these by default in some Node versions
-  globalThis.TextEncoder = TextEncoder;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).TextEncoder = TextEncoder;
 }
 if (typeof globalThis.TextDecoder === 'undefined') {
-  // @ts-expect-error — jsdom env lacks these by default in some Node versions
-  globalThis.TextDecoder = TextDecoder;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).TextDecoder = TextDecoder;
 }
