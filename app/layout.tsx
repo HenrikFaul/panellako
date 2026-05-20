@@ -17,6 +17,12 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'PanelLakó',
   },
+  other: {
+    // Modern cross-platform PWA hint — `apple-mobile-web-app-capable` (emitted
+    // by Next via appleWebApp.capable) is deprecated; `mobile-web-app-capable`
+    // is the standard tag recognised by Chrome / Firefox / modern iOS.
+    'mobile-web-app-capable': 'yes',
+  },
   icons: {
     icon: [
       { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },

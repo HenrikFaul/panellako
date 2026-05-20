@@ -14,7 +14,7 @@ export interface GreenData {
   mainRoadDistM:   number | null;
   railDistM:       number | null;
   computedAt:      string;
-  source:          'cache' | 'overpass';
+  source:          'cache' | 'overpass' | 'stale-cache' | 'unavailable';
 }
 
 interface OElement {
@@ -73,6 +73,34 @@ function createServiceClient() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
+// Overpass mirrors — failover to survive a single blocked endpoint.
+const OVERPASS_MIRRORS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://lz4.overpass-api.de/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+];
+
+async function overpassFetch(body: string): Promise<OElement[]> {
+  let lastErr: unknown = null;
+  for (const url of OVERPASS_MIRRORS) {
+    try {
+      const res = await fetch(url, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body,
+        signal:  AbortSignal.timeout(12_000),
+      });
+      if (!res.ok) { lastErr = new Error(`HTTP ${res.status} @ ${url}`); continue; }
+      const json = await res.json() as { elements: OElement[] };
+      return json.elements ?? [];
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr ?? new Error('All Overpass mirrors failed');
+}
+
 async function fetchFromOverpass(lat: number, lon: number): Promise<GreenData> {
   const query = `[out:json][timeout:25];
 (
@@ -97,15 +125,7 @@ out body;
 >;
 out skel qt;`;
 
-  const res = await fetch('https://overpass-api.de/api/interpreter', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    `data=${encodeURIComponent(query)}`,
-    signal:  AbortSignal.timeout(30000),
-  });
-  if (!res.ok) throw new Error(`Overpass HTTP ${res.status}`);
-  const json = await res.json() as { elements: OElement[] };
-  const els  = json.elements;
+  const els = await overpassFetch(`data=${encodeURIComponent(query)}`);
 
   // Green scoring
   const GREEN_LEISURE  = new Set(['park', 'garden', 'recreation_ground']);
@@ -248,7 +268,36 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(green);
   } catch (err) {
-    console.warn('[environment/green] Overpass failed:', err);
+    console.warn('[environment/green] all Overpass mirrors failed:', err);
+
+    // 1. Try stale cache (no TTL) before giving up
+    if (supabase && buildingId) {
+      const { data: cached } = await supabase
+        .from('building_green_cache')
+        .select('*')
+        .eq('building_id', buildingId)
+        .maybeSingle();
+      if (cached) {
+        const green: GreenData = {
+          greenScore:      Number(cached.green_score),
+          parkAreaM2:      Number(cached.park_area_500m_m2 ?? 0),
+          treeCount:       cached.tree_count_200m ?? 0,
+          nearestParkName: cached.nearest_park_name ?? 'Nincs adat',
+          nearestParkM:    Number(cached.nearest_park_m ?? 999),
+          playgroundCount: cached.playground_count ?? 0,
+          sportsCount:     cached.sports_count ?? 0,
+          noiseScore:      Number(cached.noise_score ?? 0.5),
+          mainRoadDistM:   cached.main_road_dist_m !== null ? Number(cached.main_road_dist_m) : null,
+          railDistM:       cached.rail_dist_m !== null ? Number(cached.rail_dist_m) : null,
+          computedAt:      cached.computed_at,
+          source:          'stale-cache',
+        };
+        return NextResponse.json(green);
+      }
+    }
+
+    // 2. No cache either — fall through to the existing null response so the
+    //    frontend shows the "Overpass nem elérhető" retry block.
     return NextResponse.json(null);
   }
 }
