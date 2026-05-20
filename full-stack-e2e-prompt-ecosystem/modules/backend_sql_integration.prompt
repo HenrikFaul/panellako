@@ -1,0 +1,72 @@
+# Backend SQL Integration
+
+Generated: 2026-05-20
+Layer: backend/SQL
+Minimum score: 80/100 before the prompt may be considered production-ready.
+Default iteration budget: 10 iterations, extendable to 100 while defects remain.
+Edge-case budget: 10-20 edge cases per impacted layer.
+Failure budget: 5-10 failure modes per impacted layer.
+Deployment statuses to verify: 200/3xx, 400/401/403, 404, 409, 422, 429, 500, 502/503, timeout, DNS/TLS failure, cold start, rollback state.
+
+Use this as an execution prompt for an AI developer/tester. Do not claim success from inspection only. Record commands, screenshots, API responses, database checks, event-stream checks, and deployment evidence. Do not perform destructive production actions or publish externally without explicit approval.
+
+## Goal
+Create, run, and iterate an end-to-end verification plan for backend-generated SQL and persisted data. The verification must connect frontend, backend, UI, SQL/data model, renderer, data feed, visualization, hosting/Vercel/AWS, Kafka/event stream, and data provider behavior whenever those layers exist in the target system.
+
+## Scope Checklist
+- Trace API inputs to SQL queries, migrations, constraints, indexes, rows, and rendered output.
+- Test transaction boundaries, rollback behavior, null handling, duplicates, and referential integrity.
+
+## Iterative Loop
+1. Discover architecture, routes, APIs, schemas, data feeds, event topics, deployment targets, and verification commands.
+2. Map every user-facing workflow to backend calls, persistence, event emission/consumption, renderer behavior, and deployment status.
+3. Generate or update tests before changing product code when feasible.
+4. Run the narrowest relevant checks first, then the full end-to-end flow.
+5. Score the prompt/test plan with the rubric below. If the score is below 80/100, improve the prompt/tests and repeat.
+6. Continue until failing evidence is resolved or a blocked dependency is documented with exact reproduction details.
+
+## Required Edge Cases
+- Empty input, missing optional fields, and required-field violations.
+- Wrong data type, malformed JSON, malformed CSV, and unexpected enum value.
+- Boundary values: min, max, zero, negative, very long strings, and large payloads.
+- Unicode, locale, timezone, currency, date parsing, and daylight-saving transitions.
+- Duplicate submissions, double clicks, refresh during save, and retry after partial success.
+- Concurrent edits and stale client state.
+- Slow network, offline transition, rate limit, and request cancellation.
+- Unauthorized, expired session, permission downgrade, and tenant mismatch.
+- Missing upstream data, empty dataset, out-of-order events, and late-arriving records.
+- Renderer stress: small mobile viewport, wide desktop, zoom, long labels, and overflow.
+
+## Required Failure Modes
+- Backend returns 400/401/403/404/409/422 with a structured error body.
+- Backend returns 500/502/503 or times out.
+- SQL migration, constraint, transaction, or query error.
+- Data provider returns stale, missing, duplicated, or schema-incompatible data.
+- Kafka producer/consumer lag, duplicate event, out-of-order event, or DLQ route.
+- Visualization receives empty, partial, negative, NaN, or extremely large values.
+- Deployment route returns 404, static asset fails, or serverless cold start exceeds budget.
+- CI/CD check fails, environment variable is absent, or rollback target is unhealthy.
+
+## Data Integrity Checks
+- Trace a canonical record from input UI/API through database rows, event payloads, derived feeds, and rendered UI.
+- Verify schema compatibility, required fields, constraints, referential integrity, and migration safety.
+- Check idempotency, duplicate suppression, ordering guarantees, and retry semantics.
+- Compare source-provider values with transformed application values and visualized aggregates.
+- Validate test data generation for valid, invalid, boundary, duplicate, and adversarial records.
+
+## Deployment And Hosting Checks
+- Verify the deployment URL, preview URL, and route health checks.
+- Check 404, 500, timeout, DNS/TLS, static asset, and serverless cold-start behavior.
+- Inspect CI/CD status, build logs, environment variables, and rollback readiness.
+- Confirm frontend assets and backend/API endpoints point to the same environment.
+- Capture deployment evidence before marking the flow verified.
+
+## Scoring Rubric
+- Layer coverage: 40 points. Full points require frontend, backend, UI, SQL/data model, renderer, data feed, visualization, hosting, Kafka/event stream, and data provider impacts to be considered or explicitly ruled out.
+- Edge cases: 20 points. Full points require 10-20 concrete edge cases for each impacted layer.
+- Error and retry behavior: 15 points. Full points require 5-10 failure modes with expected UI/API/data/event behavior.
+- Data integrity: 15 points. Full points require persistence, transformations, idempotency, duplicate handling, and cross-layer consistency checks.
+- Deployment status: 10 points. Full points require deployment health, route status, API status, asset loading, logs, and timeout behavior to be verified.
+
+## Completion Gate
+The work is complete only when evidence shows the code, configuration, tests, data flow, and deployment behave according to specification. If verification cannot be completed, return precise blockers with commands already run, observed results, and the smallest next action.

@@ -1,0 +1,22 @@
+# Self Organizing Prompt Ecosystem Controller
+
+Generated: 2026-05-20
+
+## Mission
+For every development request, build an end-to-end verification structure that covers frontend, backend, UI, SQL/data model, renderer, data feed, visualization, hosting/Vercel/AWS, Kafka/event stream, data provider, security, and performance layers.
+
+## Iteration Parameters
+- Iterations: start with 10, extend up to 100 while defects remain.
+- Minimum score: 80/100 for every prompt used as a delivery gate.
+- Edge cases: 10-20 per impacted layer.
+- Failure modes: 5-10 per impacted layer.
+- Deployment states: 200/3xx, 400/401/403, 404, 409, 422, 429, 500, 502/503, timeout, DNS/TLS failure, cold start, rollback state.
+
+## Loop
+1. Collect relevant prompts and project files.
+2. Categorize each prompt by layer.
+3. Score each prompt on coverage, edge cases, errors, data integrity, and deployment.
+4. Replace weak prompts in the active workflow with generated module prompts; preserve source files unless explicit overwrite approval exists.
+5. Improve strong prompts by adding missing edge cases, exception handling, provider checks, event-stream checks, data-integrity checks, and deployment evidence gates.
+6. Run the relevant code/config/test/deployment verification.
+7. Repeat until every impacted layer has evidence or a precise blocker is documented.

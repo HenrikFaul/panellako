@@ -1,0 +1,563 @@
+{
+  "generated_at": "2026-05-20",
+  "source_roots": [
+    "C:\\Users\\Lenovo\\Documents\\GitHub\\governance\\gsd",
+    "C:\\Users\\Lenovo\\Documents\\GitHub\\governance\\AI_PROMPTING_FOLDERSTRUCTURE"
+  ],
+  "output_root": "C:\\Users\\Lenovo\\Documents\\GitHub\\governance\\AI_PROMPTING_FOLDERSTRUCTURE\\qa-automation\\full-stack-e2e-prompt-ecosystem",
+  "included_files": 1826,
+  "skipped_files": 1,
+  "extensions": {
+    ".json": 72,
+    ".jsonl": 1,
+    ".md": 1678,
+    ".txt": 19,
+    ".yaml": 4,
+    ".yml": 52
+  },
+  "category_counts": {
+    "ui": 1436,
+    "backend": 1171,
+    "frontend": 1102,
+    "verification": 1076,
+    "sql": 1018,
+    "data_feed": 907,
+    "performance": 758,
+    "visualization": 634,
+    "security": 633,
+    "hosting_vercel_aws": 489,
+    "renderer": 388,
+    "data_provider": 272,
+    "kafka": 93,
+    "uncategorized": 50
+  },
+  "score_buckets": {
+    "60-79 usable": 285,
+    "0-39 weak": 922,
+    "40-59 partial": 391,
+    "80-100 strong": 228
+  },
+  "weakest_20": [
+    {
+      "path": "gsd/get-shit-done-main/tsconfig.json",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/prompts/SulmanK/concept_visualizer/last-activity.md",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/prompts/SulmanK/concept_visualizer/TODO/TODO.md",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/prompts/ssdeanx/ai-sdk-DM/github/copilot/codeGeneration.instructions.md",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/gsd-2-main/.github/FUNDING.yml",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/gsd-2-main/pkg/package.json",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/.changeset/bug-3446-resume-continue-here-discovery.md",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/.changeset/eager-lynx-munch.md",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/.changeset/fix-3163-codex-agents-md.md",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/.changeset/fix-3321-verifier-probes.md",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/.changeset/gallant-ravens-travel.md",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/.changeset/humble-tunas-leap.md",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/.changeset/merry-lynx-wander.md",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/.changeset/nimble-sloths-zip.md",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/.changeset/plucky-eagles-roar.md",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/.changeset/pr-3112-release-note.md",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/.changeset/pr-3113-release-note.md",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/.changeset/pr-3115-release-note.md",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/.changeset/pr-3116-release-note.md",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/.changeset/pr-3118-release-note.md",
+      "score": 0,
+      "categories": [
+        "uncategorized"
+      ]
+    }
+  ],
+  "strongest_20": [
+    {
+      "path": "gsd/get-shit-done-main/CONTEXT.md",
+      "score": 100,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "kafka",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "gsd/prompts/ssdeanx/ai-sdk-DM/README_TYPES.md",
+      "score": 100,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "kafka",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "gsd/prompts/ssdeanx/ai-sdk-DM/lib/tools/repomix-output.txt.md",
+      "score": 100,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "kafka",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "gsd/prompts/ssdeanx/ai-sdk-DM/github/docs/APP_TOOLS_GUIDE.MD",
+      "score": 100,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "kafka",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "gsd/gsd-2-main/docs/dev/FILE-SYSTEM-MAP.md",
+      "score": 100,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "kafka",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/agents/gsd-phase-researcher.md",
+      "score": 100,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "kafka",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/agents/gsd-planner.md",
+      "score": 100,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "kafka",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/docs/FEATURES.md",
+      "score": 100,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "kafka",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/docs/USER-GUIDE.md",
+      "score": 100,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "kafka",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "AI_PROMPTING_FOLDERSTRUCTURE/ai_dev_system.md",
+      "score": 100,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "kafka",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "AI_PROMPTING_FOLDERSTRUCTURE/backend/ai_instructions.md",
+      "score": 100,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "kafka",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "AI_PROMPTING_FOLDERSTRUCTURE/ui/accessibility.md",
+      "score": 99,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "kafka",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/docs/COMMANDS.md",
+      "score": 98,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "kafka",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "gsd/get-shit-done-main/CHANGELOG.md",
+      "score": 97,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "gsd/prompts/ssdeanx/ai-sdk-DM/CHANGELOG.md",
+      "score": 97,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "gsd/prompts/ssdeanx/ai-sdk-DM/README.md",
+      "score": 97,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "gsd/prompts/ssdeanx/ai-sdk-DM/github/copilot-instructions.md",
+      "score": 97,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "kafka",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "gsd/prompts/ssdeanx/ai-sdk-DM/github/docs/APP_AGENTS_AND_PERSONAS_GUIDE.MD",
+      "score": 97,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "gsd/prompts/ssdeanx/ai-sdk-DM/github/prompts/sys-instruct.md",
+      "score": 97,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    },
+    {
+      "path": "gsd/prompts/ssdeanx/ai-sdk-DM/app/api/ai-sdk/repomix-output.md",
+      "score": 97,
+      "categories": [
+        "frontend",
+        "backend",
+        "ui",
+        "sql",
+        "renderer",
+        "data_feed",
+        "visualization",
+        "hosting_vercel_aws",
+        "data_provider",
+        "verification",
+        "security",
+        "performance"
+      ]
+    }
+  ],
+  "skipped": [
+    {
+      "path": "gsd/get-shit-done-main/tests/fixtures/adversarial/frontmatter/null-byte-value.md",
+      "reason": "binary-null"
+    }
+  ]
+}
