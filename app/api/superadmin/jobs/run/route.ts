@@ -11,30 +11,68 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 // ─── Geocoder (Nominatim → internal API fallback) ─────────────────────────────
-async function geocodeAddress(address: string, appBase: string): Promise<{ lat: number; lon: number } | null> {
-  // Try the internal /api/transit/geocode endpoint first (has in-memory cache)
-  try {
-    const res = await fetch(`${appBase}/api/transit/geocode?address=${encodeURIComponent(address)}`, {
-      signal: AbortSignal.timeout(8000),
-    });
-    if (res.ok) {
-      const d = await res.json() as { lat?: number; lon?: number; error?: string };
-      if (d.lat && d.lon) return { lat: d.lat, lon: d.lon };
-    }
-  } catch { /* fall through */ }
 
-  // Direct Nominatim fallback
+export type GeocodeAttempt = { source: string; ok: boolean; reason?: string; status?: number };
+export type GeocodeResult =
+  | { ok: true;  lat: number; lon: number; source: 'internal' | 'nominatim'; attempts: GeocodeAttempt[] }
+  | { ok: false; reason: string; attempts: GeocodeAttempt[] };
+
+async function geocodeAddress(address: string, appBase: string): Promise<GeocodeResult> {
+  const attempts: GeocodeAttempt[] = [];
+  const cleanAddress = (address ?? '').trim();
+  if (!cleanAddress || cleanAddress.length < 5) {
+    return { ok: false, reason: `Empty or too short address: "${cleanAddress}"`, attempts };
+  }
+
+  // 1. Internal /api/transit/geocode endpoint (has in-memory cache)
   try {
-    const params = new URLSearchParams({ q: address, format: 'json', countrycodes: 'hu', limit: '1', addressdetails: '0' });
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
-      headers: { 'User-Agent': 'panellako.hu/1.0', 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(8000),
+    const url = `${appBase}/api/transit/geocode?address=${encodeURIComponent(cleanAddress)}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (res.ok) {
+      const d = await res.json() as { lat?: number; lon?: number; source?: string };
+      if (typeof d.lat === 'number' && typeof d.lon === 'number') {
+        attempts.push({ source: 'internal', ok: true, status: res.status });
+        return { ok: true, lat: d.lat, lon: d.lon, source: 'internal', attempts };
+      }
+      attempts.push({ source: 'internal', ok: false, status: res.status, reason: 'response missing lat/lon' });
+    } else {
+      const body = await res.text().catch(() => '');
+      attempts.push({ source: 'internal', ok: false, status: res.status, reason: body.slice(0, 200) || res.statusText });
+    }
+  } catch (err) {
+    attempts.push({ source: 'internal', ok: false, reason: err instanceof Error ? err.message : String(err) });
+  }
+
+  // 2. Direct Nominatim fallback
+  try {
+    const params = new URLSearchParams({ q: cleanAddress, format: 'json', countrycodes: 'hu', limit: '1', addressdetails: '0' });
+    const url = `https://nominatim.openstreetmap.org/search?${params}`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'panellako.hu/1.0 (info@panellako.hu)', 'Accept': 'application/json', 'Referer': 'https://panellako.hu' },
+      signal:  AbortSignal.timeout(8000),
     });
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!Array.isArray(data) || data.length === 0) return null;
-    return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-  } catch { return null; }
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      attempts.push({ source: 'nominatim', ok: false, status: res.status, reason: body.slice(0, 200) || res.statusText });
+      return { ok: false, reason: `Nominatim HTTP ${res.status}`, attempts };
+    }
+    const data = await res.json() as Array<{ lat?: string; lon?: string }>;
+    if (!Array.isArray(data) || data.length === 0) {
+      attempts.push({ source: 'nominatim', ok: false, status: res.status, reason: 'no results for address' });
+      return { ok: false, reason: `Nominatim found no match for "${cleanAddress}"`, attempts };
+    }
+    const lat = parseFloat(data[0].lat ?? '');
+    const lon = parseFloat(data[0].lon ?? '');
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      attempts.push({ source: 'nominatim', ok: false, status: res.status, reason: 'invalid lat/lon in response' });
+      return { ok: false, reason: 'Nominatim returned non-numeric coordinates', attempts };
+    }
+    attempts.push({ source: 'nominatim', ok: true, status: res.status });
+    return { ok: true, lat, lon, source: 'nominatim', attempts };
+  } catch (err) {
+    attempts.push({ source: 'nominatim', ok: false, reason: err instanceof Error ? err.message : String(err) });
+    return { ok: false, reason: `Nominatim fetch failed: ${err instanceof Error ? err.message : String(err)}`, attempts };
+  }
 }
 
 // ─── DB logging ───────────────────────────────────────────────────────────────
@@ -254,12 +292,12 @@ export async function POST(request: NextRequest) {
   async function resolveCoords(
     b: BuildingRow,
     supabase: ReturnType<typeof createServiceClient>,
-  ): Promise<{ lat: number; lon: number } | null> {
-    if (b.lat != null && b.lon != null) return { lat: b.lat, lon: b.lon };
+  ): Promise<{ ok: true; lat: number; lon: number; source: 'db' | 'internal' | 'nominatim' } | { ok: false; reason: string; attempts: GeocodeAttempt[] }> {
+    if (b.lat != null && b.lon != null) return { ok: true, lat: b.lat, lon: b.lon, source: 'db' };
     const geo = await geocodeAddress(b.address, appBase);
-    if (!geo) return null;
+    if (!geo.ok) return { ok: false, reason: geo.reason, attempts: geo.attempts };
     await supabase!.from('buildings').update({ lat: geo.lat, lon: geo.lon, geocoded_at: new Date().toISOString() }).eq('id', b.id);
-    return geo;
+    return { ok: true, lat: geo.lat, lon: geo.lon, source: geo.source };
   }
 
   if (job === 'satellite_refresh') {
@@ -282,9 +320,14 @@ export async function POST(request: NextRequest) {
       const toRefresh = ((buildings ?? []) as BuildingRow[]).filter(b => !freshIds.has(b.id));
 
       let refreshed = 0, errors = 0, geocodeFailed = 0;
+      const failures: Array<{ buildingId: string; name: string; address: string; reason: string; attempts: GeocodeAttempt[] }> = [];
       for (const building of toRefresh) {
         const coords = await resolveCoords(building, supabase);
-        if (!coords) { geocodeFailed++; continue; }
+        if (!coords.ok) {
+          geocodeFailed++;
+          failures.push({ buildingId: building.id, name: building.name, address: building.address ?? '', reason: coords.reason, attempts: coords.attempts });
+          continue;
+        }
         try {
           const url = `${appBase}/api/environment/satellite?lat=${coords.lat}&lon=${coords.lon}&buildingId=${building.id}`;
           const res = await fetch(url, { cache: 'no-store' });
@@ -293,7 +336,7 @@ export async function POST(request: NextRequest) {
         await new Promise(r => setTimeout(r, 3000));
       }
 
-      const result = { total: (buildings ?? []).length, skipped: freshIds.size, refreshed, errors, geocodeFailed };
+      const result = { total: (buildings ?? []).length, skipped: freshIds.size, refreshed, errors, geocodeFailed, failures };
       await logEnd(logId, errors === 0 ? 'ok' : 'partial', result);
       return NextResponse.json({ ok: errors === 0, job, result, ranAt: new Date().toISOString() }, { status: errors === 0 ? 200 : 207 });
     } catch (err) {
@@ -323,9 +366,14 @@ export async function POST(request: NextRequest) {
       const toRefresh = ((buildings ?? []) as BuildingRow[]).filter(b => !freshIds.has(b.id));
 
       let refreshed = 0, errors = 0, geocodeFailed = 0;
+      const failures: Array<{ buildingId: string; name: string; address: string; reason: string; attempts: GeocodeAttempt[] }> = [];
       for (const building of toRefresh) {
         const coords = await resolveCoords(building, supabase);
-        if (!coords) { geocodeFailed++; continue; }
+        if (!coords.ok) {
+          geocodeFailed++;
+          failures.push({ buildingId: building.id, name: building.name, address: building.address ?? '', reason: coords.reason, attempts: coords.attempts });
+          continue;
+        }
         try {
           const url = `${appBase}/api/environment/urban?lat=${coords.lat}&lon=${coords.lon}&buildingId=${building.id}`;
           const res = await fetch(url, { cache: 'no-store' });
@@ -334,7 +382,7 @@ export async function POST(request: NextRequest) {
         await new Promise(r => setTimeout(r, 2000));
       }
 
-      const result = { total: (buildings ?? []).length, skipped: freshIds.size, refreshed, errors, geocodeFailed };
+      const result = { total: (buildings ?? []).length, skipped: freshIds.size, refreshed, errors, geocodeFailed, failures };
       await logEnd(logId, errors === 0 ? 'ok' : 'partial', result);
       return NextResponse.json({ ok: errors === 0, job, result, ranAt: new Date().toISOString() }, { status: errors === 0 ? 200 : 207 });
     } catch (err) {
@@ -365,10 +413,15 @@ export async function POST(request: NextRequest) {
       const toRefresh = list.filter(b => !freshIds.has(b.id));
 
       let refreshed = 0, errors = 0, geocodeFailed = 0;
+      const failures: Array<{ buildingId: string; name: string; address: string; reason: string; attempts: GeocodeAttempt[] }> = [];
 
       for (const building of toRefresh) {
         const coords = await resolveCoords(building, supabase);
-        if (!coords) { geocodeFailed++; continue; }
+        if (!coords.ok) {
+          geocodeFailed++;
+          failures.push({ buildingId: building.id, name: building.name, address: building.address ?? '', reason: coords.reason, attempts: coords.attempts });
+          continue;
+        }
         try {
           const url = `${appBase}/api/environment/green?lat=${coords.lat}&lon=${coords.lon}&buildingId=${building.id}`;
           const res = await fetch(url, { cache: 'no-store' });
@@ -377,7 +430,7 @@ export async function POST(request: NextRequest) {
         await new Promise(r => setTimeout(r, 2000));
       }
 
-      const result = { total: list.length, skipped: freshIds.size, refreshed, errors, geocodeFailed };
+      const result = { total: list.length, skipped: freshIds.size, refreshed, errors, geocodeFailed, failures };
       await logEnd(logId, errors === 0 ? 'ok' : 'partial', result);
       return NextResponse.json({ ok: errors === 0, job, result, ranAt: new Date().toISOString() }, { status: errors === 0 ? 200 : 207 });
     } catch (err) {
@@ -408,9 +461,14 @@ export async function POST(request: NextRequest) {
       const toRefresh = ((buildings ?? []) as BuildingRow[]).filter(b => !freshIds.has(b.id));
 
       let refreshed = 0, errors = 0, geocodeFailed = 0;
+      const failures: Array<{ buildingId: string; name: string; address: string; reason: string; attempts: GeocodeAttempt[] }> = [];
       for (const building of toRefresh) {
         const coords = await resolveCoords(building, supabase);
-        if (!coords) { geocodeFailed++; continue; }
+        if (!coords.ok) {
+          geocodeFailed++;
+          failures.push({ buildingId: building.id, name: building.name, address: building.address ?? '', reason: coords.reason, attempts: coords.attempts });
+          continue;
+        }
         try {
           const url = `${appBase}/api/environment/urban-atlas?lat=${coords.lat}&lon=${coords.lon}&buildingId=${building.id}`;
           const res = await fetch(url, { cache: 'no-store' });
@@ -419,7 +477,7 @@ export async function POST(request: NextRequest) {
         await new Promise(r => setTimeout(r, 2000));
       }
 
-      const result = { total: (buildings ?? []).length, skipped: freshIds.size, refreshed, errors, geocodeFailed };
+      const result = { total: (buildings ?? []).length, skipped: freshIds.size, refreshed, errors, geocodeFailed, failures };
       await logEnd(logId, errors === 0 ? 'ok' : 'partial', result);
       return NextResponse.json({ ok: errors === 0, job, result, ranAt: new Date().toISOString() }, { status: errors === 0 ? 200 : 207 });
     } catch (err) {
@@ -432,28 +490,80 @@ export async function POST(request: NextRequest) {
   // ─── Budapest Open Data import (fa-leltár + parknyilvántartás) ───────────────
   if (job === 'budapest_import') {
     const logId = await logStart(job);
+    const fetchErrors: Array<{ url: string; error: string }> = [];
     try {
       const supabase = createServiceClient();
       if (!supabase) throw new Error('No Supabase client');
 
-      // ── 1. Discover dataset resource IDs via CKAN ─────────────────────────
-      const CKAN_BASE = 'https://opendata.budapest.hu/api/3/action';
+      // ── 1. CKAN base candidates ──────────────────────────────────────────
+      // The Budapest open-data portal has moved domain a few times; try the
+      // canonical CKAN base, then the legacy / alternate prefixes.
+      const CKAN_BASES = [
+        'https://opendata.budapest.hu/api/3/action',
+        'https://nyiltadat.budapest.hu/api/3/action',
+        'https://opendata.budapest.hu/api/action',
+      ];
+      const COMMON_HEADERS = {
+        'User-Agent': 'panellako.hu/1.0 (info@panellako.hu)',
+        'Accept':     'application/json',
+        'Referer':    'https://panellako.hu',
+      } as const;
+
+      // Probe each base until one responds with HTTP 200 to a /status_show
+      // or /package_search call.  This lets us return a clear "all bases
+      // unreachable" diagnostic rather than the generic 'fetch failed'.
+      async function probeBase(base: string): Promise<{ ok: true; base: string } | { ok: false; error: string }> {
+        try {
+          const res = await fetch(`${base}/package_search?rows=1`, {
+            headers: COMMON_HEADERS,
+            signal:  AbortSignal.timeout(8_000),
+          });
+          if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
+          return { ok: true, base };
+        } catch (err) {
+          return { ok: false, error: err instanceof Error ? `${err.name}: ${err.message}${err.cause ? ` (cause: ${String(err.cause).slice(0, 100)})` : ''}` : String(err) };
+        }
+      }
+
+      let CKAN_BASE: string | null = null;
+      for (const base of CKAN_BASES) {
+        const probe = await probeBase(base);
+        if (probe.ok) { CKAN_BASE = probe.base; break; }
+        fetchErrors.push({ url: base, error: probe.error });
+      }
+      if (!CKAN_BASE) {
+        throw new Error(`No Budapest CKAN endpoint reachable. Tried: ${JSON.stringify(fetchErrors)}`);
+      }
 
       async function ckanSearch(query: string): Promise<Array<{ id: string; name: string; resources: Array<{ id: string; format: string; name: string }> }>> {
-        const res = await fetch(`${CKAN_BASE}/package_search?q=${encodeURIComponent(query)}&rows=5`, {
-          signal: AbortSignal.timeout(10_000),
-        });
-        if (!res.ok) return [];
-        const json = await res.json() as { result?: { results?: unknown[] } };
-        return (json.result?.results ?? []) as ReturnType<typeof ckanSearch> extends Promise<infer T> ? T : never;
+        try {
+          const res = await fetch(`${CKAN_BASE}/package_search?q=${encodeURIComponent(query)}&rows=5`, {
+            headers: COMMON_HEADERS,
+            signal:  AbortSignal.timeout(15_000),
+          });
+          if (!res.ok) {
+            fetchErrors.push({ url: `${CKAN_BASE}/package_search?q=${query}`, error: `HTTP ${res.status}` });
+            return [];
+          }
+          const json = await res.json() as { result?: { results?: unknown[] } };
+          return (json.result?.results ?? []) as Array<{ id: string; name: string; resources: Array<{ id: string; format: string; name: string }> }>;
+        } catch (err) {
+          fetchErrors.push({ url: `${CKAN_BASE}/package_search?q=${query}`, error: err instanceof Error ? err.message : String(err) });
+          return [];
+        }
       }
 
       async function ckanPage(resourceId: string, offset: number, limit = 10000): Promise<{ records: Record<string, unknown>[]; total: number }> {
         const params = new URLSearchParams({ resource_id: resourceId, limit: String(limit), offset: String(offset) });
-        const res = await fetch(`${CKAN_BASE}/datastore_search?${params}`, {
-          signal: AbortSignal.timeout(60_000),
+        const url = `${CKAN_BASE}/datastore_search?${params}`;
+        const res = await fetch(url, {
+          headers: COMMON_HEADERS,
+          signal:  AbortSignal.timeout(60_000),
         });
-        if (!res.ok) throw new Error(`CKAN datastore HTTP ${res.status}`);
+        if (!res.ok) {
+          const body = await res.text().catch(() => '');
+          throw new Error(`CKAN datastore HTTP ${res.status} @ ${url} — ${body.slice(0, 200)}`);
+        }
         const json = await res.json() as {
           result?: { records?: Record<string, unknown>[]; total?: number };
           error?: { message?: string };
@@ -600,12 +710,13 @@ export async function POST(request: NextRequest) {
       ], { onConflict: 'key' });
 
       const ok = !!(treeResourceId || parkResourceId);
+      if (fetchErrors.length > 0) (stats as Record<string, unknown>).fetchErrors = fetchErrors;
       await logEnd(logId, ok ? 'ok' : 'error', stats);
       return NextResponse.json({ ok, job, result: stats, ranAt: now }, { status: ok ? 200 : 207 });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      await logEnd(logId, 'error', { error: message });
-      return NextResponse.json({ ok: false, job, error: message, ranAt: new Date().toISOString() }, { status: 500 });
+      await logEnd(logId, 'error', { error: message, fetchErrors });
+      return NextResponse.json({ ok: false, job, error: message, fetchErrors, ranAt: new Date().toISOString() }, { status: 500 });
     }
   }
 

@@ -1,4 +1,22 @@
 
+## 2026-05-20 — v0.7.5 Geocoder + budapest_import részletes hibadiagnosztika
+
+### Fixed
+- **`app/api/superadmin/jobs/run/route.ts` `geocodeAddress`** korábban a hiba esetén csak **`null`-t** adott vissza, így a 4 building-re hivatkozó job (`satellite_refresh`, `urban_refresh`, `env_refresh_green`, `urban_atlas_refresh`) `geocodeFailed: 1` üzenetnél megállt információ nélkül. Most részletes objektumot ad vissza:
+  - **`{ ok: true, lat, lon, source: 'internal' | 'nominatim', attempts: [...] }`** sikernél (forrás-jelölés a két fallback között)
+  - **`{ ok: false, reason: string, attempts: [...] }`** kudarcnál, ahol az `attempts` minden próbálkozást rögzít HTTP status + hibaüzenettel (üres cím, Nominatim 0 találat, hálózati hiba stb.)
+  - Üres / 5 karakternél rövidebb cím külön explicit hibaüzenetet kap, nem csak "fetch failed"
+- A 4 érintett job most a result-ban visszaadja a **`failures: Array<{ buildingId, name, address, reason, attempts }>`** mezőt — minden geocode-elhasalt épületre megmondja, **melyik volt az**, **mi volt az address**, **miért bukott**, és **mely geocoder-eken bukott el milyen módon**. A superadmin output mostantól meg tudja állapítani, hogy a cím rossz, üres, vagy a Nominatim utasítja el.
+
+### Fixed (network diagnostics)
+- **`budapest_import`** job a "fetch failed" lakonikus üzenetet adta minden hiba esetén. Most:
+  - 3 lehetséges CKAN-bázis-URL-t próbál sorba (`opendata.budapest.hu/api/3/action` → `nyiltadat.budapest.hu/api/3/action` → `opendata.budapest.hu/api/action`)
+  - Mindegyikre futtatott `/package_search?rows=1` próbát logol `fetchErrors: [{ url, error }]` listában, beleértve a `cause` mező első 100 karakterét (DNS/TLS/connect debug)
+  - Minden eredeti CKAN-hívás (`package_search`, `datastore_search`) explicit `User-Agent`, `Accept`, `Referer` headerekkel megy
+  - Időtúllépés `package_search`-re 10s → 15s (CKAN szervere lassú lehet)
+  - Hiba esetén a teljes `fetchErrors` lista visszakerül a job result-jába, így a superadmin pontosan látja melyik URL bukott el milyen hibával
+- Ezzel a budapest_import most már **megmondja hogy minden bázis-URL elérhetetlen** ahelyett, hogy némán "fetch failed"-et adna — a következő lépés az lesz, hogy a 3 URL közül legalább egyik válaszoljon, vagy alternatív forrást keressünk (pl. OSM Overpass `natural=tree`).
+
 ## 2026-05-20 — v0.7.4 NDVI render NASA GIBS-re + diagnosztika UI kontraszt fix
 
 ### Fixed
