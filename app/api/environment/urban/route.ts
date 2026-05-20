@@ -23,7 +23,7 @@ export interface CompactCityData {
   nearestPharmacyM:    number | null;
   nearestSchoolM:      number | null;
   transitStops500m:    number;
-  source:              'cache' | 'overpass';
+  source:              'cache' | 'overpass' | 'stale-cache' | 'unavailable';
   computedAt:          string;
 }
 
@@ -40,7 +40,7 @@ export interface LiveabilityData {
   label:       string;
   labelColor:  string;
   dimensions:  LiveabilityDimension[];
-  source:      'cache' | 'overpass';
+  source:      'cache' | 'overpass' | 'stale-cache' | 'unavailable';
   computedAt:  string;
 }
 
@@ -121,8 +121,17 @@ function classifyElement(tags: Record<string, string>): AmenityCategory | null {
 
 // ─── Overpass query ───────────────────────────────────────────────────────────
 
+// Overpass mirrors — some are blocked by Vercel's cloud network policy, so we
+// fail over instead of returning 503 immediately.
+const OVERPASS_MIRRORS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://lz4.overpass-api.de/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+];
+
 async function fetchAmenities(lat: number, lon: number): Promise<OsmElement[]> {
-  const query = `[out:json][timeout:30];
+  const query = `[out:json][timeout:25];
 (
   node["amenity"~"supermarket|pharmacy|hospital|clinic|doctor|dentist|school|kindergarten|university|college|library|restaurant|cafe|fast_food|food_court|bar|theatre|cinema|museum|gallery|arts_centre|community_centre|police|fire_station|bank|post_office|atm"](around:1500,${lat},${lon});
   node["shop"~"supermarket|convenience|bakery|butcher|greengrocer|grocery"](around:1000,${lat},${lon});
@@ -130,16 +139,25 @@ async function fetchAmenities(lat: number, lon: number): Promise<OsmElement[]> {
   way["amenity"~"hospital|clinic|school|university|theatre|cinema|museum|sports_centre"](around:1500,${lat},${lon});
 );
 out center;`;
+  const body = `data=${encodeURIComponent(query)}`;
 
-  const res = await fetch('https://overpass-api.de/api/interpreter', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    `data=${encodeURIComponent(query)}`,
-    signal:  AbortSignal.timeout(35_000),
-  });
-  if (!res.ok) throw new Error(`Overpass HTTP ${res.status}`);
-  const json = await res.json() as { elements?: OsmElement[] };
-  return json.elements ?? [];
+  let lastErr: unknown = null;
+  for (const url of OVERPASS_MIRRORS) {
+    try {
+      const res = await fetch(url, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body,
+        signal:  AbortSignal.timeout(12_000),
+      });
+      if (!res.ok) { lastErr = new Error(`HTTP ${res.status} @ ${url}`); continue; }
+      const json = await res.json() as { elements?: OsmElement[] };
+      return json.elements ?? [];
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr ?? new Error('All Overpass mirrors failed');
 }
 
 // ─── Score computation ────────────────────────────────────────────────────────
@@ -351,11 +369,61 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // ── 2. Live Overpass query ─────────────────────────────────────────────────
+  // ── 2. Live Overpass query (with mirror failover + stale-cache fallback) ──
   let elements: OsmElement[];
   try {
     elements = await fetchAmenities(lat, lon);
-  } catch {
+  } catch (err) {
+    console.warn('[environment/urban] all Overpass mirrors failed:', err);
+
+    // Try stale cache (any age) before giving up
+    if (supabase && buildingId) {
+      const [{ data: cc }, { data: lc }] = await Promise.all([
+        supabase.from('building_compact_city_cache').select('*').eq('building_id', buildingId).maybeSingle(),
+        supabase.from('building_liveability_cache') .select('*').eq('building_id', buildingId).maybeSingle(),
+      ]);
+      if (cc && lc) {
+        const lvLabel = liveabilityLabel(lc.total_score as number);
+        const result: UrbanData = {
+          compactCity: {
+            walkabilityScore:    cc.walkability_score as number,
+            transitScore:        cc.transit_score as number,
+            mixedUseScore:       cc.mixed_use_score as number,
+            score15min:          cc.score_15min as number,
+            amenities: [
+              { category: 'food',      label: 'Élelmiszer',  count: cc.daily_needs_count ?? 0, nearestM: cc.nearest_supermarket_m, icon: '🛒' },
+              { category: 'health',    label: 'Egészségügy', count: cc.healthcare_count  ?? 0, nearestM: cc.nearest_pharmacy_m,    icon: '💊' },
+              { category: 'education', label: 'Oktatás',     count: cc.education_count   ?? 0, nearestM: cc.nearest_school_m,      icon: '🏫' },
+              { category: 'dining',    label: 'Vendéglátás', count: cc.food_count        ?? 0, nearestM: null,                     icon: '🍽️' },
+              { category: 'culture',   label: 'Kultúra',     count: cc.culture_count     ?? 0, nearestM: null,                     icon: '🎭' },
+              { category: 'sport',     label: 'Sport',       count: cc.shop_count        ?? 0, nearestM: null,                     icon: '⚽' },
+            ],
+            nearestSupermarketM: cc.nearest_supermarket_m,
+            nearestPharmacyM:    cc.nearest_pharmacy_m,
+            nearestSchoolM:      cc.nearest_school_m,
+            transitStops500m:    cc.transit_stops_500m ?? 0,
+            source: 'stale-cache', computedAt: cc.computed_at as string,
+          },
+          liveability: {
+            totalScore:  lc.total_score as number,
+            label:       lvLabel.label,
+            labelColor:  lvLabel.color,
+            dimensions: [
+              { key: 'greenAir',   label: 'Zöld & Levegő', score: lc.green_air_score   ?? 50, icon: '🌿', color: '#22c55e' },
+              { key: 'health',     label: 'Egészségügy',   score: lc.healthcare_score  ?? 50, icon: '🏥', color: '#60a5fa' },
+              { key: 'education',  label: 'Oktatás',       score: lc.education_score   ?? 50, icon: '🎓', color: '#a78bfa' },
+              { key: 'culture',    label: 'Kultúra',       score: lc.culture_score     ?? 50, icon: '🎭', color: '#f472b6' },
+              { key: 'services',   label: 'Szolgáltatások',score: lc.services_score    ?? 50, icon: '🛒', color: '#fb923c' },
+              { key: 'safety',     label: 'Biztonság',     score: lc.safety_score      ?? 50, icon: '🛡️', color: '#eab308' },
+            ],
+            source: 'stale-cache', computedAt: lc.computed_at as string,
+          },
+        };
+        return NextResponse.json(result);
+      }
+    }
+    // No stale cache available either — surface as 503 so the frontend
+    // shows the retry button instead of misleading zero-amenity scores.
     return NextResponse.json({ error: 'Overpass unavailable' }, { status: 503 });
   }
 

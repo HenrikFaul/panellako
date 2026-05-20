@@ -1,4 +1,14 @@
 
+## 2026-05-20 — v0.6.6 Bugfix: Overpass mirror failover + stale-cache + PWA meta tag
+
+### Fixed
+- **`app/api/environment/urban/route.ts`**: a route 503-mal hasalt el a Vercel cloud env által blokkolt `overpass-api.de` miatt → `OVERPASS_MIRRORS` listával (overpass-api.de + kumi.systems + lz4.overpass-api.de + maps.mail.ru) failover-szerűen próbál minden tükröt 12 s timeouttal. Ha mind elbukik **és** van bármilyen meglévő `building_compact_city_cache` + `building_liveability_cache` sor (TTL nélkül), a stale-cache kerül vissza `source: 'stale-cache'`-sel. Csak ha végképp nincs adat, akkor 503.
+- **`app/api/environment/green/route.ts`**: ugyanaz a mintázat — `overpassFetch` segéd a `fetchFromOverpass`-en belül 4 tükröt próbál, és bukás esetén stale `building_green_cache`-t ad vissza `source: 'stale-cache'`-sel a `null` válasz előtt.
+- **`app/layout.tsx`**: `<meta name="apple-mobile-web-app-capable">` deprecation böngésző-warning kiküszöbölve a `metadata.other['mobile-web-app-capable'] = 'yes'` modern, cross-platform tag hozzáadásával. iOS Safari továbbra is megkapja az Apple-prefixű tag-et (`appleWebApp.capable = true`), így nincs regresszió.
+
+### Type widening
+- `CompactCityData.source`, `LiveabilityData.source`, `GreenData.source` mostantól `'cache' | 'overpass' | 'stale-cache' | 'unavailable'` (az `'unavailable'` jövőbeli használatra előretartva).
+
 ## 2026-05-19 — v0.7.0 Cycling data sources backend specification pack
 
 ### Added
