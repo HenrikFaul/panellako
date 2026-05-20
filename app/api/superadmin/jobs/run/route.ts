@@ -897,22 +897,56 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, job, error: msg, runId }, { status: 502 });
     }
 
-    // ── 2. Upload all 4 resolutions (downscaled from the master) ──────────
+    // ── 2. Upload all 5 resolutions (downscaled from the master) ──────────
+    //    Each tier is verified post-render with sharp().metadata() so we catch
+    //    any silent size-mismatch before publishing the URL (e.g. if sharp
+    //    aborted the upscale and fell back to a smaller dimension).
+    //    The Brutális (16384×6880) tier is retried up to 3× on upload failure
+    //    because the PNG is large (~100 MB) and Supabase Storage occasionally
+    //    times out the first attempt.
+    const sharpMod = (await import('sharp')).default;
     const renderedResolutions: Record<string, { width: number; height: number; storage_path: string; url: string; bytes: number; label: string }> = {};
     let totalBytes = 0;
     const uploadErrors: Array<{ key: string; error: string }> = [];
+    const dimensionMismatches: Array<{ key: string; expected: string; actual: string }> = [];
     for (const r of RESOLUTIONS) {
+      const isMaster = r.key === masterRes.key;
       try {
-        const png = r.key === masterRes.key
+        const png = isMaster
           ? master.png
           : await downscalePng(master.png, r.width, r.height);
+
+        // VERIFY dimensions before upload — catches silent sharp-failure where
+        // the output PNG is smaller than requested (e.g. memory pressure).
+        const meta = await sharpMod(png).metadata();
+        const actualW = meta.width ?? 0;
+        const actualH = meta.height ?? 0;
+        if (actualW !== r.width || actualH !== r.height) {
+          dimensionMismatches.push({
+            key:      r.key,
+            expected: `${r.width}×${r.height}`,
+            actual:   `${actualW}×${actualH}`,
+          });
+          throw new Error(`Generated PNG is ${actualW}×${actualH}, expected ${r.width}×${r.height} (${r.label})`);
+        }
+
         const storagePath = `${runId}/${r.key}.png`;
-        const { error: upErr } = await supabase.storage.from('ndvi-maps').upload(
-          storagePath,
-          new Blob([png as BlobPart], { type: 'image/png' }),
-          { contentType: 'image/png', upsert: true, cacheControl: '604800' },
-        );
-        if (upErr) throw new Error(`Storage upload: ${upErr.message}`);
+
+        // Upload with retry for large tiers (brutal especially)
+        const maxAttempts = isMaster ? 3 : 1;
+        let upErr: { message: string } | null = null;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          const { error } = await supabase.storage.from('ndvi-maps').upload(
+            storagePath,
+            new Blob([png as BlobPart], { type: 'image/png' }),
+            { contentType: 'image/png', upsert: true, cacheControl: '604800' },
+          );
+          if (!error) { upErr = null; break; }
+          upErr = error;
+          if (attempt < maxAttempts) await new Promise(res => setTimeout(res, 1500 * attempt));
+        }
+        if (upErr) throw new Error(`Storage upload (after ${maxAttempts} attempts): ${upErr.message}`);
+
         const url = `${publicBase}/storage/v1/object/public/ndvi-maps/${storagePath}`;
         renderedResolutions[r.key] = {
           width:        r.width,
@@ -970,6 +1004,7 @@ export async function POST(request: NextRequest) {
       acquisitionLatest,
       totalBytes,
       errors:    uploadErrors,
+      dimensionMismatches,
     };
     await logEnd(logId, ok ? 'ok' : (Object.keys(renderedResolutions).length > 0 ? 'partial' : 'error'), result);
     return NextResponse.json({ ok, job, result, ranAt: new Date().toISOString() }, { status: ok ? 200 : (Object.keys(renderedResolutions).length === 0 ? 500 : 207) });

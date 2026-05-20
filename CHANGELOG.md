@@ -1,4 +1,26 @@
 
+## 2026-05-21 — v0.7.12 NDVI Brutális (16 384 × 6 880) tier verifikációs lánc
+
+### Fixed
+- A user nem volt biztos abban, hogy a NDVI Brutális tier valóban 16 384 × 6 880 pixel mérettel töltődik be (a screenshot felirat ezt mutatta, de a kép pixeles MODIS-tartalmat jelenített meg). Bevezettünk **két szintű verifikációt**:
+
+#### 1) Job-side (`app/api/superadmin/jobs/run/route.ts`)
+- A sharp upscale után **`sharp().metadata()`** ellenőrzi a generált PNG tényleges szélességét/magasságát. Ha nem egyezik a target W×H-val, `dimensionMismatches: [{ key, expected, actual }]` mező a response-ban, és a tier nem kerül feltöltésre.
+- A **Brutális (master) tier feltöltése 3× retry-vel** (1,5/3 mp backoff között) — egy ~100 MB-os PNG-t a Supabase Storage gyakran első próbálkozásra timeout-tal abandonol, a 2-3. próba viszont általában átmegy.
+- A többi tier (downscale) 1 próba (kis fájlok, megbízhatóak).
+
+#### 2) Browser-side (`components/ndvi-hungary-viewer.tsx`)
+- A megjelenített `<img>`-en `onLoad` handler kiolvassa `naturalWidth` / `naturalHeight`-ot
+- Összehasonlítja a tier deklarált W×H-jával
+- **Mismatch esetén** narancssárga "⚠ Valóban betöltött: X × Y" felirat a felbontás-badgen
+- **Match esetén (Brutális tierre)** zöld "✓ Verifikálva: 16 384 × 6 880" felirat
+- **Loading indicator** a kép-fetch alatt: "Töltés… 16 384 × 6 880 (XX MB)" — látható a méret már a fetch közben
+- `<img>`-en `key={runId-activeRes}` cache-bypass-elve: tier-váltáskor React kényszerít új fetch-et, ne mutasson stale-cache-ből kisebb képet
+- Felbontás-badge `tabular-nums` ezres-csoportosítással magyar locale-on: `16 384 × 6 880`
+
+### Note
+A MODIS forrás natív 250 m/pixel ami Hungary-re ~2 880 × 1 160 px. A 16 384 × 6 880 tier továbbra is upsampled (Lanczos3-mal) — de a verifikáció garantálja, hogy a feltöltött PNG **tényleg** 16 384 × 6 880 méretű, és a böngészőben is ennyi pixel töltődik be.
+
 ## 2026-05-21 — v0.7.11 Cycling jobok — GBFS auto-discovery + Waymarked Trails endpoint-variánsok
 
 ### Fixed
