@@ -1,4 +1,26 @@
 
+## 2026-05-20 — v0.7.3 NDVI Magyarország — Sentinel Hub helyett 100% ingyenes pipeline
+
+### Changed (breaking)
+- A `ndvi_hungary_render` job teljes pipeline-ja átírva. A v0.7.2-ben bevezetett **Sentinel Hub Process API** (havi 30 000 PU free, de aki túl akar lépni az fizet) **lecserélve egy 100%-ban ingyenes, kulcs nélküli megoldásra**:
+  - **Earth Search STAC** (Element84, `https://earth-search.aws.element84.com`) — Sentinel-2 L2A jelenetek indexe AWS S3 nyílt adat-tárolón
+  - **titiler.xyz** (Development Seed publikus deploy) — Cloud-Optimized GeoTIFF olvasó, ami szerver-oldalon számolja az `(nir-red)/(nir+red)` NDVI kifejezést és színkódot ad rá; failover `cog.titiler.eoapi.dev` mirror
+  - **sharp** — Hungary-canvas-ra komponálja a per-scene NDVI PNG-ket a STAC item bbox-a alapján, majd 4 felbontásra Lanczos3-mal downscale-eli
+- Az új workflow ugyanaz, amit a tipikus Sentinel-2 szakdolgozatok használnak: nyílt forrás, semmilyen API-kulcs.
+
+### Removed
+- `lib/sentinel-hub.ts` (törölve)
+- `SENTINEL_HUB_CLIENT_ID` és `SENTINEL_HUB_CLIENT_SECRET` env-vars **már nem kellenek**
+
+### Added
+- `lib/ndvi-mosaic.ts`: `searchSentinel2Scenes` (Earth Search STAC POST), `pickBestScenePerTile` (MGRS-tile szerinti deduplikáció + legkevésbé felhős preferencia), `renderSceneNdvi` (titiler.xyz `/stac/preview.png` failover-rel két host között), `buildHungaryMosaic` (4-párhuzamos render + sharp composite a STAC bbox alapján), `downscalePng` (Lanczos3 resize)
+- A render-job mostantól 60 napos időablakkal dolgozik (a 30 nap helyett, így minden MGRS-tile-ra mindig akad cloud-free scene), és a forrás-jelenetek azonosítóit a `source_scene_ids` mezőbe írja
+- `package.json`: új dep `sharp ^0.33.5` (Vercel-natívan támogatott)
+
+### Notes
+- Hungary ~8 Sentinel-2 MGRS tile-ból áll össze (33TXM, 33TYM/N, 34TCS/T, 34TDS/T, stb.). A pipeline ezeket automatikusan deduplikálja a STAC eredményekből, és tile-onként a legkevésbé felhős, legfrissebb jelenetet választja.
+- A felhasználói toggle bar + a viewer komponens változatlan.
+
 ## 2026-05-20 — v0.7.2 Magyarország-szintű NDVI mozaik (Sentinel Hub) + toggle UI
 
 ### Added — backend

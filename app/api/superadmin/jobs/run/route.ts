@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
 import { createClient } from '@supabase/supabase-js';
-import { processNdviMosaic, findLatestSentinel2Scene, sentinelHubConfigured, SentinelHubError } from '@/lib/sentinel-hub';
+import {
+  HU_BBOX,
+  searchSentinel2Scenes,
+  pickBestScenePerTile,
+  buildHungaryMosaic,
+  downscalePng,
+} from '@/lib/ndvi-mosaic';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -605,7 +611,11 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // ─── NDVI Hungary render (Sentinel Hub Process API) ─────────────────────────
+  // ─── NDVI Hungary render (Earth Search STAC + titiler.xyz, 100% free) ─────
+  // No API keys.  Uses the same open-data workflow you used in your thesis:
+  // Sentinel-2 L2A scenes from AWS S3 (indexed by Earth Search), NDVI
+  // computed on-the-fly by titiler, then composited with sharp into a
+  // single Hungary mosaic at 4 progressive resolutions.
   if (job === 'ndvi_hungary_render') {
     const logId = await logStart(job);
     const t0 = Date.now();
@@ -615,34 +625,29 @@ export async function POST(request: NextRequest) {
       await logEnd(logId, 'error', { error: msg });
       return NextResponse.json({ ok: false, job, error: msg }, { status: 500 });
     }
-    if (!sentinelHubConfigured()) {
-      const msg = 'Sentinel Hub credentials missing — set SENTINEL_HUB_CLIENT_ID and SENTINEL_HUB_CLIENT_SECRET in Vercel env. Sign up free at https://www.sentinel-hub.com (30 000 PU/month free tier).';
-      await logEnd(logId, 'error', { error: msg });
-      return NextResponse.json({ ok: false, job, error: msg }, { status: 503 });
-    }
 
-    // Hungary bbox.  Aspect 6.9° × 2.9° ≈ 2.38:1.
-    const HU_BBOX: [number, number, number, number] = [16.0, 45.7, 22.9, 48.6];
     const RESOLUTIONS: Array<{ key: string; label: string; width: number; height: number }> = [
       { key: 'large',                       label: 'Nagy',                                width: 1024, height: 430  },
       { key: 'very_large',                  label: 'Nagyon nagy',                         width: 2048, height: 860  },
       { key: 'very_very_large',             label: 'Nagyon nagyon nagy',                  width: 4096, height: 1720 },
       { key: 'very_very_very_very_large',   label: 'Nagyon nagyon nagyon nagyon nagy',    width: 8192, height: 3440 },
     ];
+    // Master canvas = largest target; we downscale to all the smaller sizes.
+    const masterRes = RESOLUTIONS[RESOLUTIONS.length - 1];
 
-    // Time window: last 30 days, max 30% cloud, mosaic = least cloudy per pixel.
-    const now = new Date();
-    const from = new Date(now.getTime() - 30 * 24 * 3600_000);
+    // 60-day time window — gives every Hungarian MGRS tile a couple of
+    // revisits, so we can always find at least one near-cloud-free scene.
+    const now    = new Date();
+    const from   = new Date(now.getTime() - 60 * 24 * 3600_000);
     const timeRangeFrom = from.toISOString();
     const timeRangeTo   = now.toISOString();
     const maxCloudCover = 30;
 
-    // Create the run record first so the UI can show progress if we expose it.
     const { data: runRow, error: runErr } = await supabase
       .from('ndvi_hungary_renders')
       .insert({
         status:           'running',
-        source_provider:  'sentinel-hub',
+        source_provider:  'earth-search-stac+titiler',
         source_satellite: 'Sentinel-2 L2A',
         acquisition_from: timeRangeFrom,
         acquisition_to:   timeRangeTo,
@@ -658,71 +663,76 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, job, error: msg }, { status: 500 });
     }
     const runId = runRow.run_id as string;
-
-    // Pre-flight: query Earth Search STAC for the latest scene over Hungary
-    // (Sentinel Hub doesn't always return the date in headers).
-    let latestSensingTime: string | null = null;
-    let stacSceneId:       string | null = null;
-    try {
-      const latest = await findLatestSentinel2Scene({ bbox: HU_BBOX, timeRangeFrom, timeRangeTo, maxCloudCover });
-      if (latest) { latestSensingTime = latest.datetime; stacSceneId = latest.sceneId; }
-    } catch {
-      // Non-fatal — Sentinel Hub will still render, we just won't have the
-      // exact latest scene date for display.
-    }
-
-    const renderedResolutions: Record<string, { width: number; height: number; storage_path: string; url: string; bytes: number; label: string }> = {};
-    const sceneIds = new Set<string>(stacSceneId ? [stacSceneId] : []);
-    let totalBytes = 0;
-    let totalPu    = 0;
-    const errors:   Array<{ key: string; error: string }> = [];
-
     const publicBase = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '').trim().replace(/\/$/, '');
 
+    // ── 1. Discover Sentinel-2 scenes covering Hungary ─────────────────────
+    let scenes;
+    try {
+      const items = await searchSentinel2Scenes({ bbox: HU_BBOX, timeRangeFrom, timeRangeTo, maxCloudCover });
+      scenes = pickBestScenePerTile(items);
+      if (scenes.length === 0) throw new Error('STAC returned no scenes for the time window');
+    } catch (err) {
+      const msg = `STAC search failed: ${err instanceof Error ? err.message : String(err)}`;
+      await supabase.from('ndvi_hungary_renders').update({
+        status: 'failure', finished_at: new Date().toISOString(),
+        duration_ms: Date.now() - t0, error_message: msg,
+      }).eq('run_id', runId);
+      await logEnd(logId, 'error', { error: msg });
+      return NextResponse.json({ ok: false, job, error: msg, runId }, { status: 502 });
+    }
+
+    // ── 2. Render the master mosaic via titiler.xyz per scene + composite ──
+    let mosaicResult;
+    try {
+      mosaicResult = await buildHungaryMosaic(scenes, masterRes.width, masterRes.height, 2048);
+    } catch (err) {
+      const msg = `Mosaic build failed: ${err instanceof Error ? err.message : String(err)}`;
+      await supabase.from('ndvi_hungary_renders').update({
+        status: 'failure', finished_at: new Date().toISOString(),
+        duration_ms: Date.now() - t0, error_message: msg,
+      }).eq('run_id', runId);
+      await logEnd(logId, 'error', { error: msg });
+      return NextResponse.json({ ok: false, job, error: msg, runId }, { status: 502 });
+    }
+
+    // ── 3. Upload all 4 resolutions (downscaled from the master) ──────────
+    const renderedResolutions: Record<string, { width: number; height: number; storage_path: string; url: string; bytes: number; label: string }> = {};
+    let totalBytes = 0;
+    const uploadErrors: Array<{ key: string; error: string }> = [];
     for (const r of RESOLUTIONS) {
       try {
-        const result = await processNdviMosaic({
-          bbox:          HU_BBOX,
-          width:         r.width,
-          height:        r.height,
-          timeRangeFrom,
-          timeRangeTo,
-          maxCloudCover,
-          format:        'image/png',
-        });
+        const png = r.key === masterRes.key
+          ? mosaicResult.png
+          : await downscalePng(mosaicResult.png, r.width, r.height);
         const storagePath = `${runId}/${r.key}.png`;
         const { error: upErr } = await supabase.storage.from('ndvi-maps').upload(
           storagePath,
-          new Blob([result.bytes as BlobPart], { type: 'image/png' }),
+          new Blob([png as BlobPart], { type: 'image/png' }),
           { contentType: 'image/png', upsert: true, cacheControl: '604800' },
         );
         if (upErr) throw new Error(`Storage upload: ${upErr.message}`);
-
         const url = `${publicBase}/storage/v1/object/public/ndvi-maps/${storagePath}`;
         renderedResolutions[r.key] = {
           width:        r.width,
           height:       r.height,
           storage_path: storagePath,
           url,
-          bytes:        result.bytes.byteLength,
+          bytes:        png.length,
           label:        r.label,
         };
-        totalBytes += result.bytes.byteLength;
-        if (result.puConsumed) totalPu += result.puConsumed;
-        if (result.latestSensingTime && (!latestSensingTime || result.latestSensingTime > latestSensingTime)) {
-          latestSensingTime = result.latestSensingTime;
-        }
+        totalBytes += png.length;
       } catch (err) {
-        const msg = err instanceof Error
-          ? (err instanceof SentinelHubError && err.responseBody ? `${err.message} — ${err.responseBody}` : err.message)
-          : String(err);
-        errors.push({ key: r.key, error: msg });
+        uploadErrors.push({ key: r.key, error: err instanceof Error ? err.message : String(err) });
       }
     }
 
-    const ok = errors.length === 0 && Object.keys(renderedResolutions).length === RESOLUTIONS.length;
-    const finalStatus = ok ? 'success' : (Object.keys(renderedResolutions).length > 0 ? 'partial' : 'failure');
+    const sceneIds = mosaicResult.scenes.map(s => s.scene.id);
+    const ok = uploadErrors.length === 0 && Object.keys(renderedResolutions).length === RESOLUTIONS.length;
+    const finalStatus = ok
+      ? 'success'
+      : (Object.keys(renderedResolutions).length > 0 ? 'partial' : 'failure');
     const duration_ms = Date.now() - t0;
+    const combinedErrors = [...mosaicResult.errors, ...uploadErrors];
 
     await supabase
       .from('ndvi_hungary_renders')
@@ -732,10 +742,10 @@ export async function POST(request: NextRequest) {
         duration_ms,
         resolutions:        renderedResolutions,
         total_bytes:        totalBytes,
-        pu_consumed:        totalPu || null,
-        acquisition_latest: latestSensingTime,
-        source_scene_ids:   Array.from(sceneIds),
-        error_message:      errors.length > 0 ? JSON.stringify(errors).slice(0, 4000) : null,
+        acquisition_latest: mosaicResult.latestSensingTime,
+        source_scene_ids:   sceneIds,
+        cloud_cover_pct:    mosaicResult.cloudCoverMax || maxCloudCover,
+        error_message:      combinedErrors.length > 0 ? JSON.stringify(combinedErrors).slice(0, 4000) : null,
       })
       .eq('run_id', runId);
 
@@ -743,15 +753,19 @@ export async function POST(request: NextRequest) {
       runId,
       status:     finalStatus,
       duration_ms,
-      resolutions: Object.fromEntries(Object.entries(renderedResolutions).map(([k, v]) => [k, { width: v.width, height: v.height, url: v.url, bytes: v.bytes }])),
-      acquisitionLatest: latestSensingTime,
+      scenesUsed: mosaicResult.scenes.length,
+      resolutions: Object.fromEntries(
+        Object.entries(renderedResolutions).map(([k, v]) => [k, { width: v.width, height: v.height, url: v.url, bytes: v.bytes }]),
+      ),
+      acquisitionLatest: mosaicResult.latestSensingTime,
+      cloudCoverMax:     mosaicResult.cloudCoverMax,
       totalBytes,
-      puConsumed:  totalPu || null,
-      errors,
+      errors:            combinedErrors,
     };
     await logEnd(logId, ok ? 'ok' : (Object.keys(renderedResolutions).length > 0 ? 'partial' : 'error'), result);
-    return NextResponse.json({ ok, job, result, ranAt: new Date().toISOString() }, { status: ok ? 200 : (errors.length === RESOLUTIONS.length ? 500 : 207) });
+    return NextResponse.json({ ok, job, result, ranAt: new Date().toISOString() }, { status: ok ? 200 : (Object.keys(renderedResolutions).length === 0 ? 500 : 207) });
   }
+
 
   return NextResponse.json({ error: 'Unknown job' }, { status: 400 });
 }
