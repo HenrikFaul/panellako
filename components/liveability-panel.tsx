@@ -26,8 +26,12 @@ function RadarChart({ dimensions }: { dimensions: LiveabilityData['dimensions'] 
   const avgPts = dimensions.map((_, i) => axisPoint(i, 0.60 * R));
   const avgLine = avgPts.map(([x, y]) => `${x},${y}`).join(' ');
 
+  // Wider viewBox so labels at left/right edges (`Szolgáltatások`,
+  // `Biztonság`, `Egészségügy`, `Oktatás`) don't get clipped — the labels
+  // sit at radius R+22 from CX/CY and the longer Hungarian words extend
+  // ~110 px past the anchor when textAnchor='end'/'start'.
   return (
-    <svg viewBox="0 0 300 300" className="w-full max-w-xs mx-auto" aria-label="Liveability radar chart">
+    <svg viewBox="-80 -10 460 320" className="w-full max-w-md mx-auto" aria-label="Liveability radar chart">
       <defs>
         <radialGradient id="radarGrad" cx="50%" cy="50%" r="50%">
           <stop offset="0%" stopColor="#22c55e" stopOpacity={0.15} />
@@ -83,9 +87,11 @@ function RadarChart({ dimensions }: { dimensions: LiveabilityData['dimensions'] 
       {/* Center */}
       <circle cx={CX} cy={CY} r={3} fill="#475569" />
 
-      {/* Avg legend */}
-      <line x1={200} y1={278} x2={215} y2={278} stroke="#eab308" strokeWidth={1} strokeDasharray="3 3" strokeOpacity={0.5} />
-      <text x={218} y={281} fontSize={7} fill="#78716c">Budapest átlag (~60)</text>
+      {/* Legend (bottom-right, inside the wider viewBox) */}
+      <line x1={250} y1={300} x2={270} y2={300} stroke="#eab308" strokeWidth={1.5} strokeDasharray="3 3" strokeOpacity={0.7} />
+      <text x={275} y={303} fontSize={8} fill="#94a3b8">Budapest átlag (~60)</text>
+      <line x1={250} y1={290} x2={270} y2={290} stroke="#22c55e" strokeWidth={2} />
+      <text x={275} y={293} fontSize={8} fill="#94a3b8">Az Ön lakókörnyezete</text>
     </svg>
   );
 }
@@ -168,13 +174,42 @@ export default function LiveabilityPanel({ data, loading }: Props) {
         {data.dimensions.map(d => <DimCard key={d.key} dim={d} />)}
       </div>
 
-      {/* Methodology note */}
-      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-        <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-slate-500">Módszertan</p>
-        <div className="grid gap-2 sm:grid-cols-3 text-[9px] leading-relaxed text-slate-500">
-          <p><span className="text-slate-300 font-bold">Zöld & Levegő:</span> OSM zöldscore + Open-Meteo AQI (20-20%)</p>
-          <p><span className="text-slate-300 font-bold">Egészségügy, Oktatás, Kultúra:</span> OSM Overpass távolság-decay exponenciális súlyozással</p>
-          <p><span className="text-slate-300 font-bold">Biztonság (proxy):</span> Rendőrség távolsága + közlekedés sűrűsége (EIU/Mercer módszertanhoz igazítva)</p>
+      {/* Methodology + sources + acquisition info */}
+      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 space-y-4">
+        <div>
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Módszertan dimenziónként</p>
+          <div className="grid gap-2 text-[10px] leading-relaxed text-slate-400 sm:grid-cols-2 lg:grid-cols-3">
+            <p><span className="text-emerald-300 font-bold">🌿 Zöld & Levegő (20%):</span> OSM zöldfelület-score (parkok, fák, sportpályák 500 m-en belül) súlyozott összege 60%-on + Open-Meteo Air Quality PM2.5/PM10/NO₂/O₃ AQI 40%-on.</p>
+            <p><span className="text-sky-300 font-bold">🏥 Egészségügy (20%):</span> Legközelebbi kórház 800 m exponenciális decay-jel 40%-on + legközelebbi gyógyszertár 400 m-rel 30%-on + orvos/fogorvos 20%-on + alap 10%.</p>
+            <p><span className="text-violet-300 font-bold">🎓 Oktatás (15%):</span> Legközelebbi iskola/óvoda 600 m decay-jel 50%-on + iskola-sűrűség (max 40%) + alap 10%.</p>
+            <p><span className="text-pink-300 font-bold">🎭 Kultúra (15%):</span> Színház/mozi/múzeum/galéria/közösségi tér sűrűség 60%-on (max) + sport-sűrűség 30%-on + alap 10%.</p>
+            <p><span className="text-orange-300 font-bold">🛒 Szolgáltatások (15%):</span> Vendéglátóhelyek sűrűsége 50%-on + ABC-k/élelmiszerboltok 30%-on + bank/posta/ATM 20%-on.</p>
+            <p><span className="text-yellow-300 font-bold">🛡️ Biztonság (15%):</span> Alap 40 + rendőrség/tűzoltóság közelsége (max 40, decay 1500 m) + tömegközlekedés sűrűsége (max 20). Proxy-mérés: a kriminalisztikai statisztika nincs nyilvános felbontásban, ezért az infrastruktúra-jelenlét helyettesíti.</p>
+          </div>
+        </div>
+
+        <div className="border-t border-white/[0.06] pt-3 grid gap-3 sm:grid-cols-3 text-[10px]">
+          <div>
+            <p className="font-bold uppercase tracking-widest text-slate-400 mb-1">Adatforrások</p>
+            <p className="text-slate-500">
+              <span className="text-slate-300">OpenStreetMap Overpass API</span> (POI, közlekedés, infrastruktúra), <span className="text-slate-300">Open-Meteo</span> (légszennyezés, időjárás), <span className="text-slate-300">BKK Futár GTFS</span> (tömegközlekedés-megálló sűrűség). Mindhárom 100%-ban nyílt adat, API-kulcs nélkül.
+            </p>
+          </div>
+          <div>
+            <p className="font-bold uppercase tracking-widest text-slate-400 mb-1">Lekérdezve</p>
+            <p className="text-slate-500">
+              {data.source === 'cache' || data.source === 'stale-cache'
+                ? <>Cache-ből: <span className="text-emerald-300">{new Date(data.computedAt).toLocaleString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></>
+                : <>Élő lekérdezés: <span className="text-emerald-300">{new Date(data.computedAt).toLocaleString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></>}
+            </p>
+            <p className="text-slate-500 mt-1">Frissítési kadencia: 30 nap (OSM POI változás-ráta alapján).</p>
+          </div>
+          <div>
+            <p className="font-bold uppercase tracking-widest text-slate-400 mb-1">Tudományos háttér</p>
+            <p className="text-slate-500">
+              EIU Liveability Index + Mercer Quality of Living módszertanra alapozva. Az exponenciális távolság-decay függvény a Walk Score™ (Front Seat Management 2007) modelljét követi.
+            </p>
+          </div>
         </div>
       </div>
     </div>

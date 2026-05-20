@@ -531,8 +531,109 @@ export async function POST(request: NextRequest) {
         if (probe.ok) { CKAN_BASE = probe.base; break; }
         fetchErrors.push({ url: base, error: probe.error });
       }
+
+      // ─── OSM Overpass fallback ─────────────────────────────────────────────
+      // 2024 óta egyik Budapest CKAN-portál (opendata.budapest.hu,
+      // nyiltadat.budapest.hu) sincs üzemben — minden DNS-szinten halott
+      // (ENOTFOUND).  Ezt a job-ot tovább kell tudnunk futtatni, ezért OSM
+      // Overpass-szal töltjük be a budapest_trees + budapest_parks táblákat
+      // helyettesítve.  Az OSM `natural=tree` és `leisure=park` adatait a
+      // budapesti közösség folyamatosan karbantartja, ez a tényleges
+      // de facto authoritative source CKAN nélkül.
       if (!CKAN_BASE) {
-        throw new Error(`No Budapest CKAN endpoint reachable. Tried: ${JSON.stringify(fetchErrors)}`);
+        const ovrStats: Record<string, unknown> = { ckanUnreachable: true, fetchErrors, fallback: 'osm-overpass' };
+        const OVERPASS_MIRRORS = [
+          'https://overpass.kumi.systems/api/interpreter',
+          'https://overpass-api.de/api/interpreter',
+          'https://overpass.openstreetmap.fr/api/interpreter',
+        ];
+        // Budapest bbox (lat-min, lon-min, lat-max, lon-max)
+        const BP_BBOX = '47.35,18.85,47.65,19.35';
+
+        async function overpass(query: string): Promise<{ elements: Array<{ type: string; id: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }> } | null> {
+          for (const mirror of OVERPASS_MIRRORS) {
+            try {
+              const res = await fetch(mirror, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'panellako/1.0 (info@panellako.hu)' },
+                body:    `data=${encodeURIComponent(query)}`,
+                signal:  AbortSignal.timeout(60_000),
+              });
+              if (!res.ok) { fetchErrors.push({ url: mirror, error: `HTTP ${res.status}` }); continue; }
+              return await res.json();
+            } catch (err) {
+              fetchErrors.push({ url: mirror, error: err instanceof Error ? err.message : String(err) });
+            }
+          }
+          return null;
+        }
+
+        // ── Trees ─────────────────────────────────────────────────────────
+        const treesQ = `[out:json][timeout:25];(node["natural"="tree"](${BP_BBOX}););out body 50000;`;
+        const treesJson = await overpass(treesQ);
+        if (treesJson) {
+          await supabase.from('budapest_trees').delete().neq('id', 0);
+          const rows = (treesJson.elements ?? [])
+            .filter(e => e.type === 'node' && typeof e.lat === 'number' && typeof e.lon === 'number')
+            .map(e => ({
+              ext_id:      `osm:${e.id}`,
+              lat:         e.lat!,
+              lon:         e.lon!,
+              species_lat: e.tags?.['species'] ?? e.tags?.['species:wikidata'] ?? '',
+              species_hu:  e.tags?.['species:hu'] ?? e.tags?.['name'] ?? '',
+              condition:   e.tags?.['condition'] ?? '',
+              district:    e.tags?.['addr:district'] ?? e.tags?.['admin_level'] ?? '',
+              height_m:    e.tags?.['height']     ? parseFloat(e.tags['height'])     || null : null,
+              crown_r_m:   e.tags?.['diameter_crown'] ? parseFloat(e.tags['diameter_crown']) / 2 || null : null,
+              imported_at: new Date().toISOString(),
+            }));
+          if (rows.length > 0) {
+            // Insert in chunks of 1000 to avoid Supabase REST payload limits
+            for (let i = 0; i < rows.length; i += 1000) {
+              await supabase.from('budapest_trees').insert(rows.slice(i, i + 1000));
+            }
+          }
+          ovrStats.treesImported = rows.length;
+        } else {
+          ovrStats.treesError = 'All Overpass mirrors failed for trees query';
+        }
+
+        // ── Parks ─────────────────────────────────────────────────────────
+        const parksQ = `[out:json][timeout:25];(way["leisure"="park"](${BP_BBOX});relation["leisure"="park"](${BP_BBOX}););out center 5000;`;
+        const parksJson = await overpass(parksQ);
+        if (parksJson) {
+          await supabase.from('budapest_parks').delete().neq('id', 0);
+          const rows = (parksJson.elements ?? [])
+            .filter(e => (e.type === 'way' || e.type === 'relation') && e.center)
+            .map(e => ({
+              ext_id:      `osm:${e.id}`,
+              name:        e.tags?.['name'] ?? e.tags?.['leisure'] ?? 'Park',
+              district:    e.tags?.['addr:district'] ?? '',
+              area_m2:     null,
+              lat:         e.center!.lat,
+              lon:         e.center!.lon,
+              imported_at: new Date().toISOString(),
+            }));
+          if (rows.length > 0) {
+            for (let i = 0; i < rows.length; i += 1000) {
+              await supabase.from('budapest_parks').insert(rows.slice(i, i + 1000));
+            }
+          }
+          ovrStats.parksImported = rows.length;
+        } else {
+          ovrStats.parksError = 'All Overpass mirrors failed for parks query';
+        }
+
+        await supabase.from('budapest_data_meta').upsert([
+          { key: 'trees_imported_at', value: new Date().toISOString() },
+          { key: 'tree_resource_id',  value: 'osm-overpass:natural=tree'  },
+          { key: 'park_resource_id',  value: 'osm-overpass:leisure=park' },
+        ], { onConflict: 'key' });
+
+        ovrStats.fetchErrors = fetchErrors;
+        const ok = !!(ovrStats.treesImported || ovrStats.parksImported);
+        await logEnd(logId, ok ? 'ok' : 'error', ovrStats);
+        return NextResponse.json({ ok, job, result: ovrStats, ranAt: new Date().toISOString() }, { status: ok ? 200 : 502 });
       }
 
       async function ckanSearch(query: string): Promise<Array<{ id: string; name: string; resources: Array<{ id: string; format: string; name: string }> }>> {

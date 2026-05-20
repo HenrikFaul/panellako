@@ -1,4 +1,20 @@
 
+## 2026-05-20 — v0.7.9 Demo prod DB migration + NDVI Lanczos3 upscale + Élhetőség módszertan + Budapest OSM fallback
+
+### Fixed
+- **`supabase/migrations/20260520_update_demo_building.sql`** (új migráció): a v0.7.8 a `seed.sql`-t frissítette, de a **production adatbázisban már létezett** a régi `Alkotás utca 42.` rekord a demo building UUID-n (a régi seed `ON CONFLICT DO NOTHING` viselkedéssel ment). Ez a migráció explicit `UPDATE buildings SET name/address/lat/lon/geocoded_at` a demo épület UUID-ján, csak ha a régi adat van benne (idempotens, kézi felülírást nem rontja). A `supabase db push` után az `urban_atlas_refresh` / `satellite_refresh` / `urban_refresh` / `env_refresh_green` jobok mostantól a **Gidófalvy Lajos utca 9.** rekordot fogják felhasználni, lat/lon expliciten kitöltve = geocoder hívás megszűnik.
+- **`lib/ndvi-mosaic.ts` `renderHungaryNdviTiled`**: a v0.7.6 tiled-renderelés (4×2 GIBS WMS tile) blokkos képet adott a nagyobb felbontásokon (4096+, 8192+, 16384+) — a forrás MODIS 250 m natív felbontását GIBS **nearest-neighbor**-rel skálázta felfelé, így a "Brutális" tier ugyanúgy nézett ki mint a "Nagy" (~64 px-es MODIS-cellák voltak láthatóak). **Most:** master render egyetlen GIBS-hívással a MODIS-near-natív 2880×1160 pixelre, majd **`sharp` Lanczos3 upscale** a kért target W×H-ra. Eredmény: minden output sima, anti-aliased, profi képjavítási eljárással. Ami nem MODIS 250 m-en belül van, az _szándékosan_ nem látszik (nincs benne a forrásban) — de a kép már nem _ronda_, csak _részlet-limitált_.
+- **`components/liveability-panel.tsx` radar viewBox**: a `0 0 300 300` viewBox levágta az oldalsó labelek végét — "Szolgáltatások" → "iltatások", "Biztonság" → "iztonság", "Egészségügy" → "Egés", "Oktatás" → "Okta". Új viewBox: `-80 -10 460 320` (160 px extra szélesség + 10 px felül + 20 px alul), `max-w-xs` → `max-w-md`. Most minden magyar dimenzió-cím beletartozik.
+
+### Added
+- **`components/liveability-panel.tsx` módszertan kibővítve** — eddig 3 általános sor volt, most:
+  - 6 dimenziós módszertani lista (Zöld/Levegő 20%, Egészségügy 20%, Oktatás 15%, Kultúra 15%, Szolgáltatások 15%, Biztonság 15%) konkrét pontozási képletekkel (decay-távolságok, súlyok, alap-pontszámok)
+  - **Adatforrások-szekció**: OSM Overpass API + Open-Meteo + BKK Futár GTFS — mind 100%-ban nyílt, kulcs nélkül
+  - **Lekérdezve-szekció**: a `data.computedAt` időpontja kiírva magyar formátumban + cache/live jelzés + 30 napos frissítési kadencia
+  - **Tudományos háttér-szekció**: EIU Liveability Index + Mercer Quality of Living módszertani referencia + Walk Score™ exponenciális decay
+  - Új legenda-elem a radar-on: "Az Ön lakókörnyezete" (zöld) + "Budapest átlag (~60)" (sárga szaggatott)
+- **`app/api/superadmin/jobs/run/route.ts` `budapest_import` OSM Overpass fallback**: a `opendata.budapest.hu` / `nyiltadat.budapest.hu` DNS-szinten halott (`ENOTFOUND` mindkét hostra), tehát a CKAN-pipeline nem indítható. Új viselkedés: ha mindhárom CKAN-bázis-URL elhasal, **automatikusan OSM Overpass-szel tölti fel a `budapest_trees` + `budapest_parks` táblákat** (queries: `node[natural=tree]` Budapest bbox-on, `way/relation[leisure=park]` Budapest bbox-on, 3-tükörös failover-rel a `kumi.systems` / `overpass-api.de` / `openstreetmap.fr` mirror-ok között). A `budapest_data_meta` jelzi a forrást: `osm-overpass:natural=tree` / `osm-overpass:leisure=park`.
+
 ## 2026-05-20 — v0.7.8 Demo building Nominatim-verifikált címre cserélve (Gidófalvy Lajos u. 9)
 
 ### Fixed

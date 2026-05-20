@@ -1,8 +1,35 @@
 'use client';
 
 import { useState } from 'react';
-import type { CompactCityData } from '@/app/api/environment/urban/route';
+import type { CompactCityData, CompactCityPoi, AmenityCategory } from '@/app/api/environment/urban/route';
 import CompactCityMap from '@/components/compact-city-map';
+
+// ─── Panel-level category groups ─────────────────────────────────────────────
+// Must stay in sync with `groupOf` / GROUP_CFG in compact-city-map.tsx.
+type CatGroup = 'food'|'health'|'education'|'dining'|'culture'|'sport'|'services'|'safety';
+
+// Maps the AmenityDetail.category strings (set on the server in route.ts) and
+// the "Legközelebbi …" cards to the OSM AmenityCategory members that should
+// stay visible on the map when the user drills down.
+const GROUP_CATEGORIES: Record<CatGroup, AmenityCategory[]> = {
+  food:      ['supermarket', 'bakery', 'daily'],
+  health:    ['pharmacy', 'hospital', 'healthcare'],
+  education: ['school', 'education'],
+  dining:    ['restaurant', 'cafe', 'food'],
+  culture:   ['culture'],
+  sport:     ['sport'],
+  services:  ['services'],
+  safety:    ['safety'],
+};
+
+// Categories used to pick the "nearest" POI for each shortcut card. These must
+// match the server-side `nearest*M` queries in route.ts so the picked POI is
+// the same building/shop the user already sees on the stats card.
+const NEAREST_CATEGORIES: Record<'food'|'health'|'education', AmenityCategory[]> = {
+  food:      ['supermarket'],
+  health:    ['pharmacy'],
+  education: ['school', 'education'],
+};
 
 // ─── Score gauge (horizontal bar with value) ──────────────────────────────────
 function ScoreBar({ label, value, color }: { label: string; value: number; color: string }) {
@@ -70,6 +97,12 @@ export default function CompactCityPanel({
   data, loading, buildingLat, buildingLon, onRequestLivePois, loadingPois,
 }: Props) {
   const [view, setView] = useState<ViewMode>('stats');
+  // null  → map shows ALL categories (default "🗺️ Térkép" tab behaviour)
+  // Set   → map filter chips are pre-set to only these groups
+  const [mapFilterGroups, setMapFilterGroups] = useState<Set<CatGroup> | null>(null);
+  // null  → no auto-zoom (default)
+  // num   → on mount the map zooms to this osmId and opens its popup
+  const [mapZoomToPoiId, setMapZoomToPoiId] = useState<number | null>(null);
 
   if (loading) {
     return (
@@ -84,6 +117,38 @@ export default function CompactCityPanel({
   const mainColor = scoreColor(data.score15min);
   const hasPois   = Array.isArray(data.pois) && data.pois.length > 0;
   const canShowMap = buildingLat !== undefined && buildingLon !== undefined;
+  const pois: CompactCityPoi[] = data.pois ?? [];
+
+  // Switch to map view and focus on a specific category group (no POI zoom).
+  // Used by the "Létesítmények 1 km-en belül" tiles.
+  function focusCategoryGroup(group: CatGroup) {
+    setMapFilterGroups(new Set([group]));
+    setMapZoomToPoiId(null);
+    setView('map');
+    if (!hasPois && onRequestLivePois) onRequestLivePois();
+  }
+
+  // Switch to map view, filter to one group, AND zoom to the actual nearest
+  // POI in that group. Used by the "Legközelebbi ABC / gyógyszertár / iskola"
+  // shortcut cards. We re-derive "nearest" from `data.pois` so we open the
+  // *same* POI the user just clicked, including its full OSM tag table.
+  function focusNearest(kind: 'food'|'health'|'education') {
+    const wanted = NEAREST_CATEGORIES[kind];
+    const candidates = pois.filter(p => wanted.includes(p.category));
+    const nearest = candidates.slice().sort((a, b) => a.distM - b.distM)[0];
+    setMapFilterGroups(new Set([kind]));
+    setMapZoomToPoiId(nearest?.osmId ?? null);
+    setView('map');
+    if (!hasPois && onRequestLivePois) onRequestLivePois();
+  }
+
+  // Default "🗺️ Térkép" tab — full unfiltered map.
+  function openFullMap() {
+    setMapFilterGroups(null);
+    setMapZoomToPoiId(null);
+    setView('map');
+    if (!hasPois && onRequestLivePois) onRequestLivePois();
+  }
 
   // ── Toggle bar (same visual style as satellite-ndvi-panel) ───────────────
   const ToggleBar = (
@@ -99,10 +164,7 @@ export default function CompactCityPanel({
       </button>
       <button
         type="button"
-        onClick={() => {
-          setView('map');
-          if (!hasPois && onRequestLivePois) onRequestLivePois();
-        }}
+        onClick={openFullMap}
         disabled={!canShowMap}
         className={`rounded-xl px-4 py-2 text-[11px] font-bold transition-colors ${
           view === 'map' ? 'bg-orange-500/20 text-orange-300' : 'text-slate-400 hover:text-slate-200'
@@ -145,6 +207,8 @@ export default function CompactCityPanel({
             buildingLat={buildingLat as number}
             buildingLon={buildingLon as number}
             pois={data.pois ?? []}
+            initialFilterGroups={mapFilterGroups}
+            zoomToPoiId={mapZoomToPoiId}
           />
         )}
       </div>
@@ -173,38 +237,76 @@ export default function CompactCityPanel({
 
       {/* Key distances */}
       <div className="grid gap-2 sm:grid-cols-3">
-        {[
-          { label: 'Legközelebbi ABC', dist: data.nearestSupermarketM, icon: '🛒', color: '#fb923c' },
-          { label: 'Legközelebbi gyógyszertár', dist: data.nearestPharmacyM, icon: '💊', color: '#60a5fa' },
-          { label: 'Legközelebbi iskola', dist: data.nearestSchoolM, icon: '🏫', color: '#a78bfa' },
-        ].map(item => (
-          <div key={item.label} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3 text-center">
-            <p className="text-base">{item.icon}</p>
-            <p className="text-[9px] text-slate-500 mt-1">{item.label}</p>
-            {item.dist !== null ? (
-              <>
-                <p className="text-lg font-black" style={{ color: item.color }}>{item.dist} <span className="text-xs text-slate-500">m</span></p>
-                <p className="text-[8px] text-slate-600">~{Math.round(item.dist / 67)} perc gyalog</p>
-              </>
-            ) : (
-              <p className="text-xs text-slate-700 mt-1">Nincs az 1 km-es körben</p>
-            )}
-          </div>
-        ))}
+        {([
+          { kind: 'food'      as const, label: 'Legközelebbi ABC',          dist: data.nearestSupermarketM, icon: '🛒', color: '#fb923c' },
+          { kind: 'health'    as const, label: 'Legközelebbi gyógyszertár', dist: data.nearestPharmacyM,    icon: '💊', color: '#60a5fa' },
+          { kind: 'education' as const, label: 'Legközelebbi iskola',       dist: data.nearestSchoolM,      icon: '🏫', color: '#a78bfa' },
+        ]).map(item => {
+          // Only act on the click if the data is actually there AND the map
+          // tab is reachable; otherwise the card is purely informational.
+          const clickable = canShowMap && item.dist !== null && pois.length > 0;
+          return (
+            <div
+              key={item.label}
+              role={clickable ? 'button' : undefined}
+              tabIndex={clickable ? 0 : undefined}
+              onClick={clickable ? () => focusNearest(item.kind) : undefined}
+              onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); focusNearest(item.kind); } } : undefined}
+              className={`relative rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3 text-center transition-colors ${
+                clickable ? 'cursor-pointer hover:bg-white/[0.05] hover:border-white/[0.15]' : ''
+              }`}
+            >
+              {clickable && (
+                <span className="absolute top-1.5 right-2 text-[8px] font-bold text-slate-500">🗺️ →</span>
+              )}
+              <p className="text-base">{item.icon}</p>
+              <p className="text-[9px] text-slate-500 mt-1">{item.label}</p>
+              {item.dist !== null ? (
+                <>
+                  <p className="text-lg font-black" style={{ color: item.color }}>{item.dist} <span className="text-xs text-slate-500">m</span></p>
+                  <p className="text-[8px] text-slate-600">~{Math.round(item.dist / 67)} perc gyalog</p>
+                </>
+              ) : (
+                <p className="text-xs text-slate-700 mt-1">Nincs az 1 km-es körben</p>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Amenity grid */}
       <div>
         <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-slate-500">Létesítmények 1 km-en belül</p>
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-          {data.amenities.map(a => (
-            <div key={a.category} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 text-center">
-              <p className="text-lg">{a.icon}</p>
-              <p className="text-[9px] text-slate-500 mt-1">{a.label}</p>
-              <p className="text-xl font-black text-slate-200">{a.count}</p>
-              {a.nearestM !== null && <p className="text-[8px] text-slate-600">{a.nearestM}m</p>}
-            </div>
-          ))}
+          {data.amenities.map(a => {
+            // `a.category` on the server is already one of our CatGroup keys
+            // (food / health / education / dining / culture / sport). We only
+            // treat it as clickable if (a) the group is one we know how to
+            // filter, (b) the map tab is reachable, and (c) the count > 0.
+            const group = (a.category as CatGroup);
+            const clickable =
+              canShowMap &&
+              a.count > 0 &&
+              pois.length > 0 &&
+              (group in GROUP_CATEGORIES);
+            return (
+              <div
+                key={a.category}
+                role={clickable ? 'button' : undefined}
+                tabIndex={clickable ? 0 : undefined}
+                onClick={clickable ? () => focusCategoryGroup(group) : undefined}
+                onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); focusCategoryGroup(group); } } : undefined}
+                className={`rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 text-center transition-colors ${
+                  clickable ? 'cursor-pointer hover:bg-white/[0.05] hover:border-white/[0.15]' : ''
+                }`}
+              >
+                <p className="text-lg">{a.icon}</p>
+                <p className="text-[9px] text-slate-500 mt-1">{a.label}</p>
+                <p className="text-xl font-black text-slate-200">{a.count}</p>
+                {a.nearestM !== null && <p className="text-[8px] text-slate-600">{a.nearestM}m</p>}
+              </div>
+            );
+          })}
         </div>
       </div>
 
