@@ -190,7 +190,7 @@ export default function SuperadminDiagnostics() {
   }, []);
 
   const run = useCallback(async () => {
-    let headers: Record<string, string> = {};
+    const headers: Record<string, string> = {};
     if (headersStr.trim()) {
       try {
         const parsed = JSON.parse(headersStr) as unknown;
