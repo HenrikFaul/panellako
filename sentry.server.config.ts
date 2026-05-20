@@ -6,5 +6,5 @@ Sentry.init({
   environment: process.env.VERCEL_ENV ?? 'development',
   tracesSampleRate: 0.1,
   profilesSampleRate: 0.1,
-  integrations: [Sentry.httpIntegration({ tracing: true })],
+  integrations: [Sentry.httpIntegration()],
 });
