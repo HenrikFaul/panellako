@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import type { BudapestOverviewResponse } from '@/app/api/transit/budapest-overview/route';
+import { useMapTheme } from '@/hooks/use-map-theme';
 
 // ─── Mode colour palette — matches the ArcGIS thesis style ────────────────────
 //
@@ -99,6 +100,7 @@ const BUDAPEST_TRANSIT_CSS = `
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function BudapestTransitAnalysis() {
+  const theme        = useMapTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef       = useRef<any>(null);
@@ -165,9 +167,8 @@ export default function BudapestTransitAnalysis() {
         preferCanvas: true, // Canvas renderer = far better perf for 1000s of polylines
       });
 
-      // Light Carto base — keeps the analytical colours legible (matches the screenshot tone).
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© <a href="https://openstreetmap.org/copyright">OSM</a> · © <a href="https://carto.com/attributions">CARTO</a>',
+      L.tileLayer(theme.tileUrl, {
+        attribution: theme.attribution,
         maxZoom: 18,
         className: 'bptransit-attribution',
       }).addTo(map);
@@ -188,7 +189,8 @@ export default function BudapestTransitAnalysis() {
       leafletRef.current = null;
       setMapReady(false);
     };
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme.id]);
 
   // ─── 3) Populate mode-shape layers when data arrives ──────────────────
   useEffect(() => {
