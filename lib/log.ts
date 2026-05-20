@@ -44,10 +44,10 @@ export function log(ctx: LogContext): void {
 }
 
 export const logger = {
-  debug: (ctx: Omit<LogContext, 'level'>) => log({ ...ctx, level: 'debug' }),
-  info: (ctx: Omit<LogContext, 'level'>) => log({ ...ctx, level: 'info' }),
-  warn: (ctx: Omit<LogContext, 'level'>) => log({ ...ctx, level: 'warn' }),
-  error: (ctx: Omit<LogContext, 'level'>) => log({ ...ctx, level: 'error' }),
+  debug: (ctx: Omit<LogContext, 'level'>) => log({ ...ctx, level: 'debug' } as LogContext),
+  info:  (ctx: Omit<LogContext, 'level'>) => log({ ...ctx, level: 'info'  } as LogContext),
+  warn:  (ctx: Omit<LogContext, 'level'>) => log({ ...ctx, level: 'warn'  } as LogContext),
+  error: (ctx: Omit<LogContext, 'level'>) => log({ ...ctx, level: 'error' } as LogContext),
 };
 
 /**
