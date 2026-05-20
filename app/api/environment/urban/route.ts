@@ -390,8 +390,8 @@ function liveabilityLabel(score: number): { label: string; color: string } {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const lat        = parseFloat(searchParams.get('lat') ?? '47.4979');
-  const lon        = parseFloat(searchParams.get('lon') ?? '19.0402');
+  const lat        = parseFloat(searchParams.get('lat') ?? '47.5278845');
+  const lon        = parseFloat(searchParams.get('lon') ?? '19.0705657');
   const buildingId = searchParams.get('buildingId') ?? null;
   // ?withPois=1 forces a live Overpass query (cache bypass) so the response
   // includes the `pois` array required by the map view.

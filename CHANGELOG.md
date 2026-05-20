@@ -1,4 +1,23 @@
 
+## 2026-05-20 — v0.7.8 Demo building Nominatim-verifikált címre cserélve (Gidófalvy Lajos u. 9)
+
+### Fixed
+- A demo seed `Alkotás utca 42.` címét (XI. ker.) **lecseréltük a Nominatim-verifikált `Gidófalvy Lajos utca 9.` címre** (XIII. ker., 1134), OSM way `129080989`. A geocoder hetek óta `no_result`-tal hasalt el az Alkotás u. 42-re, mert az a cím / házszám-kombináció nem volt jól geokódolható Nominatim-mel. Az új cím vizuálisan ellenőrizve a https://nominatim.openstreetmap.org/ui/details.html?osmtype=W&osmid=129080989 oldalon.
+
+### Changed
+- **`supabase/seed.sql`** demo building INSERT mostantól populálja a `lat` (`47.5278845`), `lon` (`19.0705657`), `geocoded_at = now()` mezőket **expliciten** — így a satellite_refresh / urban_refresh / urban_atlas_refresh / env_refresh_green / urban-atlas jobok **soha többé nem indítanak Nominatim-hívást** a demo épületre. A geocoder a teljes pipeline legtörékenyebb függősége; expliciten beírt koordinátákkal a demo reprodukálható lesz akkor is, ha Nominatim down.
+- INSERT-ből `ON CONFLICT (id) DO NOTHING` → `ON CONFLICT (id) DO UPDATE SET name/address/lat/lon/geocoded_at = EXCLUDED.*` (idempotens; meglévő demo-building seed esetén is updateli).
+- `supabase/SEED_RUNNER.md`: dokumentált name + címfrissítés (XI. ker. → XIII. ker.).
+- A seed `seed.sql` minden narratív hivatkozása frissítve (SZMSZ szöveg, parkolóhely-leírás, owner audit-log entries, RAISE NOTICE summary). Magyar névelő-szabály betartva: `az` → `a` mert `Gidófalvy` mássalhangzóval kezdődik.
+- **21 forrásfájl** `47.4979`/`19.0402` fallback default-jai → `47.5278845`/`19.0705657`:
+  - Backend route-ok: `app/api/environment/{air-quality,green,satellite,score,solar,urban,urban-atlas,weather,budapest-trees,diagnostics}/route.ts`, `app/api/air-quality/route.ts`, `app/api/transit/{debug,nearby,vehicles}/route.ts`, `app/api/superadmin/jobs/run/route.ts`
+  - Frontend: `app/w/[buildingId]/kornyezet/page.tsx`, `components/air-quality-section.tsx`, `components/transport-panel.tsx`, `components/environment-page-client.tsx`, `components/superadmin-diagnostics.tsx`
+- Diagnosztikai UI 4-tizedes coord-rövidítések (`latitude=47.49&longitude=19.04`) → `latitude=47.5279&longitude=19.0706` 4 preset URL-ben (Open-Meteo current + air-quality, PVGIS, titiler.xyz).
+
+### Not changed (kifejezetten szándékosan)
+- `app/api/air-quality/stations/route.ts`: a `47.4979,19.0402` itt fizikai légszennyezés-monitoring állomások koordinátája (`Budapest`, `Erzsébet tér`), nem fallback default. Ezek a valódi BME / EU EEA mérőállomások helyzetét képviselik, NEM cserélendők.
+- `thesis_feature_prompts/01_levegominoseg_widget.md`: feature-prompt template, történelmi referencia, érintetlen marad.
+
 ## 2026-05-20 — v0.7.5 Geocoder + budapest_import részletes hibadiagnosztika
 
 ### Fixed

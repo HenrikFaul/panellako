@@ -17,7 +17,7 @@ const OVERPASS_MIRRORS = [
   'https://lz4.overpass-api.de/api/interpreter',
 ];
 
-const TINY_QUERY = '[out:json][timeout:5];node[amenity=pharmacy](around:200,47.4979,19.0402);out qt 1;';
+const TINY_QUERY = '[out:json][timeout:5];node[amenity=pharmacy](around:200,47.5278845,19.0705657);out qt 1;';
 
 interface MirrorResult {
   url:         string;
@@ -74,7 +74,7 @@ async function pingOverpass(url: string): Promise<MirrorResult> {
 }
 
 async function pingOpenMeteo(): Promise<MirrorResult> {
-  const url = 'https://api.open-meteo.com/v1/forecast?latitude=47.49&longitude=19.04&current=temperature_2m';
+  const url = 'https://api.open-meteo.com/v1/forecast?latitude=47.5279&longitude=19.0706&current=temperature_2m';
   const t0 = Date.now();
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(5_000) });

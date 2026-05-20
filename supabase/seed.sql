@@ -203,14 +203,26 @@ ON CONFLICT (id) DO NOTHING;
 -- =============================================================
 -- 3. BUILDING
 -- =============================================================
-
-INSERT INTO buildings (id, name, address) VALUES
+-- Demo building: Budapest, XIII. kerület, Gidófalvy Lajos utca 9 (1134).
+-- Verified Nominatim entry: https://nominatim.openstreetmap.org/ui/details.html?osmtype=W&osmid=129080989
+-- Lat/lon populated explicitly so the environment & transit jobs never need
+-- to geocode the address — geocoding is the most fragile dependency in the
+-- pipeline, and an explicit value here makes the demo fully reproducible.
+INSERT INTO buildings (id, name, address, lat, lon, geocoded_at) VALUES
 (
   v_building_id,
-  'Alkotás utca 42.',
-  'Budapest, XI. kerület, Alkotás utca 42.'
+  'Gidófalvy Lajos utca 9.',
+  'Budapest, XIII. kerület, Gidófalvy Lajos utca 9.',
+  47.5278845,
+  19.0705657,
+  now()
 )
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  name        = EXCLUDED.name,
+  address     = EXCLUDED.address,
+  lat         = EXCLUDED.lat,
+  lon         = EXCLUDED.lon,
+  geocoded_at = EXCLUDED.geocoded_at;
 
 -- =============================================================
 -- 4. UNITS  (A/1–A/8, B/1–B/8)
@@ -570,7 +582,7 @@ INSERT INTO meetings (
   'lezart',
   3,
   'Éves elszámolás 2025 | Felújítási alap képzése | SZMSZ módosítás',
-  'Budapest, XI. ker., Alkotás utca 42. – Közösségi terem',
+  'Budapest, XIII. ker., Gidófalvy Lajos utca 9. – Közösségi terem',
   'Kovács Béla', 'Nagy Péter',
   0.72, 0.50,
   now() - interval '62 days'
@@ -582,7 +594,7 @@ INSERT INTO meetings (
   'tervezett',
   0,
   'Liftfelújítás ajánlatok megtárgyalása | Pályázat beadása | Szavazás',
-  'Budapest, XI. ker., Alkotás utca 42. – Közösségi terem',
+  'Budapest, XIII. ker., Gidófalvy Lajos utca 9. – Közösségi terem',
   'Kovács Béla', 'Nagy Péter',
   NULL, 0.50,
   now() - interval '3 days'
@@ -727,7 +739,7 @@ INSERT INTO knowledge_base_articles (id, building_id, title, topic, body, audien
   v_kb1, v_building_id,
   'SZMSZ összefoglaló – legfontosabb szabályok',
   'Házirendek',
-  'Az Alkotás utca 42. társasház szervezeti és működési szabályzata (SZMSZ) a következő főbb szabályokat tartalmazza: (1) Közös területek rendeltetésszerű használata kötelező. (2) Zajkeltés csak 8–22 óra között engedélyezett. (3) Lépcsőházon keresztül tárgyakat szállítani csak előre egyeztetve lehet. (4) Parkolóhelyek kiosztása sorshúzással történik. (5) Állatot csak az SZMSZ feltételei szerint lehet tartani. A teljes SZMSZ a Dokumentumok között érhető el.',
+  'A Gidófalvy Lajos utca 9. társasház szervezeti és működési szabályzata (SZMSZ) a következő főbb szabályokat tartalmazza: (1) Közös területek rendeltetésszerű használata kötelező. (2) Zajkeltés csak 8–22 óra között engedélyezett. (3) Lépcsőházon keresztül tárgyakat szállítani csak előre egyeztetve lehet. (4) Parkolóhelyek kiosztása sorshúzással történik. (5) Állatot csak az SZMSZ feltételei szerint lehet tartani. A teljes SZMSZ a Dokumentumok között érhető el.',
   'Minden lakó',
   now() - interval '20 days'
 ),
@@ -751,7 +763,7 @@ INSERT INTO knowledge_base_articles (id, building_id, title, topic, body, audien
   v_kb4, v_building_id,
   'Parkolási szabályok és helykiosztás',
   'Házirendek',
-  'Az Alkotás utca 42. hátsó udvarában összesen 16 gépkocsi számára biztosított parkolóhely. A helyek kiosztása a tulajdonosi arány alapján, sorshúzással történt. Vendégparkolás a megjelölt 2 helyen lehetséges, maximum 48 óráig. Motorbicikli és kerékpár a tárolóhelyiségben helyezhető el. Parkolóhelyet albérelni vagy másra átruházni tilos, kivéve ha az SZMSZ erre külön engedélyt ad.',
+  'A Gidófalvy Lajos utca 9. hátsó udvarában összesen 16 gépkocsi számára biztosított parkolóhely. A helyek kiosztása a tulajdonosi arány alapján, sorshúzással történt. Vendégparkolás a megjelölt 2 helyen lehetséges, maximum 48 óráig. Motorbicikli és kerékpár a tárolóhelyiségben helyezhető el. Parkolóhelyet albérelni vagy másra átruházni tilos, kivéve ha az SZMSZ erre külön engedélyt ad.',
   'Minden lakó',
   now() - interval '12 days'
 ),
@@ -770,7 +782,7 @@ ON CONFLICT (id) DO NOTHING;
 -- =============================================================
 
 INSERT INTO audit_logs (id, actor_id, actor_name, action_type, entity_type, entity_id, entity_label, created_at) VALUES
-(v_al1,  v_uid_kepviselo, 'Kovács Béla',  'create',   'building',     v_building_id,   'Alkotás utca 42.',                   now() - interval '90 days'),
+(v_al1,  v_uid_kepviselo, 'Kovács Béla',  'create',   'building',     v_building_id,   'Gidófalvy Lajos utca 9.',                   now() - interval '90 days'),
 (v_al2,  v_uid_kepviselo, 'Kovács Béla',  'create',   'announcement', v_ann5,           'Éves elszámolás 2025 – közzétéve',   now() - interval '10 days'),
 (v_al3,  v_uid_lako,      'Szabó Mária',  'create',   'ticket',       v_ticket1,        'Csepegő csap a konyhában',           now() - interval '2 days'),
 (v_al4,  v_uid_kepviselo, 'Kovács Béla',  'update',   'ticket',       v_ticket2,        'Vízszivárgás a B/3 alatti mennyezeten', now() - interval '1 day'),
@@ -816,7 +828,7 @@ ON CONFLICT (building_id) DO NOTHING;
 
 RAISE NOTICE 'PanelLakó seed completed successfully.';
 RAISE NOTICE '  Users:            3 (kepviselo, lako, konyvelo)';
-RAISE NOTICE '  Building:         1 (Alkotás utca 42.)';
+RAISE NOTICE '  Building:         1 (Gidófalvy Lajos utca 9.)';
 RAISE NOTICE '  Units:            16 (A/1–A/8, B/1–B/8)';
 RAISE NOTICE '  Memberships:      3';
 RAISE NOTICE '  Announcements:    5';

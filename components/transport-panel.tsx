@@ -384,8 +384,8 @@ function useGeocoordinate(
 ): { lat: number; lon: number; geocoding: boolean } {
   // Budapest center as last-resort default
   const [coords, setCoords] = useState<{ lat: number; lon: number }>({
-    lat: lat ?? 47.4979,
-    lon: lon ?? 19.0402,
+    lat: lat ?? 47.5278845,
+    lon: lon ?? 19.0705657,
   });
   const [geocoding, setGeocoding] = useState(false);
 
@@ -429,7 +429,7 @@ export default function TransportPanel({ lat, lon, buildingAddress, buildingId }
   const [refreshKey, setRefreshKey]   = useState(0);
   const [selectedStop, setSelectedStop] = useState<NearbyStop | null>(null);
   const [tab, setTab]                 = useState<'stops' | 'bubi' | 'co2' | 'alerts'>('stops');
-  const coordsReady                   = !geocoding && (realLat !== 47.4979 || realLon !== 19.0402 || lat !== undefined);
+  const coordsReady                   = !geocoding && (realLat !== 47.5278845 || realLon !== 19.0705657 || lat !== undefined);
   const firstLoad                     = useRef(true);
   const mapRef                        = useRef<TransitLiveMapHandle>(null);
 

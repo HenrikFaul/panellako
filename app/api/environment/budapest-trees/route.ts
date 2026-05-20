@@ -43,8 +43,8 @@ function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): num
 
 export async function GET(request: NextRequest) {
   const sp         = request.nextUrl.searchParams;
-  const lat        = parseFloat(sp.get('lat') ?? '47.4979');
-  const lon        = parseFloat(sp.get('lon') ?? '19.0402');
+  const lat        = parseFloat(sp.get('lat') ?? '47.5278845');
+  const lon        = parseFloat(sp.get('lon') ?? '19.0705657');
   const buildingId = sp.get('buildingId') ?? null;
 
   if (Number.isNaN(lat) || Number.isNaN(lon)) {

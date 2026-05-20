@@ -32,7 +32,7 @@ interface RunSpec {
 
 interface Preset { id: string; label: string; description: string; spec: RunSpec }
 
-const OVERPASS_TINY = '[out:json][timeout:5];node[amenity=pharmacy](around:200,47.4979,19.0402);out qt 1;';
+const OVERPASS_TINY = '[out:json][timeout:5];node[amenity=pharmacy](around:200,47.5278845,19.0705657);out qt 1;';
 
 const PRESETS: Preset[] = [
   {
@@ -101,7 +101,7 @@ const PRESETS: Preset[] = [
       url:    'https://earth-search.aws.element84.com/v1/search',
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'User-Agent': 'panellako/1.0 (info@panellako.hu)' },
-      body:    JSON.stringify({ collections: ['sentinel-2-l2a'], intersects: { type: 'Point', coordinates: [19.0402, 47.4979] }, limit: 1 }),
+      body:    JSON.stringify({ collections: ['sentinel-2-l2a'], intersects: { type: 'Point', coordinates: [19.0705657, 47.5278845] }, limit: 1 }),
       timeoutMs: 15000,
     },
   },
@@ -110,7 +110,7 @@ const PRESETS: Preset[] = [
     label: 'Open-Meteo current',
     description: 'időjárás current-temp lekérés',
     spec: {
-      url:    'https://api.open-meteo.com/v1/forecast?latitude=47.49&longitude=19.04&current=temperature_2m',
+      url:    'https://api.open-meteo.com/v1/forecast?latitude=47.5279&longitude=19.0706&current=temperature_2m',
       method: 'GET',
       timeoutMs: 5000,
     },
@@ -120,7 +120,7 @@ const PRESETS: Preset[] = [
     label: 'Open-Meteo air quality',
     description: 'levegő AQI lekérés',
     spec: {
-      url:    'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=47.49&longitude=19.04&current=pm2_5,pm10',
+      url:    'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=47.5279&longitude=19.0706&current=pm2_5,pm10',
       method: 'GET',
       timeoutMs: 5000,
     },
@@ -140,7 +140,7 @@ const PRESETS: Preset[] = [
     label: 'PVGIS REST',
     description: 'EU napenergia API',
     spec: {
-      url:    'https://re.jrc.ec.europa.eu/api/v5_2/PVcalc?lat=47.49&lon=19.04&peakpower=1&loss=14&pvtechchoice=crystSi&outputformat=json',
+      url:    'https://re.jrc.ec.europa.eu/api/v5_2/PVcalc?lat=47.5279&lon=19.0706&peakpower=1&loss=14&pvtechchoice=crystSi&outputformat=json',
       method: 'GET',
       timeoutMs: 15000,
     },
@@ -150,7 +150,7 @@ const PRESETS: Preset[] = [
     label: 'titiler.xyz NDVI point',
     description: 'Sentinel-2 NDVI extract',
     spec: {
-      url:    'https://titiler.xyz/cog/point/19.04,47.49?url=https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/33/U/XP/2024/9/S2A_33UXP_20240920_0_L2A/B08.tif',
+      url:    'https://titiler.xyz/cog/point/19.0706,47.5279?url=https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/33/U/XP/2024/9/S2A_33UXP_20240920_0_L2A/B08.tif',
       method: 'GET',
       timeoutMs: 15000,
     },

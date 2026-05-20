@@ -15,7 +15,7 @@ async function runTransit(action: 'stops-routes' | 'building-stops' | 'alerts') 
 async function runAirQuality() {
   const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const [main, heatmap] = await Promise.all([
-    fetch(`${base.replace(/\/$/, '')}/api/air-quality?lat=47.4979&lon=19.0402`, { cache: 'no-store' }),
+    fetch(`${base.replace(/\/$/, '')}/api/air-quality?lat=47.5278845&lon=19.0705657`, { cache: 'no-store' }),
     fetch(`${base.replace(/\/$/, '')}/api/air-quality/heatmap`, { cache: 'no-store' }),
   ]);
 

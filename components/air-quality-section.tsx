@@ -58,8 +58,8 @@ export default function AirQualitySection({ buildingLat, buildingLon, buildingAd
   const [expanded, setExpanded] = useState(true);
   const mapRef = useRef<AirQualityMapHandle>(null);
 
-  const lat = buildingLat ?? 47.4979;
-  const lon = buildingLon ?? 19.0402;
+  const lat = buildingLat ?? 47.5278845;
+  const lon = buildingLon ?? 19.0705657;
 
   const fetchData = useCallback(async () => {
     try {

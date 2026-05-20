@@ -80,10 +80,10 @@ A seed UUID-ok fix értékek — soha ne változtasd meg a meglévőket, csak ú
 
 ### Felhasználók és hozzáférés
 - 3 bejelentkező felhasználó (Supabase Auth + `profiles` tábla)
-- 3 membership az "Alkotás utca 42." épülethez
+- 3 membership az "Gidófalvy Lajos utca 9." épülethez
 
 ### Épület és albetétek
-- 1 épület: **Alkotás utca 42.** (Budapest, XI. kerület)
+- 1 épület: **Gidófalvy Lajos utca 9.** (Budapest, XIII. kerület)
 - 16 albetét: A/1–A/8 és B/1–B/8
 - 3 albetétnél hátralék: A/2 (24 500 Ft), A/4 (18 750 Ft), A/7 (9 200 Ft)
 
