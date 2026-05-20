@@ -1,4 +1,18 @@
 
+## 2026-05-20 — v0.6.8 Superadmin külső-API diagnosztika (curl-runner) + 404 fix
+
+### Fixed
+- **`app/api/environment/_diagnostics/route.ts` → `app/api/environment/diagnostics/route.ts`** (rename): Next.js App Router az `_` prefixű mappákat kizárja a routingból ("private folders" konvenció), ezért a v0.6.7-ben hozzáadott diagnosztikai endpoint 404-et adott. Aláhúzás eltávolítva, az endpoint mostantól ténylegesen elérhető a `https://panellako.hu/api/environment/diagnostics` URL-en.
+
+### Added
+- **`app/api/superadmin/diagnostics/curl/route.ts`**: új superadmin-only POST végpont, amely tetszőleges HTTP-kérést futtat a Vercel serverless környezetből és visszaadja a teljes választ (status, headers, body, latency). SSRF-védelem: `dns.lookup`-pal feloldja a hostnamet, és visszautasít minden RFC1918 / loopback / link-local / cloud metadata / IPv6 ULA / multicast / forbidden suffix (`.internal`, `.local`, `.vercel.run`) címet. Response body 512 KB-ra cap-elve, a UI 32 KB-ra trunkálva mutatja. Method-whitelist (GET/POST/PUT/PATCH/DELETE/HEAD), `Cookie` és `Host` header sanitization.
+- **`components/superadmin-diagnostics.tsx`**: új UI komponens a superadmin felületen:
+  - **9 preset gomb**: 4 Overpass mirror (kumi.systems, overpass-api.de, openstreetmap.fr, lz4), Open-Meteo current + air-quality, internal `/api/environment/diagnostics` self-check, PVGIS, titiler.xyz NDVI
+  - **Overpass health check batch gomb**: szekvenciálisan futtat mind a 4 Overpass mirror-t és tabuláris megjelenítésben mutatja a status/latency/bytes/note értékeket — egy kattintással látható, melyik tükör érhető el Vercelből
+  - **Szabad request űrlap**: method dropdown, URL input, headers JSON szerkesztő, body textarea, timeout (500-25000 ms)
+  - **Response panel**: status badge, latency, bytes, content-type, response headers kihajtható lista, body (32 KB-ig), error block hiba esetén, "truncated" jelző ha túlfutott
+- Mountolva a `superadmin-client.tsx`-ben a `<SuperadminGtfsImport />` után, így a `/superadmin` oldal alján elérhető.
+
 ## 2026-05-20 — v0.6.7 Bugfix: Overpass routes match working /api/cycling pattern
 
 ### Fixed
