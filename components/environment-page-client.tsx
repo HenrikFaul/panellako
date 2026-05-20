@@ -21,6 +21,8 @@ import type { SolarData } from '@/app/api/environment/solar/route';
 import type { EnvScore } from '@/app/api/environment/score/route';
 import type { SatelliteData } from '@/app/api/environment/satellite/route';
 import type { UrbanData } from '@/app/api/environment/urban/route';
+import type { UrbanAtlasData } from '@/app/api/environment/urban-atlas/route';
+import type { BudapestTreesData } from '@/app/api/environment/budapest-trees/route';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface Props {
@@ -142,20 +144,24 @@ export default function EnvironmentPageClient({
   const lat = buildingLat ?? 47.4979;
   const lon = buildingLon ?? 19.0402;
 
-  const [aq,         setAq]         = useState<EnvAirQualityResult | null>(null);
-  const [weather,    setWeather]    = useState<EnvWeatherResult | null>(null);
-  const [green,      setGreen]      = useState<GreenData | null>(null);
-  const [solar,      setSolar]      = useState<SolarData | null>(null);
-  const [score,      setScore]      = useState<EnvScore | null>(null);
-  const [satellite,  setSatellite]  = useState<SatelliteData | null>(null);
-  const [urban,      setUrban]      = useState<UrbanData | null>(null);
-  const [stations,   setStations]   = useState<AQIStation[]>([]);
-  const [routes,     setRoutes]     = useState<CyclingFeature[]>([]);
+  const [aq,           setAq]           = useState<EnvAirQualityResult | null>(null);
+  const [weather,      setWeather]      = useState<EnvWeatherResult | null>(null);
+  const [green,        setGreen]        = useState<GreenData | null>(null);
+  const [solar,        setSolar]        = useState<SolarData | null>(null);
+  const [score,        setScore]        = useState<EnvScore | null>(null);
+  const [satellite,    setSatellite]    = useState<SatelliteData | null>(null);
+  const [urban,        setUrban]        = useState<UrbanData | null>(null);
+  const [urbanAtlas,   setUrbanAtlas]   = useState<UrbanAtlasData | null>(null);
+  const [bpTrees,      setBpTrees]      = useState<BudapestTreesData | null>(null);
+  const [stations,     setStations]     = useState<AQIStation[]>([]);
+  const [routes,       setRoutes]       = useState<CyclingFeature[]>([]);
 
   const [loadingAq,        setLoadingAq]        = useState(true);
   const [loadingWeather,   setLoadingWeather]    = useState(true);
   const [loadingScore,     setLoadingScore]      = useState(true);
   const [loadingGreen,     setLoadingGreen]      = useState(false);
+  const [loadingUrbanAtlas,setLoadingUrbanAtlas] = useState(false);
+  const [loadingBpTrees,   setLoadingBpTrees]    = useState(false);
   const [loadingSolar,     setLoadingSolar]      = useState(false);
   const [loadingCycle,     setLoadingCycle]      = useState(false);
   const [loadingSatellite, setLoadingSatellite]  = useState(false);
@@ -172,11 +178,13 @@ export default function EnvironmentPageClient({
   const cycleRef      = useRef<HTMLDivElement>(null);
   const satelliteRef  = useRef<HTMLDivElement>(null);
   const urbanRef      = useRef<HTMLDivElement>(null);
-  const greenLoadedRef     = useRef(false);
-  const solarLoadedRef     = useRef(false);
-  const cycleLoadedRef     = useRef(false);
-  const satelliteLoadedRef = useRef(false);
-  const urbanLoadedRef     = useRef(false);
+  const greenLoadedRef      = useRef(false);
+  const urbanAtlasLoadedRef = useRef(false);
+  const bpTreesLoadedRef    = useRef(false);
+  const solarLoadedRef      = useRef(false);
+  const cycleLoadedRef      = useRef(false);
+  const satelliteLoadedRef  = useRef(false);
+  const urbanLoadedRef      = useRef(false);
   const mapRef    = useRef<AirQualityMapHandle>(null);
 
   // Eager: AQ + weather + score + stations
@@ -212,10 +220,37 @@ export default function EnvironmentPageClient({
   useEffect(() => {
     const el = greenRef.current; if (!el) return;
     const obs = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && !greenLoadedRef.current) { greenLoadedRef.current = true; doGreen(); }
+      if (entries[0].isIntersecting && !greenLoadedRef.current) {
+        greenLoadedRef.current = true;
+        doGreen();
+        // Also trigger the two extra green sources in parallel
+        if (!urbanAtlasLoadedRef.current) { urbanAtlasLoadedRef.current = true; doUrbanAtlas(); }
+        if (!bpTreesLoadedRef.current)    { bpTreesLoadedRef.current    = true; doBpTrees();    }
+      }
     }, { threshold: 0.1 });
     obs.observe(el); return () => obs.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doGreen]);
+
+  // Lazy: Urban Atlas
+  const doUrbanAtlas = useCallback(() => {
+    setLoadingUrbanAtlas(true);
+    fetch(`/api/environment/urban-atlas?buildingId=${buildingId}&lat=${lat}&lon=${lon}`)
+      .then(r => r.json() as Promise<UrbanAtlasData>)
+      .then(d => { if (d && d.source !== 'unavailable') setUrbanAtlas(d); })
+      .catch(() => { /* best-effort */ })
+      .finally(() => setLoadingUrbanAtlas(false));
+  }, [buildingId, lat, lon]);
+
+  // Lazy: Budapest trees / parks
+  const doBpTrees = useCallback(() => {
+    setLoadingBpTrees(true);
+    fetch(`/api/environment/budapest-trees?buildingId=${buildingId}&lat=${lat}&lon=${lon}`)
+      .then(r => r.json() as Promise<BudapestTreesData>)
+      .then(d => { if (d && d.source !== 'no_data') setBpTrees(d); })
+      .catch(() => { /* best-effort */ })
+      .finally(() => setLoadingBpTrees(false));
+  }, [buildingId, lat, lon]);
 
   // Lazy: solar
   useEffect(() => {
@@ -542,8 +577,14 @@ export default function EnvironmentPageClient({
         {/* 4. Zöld Környezet */}
         <div ref={greenRef}>
           <Section id="sec-green">
-            <SectionHeader icon={<Leaf size={18} className="text-emerald-400" />} title="Zöld Környezet" source="OpenStreetMap · Overpass" />
-            <div className="p-6">
+            <SectionHeader
+              icon={<Leaf size={18} className="text-emerald-400" />}
+              title="Zöld Környezet"
+              source="OSM · Sentinel-2 · EU Urban Atlas · Budapest Nyílt Adat"
+            />
+            <div className="p-6 space-y-4">
+
+              {/* ── Top KPI row ─────────────────────────────────────────────── */}
               {loadingGreen ? (
                 <div className="space-y-3 animate-pulse">
                   <div className="h-24 rounded-2xl bg-white/[0.06]" />
@@ -552,17 +593,18 @@ export default function EnvironmentPageClient({
               ) : errorGreen ? (
                 <div className="flex flex-col items-center gap-3 py-8">
                   <p className="text-[11px] text-slate-500">Overpass API nem elérhető</p>
-                  <button type="button" onClick={() => { greenLoadedRef.current = false; doGreen(); }}
+                  <button type="button"
+                    onClick={() => { greenLoadedRef.current = false; urbanAtlasLoadedRef.current = false; bpTreesLoadedRef.current = false; doGreen(); doUrbanAtlas(); doBpTrees(); }}
                     className="rounded-xl border border-white/[0.1] px-4 py-2 text-[10px] font-bold text-slate-400 hover:bg-white/[0.05] transition-colors">
                     Újrapróbálás
                   </button>
                 </div>
               ) : green ? (
-                <div className="space-y-4">
+                <>
+                  {/* KPI row */}
                   <div className="grid gap-3 sm:grid-cols-3">
-                    {/* Green score */}
                     <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-                      <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-slate-500">Zöld index</p>
+                      <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-slate-500">OSM zöld index</p>
                       <div className="flex items-end gap-2">
                         <span className="text-3xl font-black text-emerald-400">{green.greenScore}</span>
                         <span className="text-[10px] text-slate-500 mb-1">/ 100</span>
@@ -572,23 +614,152 @@ export default function EnvironmentPageClient({
                       </div>
                       <p className="mt-1 text-[9px] text-slate-600">Budapest átlag: ~52/100</p>
                     </div>
-                    {/* Nearest park */}
                     <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
                       <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-slate-500">Legközelebbi park</p>
-                      <p className="text-sm font-black text-slate-200 truncate">{green.nearestParkName}</p>
-                      <p className="text-xl font-black text-emerald-400">{green.nearestParkM} <span className="text-xs text-slate-500">m</span></p>
-                      <p className="text-[9px] text-slate-600">~{Math.round(green.nearestParkM / 67)} perc gyalog</p>
+                      <p className="text-sm font-black text-slate-200 truncate">{bpTrees?.nearestParkName ?? green.nearestParkName}</p>
+                      <p className="text-xl font-black text-emerald-400">
+                        {bpTrees?.nearestParkM ?? green.nearestParkM}{' '}
+                        <span className="text-xs text-slate-500">m</span>
+                      </p>
+                      <p className="text-[9px] text-slate-600">
+                        ~{Math.round((bpTrees?.nearestParkM ?? green.nearestParkM) / 67)} perc gyalog
+                        {bpTrees ? <span className="ml-1 text-emerald-600">· Bp. adat</span> : null}
+                      </p>
                     </div>
-                    {/* Nature */}
                     <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
                       <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-slate-500">Természet 200–500m</p>
                       <div className="space-y-1.5">
-                        <div className="flex items-center gap-2"><span>🌳</span><span className="text-[10px] text-slate-300">{green.treeCount} fa (200m)</span></div>
+                        <div className="flex items-center gap-2">
+                          <span>🌳</span>
+                          <span className="text-[10px] text-slate-300">
+                            {bpTrees ? `${bpTrees.treeCount200m} fa (200m)` : `${green.treeCount} fa (200m)`}
+                            {bpTrees && <span className="ml-1 text-[8px] text-emerald-600">· official</span>}
+                          </span>
+                        </div>
                         <div className="flex items-center gap-2"><span>🛝</span><span className="text-[10px] text-slate-300">{green.playgroundCount} játszótér (300m)</span></div>
                         <div className="flex items-center gap-2"><span>⚽</span><span className="text-[10px] text-slate-300">{green.sportsCount} sporttér (500m)</span></div>
                       </div>
                     </div>
                   </div>
+
+                  {/* ── Multi-source detail grid ───────────────────────────── */}
+                  <div className="grid gap-3 sm:grid-cols-2">
+
+                    {/* OSM Overpass card */}
+                    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="rounded-md bg-emerald-900/40 px-1.5 py-0.5 text-[9px] font-bold text-emerald-400">OSM</span>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">OpenStreetMap · Overpass</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-y-1 text-[10px] text-slate-300">
+                        <span className="text-slate-500">Park terület (500m)</span>
+                        <span className="font-bold text-right">{(green.parkAreaM2 / 10000).toFixed(2)} ha</span>
+                        <span className="text-slate-500">Fák (200m)</span>
+                        <span className="font-bold text-right">{green.treeCount} db</span>
+                        <span className="text-slate-500">Játszótér (300m)</span>
+                        <span className="font-bold text-right">{green.playgroundCount} db</span>
+                        <span className="text-slate-500">Sporttér (500m)</span>
+                        <span className="font-bold text-right">{green.sportsCount} db</span>
+                      </div>
+                      <p className="mt-2 text-[8px] text-slate-700">
+                        {green.source === 'cache' ? 'Gyorsítótárból (7 napos)' : 'Friss Overpass lekérdezés'}
+                      </p>
+                    </div>
+
+                    {/* Satellite / NDVI card */}
+                    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="rounded-md bg-sky-900/40 px-1.5 py-0.5 text-[9px] font-bold text-sky-400">🛰</span>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Sentinel-2 · Területi NDVI</p>
+                      </div>
+                      {loadingUrbanAtlas && !satellite ? (
+                        <div className="h-16 animate-pulse rounded-xl bg-white/[0.04]" />
+                      ) : satellite ? (
+                        <div className="grid grid-cols-2 gap-y-1 text-[10px] text-slate-300">
+                          <span className="text-slate-500">Pont NDVI</span>
+                          <span className="font-bold text-right" style={{ color: satellite.ndviColor ?? '#94a3b8' }}>
+                            {satellite.ndvi?.toFixed(3) ?? '—'} ({satellite.ndviLabel})
+                          </span>
+                          <span className="text-slate-500">Területi NDVI (500m)</span>
+                          <span className="font-bold text-right">
+                            {satellite.areaNdvi != null ? satellite.areaNdvi.toFixed(3) : '—'}
+                          </span>
+                          <span className="text-slate-500">Vegetáció-fedettség</span>
+                          <span className="font-bold text-right text-emerald-400">
+                            {satellite.vegPct != null ? `${satellite.vegPct}%` : '—'}
+                          </span>
+                          <span className="text-slate-500">Felvétel dátuma</span>
+                          <span className="font-bold text-right">{satellite.sceneDate ?? '—'}</span>
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-slate-600">Betöltés a Műhold szekción…</p>
+                      )}
+                    </div>
+
+                    {/* EU Urban Atlas card */}
+                    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="rounded-md bg-blue-900/40 px-1.5 py-0.5 text-[9px] font-bold text-blue-400">🇪🇺</span>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Copernicus Urban Atlas 2018</p>
+                      </div>
+                      {loadingUrbanAtlas ? (
+                        <div className="h-16 animate-pulse rounded-xl bg-white/[0.04]" />
+                      ) : urbanAtlas ? (
+                        <>
+                          <div className="grid grid-cols-2 gap-y-1 text-[10px] text-slate-300">
+                            <span className="text-slate-500">Zöld városi t.</span>
+                            <span className="font-bold text-right text-emerald-400">{urbanAtlas.greenUrbanPct.toFixed(1)}%</span>
+                            <span className="text-slate-500">Erdő</span>
+                            <span className="font-bold text-right text-emerald-400">{urbanAtlas.forestPct.toFixed(1)}%</span>
+                            <span className="text-slate-500">Sport/szabadidő</span>
+                            <span className="font-bold text-right">{urbanAtlas.sportsLeisurePct.toFixed(1)}%</span>
+                            <span className="text-slate-500">Összes zöld</span>
+                            <span className="font-bold text-right text-emerald-300">{urbanAtlas.totalGreenPct.toFixed(1)}%</span>
+                            <span className="text-slate-500">Beépített</span>
+                            <span className="font-bold text-right text-slate-400">{urbanAtlas.artificialPct.toFixed(1)}%</span>
+                          </div>
+                          <p className="mt-2 text-[8px] text-slate-700">
+                            EU hivatalos adat · {urbanAtlas.source === 'cache' ? '6 hónapos cache' : 'Friss EEA lekérdezés'}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-[10px] text-slate-600">Adat nem elérhető (EEA szerver)</p>
+                      )}
+                    </div>
+
+                    {/* Budapest Open Data card */}
+                    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="rounded-md bg-orange-900/40 px-1.5 py-0.5 text-[9px] font-bold text-orange-400">🏙</span>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Budapest Nyílt Adat · Fa-leltár</p>
+                      </div>
+                      {loadingBpTrees ? (
+                        <div className="h-16 animate-pulse rounded-xl bg-white/[0.04]" />
+                      ) : bpTrees ? (
+                        <>
+                          <div className="grid grid-cols-2 gap-y-1 text-[10px] text-slate-300">
+                            <span className="text-slate-500">Fa (200m)</span>
+                            <span className="font-bold text-right text-emerald-400">{bpTrees.treeCount200m} db</span>
+                            <span className="text-slate-500">Fa (500m)</span>
+                            <span className="font-bold text-right">{bpTrees.treeCount500m} db</span>
+                            <span className="text-slate-500">Park (500m)</span>
+                            <span className="font-bold text-right">{bpTrees.parkCount500m} db</span>
+                            <span className="text-slate-500">Park terület</span>
+                            <span className="font-bold text-right">{(bpTrees.parkAreaM2 / 10000).toFixed(2)} ha</span>
+                          </div>
+                          <p className="mt-2 text-[8px] text-slate-700">
+                            {bpTrees.totalTreesDb.toLocaleString('hu-HU')} fa az adatbázisban · importálva: {bpTrees.importedAt ? new Date(bpTrees.importedAt).toLocaleDateString('hu-HU') : '—'}
+                          </p>
+                        </>
+                      ) : (
+                        <div className="space-y-1">
+                          <p className="text-[10px] text-slate-500">Az adatimport még nem futott le.</p>
+                          <p className="text-[9px] text-slate-600">Superadmin → <em>Budapest Nyílt Adat importálás</em> job indítása szükséges.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Noise */}
                   <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
                     <p className="mb-3 text-[9px] font-bold uppercase tracking-widest text-slate-500">Zajterhelés becslés</p>
@@ -609,7 +780,7 @@ export default function EnvironmentPageClient({
                       Becslés OSM úthálózat alapján.{green.source === 'cache' ? ' · Gyorsítótárból (7 napos frissítés)' : ' · Friss Overpass lekérdezés'}
                     </p>
                   </div>
-                </div>
+                </>
               ) : (
                 <div className="flex flex-col items-center gap-2 py-8">
                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500/30 border-t-emerald-500" />

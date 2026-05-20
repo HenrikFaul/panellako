@@ -382,5 +382,227 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // ─── Urban Atlas refresh (Copernicus EU land-use, 180-day TTL) ──────────────
+  if (job === 'urban_atlas_refresh') {
+    const logId = await logStart(job);
+    try {
+      const supabase = createServiceClient();
+      if (!supabase) throw new Error('No Supabase client');
+
+      const { data: buildings, error: bErr } = await supabase
+        .from('buildings')
+        .select('id, name, address, lat, lon');
+      if (bErr) throw new Error(bErr.message);
+
+      const { data: cached } = await supabase
+        .from('building_urban_atlas_cache')
+        .select('building_id, computed_at')
+        .gt('computed_at', new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString());
+
+      const freshIds = new Set((cached ?? []).map((r: { building_id: string }) => r.building_id));
+      const toRefresh = ((buildings ?? []) as BuildingRow[]).filter(b => !freshIds.has(b.id));
+
+      let refreshed = 0, errors = 0, geocodeFailed = 0;
+      for (const building of toRefresh) {
+        const coords = await resolveCoords(building, supabase);
+        if (!coords) { geocodeFailed++; continue; }
+        try {
+          const url = `${appBase}/api/environment/urban-atlas?lat=${coords.lat}&lon=${coords.lon}&buildingId=${building.id}`;
+          const res = await fetch(url, { cache: 'no-store' });
+          if (res.ok) refreshed++; else errors++;
+        } catch { errors++; }
+        await new Promise(r => setTimeout(r, 2000));
+      }
+
+      const result = { total: (buildings ?? []).length, skipped: freshIds.size, refreshed, errors, geocodeFailed };
+      await logEnd(logId, errors === 0 ? 'ok' : 'partial', result);
+      return NextResponse.json({ ok: errors === 0, job, result, ranAt: new Date().toISOString() }, { status: errors === 0 ? 200 : 207 });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await logEnd(logId, 'error', { error: message });
+      return NextResponse.json({ ok: false, job, error: message, ranAt: new Date().toISOString() }, { status: 500 });
+    }
+  }
+
+  // ─── Budapest Open Data import (fa-leltár + parknyilvántartás) ───────────────
+  if (job === 'budapest_import') {
+    const logId = await logStart(job);
+    try {
+      const supabase = createServiceClient();
+      if (!supabase) throw new Error('No Supabase client');
+
+      // ── 1. Discover dataset resource IDs via CKAN ─────────────────────────
+      const CKAN_BASE = 'https://opendata.budapest.hu/api/3/action';
+
+      async function ckanSearch(query: string): Promise<Array<{ id: string; name: string; resources: Array<{ id: string; format: string; name: string }> }>> {
+        const res = await fetch(`${CKAN_BASE}/package_search?q=${encodeURIComponent(query)}&rows=5`, {
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (!res.ok) return [];
+        const json = await res.json() as { result?: { results?: unknown[] } };
+        return (json.result?.results ?? []) as ReturnType<typeof ckanSearch> extends Promise<infer T> ? T : never;
+      }
+
+      async function ckanPage(resourceId: string, offset: number, limit = 10000): Promise<{ records: Record<string, unknown>[]; total: number }> {
+        const params = new URLSearchParams({ resource_id: resourceId, limit: String(limit), offset: String(offset) });
+        const res = await fetch(`${CKAN_BASE}/datastore_search?${params}`, {
+          signal: AbortSignal.timeout(60_000),
+        });
+        if (!res.ok) throw new Error(`CKAN datastore HTTP ${res.status}`);
+        const json = await res.json() as {
+          result?: { records?: Record<string, unknown>[]; total?: number };
+          error?: { message?: string };
+        };
+        if (json.error) throw new Error(`CKAN error: ${json.error.message}`);
+        return { records: json.result?.records ?? [], total: json.result?.total ?? 0 };
+      }
+
+      // Try to find tree and park datasets by searching CKAN
+      const [treePackages, parkPackages] = await Promise.all([
+        ckanSearch('fakataszter'),
+        ckanSearch('park'),
+      ]);
+
+      // ── Helper: detect lat/lon column names ──────────────────────────────
+      function detectLatLonCols(sample: Record<string, unknown>): { latCol: string; lonCol: string } | null {
+        const keys = Object.keys(sample).map(k => k.toLowerCase());
+        const latCandidates = ['y_wgs84', 'ywgs84', 'lat', 'latitude', 'wgs_lat', 'y_coord', 'szelesseg'];
+        const lonCandidates = ['x_wgs84', 'xwgs84', 'lon', 'longitude', 'wgs_lon', 'x_coord', 'hosszusag'];
+        const latKey = latCandidates.find(c => keys.includes(c));
+        const lonKey = lonCandidates.find(c => keys.includes(c));
+        if (!latKey || !lonKey) return null;
+        const realLatKey = Object.keys(sample).find(k => k.toLowerCase() === latKey)!;
+        const realLonKey = Object.keys(sample).find(k => k.toLowerCase() === lonKey)!;
+        return { latCol: realLatKey, lonCol: realLonKey };
+      }
+
+      let treeResourceId: string | null = null;
+      let parkResourceId: string | null = null;
+
+      for (const pkg of treePackages) {
+        const csvRes = pkg.resources?.find(r => r.format?.toUpperCase() === 'CSV' || r.format?.toUpperCase() === 'JSON');
+        if (csvRes) { treeResourceId = csvRes.id; break; }
+        if (pkg.resources?.[0]) { treeResourceId = pkg.resources[0].id; break; }
+      }
+      for (const pkg of parkPackages) {
+        const csvRes = pkg.resources?.find(r =>
+          r.format?.toUpperCase() === 'CSV' || r.format?.toUpperCase() === 'JSON' || r.format?.toUpperCase() === 'GEOJSON');
+        if (csvRes) { parkResourceId = csvRes.id; break; }
+        if (pkg.resources?.[0]) { parkResourceId = pkg.resources[0].id; break; }
+      }
+
+      const stats: Record<string, unknown> = { treeResourceId, parkResourceId };
+
+      // ── 2. Import trees ───────────────────────────────────────────────────
+      if (treeResourceId) {
+        let offset = 0; let total = 0; let imported = 0;
+        const LIMIT = 5000;
+        // Clear existing data before re-import
+        await supabase.from('budapest_trees').delete().neq('id', 0);
+
+        do {
+          const page = await ckanPage(treeResourceId, offset, LIMIT);
+          total = page.total;
+          if (page.records.length === 0) break;
+
+          const cols = page.records[0] ? detectLatLonCols(page.records[0]) : null;
+          if (!cols && offset === 0) {
+            stats.treeError = `Cannot detect lat/lon columns. Keys: ${Object.keys(page.records[0] ?? {}).join(', ')}`;
+            break;
+          }
+
+          const rows = page.records
+            .filter(r => cols && r[cols.latCol] != null && r[cols.lonCol] != null)
+            .map(r => {
+              const lat = parseFloat(String(r[cols!.latCol]));
+              const lon = parseFloat(String(r[cols!.lonCol]));
+              if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+              return {
+                ext_id:      String(r._id ?? r.id ?? ''),
+                lat,
+                lon,
+                species_lat: String(r.faj_nev_latin ?? r.faj_latin ?? r.latin_nev ?? ''),
+                species_hu:  String(r.faj_nev_magyar ?? r.faj_nev ?? r.nev ?? ''),
+                condition:   String(r.allapot ?? r.allapot_kozos ?? ''),
+                district:    String(r.kerulet ?? r.district ?? ''),
+                height_m:    r.magassag != null ? parseFloat(String(r.magassag)) || null : null,
+                crown_r_m:   r.koronatmero != null ? parseFloat(String(r.koronatmero)) / 2 || null : null,
+                imported_at: new Date().toISOString(),
+              };
+            })
+            .filter((r): r is NonNullable<typeof r> => r !== null);
+
+          if (rows.length > 0) {
+            await supabase.from('budapest_trees').insert(rows);
+            imported += rows.length;
+          }
+
+          offset += LIMIT;
+        } while (offset < total);
+
+        stats.treesImported = imported;
+        stats.treesTotal = total;
+      }
+
+      // ── 3. Import parks ───────────────────────────────────────────────────
+      if (parkResourceId) {
+        let offset = 0; let total = 0; let imported = 0;
+        const LIMIT = 2000;
+        await supabase.from('budapest_parks').delete().neq('id', 0);
+
+        do {
+          const page = await ckanPage(parkResourceId, offset, LIMIT);
+          total = page.total;
+          if (page.records.length === 0) break;
+
+          const rows = page.records
+            .map(r => {
+              const cols = detectLatLonCols(r);
+              if (!cols) return null;
+              const lat = parseFloat(String(r[cols.latCol]));
+              const lon = parseFloat(String(r[cols.lonCol]));
+              if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+              return {
+                ext_id:      String(r._id ?? r.id ?? ''),
+                name:        String(r.nev ?? r.park_nev ?? r.name ?? r.megnevezes ?? 'Park'),
+                district:    String(r.kerulet ?? ''),
+                area_m2:     r.terulet != null ? parseFloat(String(r.terulet)) || null
+                  : r.area_m2 != null ? parseFloat(String(r.area_m2)) || null : null,
+                lat,
+                lon,
+                imported_at: new Date().toISOString(),
+              };
+            })
+            .filter((r): r is NonNullable<typeof r> => r !== null);
+
+          if (rows.length > 0) {
+            await supabase.from('budapest_parks').insert(rows);
+            imported += rows.length;
+          }
+          offset += LIMIT;
+        } while (offset < total);
+
+        stats.parksImported = imported;
+        stats.parksTotal = total;
+      }
+
+      // ── 4. Update metadata ────────────────────────────────────────────────
+      const now = new Date().toISOString();
+      await supabase.from('budapest_data_meta').upsert([
+        { key: 'trees_imported_at', value: now },
+        { key: 'tree_resource_id',  value: treeResourceId ?? '' },
+        { key: 'park_resource_id',  value: parkResourceId ?? '' },
+      ], { onConflict: 'key' });
+
+      const ok = !!(treeResourceId || parkResourceId);
+      await logEnd(logId, ok ? 'ok' : 'error', stats);
+      return NextResponse.json({ ok, job, result: stats, ranAt: now }, { status: ok ? 200 : 207 });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await logEnd(logId, 'error', { error: message });
+      return NextResponse.json({ ok: false, job, error: message, ranAt: new Date().toISOString() }, { status: 500 });
+    }
+  }
+
   return NextResponse.json({ error: 'Unknown job' }, { status: 400 });
 }

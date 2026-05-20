@@ -56,6 +56,21 @@ const JOBS: Job[] = [
     ],
     envVars: [],
   },
+  {
+    id: 'urban_atlas_refresh', label: 'EU Urban Atlas frissítés', description: 'Copernicus Urban Atlas 2018 területhasználat minden épületre — 180 napos cache',
+    endpoints: [
+      { url: 'https://image.discomap.eea.europa.eu/arcgis/rest/services/UrbanAtlas/UA2018/MapServer/0/query', note: 'EEA ArcGIS REST — EU nyílt adat, kulcs nélkül' },
+    ],
+    envVars: [],
+  },
+  {
+    id: 'budapest_import', label: 'Budapest Nyílt Adat importálás', description: 'Budapest fa-leltár + parknyilvántartás letöltése és Supabase-be importálása (CKAN)',
+    endpoints: [
+      { url: 'https://opendata.budapest.hu/api/3/action/package_search', note: 'CKAN dataset discovery — Budapest Főváros nyílt adat' },
+      { url: 'https://opendata.budapest.hu/api/3/action/datastore_search', note: 'CKAN paginated record download — fa-leltár + parkok' },
+    ],
+    envVars: [],
+  },
 ];
 
 interface BkkRateLimits {

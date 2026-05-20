@@ -16,6 +16,9 @@ export interface SatelliteData {
   sceneId:     string | null;
   source:      'sentinel2' | 'cache' | 'unavailable';
   computedAt:  string;
+  // Area statistics (500m bbox)
+  areaNdvi:    number | null;   // NDVI from mean(B08)/mean(B04) over 500m bbox
+  vegPct:      number | null;   // estimated % of pixels with NDVI > 0 (vegetated)
 }
 
 // ─── NDVI classification ──────────────────────────────────────────────────────
@@ -82,6 +85,68 @@ async function cogPoint(lon: number, lat: number, href: string): Promise<number 
   return data.values?.[0] ?? null;
 }
 
+// ─── Titiler COG statistics over a bbox ──────────────────────────────────────
+
+interface CogBandStats {
+  mean:          number;
+  std:           number;
+  percentile_2:  number;
+  percentile_98: number;
+  histogram:     [number[], number[]] | null;
+}
+
+async function cogStats(href: string, bbox: string): Promise<CogBandStats | null> {
+  const url = `https://titiler.xyz/cog/statistics?url=${encodeURIComponent(href)}&bbox=${bbox}&max_size=64&nodata=0&histogram_bins=20`;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(25_000) });
+    if (!res.ok) return null;
+    const data = await res.json() as {
+      b1?: {
+        mean: number; std: number;
+        percentile_2: number; percentile_98: number;
+        histogram?: [number[], number[]];
+      };
+    };
+    if (!data.b1) return null;
+    return {
+      mean:          data.b1.mean,
+      std:           data.b1.std,
+      percentile_2:  data.b1.percentile_2,
+      percentile_98: data.b1.percentile_98,
+      histogram:     data.b1.histogram ?? null,
+    };
+  } catch { return null; }
+}
+
+// Convert Sentinel-2 area stats → vegetation coverage %
+function estimateVegPct(nirStats: CogBandStats, redStats: CogBandStats): number {
+  // Use NIR histogram: Sentinel-2 L2A surface reflectance × 10000
+  // Dense vegetation: NIR typically 4000–9000; urban/bare soil: 1000–3500
+  const VEG_NIR_THRESHOLD = 3500;
+
+  if (nirStats.histogram) {
+    const [counts, edges] = nirStats.histogram;
+    const total = counts.reduce((a, b) => a + b, 0);
+    if (total === 0) return 0;
+    let vegCount = 0;
+    for (let i = 0; i < counts.length; i++) {
+      const mid = (edges[i] + (edges[i + 1] ?? edges[i])) / 2;
+      if (mid > VEG_NIR_THRESHOLD) vegCount += counts[i];
+    }
+    return Math.round((vegCount / total) * 100);
+  }
+
+  // Fallback: estimate from area NDVI
+  const r = redStats.mean;
+  const n = nirStats.mean;
+  if (r <= 0 || n <= 0 || r + n <= 0) return 0;
+  const areaNdvi = (n - r) / (n + r);
+  if (areaNdvi < 0)    return Math.max(0, Math.round((areaNdvi + 0.2) * 100));
+  if (areaNdvi < 0.15) return Math.round(areaNdvi * 200);
+  if (areaNdvi < 0.35) return Math.round(20 + (areaNdvi - 0.15) * 250);
+  return Math.min(95, Math.round(70 + (areaNdvi - 0.35) * 50));
+}
+
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
@@ -118,6 +183,8 @@ export async function GET(request: NextRequest) {
         sceneId:    data.scene_id,
         source:     'cache',
         computedAt: data.computed_at,
+        areaNdvi:   data.ndvi_area_mean ?? null,
+        vegPct:     data.ndvi_veg_pct   ?? null,
       } satisfies SatelliteData);
     }
   }
@@ -133,9 +200,16 @@ export async function GET(request: NextRequest) {
 
     if (!redHref || !nirHref) throw new Error('Band assets not found');
 
-    const [redVal, nirVal] = await Promise.all([
+    // 500m bbox for area statistics
+    const BBOX_LAT = 0.0045;
+    const bboxLon  = BBOX_LAT / Math.cos(lat * Math.PI / 180);
+    const bbox     = `${lon - bboxLon},${lat - BBOX_LAT},${lon + bboxLon},${lat + BBOX_LAT}`;
+
+    const [redVal, nirVal, redStats, nirStats] = await Promise.all([
       cogPoint(lon, lat, redHref),
       cogPoint(lon, lat, nirHref),
+      cogStats(redHref, bbox),
+      cogStats(nirHref, bbox),
     ]);
 
     if (redVal === null || nirVal === null) throw new Error('COG point extraction failed');
@@ -150,6 +224,20 @@ export async function GET(request: NextRequest) {
     const sceneDate = scene.properties.datetime.slice(0, 10);
     const cc        = scene.properties['eo:cloud_cover'] ?? null;
 
+    // Area NDVI from bbox mean values
+    let areaNdvi: number | null = null;
+    let vegPct:   number | null = null;
+    let b08Mean:  number | null = null;
+    let b04Mean:  number | null = null;
+
+    if (nirStats && redStats && nirStats.mean > 0 && redStats.mean > 0) {
+      const nr = nirStats.mean, rr = redStats.mean;
+      areaNdvi = Math.round(((nr - rr) / (nr + rr)) * 1000) / 1000;
+      vegPct   = estimateVegPct(nirStats, redStats);
+      b08Mean  = Math.round(nirStats.mean);
+      b04Mean  = Math.round(redStats.mean);
+    }
+
     // ── 3. Upsert to cache ────────────────────────────────────────────────────
     if (supabase && buildingId) {
       await supabase.from('building_satellite_cache').upsert({
@@ -163,6 +251,10 @@ export async function GET(request: NextRequest) {
         scene_id:      scene.id,
         b_red_value:   redVal,
         b_nir_value:   nirVal,
+        ndvi_area_mean: areaNdvi,
+        ndvi_veg_pct:   vegPct,
+        b08_area_mean:  b08Mean,
+        b04_area_mean:  b04Mean,
         source:        'sentinel2',
         computed_at:   new Date().toISOString(),
       }, { onConflict: 'building_id' });
@@ -179,6 +271,8 @@ export async function GET(request: NextRequest) {
       sceneId:    scene.id,
       source:     'sentinel2',
       computedAt: new Date().toISOString(),
+      areaNdvi,
+      vegPct,
     } satisfies SatelliteData);
 
   } catch {
@@ -193,6 +287,8 @@ export async function GET(request: NextRequest) {
       sceneId:    null,
       source:     'unavailable',
       computedAt: new Date().toISOString(),
+      areaNdvi:   null,
+      vegPct:     null,
     } satisfies SatelliteData);
   }
 }
