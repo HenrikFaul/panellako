@@ -132,11 +132,14 @@ interface Props {
   /** When set, after mount the map zooms to this POI and opens its popup
    *  (the right-hand detail card). Changing the value re-applies the effect. */
   zoomToPoiId?:              number | null;
+  /** When set, the map renders ONLY this single POI (all others hidden).
+   *  Filter chips are hidden in single-POI mode. */
+  singlePoiOsmId?:           number | null;
   theme?:                    MapTheme;
 }
 
 export default function CompactCityMap({
-  buildingLat, buildingLon, pois, initialFilterGroups, zoomToPoiId, theme: themeProp,
+  buildingLat, buildingLon, pois, initialFilterGroups, zoomToPoiId, singlePoiOsmId, theme: themeProp,
 }: Props) {
   const themeFromHook = useMapTheme();
   const theme = themeProp ?? themeFromHook;
@@ -230,7 +233,7 @@ export default function CompactCityMap({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buildingLat, buildingLon, theme.id]);
 
-  // ── Render POI markers — updates layers when `pois` change ───────────────
+  // ── Render POI markers — updates layers when `pois` or singlePoiOsmId change
   useEffect(() => {
     const L = leafletRef.current;
     if (!mapReady || !L) return;
@@ -241,7 +244,12 @@ export default function CompactCityMap({
     }
     markerRefs.current = {};
 
-    for (const poi of pois) {
+    // In single-POI mode, render ONLY that one POI so the map stays focused.
+    const poisToRender = singlePoiOsmId != null
+      ? pois.filter(p => p.osmId === singlePoiOsmId)
+      : pois;
+
+    for (const poi of poisToRender) {
       const g    = groupOf(poi.category);
       const cfg  = GROUP_CFG[g];
       const grp  = layerRefs.current[g];
@@ -263,7 +271,7 @@ export default function CompactCityMap({
       marker.addTo(grp);
       markerRefs.current[poi.osmId] = marker;
     }
-  }, [mapReady, pois]);
+  }, [mapReady, pois, singlePoiOsmId]);
 
   // ── Zoom to a specific POI + open its detail card ────────────────────────
   // Triggered when the parent panel asks us to focus a single POI (typically
@@ -310,7 +318,8 @@ export default function CompactCityMap({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Filter chips */}
+      {/* Filter chips — hidden in single-POI mode (the category is irrelevant) */}
+      {singlePoiOsmId == null && (
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mr-1">Kategóriák:</span>
         {ALL_GROUPS.map(g => {
@@ -335,6 +344,7 @@ export default function CompactCityMap({
           );
         })}
       </div>
+      )}
 
       {/* Map */}
       <div className="relative overflow-hidden rounded-2xl" style={{ height: 520, background: '#060c18' }}>
