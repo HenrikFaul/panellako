@@ -1641,8 +1641,27 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
                   let saveOk = true;
 
+                  // Mentjük a nevet a profiles táblába
+                  if (name.trim()) {
+                    try {
+                      const nameRes = await fetch('/api/user/profile', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ full_name: name.trim() }),
+                      });
+                      if (!nameRes.ok) {
+                        saveOk = false;
+                        const payload = await nameRes.json().catch(() => ({}));
+                        setProfileSaveError(payload?.message || 'A név mentése nem sikerült.');
+                      }
+                    } catch {
+                      saveOk = false;
+                      setProfileSaveError('Hálózati hiba — a név mentése nem sikerült.');
+                    }
+                  }
+
                   // Ha van kiválasztott cím, mentsük el a Supabase-be
-                  if (selectedAddress && selectedAddress.lat !== null && selectedAddress.lon !== null) {
+                  if (saveOk && selectedAddress && selectedAddress.lat !== null && selectedAddress.lon !== null) {
                     try {
                       const res = await fetch('/api/user/reference-address', {
                         method: 'POST',
