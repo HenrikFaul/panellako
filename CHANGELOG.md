@@ -1,24 +1,36 @@
 
+## 2026-05-22 — v0.9.2 Hőszigat és Klímakockázat Modul (Feature 04)
+
+### Added
+- **`lib/uhi-calculator.ts`** — UHI (Urban Heat Island) kalkulátor könyvtár. Becsüli a helyi hőmérsékleti többletet a vidéki referenciához képest OSM-ből levezetett adatok alapján: épületsűrűség, zöldfelület-lefedettség, víztest- és parkközelség × szezonális szorzók (Unger J. 2010, Oke 1982). KlímaScore 0–100 (UHI-komponens 40pt + levegőminőség 30pt + árvízkockázat 30pt). Havi UHI tömb (jan–dec).
+- **`app/api/environment/heat-island/route.ts`** — GET `/api/environment/heat-island?lat=X&lon=Y`. Overpass API 500m sugarú lekérdezés (épületek, zöldfelületek, víztest, parkok, könyvtárak, bevásárlóközpontok, szökőkutak, mélygarázsok). 24 órás modul-szintű cache. Budapest fallback.
+- **`components/uhi-risk-card.tsx`** — UHI kockázat-kártya: °C szám SVG-gyűrűvel, KlímaScore mutató, al-indikátorok.
+- **`components/uhi-monthly-chart.tsx`** — Havi UHI sávdiagram (jan–dec), tiszta SVG. Kék (téli) → piros (nyári) szín.
+- **`components/cool-spots-list.tsx`** — Hűsölőhelyek listája típus-ikonnal, névvel, távolsággal.
+- **`components/climate-action-plan.tsx`** — 8 pontos klíma-cselekvési terv checkbox-okkal (localStorage), EU pályázati link.
+- **`components/heat-island-dashboard-client.tsx`** — Kliens dashboard wrapper: fetch, skeleton, error state.
+- **`app/w/[buildingId]/klimakockazat/page.tsx`** — Szerver page, auth + tagság, Supabase lat/lon + Nominatim fallback.
+
 ## 2026-05-22 — v0.9.0 Zajbejelentő + Hulladékgazdálkodás modul (Feature 07 + 12)
 
 ### Added — Feature 07: Zajbejelentő (Traffic Noise Reporter)
 - **`supabase/migrations/20260522_noise_reports.sql`** — `noise_reports` tábla: `noise_category` és `noise_period` enum típusok, severity 1–5, duration, estimated_db, RLS policy-k.
 - **`app/api/noise/reports/route.ts`** — POST (bejelentés mentése, validációval) és GET (90 napos lekérdezés workspace_id alapján).
 - **`app/api/noise/heatmap/route.ts`** — GET: dátum × napszak aggregáció (count + átlag severity), utolsó 90 nap.
-- **`components/noise-report-form.tsx`** — Kliens form: kategória dropdown, 1–5 csillag-súlyosság, napszak-választó, időtartam slider, becsült dB, szabad szöveges leírás, ismétlődő zaj checkbox. Dark theme (bg-slate-800/50, border-white/10).
-- **`components/noise-heatmap.tsx`** — 7 nap × 4 napszak rács; szín: white/5 → amber-300 → red-500. Cella tooltip: darab + átlag severity.
-- **`components/noise-health-advisory.tsx`** — WHO/EEA Lnight küszöbértékek táblázata (< 40 dB / 40–55 / 55–65 / > 65 dB), Budapest Stratégiai Zajtérkép link.
+- **`components/noise-report-form.tsx`** — Kliens form: kategória dropdown, 1–5 csillag-súlyosság, napszak-választó, időtartam slider, becsült dB, szabad szöveges leírás, ismétlődő zaj checkbox.
+- **`components/noise-heatmap.tsx`** — 7 nap × 4 napszak rács; szín: white/5 → amber-300 → red-500.
+- **`components/noise-health-advisory.tsx`** — WHO/EEA Lnight küszöbértékek (< 40 / 40–55 / 55–65 / > 65 dB), Budapest Stratégiai Zajtérkép link.
 - **`components/noise-dashboard-client.tsx`** — 3 füles kliens: Bejelentés | Naptár | Egészségügyi tanácsok.
-- **`app/w/[buildingId]/zaj/page.tsx`** — Szerver page: auth + tagság ellenőrzés, metadata, NoiseDashboardClient átadás.
+- **`app/w/[buildingId]/zaj/page.tsx`** — Szerver page: auth + tagság ellenőrzés.
 
 ### Added — Feature 12 (waste): Hulladékgazdálkodás
 - **`supabase/migrations/20260522_waste_reports.sql`** — `waste_reports` tábla (havi UPSERT, 5 kategória), `illegal_dump_reports` tábla (GPS + kategória + státusz), RLS policy-k.
-- **`app/api/waste/reports/route.ts`** — POST (havi upsert + szabálytalan lerakás bejelentés `type` mezővel) és GET (12 havi lekérdezés).
-- **`lib/waste-co2-factors.ts`** — EEA-alapú CO₂-megtakarítás tényezők és `calcWasteCO2Savings()` segédfüggvény.
-- **`components/waste-tracker-panel.tsx`** — Havi hulladékbevitel (szám + slider), live CO₂-megtakarítás számítás, CSS-alapú sávdiagram (recharts nélkül).
-- **`components/illegal-dump-reporter.tsx`** — Szabálytalan lerakás bejelentőűrlap GPS auto-fill gombbal, kategória select, leírás.
-- **`components/waste-dashboard-client.tsx`** — 3 füles kliens: Hulladékjelentés | Szabálytalan lerakás | Körzeti rangsor (Budapest 23 kerület hardcoded FKF 2024).
-- **`app/w/[buildingId]/hulladek/page.tsx`** — Szerver page: auth + tagság ellenőrzés, metadata, WasteDashboardClient átadás.
+- **`app/api/waste/reports/route.ts`** — POST (havi upsert + szabálytalan lerakás) és GET (12 havi lekérdezés).
+- **`lib/waste-co2-factors.ts`** — EEA-alapú CO₂-megtakarítás tényezők és `calcWasteCO2Savings()`.
+- **`components/waste-tracker-panel.tsx`** — Havi hulladékbevitel, live CO₂-megtakarítás számítás, CSS sávdiagram.
+- **`components/illegal-dump-reporter.tsx`** — GPS auto-fill gombbal, kategória select, leírás.
+- **`components/waste-dashboard-client.tsx`** — 3 füles kliens: Hulladékjelentés | Szabálytalan lerakás | Körzeti rangsor.
+- **`app/w/[buildingId]/hulladek/page.tsx`** — Szerver page: auth + tagság ellenőrzés.
 
 ## 2026-05-22 — v0.8.3 Térképstílus-perzisztencia javítás + DB migráció UI
 
