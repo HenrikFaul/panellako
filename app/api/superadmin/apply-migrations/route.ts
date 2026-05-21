@@ -64,6 +64,53 @@ create policy "Users can update own reference address"
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
     `.trim(),
   },
+  {
+    name: 'osm_addresses',
+    sql: `
+create table if not exists public.osm_addresses (
+  id                     bigserial primary key,
+  external_id            text unique,
+  country                text,
+  country_code           text,
+  display_name           text,
+  name                   text,
+  street                 text,
+  street_name            text,
+  street_type            text,
+  street_type_normalized text,
+  house_number           text,
+  housenumber            text,
+  house_number_suffix    text,
+  conscriptionnumber     text,
+  city                   text,
+  town                   text,
+  village                text,
+  municipality           text,
+  district               text,
+  suburb                 text,
+  neighbourhood          text,
+  hamlet                 text,
+  postcode               text,
+  place                  text,
+  lat                    double precision,
+  lon                    double precision,
+  geometry_type          text,
+  created_at             timestamptz default now()
+);
+
+create index if not exists osm_addresses_city_idx         on public.osm_addresses (lower(city));
+create index if not exists osm_addresses_postcode_idx     on public.osm_addresses (postcode);
+create index if not exists osm_addresses_country_code_idx on public.osm_addresses (country_code);
+create index if not exists osm_addresses_external_id_idx  on public.osm_addresses (external_id);
+
+alter table public.osm_addresses enable row level security;
+
+drop policy if exists "osm_addresses_public_read" on public.osm_addresses;
+create policy "osm_addresses_public_read"
+  on public.osm_addresses for select
+  using (true);
+    `.trim(),
+  },
 ];
 
 // ─── Idempotency checks ───────────────────────────────────────────────────────
@@ -78,10 +125,16 @@ async function isMigrationApplied(supabase: SupabaseClient, name: string): Promi
     return data != null;
   }
   if (name === 'user_reference_addresses') {
-    // A successful (even empty) query means the table exists.
     const { error } = await supabase
       .from('user_reference_addresses')
       .select('user_id')
+      .limit(0);
+    return !error;
+  }
+  if (name === 'osm_addresses') {
+    const { error } = await supabase
+      .from('osm_addresses')
+      .select('id')
       .limit(0);
     return !error;
   }
