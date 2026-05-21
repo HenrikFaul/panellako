@@ -50,6 +50,9 @@ interface Props {
   forceSeason?: Season;
   /** Optional className for the wrapper div */
   className?: string;
+  /** When true, the internal tram is suppressed — use when HeroVehicle is
+   *  rendered as a sibling overlay so the two don't collide. */
+  hideTram?: boolean;
 }
 
 // ─── Time/season detection ─────────────────────────────────────────────────
@@ -167,6 +170,7 @@ export default function DashboardHeroScene({
   forceTimeOfDay,
   forceSeason,
   className,
+  hideTram = false,
 }: Props) {
   // Time-of-day re-evaluates once a minute (cheap).
   const [tod, setTod] = useState<TimeOfDay>(() => forceTimeOfDay ?? detectTimeOfDay());
@@ -754,8 +758,8 @@ export default function DashboardHeroScene({
             </g>
           ))}
 
-        {/* The mini tram — slides across the ground every 25–45 s */}
-        <Tram tramKey={tramKey} groundY={GROUND} nightish={isNightish(tod)} />
+        {/* The mini tram — suppressed when HeroVehicle overlay is active */}
+        {!hideTram && <Tram tramKey={tramKey} groundY={GROUND} nightish={isNightish(tod)} />}
       </svg>
     </div>
   );

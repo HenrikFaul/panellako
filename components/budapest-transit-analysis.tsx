@@ -68,9 +68,9 @@ const LAYERS: LayerToggle[] = [
   { key: 'trolley',     label: 'Troli',               swatch: MODE_CFG.TROLLEY.color, initial: true,  group: 'mode' },
   { key: 'ferry',       label: 'Hajó',                swatch: MODE_CFG.FERRY.color,   initial: true,  group: 'mode' },
   { key: 'heat',        label: 'Megálló-sűrűség hőtérkép',         swatch: '#1e40af', initial: false, group: 'analysis' },
-  { key: 'dayBuffer',   label: 'Nappali járatok 420 m bufferzónája', swatch: '#65a30d', initial: false, group: 'analysis' },
-  { key: 'nightBuffer', label: 'Éjszakai járatok 420 m bufferzónája', swatch: '#facc15', initial: false, group: 'analysis' },
-  { key: 'residential', label: 'Lakóövezet (OSM)',    swatch: '#a78bfa',              initial: false, group: 'analysis' },
+  { key: 'dayBuffer',   label: 'Nappali járatok 420 m bufferzónája', swatch: '#65a30d', initial: true,  group: 'analysis' },
+  { key: 'nightBuffer', label: 'Éjszakai járatok 420 m bufferzónája', swatch: '#facc15', initial: true,  group: 'analysis' },
+  { key: 'residential', label: 'Lakóövezet (OSM)',    swatch: '#a78bfa',              initial: true,  group: 'analysis' },
 ];
 
 const MODE_TO_LAYER: Record<Mode, LayerKey> = {
@@ -231,22 +231,22 @@ export default function BudapestTransitAnalysis() {
       const night = isNightRoute(shape.route_ref);
 
       if (!night) {
-        // Daytime buffer — every non-9xx line (we treat unknown route_ref as daytime)
+        // Daytime buffer — every non-9xx line. 420 m ≈ weight 40 at z=12.
         const halo = L.polyline(shape.polyline, {
-          color: '#65a30d',         // lime-700 — matches "Nappali járatok bufferzónája" in the thesis
+          color: '#65a30d',         // lime-700 — matches thesis "Nappali járatok bufferzónája"
           weight: 40,
-          opacity: 0.15,
+          opacity: 0.22,
           smoothFactor: 1.5,
           interactive: false,
         });
         halo.addTo(layerRefs.current.dayBuffer);
       } else {
-        // Night buffer — 9xx lines only, dashed yellow
+        // Night buffer — 9xx lines only (BKK convention)
         const halo = L.polyline(shape.polyline, {
           color: '#facc15',
           weight: 40,
-          opacity: 0.20,
-          dashArray: '10,8',
+          opacity: 0.28,
+          dashArray: '12,6',
           smoothFactor: 1.5,
           interactive: false,
         });

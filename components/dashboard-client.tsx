@@ -73,6 +73,7 @@ import { createMeeting as createMeetingAction, closeMeeting as closeMeetingActio
 import MeetingDetailPanel from '@/components/meeting-detail-panel';
 import AnnouncementComposer from '@/components/announcement-composer';
 import DashboardHeroScene from '@/components/dashboard-hero-scene';
+import HeroVehicle from '@/components/HeroVehicle';
 
 // v0.7.14 — Magyarország-szintű címkereső eredmény-shape
 // (api/location/autocomplete válasz egy eleme)
@@ -1452,11 +1453,16 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
               {/* Center: animated time/season-aware skyline scene (v0.7.15) */}
               <div className="pointer-events-none select-none relative flex-1 min-w-0 h-[108px] overflow-hidden">
-                <DashboardHeroScene />
-                {/* Edge fades blend the live sky into the dark header chrome
-                    so the title (left) and search/logout chips (right) stay legible. */}
-                <div className="absolute inset-y-0 left-0 w-1/4" style={{ background: 'linear-gradient(to right, #05091a 0%, transparent 100%)' }} />
-                <div className="absolute inset-y-0 right-0 w-1/4" style={{ background: 'linear-gradient(to left, #05091a 0%, transparent 100%)' }} />
+                {/* DashboardHeroScene with internal tram suppressed — HeroVehicle replaces it */}
+                <DashboardHeroScene hideTram />
+                {/* Multi-vehicle overlay: tram / trolley / bus / cyclists / A380 */}
+                <HeroVehicle />
+                {/* Extended gradient fades — slow blends into the dark header chrome on all 4 edges.
+                    Side fades span 40% each so even very wide monitors see no hard cutoff. */}
+                <div className="absolute inset-y-0 left-0 w-2/5" style={{ background: 'linear-gradient(to right, #05091a 0%, #05091a 5%, transparent 100%)' }} />
+                <div className="absolute inset-y-0 right-0 w-2/5" style={{ background: 'linear-gradient(to left, #05091a 0%, #05091a 5%, transparent 100%)' }} />
+                <div className="absolute inset-x-0 top-0 h-6" style={{ background: 'linear-gradient(to bottom, #05091a 0%, transparent 100%)' }} />
+                <div className="absolute inset-x-0 bottom-0 h-6" style={{ background: 'linear-gradient(to top, #05091a 0%, transparent 100%)' }} />
               </div>
 
               {/* Right: actions */}
@@ -2586,7 +2592,15 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               opacity visual signature at the bottom of every dashboard view
               (the live animated DashboardHeroScene is in the header). */}
           <div className="mt-8 pointer-events-none select-none" aria-hidden="true">
-            <div className="relative mx-auto h-32 max-w-3xl overflow-hidden opacity-40">
+            <div
+              className="relative mx-auto h-32 max-w-3xl overflow-hidden opacity-40"
+              style={{
+                WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 18%, black 82%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 22%, black 100%)',
+                WebkitMaskComposite: 'source-in',
+                maskImage: 'linear-gradient(to right, transparent 0%, black 18%, black 82%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 22%, black 100%)',
+                maskComposite: 'intersect',
+              }}
+            >
               <PanelSkylineSvg />
             </div>
             <p className="mt-2 text-center text-[10px] font-medium tracking-widest text-slate-400 uppercase">

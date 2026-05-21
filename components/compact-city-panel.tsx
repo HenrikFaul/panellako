@@ -103,6 +103,8 @@ export default function CompactCityPanel({
   // null  → no auto-zoom (default)
   // num   → on mount the map zooms to this osmId and opens its popup
   const [mapZoomToPoiId, setMapZoomToPoiId] = useState<number | null>(null);
+  // null  → show all POIs; num → show ONLY that one POI on the map
+  const [singlePoiOsmId, setSinglePoiOsmId] = useState<number | null>(null);
 
   if (loading) {
     return (
@@ -138,6 +140,7 @@ export default function CompactCityPanel({
     const nearest = candidates.slice().sort((a, b) => a.distM - b.distM)[0];
     setMapFilterGroups(new Set([kind]));
     setMapZoomToPoiId(nearest?.osmId ?? null);
+    setSinglePoiOsmId(nearest?.osmId ?? null);
     setView('map');
     if (!hasPois && onRequestLivePois) onRequestLivePois();
   }
@@ -146,6 +149,7 @@ export default function CompactCityPanel({
   function openFullMap() {
     setMapFilterGroups(null);
     setMapZoomToPoiId(null);
+    setSinglePoiOsmId(null);
     setView('map');
     if (!hasPois && onRequestLivePois) onRequestLivePois();
   }
@@ -203,13 +207,28 @@ export default function CompactCityPanel({
             )}
           </div>
         ) : (
-          <CompactCityMap
-            buildingLat={buildingLat as number}
-            buildingLon={buildingLon as number}
-            pois={data.pois ?? []}
-            initialFilterGroups={mapFilterGroups}
-            zoomToPoiId={mapZoomToPoiId}
-          />
+          <>
+            {singlePoiOsmId != null && (
+              <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2">
+                <p className="text-[9px] font-bold text-slate-400">Egyetlen helyszín megjelenítve</p>
+                <button
+                  type="button"
+                  onClick={() => { setSinglePoiOsmId(null); setMapZoomToPoiId(null); }}
+                  className="rounded-md border border-white/[0.1] px-2 py-0.5 text-[9px] font-bold text-slate-300 hover:bg-white/[0.06] transition-colors"
+                >
+                  ← Összes POI mutatása
+                </button>
+              </div>
+            )}
+            <CompactCityMap
+              buildingLat={buildingLat as number}
+              buildingLon={buildingLon as number}
+              pois={data.pois ?? []}
+              initialFilterGroups={mapFilterGroups}
+              zoomToPoiId={mapZoomToPoiId}
+              singlePoiOsmId={singlePoiOsmId}
+            />
+          </>
         )}
       </div>
     );
