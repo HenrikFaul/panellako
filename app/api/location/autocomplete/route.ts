@@ -312,23 +312,6 @@ function escapeIlike(value: string) {
 }
 function uniqueValues(values: string[]) { return [...new Set(values.map((value) => value.trim()).filter(Boolean))]; }
 
-function buildHungarianAccentVariants(term: string) {
-  const normalized = stripDiacritics(safeDecode(term)).toLowerCase();
-  if (!normalized || normalized.length > 24) return [term];
-  const alternatives: Record<string, string[]> = { a: ['a', 'á'], e: ['e', 'é'], i: ['i', 'í'], o: ['o', 'ó', 'ö', 'ő'], u: ['u', 'ú', 'ü', 'ű'] };
-  let variants = [''];
-  for (const char of normalized) {
-    const chars = alternatives[char] || [char];
-    const next: string[] = [];
-    for (const prefix of variants) {
-      for (const candidate of chars) next.push(prefix + candidate);
-      if (next.length >= 80) break;
-    }
-    variants = next.slice(0, 80);
-  }
-  return uniqueValues([term, normalized, ...variants]).slice(0, 80);
-}
-
 function buildSearchTerms(rawQuery: string) {
   const parsed = tokenize(rawQuery);
   const rawTokens = parsed.rawTokens.filter((token) => token.length > 1 && !GENERIC_ADDRESS_WORDS.has(normalizeToken(token)) && !/^\d+[a-z]?$/i.test(token));
@@ -338,13 +321,6 @@ function buildSearchTerms(rawQuery: string) {
   return uniqueValues([rawPhrase, normalizedPhrase, ...rawTokens, ...normalizedTokens, parsed.postcode || '', parsed.houseNumber && normalizedTokens.length === 0 ? parsed.houseNumber : ''])
     .filter((term) => term.length >= 2 && term !== 'budapest')
     .slice(0, 8);
-}
-
-function buildEncodedVariants(term: string) {
-  const decoded = safeDecode(term);
-  const accentVariants = buildHungarianAccentVariants(decoded);
-  const variants = accentVariants.flatMap((variant) => [variant, stripDiacritics(variant), variant.replace(/\s+/g, '%20%'), variant.replace(/\s+/g, '%20'), stripDiacritics(variant).replace(/\s+/g, '%20%')]);
-  return uniqueValues(variants).filter((variant) => variant.length >= 2).slice(0, 120);
 }
 
 function toSuggestion(row: OsmAddressRow, rawQuery: string): AddressSuggestion {
