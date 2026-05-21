@@ -1099,6 +1099,34 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     };
   }, []);
 
+  // Load saved reference address from DB on mount
+  useEffect(() => {
+    fetch('/api/user/reference-address')
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { address?: { display_name: string; lat: number; lon: number; street?: string | null; house_number?: string | null; city?: string | null; district?: string | null; postcode?: string | null; floor?: string | null; door?: string | null; source?: string } | null } | null) => {
+        const addr = data?.address;
+        if (!addr) return;
+        const opt: AddressOption = {
+          id: `saved:${addr.display_name}`,
+          label: addr.display_name,
+          lat: addr.lat,
+          lon: addr.lon,
+          street: addr.street ?? undefined,
+          houseNumber: addr.house_number ?? undefined,
+          settlement: addr.city ?? undefined,
+          district: addr.district ?? undefined,
+          postcode: addr.postcode ?? undefined,
+          source: (addr.source === 'supabase' ? 'supabase' : 'nominatim') as 'supabase' | 'nominatim',
+        };
+        setSelectedAddress(opt);
+        setAddressQuery(addr.display_name);
+        setAddress(addr.display_name);
+        if (addr.floor) setFloor(addr.floor);
+        if (addr.door) setDoor(addr.door);
+      })
+      .catch(() => undefined);
+  }, []);
+
   useEffect(() => {
     if (!addressQuery || addressQuery.length < 3) {
       setAddressOptions([]);
