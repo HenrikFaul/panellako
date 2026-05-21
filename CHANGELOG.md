@@ -1,4 +1,25 @@
 
+## 2026-05-22 — v0.9.0 Zajbejelentő + Hulladékgazdálkodás modul (Feature 07 + 12)
+
+### Added — Feature 07: Zajbejelentő (Traffic Noise Reporter)
+- **`supabase/migrations/20260522_noise_reports.sql`** — `noise_reports` tábla: `noise_category` és `noise_period` enum típusok, severity 1–5, duration, estimated_db, RLS policy-k.
+- **`app/api/noise/reports/route.ts`** — POST (bejelentés mentése, validációval) és GET (90 napos lekérdezés workspace_id alapján).
+- **`app/api/noise/heatmap/route.ts`** — GET: dátum × napszak aggregáció (count + átlag severity), utolsó 90 nap.
+- **`components/noise-report-form.tsx`** — Kliens form: kategória dropdown, 1–5 csillag-súlyosság, napszak-választó, időtartam slider, becsült dB, szabad szöveges leírás, ismétlődő zaj checkbox. Dark theme (bg-slate-800/50, border-white/10).
+- **`components/noise-heatmap.tsx`** — 7 nap × 4 napszak rács; szín: white/5 → amber-300 → red-500. Cella tooltip: darab + átlag severity.
+- **`components/noise-health-advisory.tsx`** — WHO/EEA Lnight küszöbértékek táblázata (< 40 dB / 40–55 / 55–65 / > 65 dB), Budapest Stratégiai Zajtérkép link.
+- **`components/noise-dashboard-client.tsx`** — 3 füles kliens: Bejelentés | Naptár | Egészségügyi tanácsok.
+- **`app/w/[buildingId]/zaj/page.tsx`** — Szerver page: auth + tagság ellenőrzés, metadata, NoiseDashboardClient átadás.
+
+### Added — Feature 12 (waste): Hulladékgazdálkodás
+- **`supabase/migrations/20260522_waste_reports.sql`** — `waste_reports` tábla (havi UPSERT, 5 kategória), `illegal_dump_reports` tábla (GPS + kategória + státusz), RLS policy-k.
+- **`app/api/waste/reports/route.ts`** — POST (havi upsert + szabálytalan lerakás bejelentés `type` mezővel) és GET (12 havi lekérdezés).
+- **`lib/waste-co2-factors.ts`** — EEA-alapú CO₂-megtakarítás tényezők és `calcWasteCO2Savings()` segédfüggvény.
+- **`components/waste-tracker-panel.tsx`** — Havi hulladékbevitel (szám + slider), live CO₂-megtakarítás számítás, CSS-alapú sávdiagram (recharts nélkül).
+- **`components/illegal-dump-reporter.tsx`** — Szabálytalan lerakás bejelentőűrlap GPS auto-fill gombbal, kategória select, leírás.
+- **`components/waste-dashboard-client.tsx`** — 3 füles kliens: Hulladékjelentés | Szabálytalan lerakás | Körzeti rangsor (Budapest 23 kerület hardcoded FKF 2024).
+- **`app/w/[buildingId]/hulladek/page.tsx`** — Szerver page: auth + tagság ellenőrzés, metadata, WasteDashboardClient átadás.
+
 ## 2026-05-22 — v0.8.3 Térképstílus-perzisztencia javítás + DB migráció UI
 
 ### Fixed
@@ -10,21 +31,6 @@
 - **`hooks/use-map-theme.ts`** — `localStorage` perzisztencia (`panellako_map_theme` kulcs): témaváltás után az oldalfrissítés azonnal a helyes témát mutatja, DB round-trip nélkül.
 - **`app/api/superadmin/apply-migrations/route.ts`** — Új POST endpoint, szuperadmin-auth protected. Két módszerrel próbálja alkalmazni a DDL migrációkat: (1) `supabase.rpc('exec_sql')`, (2) `fetch(supabaseUrl + '/pg/query')`. Visszaadja a nyers SQL-t `manualSqlIfFailed` mezőben, ha mindkét metódus sikertelen.
 - **`components/superadmin-client.tsx`** — „Migrációk alkalmazása" szekció a superadmin vezérlőpulton: gomb, eredmény-lista (migráció-nként ok/error), manuális SQL fallback-megjelenítés sárga dobozban.
-
-## 2026-05-22 — v0.8.2 POI adatlap + hero járművek + gradiens fade + tranzit buffer
-
-### Added
-- **`components/HeroVehicle.tsx`** — Animált jármű-overlay a dashboard hero szekcióhoz: véletlenszerűen villamos, trolibusz, busz, kerékpáros csoport, A380 repülőgép gördül át a képernyőn. `prefers-reduced-motion` tiszteletben tartva. Minden jármű saját SVG-komponens: `Tram`, `Trolleybus`, `Bus`, `Cyclists`, `A380` névvel exportálva.
-
-### Changed
-- **`components/compact-city-map.tsx`** — `singlePoiOsmId` prop: ha meg van adva, a térkép CSAK azt az egy POI-t jeleníti meg, a kategória-szűrő chip-ek eltűnnek. A POI-marker rendering a `poisToRender` szűrt tömböt használja.
-- **`components/compact-city-panel.tsx`** — `focusNearest()` mostantól `setSinglePoiOsmId(nearest.osmId)` is beállít; az „Összes POI mutatása" gomb jelenik meg, ha egyetlen POI-mód aktív. `openFullMap()` törli a single-POI módot.
-- **`components/dashboard-client.tsx`** — Hero fades kiterjesztve: oldalsó fade-ek `w-1/4` → `w-2/5`, plusz felső/alsó 24 px fade. `PanelSkylineSvg` footer-konténer CSS mask-kal éles szél nélkül fade-el. `HeroVehicle` import + `<DashboardHeroScene hideTram />`.
-- **`components/dashboard-hero-scene.tsx`** — `hideTram` prop (default: false): ha true, az SVG belső villamos nem renderelődik (HeroVehicle overlay veszi át a szerepét).
-- **`components/budapest-transit-analysis.tsx`** — `dayBuffer`, `nightBuffer`, `residential` rétegek most `initial: true` (alapból bekapcsolt). Buffer opacity: nappali 0.15→0.22, éjszakai 0.20→0.28 (szakdolgozat-szintű vizuális minőség).
-
-### Database
-- **`supabase/migrations/20260521_user_reference_addresses.sql`** — migrációt alkalmazva a Supabase `buuoyyfzincmbxafvihc` projektre: `public.user_reference_addresses` tábla + RLS policy-k. Megoldja a `Could not find the table 'public.user_reference_addresses' in the schema cache` hibát a profiloldalon.
 
 ## 2026-05-22 — v0.8.1 Dinamikus térképstílus-rendszer — 4 téma + superadmin témaváltó
 
