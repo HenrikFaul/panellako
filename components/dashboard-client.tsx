@@ -1429,7 +1429,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           <header
             className="relative overflow-hidden rounded-[2rem] shadow-2xl shadow-slate-950/60"
             style={{
-              background: `radial-gradient(ellipse 88% 300% at 50% 50%, ${heroAmbient} 0%, ${hexToRgba(heroAmbient, 0.88)} 20%, ${hexToRgba(heroAmbient, 0.48)} 44%, ${hexToRgba(heroAmbient, 0.12)} 63%, #05091a 80%)`,
+              background: `radial-gradient(ellipse 62% 220% at 50% 50%, ${heroAmbient} 0%, ${hexToRgba(heroAmbient, 0.88)} 14%, ${hexToRgba(heroAmbient, 0.68)} 30%, ${hexToRgba(heroAmbient, 0.44)} 46%, ${hexToRgba(heroAmbient, 0.22)} 62%, ${hexToRgba(heroAmbient, 0.07)} 76%, #05091a 90%)`,
             }}
           >
             {/* Gold accent top line */}
