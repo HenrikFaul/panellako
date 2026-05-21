@@ -347,11 +347,6 @@ function buildEncodedVariants(term: string) {
   return uniqueValues(variants).filter((variant) => variant.length >= 2).slice(0, 120);
 }
 
-function buildOrFilters(searchTerms: string[]) {
-  const fields = ['display_name', 'name', 'postcode', 'city', 'town', 'village', 'municipality', 'district', 'suburb', 'neighbourhood', 'hamlet', 'place', 'street', 'street_name', 'house_number', 'housenumber', 'conscriptionnumber'];
-  return searchTerms.flatMap((term) => buildEncodedVariants(term).flatMap((variant) => fields.map((field) => `${field}.ilike.%${escapeIlike(variant)}%`))).slice(0, 180);
-}
-
 function toSuggestion(row: OsmAddressRow, rawQuery: string): AddressSuggestion {
   const scored = scoreAddress(row, rawQuery);
   return {
