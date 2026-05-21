@@ -439,13 +439,14 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
 
       let interval: ReturnType<typeof setInterval>;
       let moveTimer: ReturnType<typeof setTimeout>;
+      let destroyed = false;
 
       (async () => {
         const L = await import('leaflet');
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (window as any).L = L;
 
-        if (!containerRef.current || mapRef.current) return;
+        if (destroyed || !containerRef.current || mapRef.current) return;
 
         const map = L.map(containerRef.current, {
           center: [lat, lon], zoom: 15,
@@ -511,6 +512,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
       })();
 
       return () => {
+        destroyed = true;
         clearInterval(interval);
         clearTimeout(moveTimer);
         if (mapRef.current) {

@@ -9,6 +9,10 @@ const LS_KEY = 'panellako_map_theme';
 let cachedTheme: MapTheme | null = null;
 let fetchPromise: Promise<MapTheme> | null = null;
 
+// Subscribers: all mounted useMapTheme hooks register here so invalidation
+// propagates to every component on the page, including cross-tab via storage events.
+const subscribers = new Set<(t: MapTheme) => void>();
+
 function readLocalStorage(): MapTheme | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -41,7 +45,7 @@ async function fetchMapTheme(): Promise<MapTheme> {
     })
     .catch(() => {
       fetchPromise = null;  // Allow retry on next call
-      // Fall back to localStorage, then default — never silently stay on dark
+      // Fall back to localStorage, then default
       const ls = readLocalStorage();
       return ls ?? getTheme(DEFAULT_THEME_ID);
     });
@@ -57,7 +61,27 @@ export function useMapTheme(): MapTheme {
   );
 
   useEffect(() => {
+    // Register with the subscriber set so invalidateMapThemeCache can push updates
+    // to all mounted hooks without a re-fetch.
+    subscribers.add(setTheme);
+
     fetchMapTheme().then(t => setTheme(t));
+
+    // Cross-tab sync: when the admin changes the theme in another tab,
+    // localStorage fires a 'storage' event here. Re-read and update.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== LS_KEY || !e.newValue) return;
+      const next = getTheme(e.newValue);
+      cachedTheme = next;
+      fetchPromise = null;
+      setTheme(next);
+    };
+    window.addEventListener('storage', onStorage);
+
+    return () => {
+      subscribers.delete(setTheme);
+      window.removeEventListener('storage', onStorage);
+    };
   }, []);
 
   return theme;
@@ -65,14 +89,16 @@ export function useMapTheme(): MapTheme {
 
 /**
  * Call after superadmin saves a new theme.
- * Passing the new ID immediately syncs the module cache + localStorage so
- * any component that re-renders within the same page sees the correct theme
- * WITHOUT waiting for a new fetch.
+ * Immediately syncs the module cache + localStorage AND pushes the update
+ * to all mounted useMapTheme hooks on this page — no reload required.
  */
 export function invalidateMapThemeCache(newThemeId?: MapThemeId) {
   if (newThemeId) {
-    cachedTheme = getTheme(newThemeId);
+    const next = getTheme(newThemeId);
+    cachedTheme = next;
     writeLocalStorage(newThemeId);
+    // Push to all mounted map hooks on this page
+    subscribers.forEach(fn => fn(next));
   } else {
     cachedTheme = null;
   }

@@ -1428,18 +1428,12 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           {/* ── Premium header ──────────────────────────────────────────────── */}
           <header
             className="relative overflow-hidden rounded-[2rem] shadow-2xl shadow-slate-950/60"
-            style={{ background: '#05091a' }}
+            style={{
+              background: `radial-gradient(ellipse 88% 300% at 50% 50%, ${heroAmbient} 0%, ${hexToRgba(heroAmbient, 0.88)} 20%, ${hexToRgba(heroAmbient, 0.48)} 44%, ${hexToRgba(heroAmbient, 0.12)} 63%, #05091a 80%)`,
+            }}
           >
             {/* Gold accent top line */}
             <div className="absolute inset-x-0 top-0 h-[2px]" style={{ background: 'linear-gradient(90deg, transparent 0%, #c87920 30%, #f5c842 55%, #c87920 80%, transparent 100%)' }} />
-
-            {/* Seasonal sky bloom — panel's time-of-day colour spreads outward from scene into the surrounding dark header */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background: `radial-gradient(ellipse 68% 220% at 50% 50%, ${hexToRgba(heroAmbient, 0.19)} 0%, ${hexToRgba(heroAmbient, 0.07)} 38%, transparent 66%)`,
-              }}
-            />
 
             {/* Content — skyline sits inline between title and actions */}
             <div className="relative z-10 flex items-center gap-3 px-5 py-4">
@@ -1479,12 +1473,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 <DashboardHeroScene hideTram />
                 {/* Multi-vehicle overlay: tram / trolley / bus / cyclists / A380 */}
                 <HeroVehicle />
-                {/* Edge fades — softer side blends so the sky colour reaches the scene boundary
-                    and the ambient bloom on the header carries it further outward. */}
-                <div className="absolute inset-y-0 left-0 w-1/4" style={{ background: 'linear-gradient(to right, #05091a 0%, transparent 100%)' }} />
-                <div className="absolute inset-y-0 right-0 w-1/4" style={{ background: 'linear-gradient(to left, #05091a 0%, transparent 100%)' }} />
-                <div className="absolute inset-x-0 top-0 h-6" style={{ background: 'linear-gradient(to bottom, #05091a 0%, transparent 100%)' }} />
-                <div className="absolute inset-x-0 bottom-0 h-6" style={{ background: 'linear-gradient(to top, #05091a 0%, transparent 100%)' }} />
+                {/* Thin top/bottom blends only — no left/right dark fades so the sky
+                    colour flows seamlessly into the seasonal header background. */}
+                <div className="absolute inset-x-0 top-0 h-4" style={{ background: 'linear-gradient(to bottom, rgba(5,9,26,0.45) 0%, transparent 100%)' }} />
+                <div className="absolute inset-x-0 bottom-0 h-4" style={{ background: 'linear-gradient(to top, rgba(5,9,26,0.45) 0%, transparent 100%)' }} />
               </div>
 
               {/* Right: actions */}
@@ -1647,6 +1639,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   event.preventDefault();
                   setProfileSaveError('');
 
+                  let saveOk = true;
+
                   // Ha van kiválasztott cím, mentsük el a Supabase-be
                   if (selectedAddress && selectedAddress.lat !== null && selectedAddress.lon !== null) {
                     try {
@@ -1668,20 +1662,24 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                         }),
                       });
                       if (!res.ok) {
+                        saveOk = false;
                         const payload = await res.json().catch(() => ({}));
-                        // 401 = nem belépett user; demo mód — ne zavarjuk
-                        if (res.status !== 401) {
+                        if (res.status === 401) {
+                          setProfileSaveError('A cím mentéséhez bejelentkezés szükséges.');
+                        } else {
                           setProfileSaveError(payload?.message || 'A cím mentése nem sikerült.');
                         }
                       }
                     } catch {
+                      saveOk = false;
                       setProfileSaveError('Hálózati hiba — a cím mentése nem sikerült.');
                     }
                   }
 
-                  setProfileSaved(true);
-                  // Toast auto-hide 3s
-                  setTimeout(() => setProfileSaved(false), 3000);
+                  if (saveOk) {
+                    setProfileSaved(true);
+                    setTimeout(() => setProfileSaved(false), 3000);
+                  }
                 }}
               >
                 <div className="grid gap-3 md:grid-cols-2">
