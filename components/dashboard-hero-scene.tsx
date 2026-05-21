@@ -56,7 +56,7 @@ interface Props {
 }
 
 // ─── Time/season detection ─────────────────────────────────────────────────
-function detectTimeOfDay(date: Date = new Date()): TimeOfDay {
+export function detectTimeOfDay(date: Date = new Date()): TimeOfDay {
   const h = date.getHours();
   if (h >= 5 && h < 7) return 'dawn';
   if (h >= 7 && h < 10) return 'morning';
@@ -67,7 +67,7 @@ function detectTimeOfDay(date: Date = new Date()): TimeOfDay {
   return 'night'; // 23..4
 }
 
-function detectSeason(date: Date = new Date()): Season {
+export function detectSeason(date: Date = new Date()): Season {
   const m = date.getMonth(); // 0-11
   if (m >= 2 && m <= 4) return 'spring';
   if (m >= 5 && m <= 7) return 'summer';
@@ -76,7 +76,7 @@ function detectSeason(date: Date = new Date()): Season {
 }
 
 // ─── Sky palettes per time of day ───────────────────────────────────────────
-function skyGradient(tod: TimeOfDay): { from: string; mid: string; to: string; midOffset: number } {
+export function skyGradient(tod: TimeOfDay): { from: string; mid: string; to: string; midOffset: number } {
   switch (tod) {
     case 'dawn':
       return { from: '#ea580c', mid: '#fbbf24', to: '#fed7aa', midOffset: 35 };
