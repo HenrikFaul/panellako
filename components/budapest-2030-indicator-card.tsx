@@ -73,17 +73,6 @@ export default function Budapest2030IndicatorCard({ indicator }: Props) {
   const badge = statusBadge(indicator.status);
   const trend = trendArrow(indicator.trend);
 
-  // progress toward target (0–100)
-  const progressToTarget = Math.min(
-    100,
-    Math.round(
-      (indicator.currentValue / indicator.target2030) * 100
-    )
-  );
-
-  // EU threshold bar position (% of target)
-  const thresholdPct = Math.min(100, Math.round((indicator.euThreshold / indicator.target2030) * 100));
-
   return (
     <div className="rounded-xl border border-white/10 bg-slate-900/60 p-4 flex flex-col gap-3 hover:border-white/20 transition-colors">
       {/* Header row */}

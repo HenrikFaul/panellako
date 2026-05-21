@@ -34,6 +34,7 @@ interface Props {
   buildingId: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function Budapest2030DashboardClient({ buildingId: _buildingId }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>('indikatorok');
 
