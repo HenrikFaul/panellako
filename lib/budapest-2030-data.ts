@@ -680,8 +680,6 @@ export const BUDAPEST_2030_PILLARS: Budapest2030Pillar[] = [
 export function normalizeForRadar(indicator: BudapestIndicator, value: number): number {
   // For indicators where lower is better, we invert
   const lowerIsBetter = ['levego', 'zaj', 'hulladek', 'viz', 'co2', 'terulet'];
-  // For indicators where higher is better
-  const higherIsBetter = ['termeszet', 'okoinnovacio', 'kozlekedes', 'energia', 'iranyitas'];
 
   if (lowerIsBetter.includes(indicator.id)) {
     // normalize: 100 means value equals threshold (best), 0 means 2x threshold

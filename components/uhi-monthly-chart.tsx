@@ -24,7 +24,6 @@ export default function UHIMonthlyChart({ data }: Props) {
 
   const maxVal = Math.max(...data.map((d) => d.celsius), 0.5);
   const chartH  = 140; // px height for bars
-  const barW    = 7;   // % width per bar (12 bars, some gap)
 
   return (
     <div className="rounded-2xl bg-slate-900 border border-white/10 p-6">

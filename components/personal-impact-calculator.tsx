@@ -6,8 +6,6 @@ import { useState } from 'react';
 const CAR_CO2_PER_KM     = 0.171;  // average petrol car kg CO2/km
 const PT_CO2_PER_KM      = 0.048;  // public transport average kg CO2/km
 const CYCLE_CO2_PER_KM   = 0.0;    // cycling = zero emissions
-const WALKING_CO2_PER_KM = 0.0;
-
 // Budapest averages (2023)
 const BUDAPEST_AVG_WATER_L    = 92;   // L/person/day
 const BUDAPEST_AVG_RECYCLING  = 22;   // % recycling rate
@@ -101,15 +99,6 @@ export default function PersonalImpactCalculator() {
   const recycledKgYear  = (recycling / 100) * wastePerDay * 365;
   const citywideCO2If   = co2SavedVsAvg * BUDAPEST_POP;
   const citywideCO2kton = Math.round(citywideCO2If / 1_000_000);
-
-  // ── Derived labels ────────────────────────────────────────────────────────
-  const co2Label = co2SavedVsAvg >= 0
-    ? `−${co2SavedVsAvg.toFixed(0)} kg CO₂/év megtakarítás`
-    : `+${Math.abs(co2SavedVsAvg).toFixed(0)} kg CO₂/év többlet`;
-
-  const waterLabel = waterDiff >= 0
-    ? `−${Math.abs(waterSavedYearly).toFixed(0)} L/év megtakarítás`
-    : `+${Math.abs(waterSavedYearly).toFixed(0)} L/év többlet`;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
