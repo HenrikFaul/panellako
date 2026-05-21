@@ -69,7 +69,7 @@ create policy "Users can update own reference address"
     sql: `
 create table if not exists public.osm_addresses (
   id                     bigserial primary key,
-  external_id            text unique,
+  external_id            text,
   country                text,
   country_code           text,
   display_name           text,
@@ -98,10 +98,13 @@ create table if not exists public.osm_addresses (
   created_at             timestamptz default now()
 );
 
+create unique index if not exists osm_addresses_external_id_unique
+  on public.osm_addresses (external_id)
+  where external_id is not null;
+
 create index if not exists osm_addresses_city_idx         on public.osm_addresses (lower(city));
 create index if not exists osm_addresses_postcode_idx     on public.osm_addresses (postcode);
 create index if not exists osm_addresses_country_code_idx on public.osm_addresses (country_code);
-create index if not exists osm_addresses_external_id_idx  on public.osm_addresses (external_id);
 
 alter table public.osm_addresses enable row level security;
 
