@@ -32,10 +32,13 @@ create table if not exists public.osm_addresses (
   created_at             timestamptz default now()
 );
 
--- Unique index on external_id (required for upsert ON CONFLICT)
+-- Unique index on external_id (required for upsert ON CONFLICT).
+-- Must be a full index (no WHERE clause) — partial indexes are not
+-- compatible with PostgREST ON CONFLICT (column) without a matching predicate.
+drop index if exists public.osm_addresses_external_id_unique;
+drop index if exists public.osm_addresses_external_id_idx;
 create unique index if not exists osm_addresses_external_id_unique
-  on public.osm_addresses (external_id)
-  where external_id is not null;
+  on public.osm_addresses (external_id);
 
 -- Indexes for autocomplete query patterns
 create index if not exists osm_addresses_street_name_idx     on public.osm_addresses using gin (to_tsvector('simple', coalesce(street_name, '')));

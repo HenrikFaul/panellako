@@ -42,6 +42,8 @@ export default function SuperadminOsmImport() {
   const [phase1Result, setPhase1Result] = useState<ImportResult | null>(null);
   const [countyRunning, setCountyRunning] = useState<string | null>(null);
   const [countyResults, setCountyResults] = useState<Record<string, ImportResult>>({});
+  const [indexFixRunning, setIndexFixRunning] = useState(false);
+  const [indexFixResult, setIndexFixResult] = useState<{ ok: boolean; method?: string; error?: string } | null>(null);
 
   const loadRowCount = useCallback(() => {
     setRowCount(rc => ({ ...rc, loading: true }));
@@ -52,6 +54,24 @@ export default function SuperadminOsmImport() {
   }, []);
 
   useEffect(() => { loadRowCount(); }, [loadRowCount]);
+
+  async function runIndexFix() {
+    setIndexFixRunning(true);
+    setIndexFixResult(null);
+    try {
+      const res = await fetch('/api/superadmin/jobs/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job: 'osm_fix_index' }),
+      });
+      const body = await res.json() as { ok: boolean; result?: { ok: boolean; method?: string; error?: string }; error?: string };
+      setIndexFixResult({ ok: body.ok, method: body.result?.method, error: body.result?.error ?? body.error });
+    } catch (e) {
+      setIndexFixResult({ ok: false, error: String(e) });
+    } finally {
+      setIndexFixRunning(false);
+    }
+  }
 
   async function runPhase1() {
     setPhase1Running(true);
@@ -110,6 +130,26 @@ export default function SuperadminOsmImport() {
             className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-50 disabled:opacity-50"
           >↻</button>
         </div>
+      </div>
+
+      {/* Index fix — must run before any import if upsert fails */}
+      <div className="mb-4 rounded-xl border border-red-100 bg-red-50 p-3 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold text-red-800">⚠ Unique index javítás</p>
+          <p className="text-xs text-red-700">Ha &quot;there is no unique or excl&quot; hibát látsz, futtasd ezt először.</p>
+          {indexFixResult && (
+            <p className={`mt-1 text-xs font-bold ${indexFixResult.ok ? 'text-emerald-700' : 'text-red-700'}`}>
+              {indexFixResult.ok ? `✓ Kész (${indexFixResult.method})` : `✗ ${indexFixResult.error}`}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={runIndexFix}
+          disabled={indexFixRunning || phase1Running || countyRunning !== null}
+          className="shrink-0 rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50"
+        >
+          {indexFixRunning ? 'Fut…' : 'Index javítás'}
+        </button>
       </div>
 
       {/* Phase 1 */}
