@@ -191,20 +191,109 @@ const OVERPASS_MIRRORS_OSM = [
   'https://overpass.openstreetmap.fr/api/interpreter',
 ];
 
-async function overpassQuery(query: string): Promise<{ elements: unknown[] } | null> {
+async function overpassQuery(query: string, timeoutMs = 180_000): Promise<{ elements: unknown[] } | null> {
   for (const mirror of OVERPASS_MIRRORS_OSM) {
     try {
       const res = await fetch(mirror, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'panellako/1.0 (info@panellako.hu)' },
         body: `data=${encodeURIComponent(query)}`,
-        signal: AbortSignal.timeout(90_000),
+        signal: AbortSignal.timeout(timeoutMs),
       });
       if (!res.ok) continue;
       return await res.json();
     } catch { continue; }
   }
   return null;
+}
+
+// County bboxes — shared by per-county and all-countries jobs
+const COUNTY_BBOXES_SHARED: Record<string, [number, number, number, number]> = {
+  'Budapest':                    [47.35, 18.87, 47.62, 19.34],
+  'Pest':                        [47.00, 18.60, 48.35, 20.25],
+  'Baranya':                     [45.73, 17.55, 46.25, 18.61],
+  'Bács-Kiskun':                 [46.03, 18.76, 47.28, 20.21],
+  'Békés':                       [46.39, 20.60, 47.12, 21.60],
+  'Borsod-Abaúj-Zemplén':       [47.60, 20.10, 48.57, 22.00],
+  'Csongrád':                    [46.07, 19.68, 46.77, 20.73],
+  'Fejér':                       [46.73, 18.03, 47.55, 18.78],
+  'Győr-Moson-Sopron':           [47.44, 16.42, 47.94, 17.83],
+  'Hajdú-Bihar':                 [47.00, 21.00, 48.00, 22.25],
+  'Heves':                       [47.60, 19.65, 48.13, 20.63],
+  'Jász-Nagykun-Szolnok':       [46.75, 19.80, 47.76, 21.10],
+  'Komárom-Esztergom':           [47.49, 17.90, 47.85, 18.73],
+  'Nógrád':                      [47.79, 19.05, 48.27, 20.18],
+  'Somogy':                      [45.93, 16.77, 47.00, 18.18],
+  'Szabolcs-Szatmár-Bereg':     [47.60, 21.60, 48.57, 22.90],
+  'Tolna':                       [46.25, 17.80, 46.95, 18.85],
+  'Vas':                         [46.70, 16.10, 47.53, 17.00],
+  'Veszprém':                    [46.75, 17.20, 47.53, 18.38],
+  'Zala':                        [46.25, 16.33, 46.92, 17.20],
+};
+
+type CountyImportResult = {
+  county: string;
+  ok: boolean;
+  imported: number;
+  total: number;
+  skipped: number;
+  error?: string;
+};
+
+async function importCounty(
+  county: string,
+  bbox: [number, number, number, number],
+  supabase: ReturnType<typeof createServiceClient>,
+): Promise<CountyImportResult> {
+  const [minLat, minLon, maxLat, maxLon] = bbox;
+  const bboxStr = `${minLat},${minLon},${maxLat},${maxLon}`;
+  // No row limit — fetch everything Overpass has for this bbox.
+  // maxsize=2GB to handle large counties like Budapest or Pest.
+  const query = `[out:json][timeout:120][maxsize:2147483648];
+node["addr:housenumber"]["addr:street"](${bboxStr});
+out;`;
+
+  const data = await overpassQuery(query, 200_000);
+  if (!data) return { county, ok: false, imported: 0, total: 0, skipped: 0, error: 'Minden Overpass mirror elérhetetlen' };
+
+  type OsmEl = { type: string; id: number; lat?: number; lon?: number; tags?: Record<string, string> };
+  const elements = (data.elements ?? []) as OsmEl[];
+
+  const rows = elements
+    .map(e => {
+      if (!e.lat || !e.lon) return null;
+      const t = e.tags ?? {};
+      const street = t['addr:street'] ?? null;
+      const city = t['addr:city'] ?? t['addr:town'] ?? t['addr:village'] ?? t['addr:municipality'] ?? null;
+      const displayParts = [t['addr:postcode'], city, street, t['addr:housenumber']].filter(Boolean);
+      return {
+        external_id:  `osm:${e.type}:${e.id}`,
+        country:      'Magyarország',
+        country_code: 'HU',
+        display_name: displayParts.join(' ') || null,
+        street, street_name: street,
+        house_number: t['addr:housenumber'] ?? null,
+        housenumber:  t['addr:housenumber'] ?? null,
+        city, district: t['addr:district'] ?? null,
+        postcode:     t['addr:postcode'] ?? null,
+        place:        null,
+        lat: e.lat, lon: e.lon,
+        geometry_type: e.type,
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+
+  let imported = 0;
+  const CHUNK = 500;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const { error } = await supabase!
+      .from('osm_addresses')
+      .upsert(rows.slice(i, i + CHUNK), { onConflict: 'external_id', ignoreDuplicates: true });
+    if (error) return { county, ok: false, imported, total: elements.length, skipped: elements.length - rows.length, error: error.message };
+    imported += Math.min(CHUNK, rows.length - i);
+  }
+
+  return { county, ok: true, imported, total: elements.length, skipped: elements.length - rows.length };
 }
 
 export async function POST(request: NextRequest) {
@@ -1603,102 +1692,51 @@ out center 20000;`;
     }
   }
 
-  // ─── OSM Phase 2: Teljes cím-adatbázis, egy megye egyszerre ──────────────────
+  // ─── OSM Phase 2: egy megye teljes import (limit nélkül) ─────────────────────
   if (job === 'osm_addresses_import_phase2_county') {
     const county = body.county;
     if (!county) return NextResponse.json({ error: 'county param kötelező' }, { status: 400 });
-
-    const COUNTY_BBOXES: Record<string, [number, number, number, number]> = {
-      'Budapest':                    [47.35, 18.87, 47.62, 19.34],
-      'Pest':                        [47.00, 18.60, 48.35, 20.25],
-      'Baranya':                     [45.73, 17.55, 46.25, 18.61],
-      'Bács-Kiskun':                 [46.03, 18.76, 47.28, 20.21],
-      'Békés':                       [46.39, 20.60, 47.12, 21.60],
-      'Borsod-Abaúj-Zemplén':       [47.60, 20.10, 48.57, 22.00],
-      'Csongrád':                    [46.07, 19.68, 46.77, 20.73],
-      'Fejér':                       [46.73, 18.03, 47.55, 18.78],
-      'Győr-Moson-Sopron':           [47.44, 16.42, 47.94, 17.83],
-      'Hajdú-Bihar':                 [47.00, 21.00, 48.00, 22.25],
-      'Heves':                       [47.60, 19.65, 48.13, 20.63],
-      'Jász-Nagykun-Szolnok':       [46.75, 19.80, 47.76, 21.10],
-      'Komárom-Esztergom':           [47.49, 17.90, 47.85, 18.73],
-      'Nógrád':                      [47.79, 19.05, 48.27, 20.18],
-      'Somogy':                      [45.93, 16.77, 47.00, 18.18],
-      'Szabolcs-Szatmár-Bereg':     [47.60, 21.60, 48.57, 22.90],
-      'Tolna':                       [46.25, 17.80, 46.95, 18.85],
-      'Vas':                         [46.70, 16.10, 47.53, 17.00],
-      'Veszprém':                    [46.75, 17.20, 47.53, 18.38],
-      'Zala':                        [46.25, 16.33, 46.92, 17.20],
-    };
-
-    const bbox = COUNTY_BBOXES[county];
+    const bbox = COUNTY_BBOXES_SHARED[county];
     if (!bbox) return NextResponse.json({ error: `Ismeretlen megye: ${county}` }, { status: 400 });
 
     const logId = await logStart(`${job}:${county}`);
     try {
       const supabase = createServiceClient();
       if (!supabase) throw new Error('No Supabase client');
+      await ensureOsmUniqueIndex();
+      const result = await importCounty(county, bbox, supabase);
+      await logEnd(logId, result.ok ? 'ok' : 'error', result);
+      return NextResponse.json({ ok: result.ok, job, result, ranAt: new Date().toISOString() }, { status: result.ok ? 200 : 500 });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await logEnd(logId, 'error', { error: message });
+      return NextResponse.json({ ok: false, job, error: message, ranAt: new Date().toISOString() }, { status: 500 });
+    }
+  }
 
+  // ─── OSM: Egész ország import — minden megye egymás után ─────────────────────
+  if (job === 'osm_addresses_import_all') {
+    const logId = await logStart(job);
+    try {
+      const supabase = createServiceClient();
+      if (!supabase) throw new Error('No Supabase client');
       await ensureOsmUniqueIndex();
 
-      const [minLat, minLon, maxLat, maxLon] = bbox;
-      const bboxStr = `${minLat},${minLon},${maxLat},${maxLon}`;
-      // Limit to 8000 nodes per run to stay within the 5-min timeout
-      const query = `[out:json][timeout:60];
-node["addr:housenumber"]["addr:street"](${bboxStr});
-out 8000;`;
+      const counties = Object.entries(COUNTY_BBOXES_SHARED);
+      const results: CountyImportResult[] = [];
+      let totalImported = 0;
 
-      const data = await overpassQuery(query);
-      if (!data) throw new Error('Minden Overpass mirror elérhetetlen');
-
-      type OsmEl = { type: string; id: number; lat?: number; lon?: number; tags?: Record<string, string> };
-      const elements = (data.elements ?? []) as OsmEl[];
-      const rows = elements
-        .map(e => {
-          if (!e.lat || !e.lon) return null;
-          const t = e.tags ?? {};
-          const street = t['addr:street'] ?? null;
-          const city = t['addr:city'] ?? t['addr:town'] ?? t['addr:village'] ?? t['addr:municipality'] ?? null;
-          const displayParts = [
-            t['addr:postcode'] ? `${t['addr:postcode']}` : null,
-            city,
-            street,
-            t['addr:housenumber'],
-          ].filter(Boolean);
-          return {
-            external_id:   `osm:${e.type}:${e.id}`,
-            country:       'Magyarország',
-            country_code:  'HU',
-            display_name:  displayParts.join(' ') || null,
-            street:        street,
-            street_name:   street,
-            house_number:  t['addr:housenumber'] ?? null,
-            housenumber:   t['addr:housenumber'] ?? null,
-            city:          city,
-            district:      t['addr:district'] ?? null,
-            postcode:      t['addr:postcode'] ?? null,
-            place:         null,
-            lat:           e.lat,
-            lon:           e.lon,
-            geometry_type: e.type,
-          };
-        })
-        .filter((r): r is NonNullable<typeof r> => r !== null);
-
-      let imported = 0;
-      const CHUNK = 500;
-      for (let i = 0; i < rows.length; i += CHUNK) {
-        const { error } = await supabase
-          .from('osm_addresses')
-          .upsert(rows.slice(i, i + CHUNK), { onConflict: 'external_id', ignoreDuplicates: true });
-        if (error) throw new Error(`Upsert hiba (${county}, offset ${i}): ${error.message}`);
-        imported += Math.min(CHUNK, rows.length - i);
+      for (const [county, bbox] of counties) {
+        const r = await importCounty(county, bbox, supabase);
+        results.push(r);
+        if (r.ok) totalImported += r.imported;
       }
 
-      const note = elements.length >= 8000 ? 'Overpass 8000 soros limit elérve — futtasd újra több sorért' : undefined;
-      const result = { county, imported, total: elements.length, skipped: elements.length - rows.length, note };
-      await logEnd(logId, 'ok', result);
-      return NextResponse.json({ ok: true, job, result, ranAt: new Date().toISOString() });
+      const failed = results.filter(r => !r.ok);
+      const status = failed.length === 0 ? 'ok' : (failed.length < counties.length ? 'partial' : 'error');
+      const result = { totalImported, counties: results, failedCount: failed.length };
+      await logEnd(logId, status, result);
+      return NextResponse.json({ ok: status !== 'error', job, result, ranAt: new Date().toISOString() }, { status: status === 'error' ? 500 : 200 });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       await logEnd(logId, 'error', { error: message });
