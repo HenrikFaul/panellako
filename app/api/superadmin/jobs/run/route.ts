@@ -1535,7 +1535,7 @@ out center 20000;`;
       for (let i = 0; i < rows.length; i += CHUNK) {
         const { error } = await supabase
           .from('osm_addresses')
-          .upsert(rows.slice(i, i + CHUNK), { onConflict: 'external_id', ignoreDuplicates: false });
+          .upsert(rows.slice(i, i + CHUNK), { onConflict: 'external_id', ignoreDuplicates: true });
         if (error) throw new Error(`Upsert hiba (offset ${i}): ${error.message}`);
         imported += Math.min(CHUNK, rows.length - i);
       }
@@ -1635,7 +1635,7 @@ out 8000;`;
       for (let i = 0; i < rows.length; i += CHUNK) {
         const { error } = await supabase
           .from('osm_addresses')
-          .upsert(rows.slice(i, i + CHUNK), { onConflict: 'external_id', ignoreDuplicates: false });
+          .upsert(rows.slice(i, i + CHUNK), { onConflict: 'external_id', ignoreDuplicates: true });
         if (error) throw new Error(`Upsert hiba (${county}, offset ${i}): ${error.message}`);
         imported += Math.min(CHUNK, rows.length - i);
       }
