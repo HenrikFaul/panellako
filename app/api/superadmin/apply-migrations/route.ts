@@ -114,6 +114,10 @@ create policy "osm_addresses_public_read"
   using (true);
     `.trim(),
   },
+  {
+    name: 'osm_addresses_unique_index',
+    sql: `create unique index if not exists osm_addresses_external_id_unique on public.osm_addresses (external_id) where external_id is not null;`,
+  },
 ];
 
 // ─── Idempotency checks ───────────────────────────────────────────────────────
@@ -140,6 +144,11 @@ async function isMigrationApplied(supabase: SupabaseClient, name: string): Promi
       .select('id')
       .limit(0);
     return !error;
+  }
+  if (name === 'osm_addresses_unique_index') {
+    // CREATE UNIQUE INDEX IF NOT EXISTS is idempotent — always re-run it
+    // so it gets applied even if the table was created without the constraint.
+    return false;
   }
   return false;
 }
