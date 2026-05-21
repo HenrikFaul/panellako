@@ -1,16 +1,24 @@
 /**
  * POST /api/superadmin/apply-migrations
  *
- * Applies the pending DDL migrations to the Panellako Supabase project.
- * Called once from the superadmin panel when the DB is missing tables.
- * Uses the service role key to bypass RLS and execute DDL via the
- * Supabase database REST proxy.
+ * Checks whether each migration is already applied, then tries to apply any
+ * that are missing.  "Already applied" counts as success — so clicking the
+ * button after manually running the SQL in the Supabase dashboard shows ✓.
+ *
+ * Apply methods tried in order:
+ *   1. supabase.rpc('exec_sql', { sql })  — works if the helper function exists
+ *   2. POST supabaseUrl/pg/query          — available on some Supabase plans
+ *
+ * If both fail, the response includes the raw SQL so the admin can run it
+ * manually via the Supabase SQL editor.
  */
 import { NextResponse } from 'next/server';
 import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
+
+// ─── Migration definitions ────────────────────────────────────────────────────
 
 const MIGRATIONS: Array<{ name: string; sql: string }> = [
   {
@@ -58,18 +66,43 @@ create policy "Users can update own reference address"
   },
 ];
 
-async function tryRpcExecSql(
+// ─── Idempotency checks ───────────────────────────────────────────────────────
+
+async function isMigrationApplied(supabase: SupabaseClient, name: string): Promise<boolean> {
+  if (name === 'map_theme_default') {
+    const { data } = await supabase
+      .from('platform_settings')
+      .select('key')
+      .eq('key', 'map_theme')
+      .maybeSingle();
+    return data != null;
+  }
+  if (name === 'user_reference_addresses') {
+    // A successful (even empty) query means the table exists.
+    const { error } = await supabase
+      .from('user_reference_addresses')
+      .select('user_id')
+      .limit(0);
+    return !error;
+  }
+  return false;
+}
+
+// ─── DDL executor ─────────────────────────────────────────────────────────────
+
+async function tryApplySql(
   supabaseUrl: string,
   serviceKey: string,
   sql: string,
 ): Promise<{ ok: boolean; method: string; error?: string }> {
-  // Method 1: supabase.rpc('exec_sql', { sql }) — works if function exists in DB
   const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+
+  // Method 1: supabase.rpc('exec_sql', { sql }) — works if function exists in DB
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: rpcError } = await (supabase as any).rpc('exec_sql', { sql });
   if (!rpcError) return { ok: true, method: 'rpc_exec_sql' };
 
-  // Method 2: Supabase pg/query HTTP endpoint (available on some Supabase versions)
+  // Method 2: POST /pg/query — available on some Supabase versions/plans
   const pgRes = await fetch(`${supabaseUrl}/pg/query`, {
     method: 'POST',
     headers: {
@@ -89,6 +122,8 @@ async function tryRpcExecSql(
   };
 }
 
+// ─── Handler ──────────────────────────────────────────────────────────────────
+
 export async function POST() {
   if (!(await isSuperadminAuthenticated())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -99,21 +134,56 @@ export async function POST() {
 
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
-      { error: 'SUPABASE_SERVICE_ROLE_KEY missing from environment', manual: true },
+      { error: 'SUPABASE_SERVICE_ROLE_KEY missing from environment' },
       { status: 500 },
     );
   }
 
-  const results: Array<{ name: string; ok: boolean; method?: string; error?: string }> = [];
+  const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+
+  const results: Array<{
+    name: string;
+    ok: boolean;
+    status: 'already_applied' | 'applied' | 'failed';
+    method?: string;
+    error?: string;
+  }> = [];
+
+  const failedSql: string[] = [];
 
   for (const m of MIGRATIONS) {
-    const r = await tryRpcExecSql(supabaseUrl, serviceKey, m.sql);
-    results.push({ name: m.name, ...r });
+    // 1. Check whether it's already in place (catches manual SQL editor runs)
+    const alreadyApplied = await isMigrationApplied(supabase, m.name);
+    if (alreadyApplied) {
+      results.push({ name: m.name, ok: true, status: 'already_applied' });
+      continue;
+    }
+
+    // 2. Try to apply automatically
+    const r = await tryApplySql(supabaseUrl, serviceKey, m.sql);
+    if (r.ok) {
+      results.push({ name: m.name, ok: true, status: 'applied', method: r.method });
+      continue;
+    }
+
+    // 3. Verify once more in case the SQL ran partially or was idempotent
+    const appliedAfterAttempt = await isMigrationApplied(supabase, m.name);
+    if (appliedAfterAttempt) {
+      results.push({ name: m.name, ok: true, status: 'applied', method: r.method });
+      continue;
+    }
+
+    results.push({ name: m.name, ok: false, status: 'failed', error: r.error });
+    failedSql.push(m.sql);
   }
 
   const allOk = results.every(r => r.ok);
   return NextResponse.json(
-    { ok: allOk, results, manualSqlIfFailed: allOk ? undefined : MIGRATIONS.map(m => m.sql).join('\n\n---\n\n') },
+    {
+      ok: allOk,
+      results,
+      manualSqlIfFailed: failedSql.length > 0 ? failedSql.join('\n\n---\n\n') : undefined,
+    },
     { status: allOk ? 200 : 422 },
   );
 }
