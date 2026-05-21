@@ -218,7 +218,7 @@ export default function SuperadminClient() {
   const [migrRunning, setMigrRunning] = useState(false);
   const [migrResult, setMigrResult]   = useState<{
     ok: boolean;
-    results: Array<{ name: string; ok: boolean; method?: string; error?: string }>;
+    results: Array<{ name: string; ok: boolean; status: 'already_applied' | 'applied' | 'failed'; method?: string; error?: string }>;
     manualSqlIfFailed?: string;
   } | null>(null);
 
@@ -527,7 +527,8 @@ export default function SuperadminClient() {
                 <div key={r.name} className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-sm ${r.ok ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
                   <span className={`font-bold ${r.ok ? 'text-emerald-700' : 'text-red-700'}`}>{r.ok ? '✓' : '✗'}</span>
                   <span className="font-mono text-xs text-slate-700">{r.name}</span>
-                  {r.ok && r.method && <span className="text-[11px] text-slate-400">({r.method})</span>}
+                  {r.ok && r.status === 'already_applied' && <span className="text-[11px] text-slate-400">(már alkalmazva volt)</span>}
+                  {r.ok && r.status === 'applied' && r.method && <span className="text-[11px] text-emerald-600">(most alkalmazva — {r.method})</span>}
                   {!r.ok && r.error && <span className="text-xs text-red-600">{r.error}</span>}
                 </div>
               ))}
