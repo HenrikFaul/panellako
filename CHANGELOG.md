@@ -1,4 +1,22 @@
 
+## 2026-05-22 — v0.9.2 Hőszigat és Klímakockázat Modul (Feature 04)
+
+### Added
+- **`lib/uhi-calculator.ts`** — UHI (Urban Heat Island) kalkulátor könyvtár. Becsüli a helyi hőmérsékleti többletet a vidéki referenciához képest OSM-ből levezetett adatok alapján: épületsűrűség, zöldfelület-lefedettség, víztest- és parkközelség × szezonális szorzók (Unger J. 2010, Oke 1982). KlímaScore 0–100 (UHI-komponens 40pt + levegőminőség 30pt + árvízkockázat 30pt). Havi UHI tömb (jan–dec).
+- **`app/api/environment/heat-island/route.ts`** — GET `/api/environment/heat-island?lat=X&lon=Y&buildingId=Z`. Overpass API 500m sugarú lekérdezés (épületek, zöldfelületek, víztest, parkok, könyvtárak, bevásárlóközpontok, szökőkutak, mélygarázsok). 24 órás modul-szintű cache. Fallback: Budapest-specifikus moderált értékek (45% beépítettség, 15% zöldfelület). Hűsölőhelyek (cool spots) listája közelség szerint rendezve, Budapest fallback 5 db.
+- **`components/uhi-risk-card.tsx`** — UHI kockázat-kártya: nagy °C szám SVG-gyűrűvel (kék→sárga→piros), kategória badge (ALACSONY/KÖZEPES/MAGAS/KRITIKUS), KlímaScore lineáris mutató, al-indikátorok (beépítettség %, zöldfelület %, park-távolság m), víztest és park közelség badge-ek.
+- **`components/uhi-monthly-chart.tsx`** — Havi UHI sávdiagram (jan–dec), tiszta SVG implementáció (nincs külső chart könyvtár). Kék (téli) → sárga → piros (nyári) szín gradient. Aktuális hónap kiemelve. Magyar hónapnevek.
+- **`components/cool-spots-list.tsx`** — Hűsölőhelyek listája típus-ikonnal, névvel, távolsággal és nyitvatartással. Típusok: park 🌳, könyvtár 📚, bevásárlóközpont 🏬, szökőkút ⛲, mélygarázs 🚗.
+- **`components/climate-action-plan.tsx`** — 8 pontos klíma-cselekvési terv checkbox-okkal (localStorage perzisztencia): tetőkertesítés (−0,8°C), homlokzatzöldítés (−0,5°C), árnyékoló berendezések, természetes szellőzés, fehér/visszaverő tetőfesték (−1,5°C), udvari zöldítés, vízpermet (2–4°C), EU pályázati link (KEHOP, KMÜ). Haladásjelző sáv.
+- **`components/heat-island-dashboard-client.tsx`** — Kliens oldali dashboard wrapper: API fetch, loading skeleton, error state, összerendezi a 4 szekciót (UHI kártya + havi grafikon + hűsölőhelyek + cselekvési terv).
+- **`app/w/[buildingId]/klimakockazat/page.tsx`** — Új szerver komponens lap. Auth + membership ellenőrzés. Épület lat/lon Supabase-ből, Nominatim geocode fallback. Cím: „Klímakockázat / Hőszigat hatás és klímaadaptációs lehetőségek".
+
+### Notes
+- Thesis reference: Unger J. (2010) UHI kutatás, Oke (1982), Budapest városi hőtöbblet +4–6°C
+- Nincs külső chart könyvtár — a havi diagram tiszta SVG
+- OSM-alapú becslés: épületsűrűség + zöldfelület-lefedettség + víztest/park közelség × 12 szezonális szorzó
+- URL: `/w/[buildingId]/klimakockazat`
+
 ## 2026-05-22 — v0.8.3 Térképstílus-perzisztencia javítás + DB migráció UI
 
 ### Fixed
