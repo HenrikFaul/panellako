@@ -214,6 +214,14 @@ export default function SuperadminClient() {
   const [logsLoading, setLogsLoading] = useState(false);
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
 
+  // DB migrations
+  const [migrRunning, setMigrRunning] = useState(false);
+  const [migrResult, setMigrResult]   = useState<{
+    ok: boolean;
+    results: Array<{ name: string; ok: boolean; method?: string; error?: string }>;
+    manualSqlIfFailed?: string;
+  } | null>(null);
+
   // ── Load on mount ────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -268,7 +276,6 @@ export default function SuperadminClient() {
   // ── Actions ──────────────────────────────────────────────────────────────
 
   async function saveMapTheme(id: MapThemeId) {
-    setMapTheme(id);
     setThemeSaving(true);
     setThemeSaveMsg('');
     const res = await fetch('/api/superadmin/settings', {
@@ -276,10 +283,16 @@ export default function SuperadminClient() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: 'map_theme', value: { id } }),
     });
-    setThemeSaveMsg(res.ok ? '✓ Mentve' : '✗ Hiba');
+    if (res.ok) {
+      setMapTheme(id);                   // Only update UI after confirmed DB write
+      invalidateMapThemeCache(id);       // Sync module cache + localStorage
+      setThemeSaveMsg('✓ Mentve');
+    } else {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      setThemeSaveMsg(`✗ Hiba: ${body.error ?? res.status}`);
+    }
     setThemeSaving(false);
-    if (res.ok) invalidateMapThemeCache();
-    setTimeout(() => setThemeSaveMsg(''), 3000);
+    setTimeout(() => setThemeSaveMsg(''), 5000);
   }
 
   async function saveBkkSettings() {
@@ -307,6 +320,15 @@ export default function SuperadminClient() {
     setRunning(null);
     // Refresh logs + stats after a job finishes
     setTimeout(() => { loadLogs(); loadStats(); }, 800);
+  }
+
+  async function applyMigrations() {
+    setMigrRunning(true);
+    setMigrResult(null);
+    const res = await fetch('/api/superadmin/apply-migrations', { method: 'POST' });
+    const body = await res.json().catch(() => ({ ok: false, results: [] }));
+    setMigrResult(body);
+    setMigrRunning(false);
   }
 
   async function logout() {
@@ -480,6 +502,43 @@ export default function SuperadminClient() {
                   }, [])}
                 </tbody>
               </table>
+            </div>
+          )}
+        </section>
+
+        {/* DB Migrations */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-black text-slate-900">Adatbázis migrációk</h2>
+              <p className="text-xs text-slate-500">Hiányzó táblák és alapértelmezett adatok létrehozása a Panellako Supabase projektben.</p>
+            </div>
+            <button
+              onClick={applyMigrations}
+              disabled={migrRunning}
+              className="rounded-lg border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-bold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50"
+            >
+              {migrRunning ? 'Alkalmazás…' : 'Migrációk alkalmazása'}
+            </button>
+          </div>
+          {migrResult && (
+            <div className="space-y-2">
+              {migrResult.results.map(r => (
+                <div key={r.name} className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-sm ${r.ok ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
+                  <span className={`font-bold ${r.ok ? 'text-emerald-700' : 'text-red-700'}`}>{r.ok ? '✓' : '✗'}</span>
+                  <span className="font-mono text-xs text-slate-700">{r.name}</span>
+                  {r.ok && r.method && <span className="text-[11px] text-slate-400">({r.method})</span>}
+                  {!r.ok && r.error && <span className="text-xs text-red-600">{r.error}</span>}
+                </div>
+              ))}
+              {migrResult.manualSqlIfFailed && (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <p className="mb-1 text-xs font-bold text-amber-800">Automatikus alkalmazás sikertelen — futtasd manuálisan a Supabase SQL Editorban:</p>
+                  <pre className="max-h-64 overflow-auto rounded-lg bg-slate-950 p-3 text-[11px] text-slate-100">
+                    {migrResult.manualSqlIfFailed}
+                  </pre>
+                </div>
+              )}
             </div>
           )}
         </section>
