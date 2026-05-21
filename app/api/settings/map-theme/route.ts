@@ -14,15 +14,25 @@ function makeSupabase() {
 export async function GET() {
   const supabase = makeSupabase();
   if (!supabase) {
+    console.warn('[map-theme] Supabase env vars missing — returning default');
     return NextResponse.json({ theme: DEFAULT_THEME_ID });
   }
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('platform_settings')
     .select('value')
     .eq('key', 'map_theme')
     .maybeSingle();
 
-  const theme = (data?.value as { id?: string } | null)?.id ?? DEFAULT_THEME_ID;
-  return NextResponse.json({ theme: theme as MapThemeId });
+  if (error) {
+    console.error('[map-theme] DB read error:', error.message);
+    return NextResponse.json({ theme: DEFAULT_THEME_ID });
+  }
+
+  const id = (data?.value as { id?: string } | null)?.id;
+  const theme: MapThemeId = id && /^(minimal|nature|dark|dlc)$/.test(id)
+    ? (id as MapThemeId)
+    : DEFAULT_THEME_ID;
+
+  return NextResponse.json({ theme });
 }

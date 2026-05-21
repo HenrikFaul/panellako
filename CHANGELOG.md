@@ -1,4 +1,16 @@
 
+## 2026-05-22 — v0.8.3 Térképstílus-perzisztencia javítás + DB migráció UI
+
+### Fixed
+- **`hooks/use-map-theme.ts`** — `fetchPromise` nem resetelődött `null`-ra a `catch` ágban, így az első sikertelen fetch után minden következő hívás ugyanazt a sikertelen Promise-t kapta vissza (stale dark theme). Javítva: `fetchPromise = null` a catch ágban + `localStorage` fallback. `useState` initializer mostantól `cachedTheme ?? readLocalStorage() ?? default` sorrendben indul — azonnal helyes témát mutat DB-hívás előtt is.
+- **`components/superadmin-client.tsx`** — `saveMapTheme()` korábban optimistikusan `setMapTheme(id)` hívott DB-konfirmálás előtt, elfedve az esetleges mentési hibákat. Javítva: a téma-state és a `invalidateMapThemeCache(id)` hívás most a `res.ok` megerősítése után fut. Hibaüzenet részletes szöveggel + 5s timeout.
+- **`app/api/settings/map-theme/route.ts`** — Hiányzó env var és DB read error esetén `console.warn`/`console.error` naplózás hozzáadva. Téma ID regex validáció: `/^(minimal|nature|dark|dlc)$/.test(id)`.
+
+### Added
+- **`hooks/use-map-theme.ts`** — `localStorage` perzisztencia (`panellako_map_theme` kulcs): témaváltás után az oldalfrissítés azonnal a helyes témát mutatja, DB round-trip nélkül.
+- **`app/api/superadmin/apply-migrations/route.ts`** — Új POST endpoint, szuperadmin-auth protected. Két módszerrel próbálja alkalmazni a DDL migrációkat: (1) `supabase.rpc('exec_sql')`, (2) `fetch(supabaseUrl + '/pg/query')`. Visszaadja a nyers SQL-t `manualSqlIfFailed` mezőben, ha mindkét metódus sikertelen.
+- **`components/superadmin-client.tsx`** — „Migrációk alkalmazása" szekció a superadmin vezérlőpulton: gomb, eredmény-lista (migráció-nként ok/error), manuális SQL fallback-megjelenítés sárga dobozban.
+
 ## 2026-05-22 — v0.8.2 POI adatlap + hero járművek + gradiens fade + tranzit buffer
 
 ### Added
