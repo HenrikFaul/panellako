@@ -2,7 +2,7 @@
  * import-hungary-addresses.mjs
  *
  * Imports Hungarian address data from OpenStreetMap Overpass API into
- * the GeoData Supabase project's public.osm_addresses table.
+ * the Panellako Supabase project's public.osm_addresses table.
  *
  * Usage:
  *   node scripts/import-hungary-addresses.mjs [--phase=1|2|all] [--county=Budapest]
@@ -11,8 +11,8 @@
  * Phase 2: Full address nodes with housenumber+street, county by county — slow (30-90 min)
  *
  * Required env vars (from .env or environment):
- *   SUPABASE_URL                       = https://buuoyyfzincmbxafvihc.supabase.co
- *   GEODATA_SUPABASE_SERVICE_ROLE_KEY  = eyJ...
+ *   NEXT_PUBLIC_SUPABASE_URL  = https://wzromwxpjlyrqbdiapep.supabase.co
+ *   SUPABASE_SERVICE_ROLE_KEY = eyJ...
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -34,12 +34,11 @@ if (existsSync(envPath)) {
   }
 }
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SERVICE_KEY  = process.env.GEODATA_SUPABASE_SERVICE_ROLE_KEY
-                  || process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
-  console.error('❌  Missing SUPABASE_URL or GEODATA_SUPABASE_SERVICE_ROLE_KEY');
+  console.error('❌  Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
   process.exit(1);
 }
 

@@ -1,4 +1,11 @@
 
+## 2026-05-22 — v0.9.3 Panellako Supabase projektbe irányítás — OSM-cím adatok
+
+### Fixed
+- **`app/api/location/autocomplete/route.ts`** — A cím-autocomplete endpoint mostantól `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` env változókat használ (Panellako projekt, `wzromwxpjlyrqbdiapep`). Korábban tévesen a GeoData projektbe (`SUPABASE_URL` / `GEODATA_SUPABASE_SERVICE_ROLE_KEY`) írt/olvasott.
+- **`scripts/import-hungary-addresses.mjs`** — Az import szkript szintén átirányítva a Panellako projektre; a kommentben szereplő URL és env var nevek frissítve.
+- **`supabase/migrations/20260522002_osm_addresses.sql`** — `public.osm_addresses` tábla migrációja a Panellako projektbe: teljes oszlopstruktúra, GIN + B-tree indexek az autocomplete lekérdezési mintákhoz, RLS policy (publikus olvasás, csak service role írhat).
+
 ## 2026-05-22 — v0.9.2 Hőszigat és Klímakockázat Modul (Feature 04)
 
 ### Added
