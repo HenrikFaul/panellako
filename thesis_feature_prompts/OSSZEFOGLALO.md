@@ -36,6 +36,10 @@ Az alábbi táblázat összefoglalja az összes javasolt funkciót, azok priorit
 | 06 | Building Energy & CO₂ Tracker | Épületenergetikai Nyomkövető | `06_epulet_energetika_co2_nyomkoveto.md` | 🔴 MAGAS | Közepes | Energiagazdálkodás indikátor, panelfelújítás |
 | 07 | Traffic Noise Reporter | Közlekedési Zaj Bejelentő | `07_kozlekedes_zaj_bejelento.md` | 🟢 ALACSONY | Alacsony | Zajszennyezés fejezet, Budapest zajtérkép |
 | 08 | Sustainable Transport Info | Fenntartható Közlekedési Infópanel | `08_fenntarthato_kozlekedes_info.md` | 🟡 KÖZEPES | Magas | BKK GTFS, kerékpáros infrastruktúra |
+| 09 | Cycling Network & Air Exposure Analyzer | Kerékpáros Hálózatelemzés + Légminőség-kitettség | `09_kerekparos_halozat_utvonal_elemzo.md` | 🔴 MAGAS | Magas | Kerékpáros fejezet: PM2.5-kitettség, Antwerp 53%-os csökkentés, infrastruktúra-hiányok |
+| 10 | NDVI Vegetation & Green Area Analyzer | NDVI Vegetációs Index + Zöldfelület-elemző | `10_ndvi_vegetacios_elemzo.md` | 🟡 KÖZEPES | Közepes | Területhasználat fejezet: Sentinel-2 NDVI, WHO 9 m²/fő, kerületi egyenlőtlenség |
+| 11 | Budapest 2030 Strategic Indicators Dashboard | Budapest 2030 Stratégiai Indikátorok Dashboard | `11_budapest_2030_strategia_dashboard.md` | 🟡 KÖZEPES | Közepes | Budapest 2030 fejezet: 5 pillér, EU Zöld Főváros mind 11 indikátora, 5 városös radar |
+| 12 | Waste & Water Management EU Indicators | Hulladékgazdálkodás + Vízfogyasztás-nyomkövető | `12_hulladek_viz_gazdalkodas_eu_indikatorok.md` | 🟡 KÖZEPES | Közepes | EU Green Capital 5. (hulladék) + 8-9. (víz) indikátor — korábban nem fedett kritériumok |
 
 ---
 
@@ -252,14 +256,21 @@ community_transport_stats
 
 ```
 Feature 01 (Levegőminőség)
-    ↓ AQI adat
+    ↓ AQI adat                    ↓ PM-kitettség proxy
 Feature 02 (Zöld Pontszám) ←── Feature 03 (Térkép) → Feature 08 (Közlekedés)
-    ↑                                                        ↑
-Feature 04 (Hőszigat) ──────────────────────────────────────┘
-    
-Feature 05 (Zöld Akciók) ←── Feature 07 (Zajriporter)
+    ↑                                    ↑                    ↑
+Feature 04 (Hőszigat) ─────────────────── ────────────────────┘
+    ↑ UHI adatok
+Feature 10 (NDVI) ──────────────────────────────────────────────
+
+Feature 09 (Kerékpáros) ←── Feature 01 (AQI) + Feature 08 (Közlekedés)
+    ↓ útvonal kitettség
+Feature 11 (Budapest 2030) ←── 01+02+04+08+09+10+12 (aggregált city-szintű adatok)
+
+Feature 05 (Zöld Akciók) ←── Feature 07 (Zajriporter) + Feature 12 (Hulladék)
 
 Feature 06 (Energetika) ←── Meglévő mérőóra modul
+Feature 12 (Hulladék+Víz) ←── Meglévő mérőóra modul (víz extension)
 ```
 
 ---
@@ -272,6 +283,9 @@ A geoinformatikai szakdolgozatból inspirált funkciók egyedi piaci pozicionál
 - **„Zöld Épület Pontszám — minősítse lakóhelyét az EU zöld város szempontjai alapján"**
 - **„Fenntartható közlekedési asszisztens a lakóközösségek számára"**
 - **„Állampolgári adatgyűjtés: Önök mérnek, a városvezetés fejleszt"**
+- **„Kerékpáros útvonal légminőség-kitettség elemzővel — védje az egészségét a városban"**
+- **„Budapest 2030 stratégiai indikátorok: látja, hogyan fejlődik a városa"**
+- **„Hulladék és víz nyomkövető — az összes EU Zöld Főváros indikátor egy helyen"**
 
 Ezek a pozicionálási üzenetek a 2024-2025-ös EU Zöld Deal diskurzushoz és a Magyar kormányzati fenntarthatósági kommunikációhoz kapcsolhatók.
 
@@ -279,19 +293,43 @@ Ezek a pozicionálási üzenetek a 2024-2025-ös EU Zöld Deal diskurzushoz és 
 
 ## Prompt fájlok listája
 
-| Fájlnév | Feature | Karakterszám (min) |
-|---------|---------|-------------------|
-| `01_levegominoseg_widget.md` | Levegőminőség-figyelő Widget + Riasztás | 22 000 ✅ |
-| `02_zold_pontszam_dashboard.md` | Zöld Épület Pontszám Dashboard | 22 000 |
-| `03_kornyezeti_kozelseegi_terkep.md` | Közelségi Interaktív Térkép | 22 000 |
-| `04_hosziget_klimakockazat_modul.md` | Hőszigat és Klímakockázat Modul | 22 000 |
-| `05_kozossegi_zold_akciok_platform.md` | Közösségi Zöld Akciók Platform | 22 000 |
-| `06_epulet_energetika_co2_nyomkoveto.md` | Épületenergetikai CO₂ Nyomkövető | 22 000 |
-| `07_kozlekedes_zaj_bejelento.md` | Közlekedési Zaj Bejelentő | 22 000 |
-| `08_fenntarthato_kozlekedes_info.md` | Fenntartható Közlekedési Infópanel | 22 000 |
+| Fájlnév | Feature | Karakterszám |
+|---------|---------|--------------|
+| `01_levegominoseg_widget.md` | Levegőminőség-figyelő Widget + Riasztás | ~29 600 ✅ |
+| `02_zold_pontszam_dashboard.md` | Zöld Épület Pontszám Dashboard | ~67 600 ✅ |
+| `03_kornyezeti_kozelseegi_terkep.md` | Közelségi Interaktív Térkép | ~62 500 ✅ |
+| `04_hosziget_klimakockazat_modul.md` | Hőszigat és Klímakockázat Modul | ~60 500 ✅ |
+| `05_kozossegi_zold_akciok_platform.md` | Közösségi Zöld Akciók Platform | ~95 100 ✅ |
+| `06_epulet_energetika_co2_nyomkoveto.md` | Épületenergetikai CO₂ Nyomkövető | ~69 800 ✅ |
+| `07_kozlekedes_zaj_bejelento.md` | Közlekedési Zaj Bejelentő | ~83 700 ✅ |
+| `08_fenntarthato_kozlekedes_info.md` | Fenntartható Közlekedési Infópanel | ~88 700 ✅ |
+| `09_kerekparos_halozat_utvonal_elemzo.md` | Kerékpáros Hálózatelemzés + Légminőség | ~72 900 ✅ |
+| `10_ndvi_vegetacios_elemzo.md` | NDVI Vegetációs Index + Zöldfelület | ~77 100 ✅ |
+| `11_budapest_2030_strategia_dashboard.md` | Budapest 2030 Stratégiai Dashboard | ~86 700 ✅ |
+| `12_hulladek_viz_gazdalkodas_eu_indikatorok.md` | Hulladék + Víz EU Indikátorok | ~80 700 ✅ |
 | **`OSSZEFOGLALO.md`** | **Ez a fájl — összegzés és útmutató** | — |
 
 ---
 
+### EU Zöld Főváros 11 indikátor lefedettsége (2026-05-22 után)
+
+| # | EU Green Capital indikátor | Fedett? | Prompt(ok) |
+|---|--------------------------|---------|------------|
+| 1 | Helyi közlekedés | ✅ | 08, 09 |
+| 2 | Zöld városi területek + természet | ✅ | 03, 10 |
+| 3 | Helyi levegőminőség | ✅ | 01, 09 |
+| 4 | Zajszennyezés | ✅ | 07 |
+| 5 | Hulladékgazdálkodás | ✅ | 12 |
+| 6 | Vízfogyasztás | ✅ | 12 |
+| 7 | Szennyvízkezelés | ✅ | 12 |
+| 8 | Ökoinovációs foglalkoztatás | ✅ | 11 |
+| 9 | CO₂ kibocsátás | ✅ | 06, 09 |
+| 10 | Energiagazdálkodás | ✅ | 06 |
+| 11 | Irányítás és eco-menedzsment | ✅ | 05, 11 |
+
+**Mind a 11 EU Zöld Főváros indikátor le van fedve prompt-szinten.**
+
+---
+
 *Generálva: panellako.hu, a geoinformatikai szakdolgozat (SZTE 2020) alapján*  
-*Dátum: 2025-05-17*
+*Frissítve: 2026-05-22 — 09–12 promptok hozzáadva (cycling, NDVI, Budapest 2030, hulladék+víz)*
