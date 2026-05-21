@@ -430,9 +430,24 @@ export async function GET(request: NextRequest) {
         }
 
         if (!data || error) {
-          const restResult = await supabase.from(addressTable).select(SELECT_COLUMNS).or(buildOrFilters(searchTerms).join(',')).limit(220);
-          data = restResult.data as unknown as OsmAddressRow[] | null;
-          error = restResult.error;
+          // Simple targeted ILIKE on key fields using raw (accented) lowercase tokens.
+          // The old buildOrFilters approach generated up to 180 conditions which
+          // exceeded PostgREST URL limits and caused silent fallback to Nominatim.
+          const parsed = tokenize(rawQuery);
+          const rawImportant = parsed.rawTokens
+            .filter(t => !GENERIC_ADDRESS_WORDS.has(normalizeToken(t)) && !/^\d+[a-z]?$/i.test(t) && t.length >= 2)
+            .slice(0, 3);
+
+          if (rawImportant.length > 0) {
+            const simpleFilters = rawImportant.flatMap(term => [
+              `street_name.ilike.%${escapeIlike(term)}%`,
+              `display_name.ilike.%${escapeIlike(term)}%`,
+              `city.ilike.%${escapeIlike(term)}%`,
+            ]);
+            const restResult = await supabase.from(addressTable).select(SELECT_COLUMNS).or(simpleFilters.join(',')).limit(220);
+            data = restResult.data as unknown as OsmAddressRow[] | null;
+            error = restResult.error;
+          }
         }
 
         // Schema-cache / missing-table / RLS errors → silently fall through to Nominatim
