@@ -72,7 +72,7 @@ import { createCharge as createChargeAction, recordPayment as recordPaymentActio
 import { createMeeting as createMeetingAction, closeMeeting as closeMeetingAction, sendAssemblyInvitation as sendInvitationAction, getMeetingWithDetails } from '@/app/actions/meetings';
 import MeetingDetailPanel from '@/components/meeting-detail-panel';
 import AnnouncementComposer from '@/components/announcement-composer';
-import DashboardHeroScene from '@/components/dashboard-hero-scene';
+import DashboardHeroScene, { detectTimeOfDay as heroDetectTod, skyGradient as heroSkyGradient, type TimeOfDay as HeroTimeOfDay } from '@/components/dashboard-hero-scene';
 import HeroVehicle from '@/components/HeroVehicle';
 
 // v0.7.14 — Magyarország-szintű címkereső eredmény-shape
@@ -852,6 +852,12 @@ function AiTriagePendingSkeleton() {
   );
 }
 
+function hexToRgba(hex: string, alpha: number): string {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!m) return `rgba(0,0,0,${alpha})`;
+  return `rgba(${parseInt(m[1], 16)},${parseInt(m[2], 16)},${parseInt(m[3], 16)},${alpha})`;
+}
+
 export default function DashboardClient({ data }: { data: DashboardData }) {
   const [ticketSaved, setTicketSaved] = useState(false);
   const [meterSaved, setMeterSaved] = useState(false);
@@ -1012,6 +1018,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       .filter((i) => i.label.toLowerCase().includes(q) || i.type.toLowerCase().includes(q) || i.meta.toLowerCase().includes(q))
       .slice(0, 8);
   }, [searchQuery, searchItems]);
+
+  // Hero ambient colour — tracks time-of-day so the seasonal sky glow updates live
+  const [heroTod, setHeroTod] = useState<HeroTimeOfDay>(() => heroDetectTod());
+  useEffect(() => {
+    const id = setInterval(() => setHeroTod(heroDetectTod()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const heroAmbient = heroSkyGradient(heroTod).mid;
 
   // Close search dropdown on outside click
   useEffect(() => {
@@ -1419,6 +1433,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             {/* Gold accent top line */}
             <div className="absolute inset-x-0 top-0 h-[2px]" style={{ background: 'linear-gradient(90deg, transparent 0%, #c87920 30%, #f5c842 55%, #c87920 80%, transparent 100%)' }} />
 
+            {/* Seasonal sky bloom — panel's time-of-day colour spreads outward from scene into the surrounding dark header */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: `radial-gradient(ellipse 68% 220% at 50% 50%, ${hexToRgba(heroAmbient, 0.19)} 0%, ${hexToRgba(heroAmbient, 0.07)} 38%, transparent 66%)`,
+              }}
+            />
+
             {/* Content — skyline sits inline between title and actions */}
             <div className="relative z-10 flex items-center gap-3 px-5 py-4">
               {/* Left: building info */}
@@ -1457,10 +1479,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 <DashboardHeroScene hideTram />
                 {/* Multi-vehicle overlay: tram / trolley / bus / cyclists / A380 */}
                 <HeroVehicle />
-                {/* Extended gradient fades — slow blends into the dark header chrome on all 4 edges.
-                    Side fades span 40% each so even very wide monitors see no hard cutoff. */}
-                <div className="absolute inset-y-0 left-0 w-2/5" style={{ background: 'linear-gradient(to right, #05091a 0%, #05091a 5%, transparent 100%)' }} />
-                <div className="absolute inset-y-0 right-0 w-2/5" style={{ background: 'linear-gradient(to left, #05091a 0%, #05091a 5%, transparent 100%)' }} />
+                {/* Edge fades — softer side blends so the sky colour reaches the scene boundary
+                    and the ambient bloom on the header carries it further outward. */}
+                <div className="absolute inset-y-0 left-0 w-1/4" style={{ background: 'linear-gradient(to right, #05091a 0%, transparent 100%)' }} />
+                <div className="absolute inset-y-0 right-0 w-1/4" style={{ background: 'linear-gradient(to left, #05091a 0%, transparent 100%)' }} />
                 <div className="absolute inset-x-0 top-0 h-6" style={{ background: 'linear-gradient(to bottom, #05091a 0%, transparent 100%)' }} />
                 <div className="absolute inset-x-0 bottom-0 h-6" style={{ background: 'linear-gradient(to top, #05091a 0%, transparent 100%)' }} />
               </div>
