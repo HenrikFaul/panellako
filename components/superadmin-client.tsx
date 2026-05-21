@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import SuperadminGtfsImport from '@/components/superadmin-gtfs-import';
 import SuperadminDiagnostics from '@/components/superadmin-diagnostics';
+import SuperadminOsmImport from '@/components/superadmin-osm-import';
 import { MAP_THEMES, MAP_THEME_IDS, DEFAULT_THEME_ID, type MapThemeId } from '@/lib/map-theme';
 import { invalidateMapThemeCache } from '@/hooks/use-map-theme';
 
@@ -746,6 +747,9 @@ export default function SuperadminClient() {
             </div>
           )}
         </section>
+
+        {/* ── OSM Cím-adatbázis import ─────────────────────────────────── */}
+        <SuperadminOsmImport />
 
         {/* ── GTFS Import ─────────────────────────────────────────────── */}
         <SuperadminGtfsImport />
