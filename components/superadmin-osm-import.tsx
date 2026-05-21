@@ -44,6 +44,8 @@ export default function SuperadminOsmImport() {
   const [countyResults, setCountyResults] = useState<Record<string, ImportResult>>({});
   const [indexFixRunning, setIndexFixRunning] = useState(false);
   const [indexFixResult, setIndexFixResult] = useState<{ ok: boolean; method?: string; error?: string } | null>(null);
+  const [allRunning, setAllRunning] = useState(false);
+  const [allResult, setAllResult] = useState<{ ok: boolean; totalImported?: number; failedCount?: number; error?: string } | null>(null);
 
   const loadRowCount = useCallback(() => {
     setRowCount(rc => ({ ...rc, loading: true }));
@@ -88,6 +90,25 @@ export default function SuperadminOsmImport() {
       setPhase1Result({ ok: false, error: String(e) });
     } finally {
       setPhase1Running(false);
+      setTimeout(loadRowCount, 500);
+    }
+  }
+
+  async function runAllCounties() {
+    setAllRunning(true);
+    setAllResult(null);
+    try {
+      const res = await fetch('/api/superadmin/jobs/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job: 'osm_addresses_import_all' }),
+      });
+      const body = await res.json() as { ok: boolean; result?: { totalImported?: number; failedCount?: number }; error?: string };
+      setAllResult({ ok: body.ok, totalImported: body.result?.totalImported, failedCount: body.result?.failedCount, error: body.error });
+    } catch (e) {
+      setAllResult({ ok: false, error: String(e) });
+    } finally {
+      setAllRunning(false);
       setTimeout(loadRowCount, 500);
     }
   }
@@ -179,11 +200,29 @@ export default function SuperadminOsmImport() {
 
       {/* Phase 2 */}
       <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
-        <p className="mb-1 font-bold text-slate-900">2. fázis — Teljes cím-adatbázis (megyénként)</p>
-        <p className="text-xs text-slate-600 mb-3">
-          <code className="text-[10px]">addr:housenumber</code> + <code className="text-[10px]">addr:street</code> csomópontok, ~10–50 000 cím/megye.
-          Minden megye 2–4 percet vesz igénybe. Futtasd megyénként — az upsert biztonságos, újra futtatható.
-        </p>
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="font-bold text-slate-900">2. fázis — Teljes cím-adatbázis</p>
+            <p className="text-xs text-slate-600">
+              <code className="text-[10px]">addr:housenumber</code> + <code className="text-[10px]">addr:street</code> — limit nélkül, minden cím.
+              Megye: 2–4 perc. Egész ország: 40–80 perc (szerver futtatja végig).
+            </p>
+            {allResult && (
+              <p className={`mt-1 text-xs font-bold ${allResult.ok ? 'text-emerald-700' : 'text-red-700'}`}>
+                {allResult.ok
+                  ? `✓ Kész — ${allResult.totalImported?.toLocaleString('en-US') ?? '?'} sor importálva`
+                  : `✗ Hiba: ${allResult.error ?? `${allResult.failedCount} megye sikertelen`}`}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={runAllCounties}
+            disabled={allRunning || countyRunning !== null || phase1Running || indexFixRunning}
+            className="shrink-0 rounded-lg bg-emerald-600 px-5 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {allRunning ? 'Fut… (kérlek várj)' : '▶ Egész ország'}
+          </button>
+        </div>
         <div className="grid gap-2 sm:grid-cols-2">
           {COUNTIES.map(c => {
             const r = countyResults[c.name];
