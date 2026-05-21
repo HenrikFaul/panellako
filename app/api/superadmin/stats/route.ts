@@ -36,6 +36,8 @@ const TABLE_SPECS: Array<{ name: string; tsCol: string | null; label: string; gr
   { name: 'building_satellite_cache',tsCol: 'computed_at', label: 'Satellit NDVI cache',     group: 'environment' },
   { name: 'building_compact_city_cache',tsCol:'computed_at',label:'Kompakt város cache',     group: 'environment' },
   { name: 'building_liveability_cache', tsCol:'computed_at',label:'Élhetőség cache',         group: 'environment' },
+  // ── OSM cím-adatbázis ───────────────────────────────────────────────────────
+  { name: 'osm_addresses', tsCol: 'created_at', label: 'OSM cím-adatok (autocomplete)', group: 'other' },
   // bkk_stops, transit_stop_cache, transit_alert_cache are legacy tables
   // (0 records / deprecated) — not shown to reduce noise
 ];
