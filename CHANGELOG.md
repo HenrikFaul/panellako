@@ -11,6 +11,17 @@
 - **`components/heat-island-dashboard-client.tsx`** — Kliens dashboard wrapper: fetch, skeleton, error state.
 - **`app/w/[buildingId]/klimakockazat/page.tsx`** — Szerver page, auth + tagság, Supabase lat/lon + Nominatim fallback.
 
+## 2026-05-22 — v0.9.1 Budapest 2030 Stratégiai Indikátorok Dashboard (Feature 11)
+
+### Added
+- **`lib/budapest-2030-data.ts`** — Teljes statikus adatfájl: mind a 11 EU Zöld Főváros indikátor (`BudapestIndicator` típussal: azonosító, leírás, jelenlegi érték, EU határérték, 2030-as cél, 2015–2023-as trend, kerületi bontás, lakói tippek, adatforrás, EU városok összehasonlítása), Budapest 2030 ITS 5 pillérkártya (élhető/zöld/dinamikus/gondoskodó/okos), normalizáló segédfüggvény a radar-diagramhoz. Összes adat: KSH, EEA, BKK éves jelentések, OLM.
+- **`app/w/[buildingId]/budapest-2030/page.tsx`** — Szerver komponens: membership auth check + statikus metadata (`Budapest 2030 — PanelLakó`). Rendeli a `Budapest2030DashboardClient`-et.
+- **`components/budapest-2030-dashboard-client.tsx`** — Fő kliens komponens: 4 fül (11 Indikátor / Budapest 2030 Célok / Személyes Hatás / Városok), összefoglaló stat kártyák (jó/közepes/kritikus/javuló), tab navigáció `useState`-tel.
+- **`components/budapest-2030-indicator-card.tsx`** — Kártyakomponens az összes 11 indikátorhoz: státuszbadge (JÓ=zöld/KÖZEPES=amber/KRITIKUS=piros), jelenlegi érték + egység, EU határérték + 2030-as cél, trendnyíl, SVG mini-sparkline (2015–2023), összecsukható „Mit tehetsz te?" tippek, adatforrás attribúció.
+- **`components/budapest-2030-pillar-card.tsx`** — Budapest 2030 pillér kártyakomponens 3 alcéllal és progress-barral (pillér-akkordszínű / amber / piros, a %-tól függően).
+- **`components/personal-impact-calculator.tsx`** — Interaktív CO₂/víz/hulladék hatáskalkulátor: személyautó km, tömegközlekedés km, kerékpározás km, vízfogyasztás, szelektív hulladékgyűjtés csúszkákkal; kiszámolja az éves CO₂-megtakarítást, vízfogyasztás-különbséget, újrahasznosított hulladék kg-ot; „Ha mind a 1,7M budapesti lakó így élne…" városszintű projekció.
+- **`components/city-comparison-radar-chart.tsx`** — Tiszta SVG radar-diagram (Recharts-nélkül) 5 városra (Budapest/Bécs/Prága/Varsó/Pozsony) 11 tengelyen, városonkénti toggle gombok, 0–100-ra normalizált értékek, kísérő pontszámtáblázat.
+
 ## 2026-05-22 — v0.9.0 Zajbejelentő + Hulladékgazdálkodás modul (Feature 07 + 12)
 
 ### Added — Feature 07: Zajbejelentő (Traffic Noise Reporter)
