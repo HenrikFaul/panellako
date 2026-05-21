@@ -116,7 +116,11 @@ create policy "osm_addresses_public_read"
   },
   {
     name: 'osm_addresses_unique_index',
-    sql: `create unique index if not exists osm_addresses_external_id_unique on public.osm_addresses (external_id) where external_id is not null;`,
+    sql: `
+DROP INDEX IF EXISTS public.osm_addresses_external_id_unique;
+DROP INDEX IF EXISTS public.osm_addresses_external_id_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS osm_addresses_external_id_unique ON public.osm_addresses (external_id);
+    `.trim(),
   },
 ];
 

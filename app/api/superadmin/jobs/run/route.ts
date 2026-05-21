@@ -140,6 +140,49 @@ async function runAirQuality() {
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
+// ─── OSM: fix unique index (called before any import) ────────────────────────
+
+async function ensureOsmUniqueIndex(): Promise<{ ok: boolean; method: string; error?: string }> {
+  const supabase = createServiceClient();
+  if (!supabase) return { ok: false, method: 'none', error: 'No Supabase client' };
+
+  const sql = `
+    DROP INDEX IF EXISTS public.osm_addresses_external_id_unique;
+    DROP INDEX IF EXISTS public.osm_addresses_external_id_idx;
+    CREATE UNIQUE INDEX IF NOT EXISTS osm_addresses_external_id_unique ON public.osm_addresses (external_id);
+  `.trim();
+
+  // Try exec_sql RPC
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: rpcErr } = await (supabase as any).rpc('exec_sql', { sql });
+  if (!rpcErr) return { ok: true, method: 'rpc_exec_sql' };
+
+  // Try pg/query REST endpoint
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').trim();
+  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim();
+  if (url && key) {
+    const stmts = [
+      'DROP INDEX IF EXISTS public.osm_addresses_external_id_unique',
+      'DROP INDEX IF EXISTS public.osm_addresses_external_id_idx',
+      'CREATE UNIQUE INDEX IF NOT EXISTS osm_addresses_external_id_unique ON public.osm_addresses (external_id)',
+    ];
+    for (const query of stmts) {
+      const res = await fetch(`${url}/pg/query`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${key}`, 'apikey': key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      }).catch(() => null);
+      if (!res?.ok) {
+        const body = await res?.text().catch(() => '');
+        return { ok: false, method: 'pg_query', error: `${query.slice(0, 40)}: ${res?.status} ${body?.slice(0, 100)}` };
+      }
+    }
+    return { ok: true, method: 'pg_query' };
+  }
+
+  return { ok: false, method: 'none', error: rpcErr?.message ?? 'exec_sql failed and pg/query not available' };
+}
+
 // ─── OSM Overpass helpers (used by Phase 1 + Phase 2 import) ─────────────────
 
 const OVERPASS_MIRRORS_OSM = [
@@ -1487,12 +1530,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // ─── OSM: unique index javítás (önálló job + automatikusan hívja a Phase 1/2) ─
+  if (job === 'osm_fix_index') {
+    const logId = await logStart(job);
+    const result = await ensureOsmUniqueIndex();
+    await logEnd(logId, result.ok ? 'ok' : 'error', result);
+    return NextResponse.json({ ok: result.ok, job, result, ranAt: new Date().toISOString() }, { status: result.ok ? 200 : 500 });
+  }
+
   // ─── OSM Phase 1: Magyarország telephelyek (city/town/village/hamlet) ────────
   if (job === 'osm_addresses_import_phase1') {
     const logId = await logStart(job);
     try {
       const supabase = createServiceClient();
       if (!supabase) throw new Error('No Supabase client');
+
+      await ensureOsmUniqueIndex();
 
       const HU_BBOX = '45.7,16.0,48.6,23.0';
       const query = `[out:json][timeout:60];
@@ -1585,6 +1638,8 @@ out center 20000;`;
     try {
       const supabase = createServiceClient();
       if (!supabase) throw new Error('No Supabase client');
+
+      await ensureOsmUniqueIndex();
 
       const [minLat, minLon, maxLat, maxLon] = bbox;
       const bboxStr = `${minLat},${minLon},${maxLat},${maxLon}`;
