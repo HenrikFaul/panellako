@@ -57,7 +57,7 @@ const MAP_CSS = `
 `;
 
 // ─── SVG icon factories ────────────────────────────────────────────────────────
-function vehicleSvg(color: string, bearing?: number, _vehicleType?: string, routeRef?: string): string {
+function vehicleSvg(color: string, bearing?: number, vehicleType?: string, routeRef?: string): string {
   const rot    = bearing ?? 0;
   const label  = (routeRef ?? '').substring(0, 5);
   const len    = label.length;
@@ -65,21 +65,39 @@ function vehicleSvg(color: string, bearing?: number, _vehicleType?: string, rout
   const fY     = (20 + fSize * 0.38).toFixed(1);
   const tColor = color === '#fbbf24' ? '#1a0a00' : '#ffffff';
 
-  const glow  = `<circle cx="20" cy="20" r="18" fill="${color}" fill-opacity="0.2"/>`;
-  const arrow = bearing != null
+  // Mode-specific shape accent on the disc border
+  const strokeW = vehicleType === 'SUBWAY' ? '2.5' : vehicleType === 'TRAM' ? '2' : '1.2';
+  const glow    = `<circle cx="20" cy="20" r="18" fill="${color}" fill-opacity="0.18"/>`;
+  const arrow   = bearing != null
     ? `<polygon points="20,1 24.5,11.5 20,9.5 15.5,11.5" fill="${color}" fill-opacity="0.9" transform="rotate(${rot} 20 20)"/>`
     : '';
-  const disc  = `<circle cx="20" cy="20" r="13" fill="${color}" stroke="rgba(255,255,255,0.28)" stroke-width="1.2"/>`;
-  const text  = label
+  const disc    = `<circle cx="20" cy="20" r="13" fill="${color}" stroke="rgba(255,255,255,0.35)" stroke-width="${strokeW}"/>`;
+  const text    = label
     ? `<text x="20" y="${fY}" text-anchor="middle" fill="${tColor}" font-size="${fSize}" font-weight="900" font-family="Arial,Helvetica,sans-serif">${label}</text>`
     : '';
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">${glow}${arrow}${disc}${text}</svg>`;
 }
 
-// ─── Stop marker helper ───────────────────────────────────────────────────────
-function stopCircleOpts(color: string) {
-  return { radius: 5, fillColor: color, fillOpacity: 0.88, color: 'white', weight: 1.5 };
+// ─── Stop icon (type-specific) ────────────────────────────────────────────────
+function stopIconSvg(color: string, vehicleType: string): string {
+  const tc = color === '#fbbf24' ? '#1a0a00' : '#ffffff';
+  const glyphs: Record<string, string> = {
+    SUBWAY:    'M', TRAM: 'V', TROLLEYBUS: 'T',
+    BUS: 'B',  RAIL: 'H', FERRY: 'F', CABLE_CAR: 'D',
+  };
+  const g = glyphs[vehicleType] ?? 'B';
+
+  if (vehicleType === 'SUBWAY') {
+    // Circle for metro
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="10" fill="${color}" stroke="white" stroke-width="1.8"/><text x="11" y="15.5" text-anchor="middle" fill="${tc}" font-size="11" font-weight="900" font-family="Arial,sans-serif">${g}</text></svg>`;
+  }
+  if (vehicleType === 'RAIL') {
+    // Wider rectangle for rail
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 18"><rect x="1" y="1" width="22" height="16" rx="3" fill="${color}" stroke="white" stroke-width="1.6"/><text x="12" y="13" text-anchor="middle" fill="${tc}" font-size="10" font-weight="900" font-family="Arial,sans-serif">${g}</text></svg>`;
+  }
+  // Rounded square for bus / tram / trolley
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><rect x="1" y="1" width="18" height="18" rx="4" fill="${color}" stroke="white" stroke-width="1.6"/><text x="10" y="14" text-anchor="middle" fill="${tc}" font-size="11" font-weight="900" font-family="Arial,sans-serif">${g}</text></svg>`;
 }
 
 function buildingSvg() {
@@ -383,9 +401,20 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         for (const stop of newStops) {
           if (stop.lat == null || stop.lon == null || isNaN(stop.lat) || isNaN(stop.lon)) continue;
           const color     = STOP_COLOR[stop.routeType] ?? '#64748b';
-          const routes    = stop.routeRefs.slice(0, 4).join(' · ');
+          const routes    = stop.routeRefs.slice(0, 5).join(' · ');
           const typeLabel = TYPE_LABEL_HU[stop.routeType] ?? stop.routeType;
-          const marker = L.circleMarker([stop.lat, stop.lon], stopCircleOpts(color))
+          const iconW     = stop.routeType === 'RAIL' ? 24 : stop.routeType === 'SUBWAY' ? 22 : 20;
+          const iconH     = stop.routeType === 'RAIL' ? 18 : 20;
+          const marker = L.marker([stop.lat, stop.lon], {
+            icon: L.divIcon({
+              html:       stopIconSvg(color, stop.routeType),
+              className:  'bkk-stop-pin',
+              iconSize:   [iconW, iconH],
+              iconAnchor: [iconW / 2, iconH / 2],
+              popupAnchor:[0, -iconH / 2 - 2],
+            }),
+            zIndexOffset: 50,
+          })
             .bindTooltip(
               `<div style="font-size:11px"><b>${stop.name}</b> <span style="color:#64748b;font-size:9px">${stopCode(stop.id)}</span><br/><span style="color:#94a3b8;font-size:9px">${typeLabel} · ${routes} · ${stop.distanceM} m</span></div>`,
               { sticky: true, direction: 'top' }
@@ -498,9 +527,20 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         for (const stop of stops) {
           if (stop.lat == null || stop.lon == null || isNaN(stop.lat) || isNaN(stop.lon)) continue;
           const color     = STOP_COLOR[stop.routeType] ?? '#64748b';
-          const routes    = stop.routeRefs.slice(0, 4).join(' · ');
+          const routes    = stop.routeRefs.slice(0, 5).join(' · ');
           const typeLabel = TYPE_LABEL_HU[stop.routeType] ?? stop.routeType;
-          const marker = L.circleMarker([stop.lat, stop.lon], stopCircleOpts(color))
+          const iconW     = stop.routeType === 'RAIL' ? 24 : stop.routeType === 'SUBWAY' ? 22 : 20;
+          const iconH     = stop.routeType === 'RAIL' ? 18 : 20;
+          const marker = L.marker([stop.lat, stop.lon], {
+            icon: L.divIcon({
+              html:       stopIconSvg(color, stop.routeType),
+              className:  'bkk-stop-pin',
+              iconSize:   [iconW, iconH],
+              iconAnchor: [iconW / 2, iconH / 2],
+              popupAnchor:[0, -iconH / 2 - 2],
+            }),
+            zIndexOffset: 50,
+          })
             .bindTooltip(
               `<div style="font-size:11px"><b>${stop.name}</b> <span style="color:#64748b;font-size:9px">${stopCode(stop.id)}</span><br/><span style="color:#94a3b8;font-size:9px">${typeLabel} · ${routes} · ${stop.distanceM} m</span></div>`,
               { sticky: true, direction: 'top' }
@@ -724,16 +764,24 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         {/* Status bar */}
         <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-3">
-            {[
-              { color: VEHICLE_COLOR.BUS,        label: 'Busz' },
-              { color: VEHICLE_COLOR.TRAM,        label: 'Villamos' },
-              { color: VEHICLE_COLOR.TROLLEYBUS,  label: 'Trolibusz' },
-              { color: VEHICLE_COLOR.SUBWAY,      label: 'Metró' },
-              { color: VEHICLE_COLOR.RAIL,        label: 'HÉV/Vasút' },
-              { color: '#6366f1',                 label: 'Épület' },
-            ].map(({ color, label }) => (
+            {([
+              { color: VEHICLE_COLOR.BUS,       type: 'BUS',        label: 'Busz' },
+              { color: VEHICLE_COLOR.TRAM,      type: 'TRAM',       label: 'Villamos' },
+              { color: VEHICLE_COLOR.TROLLEYBUS,type: 'TROLLEYBUS', label: 'Trolibusz' },
+              { color: VEHICLE_COLOR.SUBWAY,    type: 'SUBWAY',     label: 'Metró' },
+              { color: VEHICLE_COLOR.RAIL,      type: 'RAIL',       label: 'HÉV/Vasút' },
+              { color: '#6366f1',               type: 'BLD',        label: 'Épület' },
+            ] as { color: string; type: string; label: string }[]).map(({ color, type, label }) => (
               <div key={label} className="flex items-center gap-1">
-                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
+                {type === 'BLD'
+                  ? <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} />
+                  : <span
+                      className="flex shrink-0 items-center justify-center rounded text-[7px] font-black leading-none"
+                      style={{ background: color, color: color === '#fbbf24' ? '#1a0a00' : '#fff', width: 13, height: 13, borderRadius: type === 'SUBWAY' ? '50%' : 3 }}
+                    >
+                      {{ BUS:'B', TRAM:'V', TROLLEYBUS:'T', SUBWAY:'M', RAIL:'H' }[type] ?? 'B'}
+                    </span>
+                }
                 <span className="text-[9px] text-slate-500">{label}</span>
               </div>
             ))}
