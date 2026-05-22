@@ -57,77 +57,29 @@ const MAP_CSS = `
 `;
 
 // ─── SVG icon factories ────────────────────────────────────────────────────────
-function vehicleSvg(color: string, bearing?: number, vehicleType?: string): string {
-  const type = vehicleType ?? 'BUS';
-  const rot  = bearing ?? 0;
+function vehicleSvg(color: string, bearing?: number, _vehicleType?: string, routeRef?: string): string {
+  const rot    = bearing ?? 0;
+  const label  = (routeRef ?? '').substring(0, 5);
+  const len    = label.length;
+  const fSize  = len <= 2 ? 13 : len === 3 ? 10.5 : len === 4 ? 9 : 7.5;
+  const fY     = (20 + fSize * 0.38).toFixed(1);
+  const tColor = color === '#fbbf24' ? '#1a0a00' : '#ffffff';
 
-  const glow = `<circle cx="17" cy="17" r="14" fill="${color}" fill-opacity="0.18" stroke="${color}" stroke-width="0.5" stroke-opacity="0.4"/>`;
-  const dir  = bearing != null
-    ? `<polygon points="17,2 21,10 17,8.5 13,10" fill="${color}" fill-opacity="0.92" transform="rotate(${rot} 17 17)"/>`
+  const glow  = `<circle cx="20" cy="20" r="18" fill="${color}" fill-opacity="0.2"/>`;
+  const arrow = bearing != null
+    ? `<polygon points="20,1 24.5,11.5 20,9.5 15.5,11.5" fill="${color}" fill-opacity="0.9" transform="rotate(${rot} 20 20)"/>`
+    : '';
+  const disc  = `<circle cx="20" cy="20" r="13" fill="${color}" stroke="rgba(255,255,255,0.28)" stroke-width="1.2"/>`;
+  const text  = label
+    ? `<text x="20" y="${fY}" text-anchor="middle" fill="${tColor}" font-size="${fSize}" font-weight="900" font-family="Arial,Helvetica,sans-serif">${label}</text>`
     : '';
 
-  let body = '';
-  switch (type) {
-    case 'TRAM':
-      body = `
-        <rect x="3" y="12" width="28" height="10" rx="3" fill="${color}" opacity="0.93"/>
-        <rect x="5"  y="13.5" width="5" height="3" rx="1" fill="rgba(0,0,0,0.35)"/>
-        <rect x="12" y="13.5" width="5" height="3" rx="1" fill="rgba(0,0,0,0.35)"/>
-        <rect x="19" y="13.5" width="5" height="3" rx="1" fill="rgba(0,0,0,0.35)"/>
-      `;
-      break;
-    case 'SUBWAY':
-      body = `
-        <circle cx="17" cy="17" r="11" fill="${color}" opacity="0.93"/>
-        <text x="17" y="21.5" text-anchor="middle" fill="white" font-size="13" font-weight="900" font-family="Arial,sans-serif">M</text>
-      `;
-      break;
-    case 'RAIL':
-      body = `
-        <rect x="10" y="7" width="14" height="20" rx="4" fill="${color}" opacity="0.93"/>
-        <line x1="10" y1="14" x2="24" y2="14" stroke="rgba(255,255,255,0.4)" stroke-width="1.2"/>
-        <text x="17" y="24" text-anchor="middle" fill="white" font-size="7.5" font-weight="900" font-family="Arial,sans-serif">H</text>
-      `;
-      break;
-    case 'TROLLEYBUS':
-      body = `
-        <line x1="12" y1="5" x2="12" y2="10" stroke="${color}" stroke-width="2" stroke-opacity="0.8"/>
-        <line x1="22" y1="5" x2="22" y2="10" stroke="${color}" stroke-width="2" stroke-opacity="0.8"/>
-        <rect x="5" y="10" width="24" height="11" rx="3.5" fill="${color}" opacity="0.93"/>
-        <rect x="7"  y="12" width="6" height="3.5" rx="1.5" fill="rgba(255,255,255,0.28)"/>
-        <rect x="15" y="12" width="6" height="3.5" rx="1.5" fill="rgba(255,255,255,0.28)"/>
-      `;
-      break;
-    case 'FERRY':
-      body = `
-        <path d="M5,18 Q17,10 29,18 L27,23 Q17,27 7,23 Z" fill="${color}" opacity="0.93"/>
-        <text x="17" y="22" text-anchor="middle" fill="white" font-size="8" font-weight="900" font-family="Arial,sans-serif">H</text>
-      `;
-      break;
-    default: // BUS
-      body = `
-        <rect x="5" y="10" width="24" height="12" rx="4" fill="${color}" opacity="0.93"/>
-        <rect x="7"  y="12" width="7" height="4" rx="1.5" fill="rgba(255,255,255,0.28)"/>
-        <rect x="16" y="12" width="7" height="4" rx="1.5" fill="rgba(255,255,255,0.28)"/>
-      `;
-  }
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34">
-    ${glow}${dir}${body}
-  </svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">${glow}${arrow}${disc}${text}</svg>`;
 }
 
-// ─── Stop marker SVG factory ──────────────────────────────────────────────────
-const STOP_GLYPH: Record<string, string> = {
-  SUBWAY: 'M', TRAM: 'V', RAIL: 'H', TROLLEYBUS: 'T', FERRY: 'H',
-};
-function stopDivIconHtml(color: string, routeType: string): string {
-  const letter    = STOP_GLYPH[routeType] ?? '';
-  const textColor = color === '#fbbf24' || color === '#f59e0b' ? '#78350f' : 'white';
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18">
-    <circle cx="9" cy="9" r="7" fill="${color}" fill-opacity="0.9" stroke="white" stroke-width="1.5"/>
-    ${letter ? `<text x="9" y="12.5" text-anchor="middle" fill="${textColor}" font-size="8.5" font-weight="900" font-family="Arial,sans-serif">${letter}</text>` : ''}
-  </svg>`;
+// ─── Stop marker helper ───────────────────────────────────────────────────────
+function stopCircleOpts(color: string) {
+  return { radius: 5, fillColor: color, fillOpacity: 0.88, color: 'white', weight: 1.5 };
 }
 
 function buildingSvg() {
@@ -424,12 +376,10 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         stopMarkersRef.current = new Map();
 
         for (const stop of newStops) {
-          const color  = STOP_COLOR[stop.routeType] ?? '#64748b';
-          const routes = stop.routeRefs.slice(0, 4).join(' · ');
+          const color     = STOP_COLOR[stop.routeType] ?? '#64748b';
+          const routes    = stop.routeRefs.slice(0, 4).join(' · ');
           const typeLabel = TYPE_LABEL_HU[stop.routeType] ?? stop.routeType;
-          const marker = L.marker([stop.lat, stop.lon], {
-            icon: L.divIcon({ html: stopDivIconHtml(color, stop.routeType), className: 'bkk-stop-pin', iconSize: [18,18], iconAnchor: [9,9] }),
-          })
+          const marker = L.circleMarker([stop.lat, stop.lon], stopCircleOpts(color))
             .bindTooltip(
               `<div style="font-size:11px"><b>${stop.name}</b> <span style="color:#64748b;font-size:9px">${stopCode(stop.id)}</span><br/><span style="color:#94a3b8;font-size:9px">${typeLabel} · ${routes} · ${stop.distanceM} m</span></div>`,
               { sticky: true, direction: 'top' }
@@ -466,9 +416,9 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
 
         for (const v of data.vehicles) {
           const color = VEHICLE_COLOR[v.vehicle] ?? '#94a3b8';
-          const badgeTextColor = color === '#fbbf24' || color === '#f59e0b' ? '#78350f' : '#fff';
+          const badgeTextColor = color === '#fbbf24' ? '#1a0a00' : '#fff';
           L.marker([v.lat, v.lon], {
-            icon: L.divIcon({ html: vehicleSvg(color, v.bearing, v.vehicle), className: '', iconSize: [34,34], iconAnchor: [17,17], popupAnchor: [0,-17] }),
+            icon: L.divIcon({ html: vehicleSvg(color, v.bearing, v.vehicle, v.routeRef), className: '', iconSize: [40,40], iconAnchor: [20,20], popupAnchor: [0,-20] }),
             zIndexOffset: 100,
           })
             .bindTooltip(
@@ -540,12 +490,10 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
 
         const stopMarkers = new Map<string, unknown>();
         for (const stop of stops) {
-          const color  = STOP_COLOR[stop.routeType] ?? '#64748b';
-          const routes = stop.routeRefs.slice(0, 4).join(' · ');
+          const color     = STOP_COLOR[stop.routeType] ?? '#64748b';
+          const routes    = stop.routeRefs.slice(0, 4).join(' · ');
           const typeLabel = TYPE_LABEL_HU[stop.routeType] ?? stop.routeType;
-          const marker = L.marker([stop.lat, stop.lon], {
-            icon: L.divIcon({ html: stopDivIconHtml(color, stop.routeType), className: 'bkk-stop-pin', iconSize: [18,18], iconAnchor: [9,9] }),
-          })
+          const marker = L.circleMarker([stop.lat, stop.lon], stopCircleOpts(color))
             .bindTooltip(
               `<div style="font-size:11px"><b>${stop.name}</b> <span style="color:#64748b;font-size:9px">${stopCode(stop.id)}</span><br/><span style="color:#94a3b8;font-size:9px">${typeLabel} · ${routes} · ${stop.distanceM} m</span></div>`,
               { sticky: true, direction: 'top' }
