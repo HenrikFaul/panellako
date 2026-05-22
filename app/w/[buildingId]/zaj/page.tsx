@@ -70,7 +70,7 @@ export default async function ZajPage({ params }: PageProps) {
   return (
     <NoiseDashboardClient
       buildingId={buildingId}
-      buildingName={building.name}
+      buildingName={(building as { name?: string | null }).name ?? building.address}
       buildingLat={lat}
       buildingLon={lon}
     />
@@ -86,7 +86,7 @@ export async function generateMetadata({ params }: PageProps) {
     .maybeSingle();
 
   return {
-    title: building ? `Zajriporter · ${building.name} — PanelLakó` : 'Zajriporter — PanelLakó',
+    title: building ? `Zajriporter · ${(building as { name?: string | null }).name ?? ''} — PanelLakó` : 'Zajriporter — PanelLakó',
     description: 'Rögzítse és kövesse az épülete körüli zajszennyezést',
   };
 }

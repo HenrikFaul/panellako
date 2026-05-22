@@ -42,7 +42,7 @@ export default async function ZoldAkciokPage({ params }: PageProps) {
   return (
     <GreenActionsClient
       buildingId={buildingId}
-      buildingName={building.name}
+      buildingName={(building as { name?: string | null }).name ?? building.address}
     />
   );
 }
@@ -56,7 +56,7 @@ export async function generateMetadata({ params }: PageProps) {
     .maybeSingle();
 
   return {
-    title: building ? `Zöld Akciók · ${building.name} — PanelLakó` : 'Zöld Akciók — PanelLakó',
+    title: building ? `Zöld Akciók · ${(building as { name?: string | null }).name ?? ''} — PanelLakó` : 'Zöld Akciók — PanelLakó',
     description: 'Közösségi zöld akciók, CO₂ megtakarítás kalkulátor és épületi környezeti kezdeményezések',
   };
 }

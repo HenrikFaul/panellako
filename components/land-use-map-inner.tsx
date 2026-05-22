@@ -180,7 +180,7 @@ out geom;`;
         }
 
         L.geoJSON(
-          { type: 'FeatureCollection', features },
+          { type: 'FeatureCollection', features } as GeoJSON.FeatureCollection,
           {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             style(feature: any) {
