@@ -45,6 +45,57 @@ const GTFS_TYPE_MAP: Record<number, VehicleType> = {
 interface GtfsCache { data: VehiclePosition[]; expires: number; }
 let _gtfsCache: GtfsCache | null = null;
 
+// ─── Route name map cache (route_id → short_name, 6 h TTL) ───────────────────
+// GTFS-RT VehiclePositions only carries internal route_ids (e.g. BKK_3030).
+// The human-readable short name (e.g. "75", "85", "M4") comes from the OBA
+// routes-for-location endpoint which we cache for 6 hours.
+const ROUTE_MAP_TTL = 6 * 60 * 60 * 1000;
+let _routeMap:        Map<string, string> | null = null;
+let _routeMapExpires: number = 0;
+
+async function ensureRouteMap(): Promise<Map<string, string>> {
+  if (_routeMap && _routeMapExpires > Date.now()) return _routeMap;
+
+  const params = new URLSearchParams({
+    key:               BKK_KEY || 'apaiary-test',
+    version:           '3',
+    appVersion:        'apiary-1.0',
+    lat:               '47.498',
+    lon:               '19.040',
+    latSpan:           '0.28',   // ~31 km N-S — covers all of Budapest
+    lonSpan:           '0.44',   // ~31 km E-W
+    includeReferences: 'false',
+  });
+
+  try {
+    const res = await fetch(`${OBA_BASE}/routes-for-location.json?${params}`, {
+      headers: { ...BKK_HEADERS, Accept: 'application/json' },
+      signal:  AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) throw new Error(`routes-for-location HTTP ${res.status}`);
+    const json = await res.json();
+
+    const map = new Map<string, string>();
+    type RouteEntry = { id?: string; shortName?: string };
+    for (const r of (json?.data?.list ?? []) as RouteEntry[]) {
+      if (r.id && r.shortName) {
+        map.set(r.id, r.shortName);                       // "BKK_3030" → "75"
+        map.set(r.id.replace(/^BKK_/, ''), r.shortName); // "3030"     → "75"
+      }
+    }
+
+    if (map.size > 0) {
+      _routeMap        = map;
+      _routeMapExpires = Date.now() + ROUTE_MAP_TTL;
+      console.log(`[transit/vehicles] route map loaded: ${map.size} entries`);
+    }
+  } catch (err) {
+    console.warn('[transit/vehicles] route name map fetch failed:', err);
+  }
+
+  return _routeMap ?? new Map();
+}
+
 function toVehicleType(v: ParsedVehicle): VehicleType {
   const map: Record<string, VehicleType> = {
     SUBWAY: 'SUBWAY', TRAM: 'TRAM', TROLLEYBUS: 'TROLLEYBUS',
@@ -56,26 +107,35 @@ function toVehicleType(v: ParsedVehicle): VehicleType {
 // ─── GTFS-RT primary source ───────────────────────────────────────────────────
 async function fetchGtfsRtAll(): Promise<VehiclePosition[]> {
   const url = `${GTFS_RT_BASE}/VehiclePositions.txt?key=${BKK_KEY}`;
-  const res = await fetch(url, {
-    headers: BKK_HEADERS,
-    signal:  AbortSignal.timeout(10_000),
-  });
+
+  // Fetch positions + route name map in parallel
+  const [res, routeMap] = await Promise.all([
+    fetch(url, { headers: BKK_HEADERS, signal: AbortSignal.timeout(10_000) }),
+    ensureRouteMap(),
+  ]);
+
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`GTFS-RT VehiclePositions HTTP ${res.status}: ${body.slice(0, 200)}`);
   }
   const text = await res.text();
-  return parseVehiclePositions(text).map(v => ({
-    vehicleId: v.vehicleId,
-    tripId:    v.tripId,
-    routeRef:  v.routeRef,
-    lat:       v.lat,
-    lon:       v.lon,
-    bearing:   v.bearing,
-    vehicle:   toVehicleType(v),
-    headsign:  v.headsign,
-    realtime:  v.realtime,
-  }));
+
+  return parseVehiclePositions(text).map(v => {
+    // Resolve internal route_id (e.g. "3030") to public short name (e.g. "75")
+    const shortName = routeMap.get(v.routeRef) ?? routeMap.get(`BKK_${v.routeRef}`);
+    const routeRef  = shortName ?? v.routeRef;
+    return {
+      vehicleId: v.vehicleId,
+      tripId:    v.tripId,
+      routeRef,
+      lat:       v.lat,
+      lon:       v.lon,
+      bearing:   v.bearing,
+      vehicle:   toVehicleType(v),
+      headsign:  v.headsign,
+      realtime:  v.realtime,
+    };
+  });
 }
 
 // ─── OBA JSON fallback (location-scoped) ─────────────────────────────────────
