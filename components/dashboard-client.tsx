@@ -1518,14 +1518,24 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               <div
                 className="pointer-events-none select-none relative flex-1 min-w-0 h-[108px] overflow-hidden"
                 style={{
-                  WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 16%, black 84%, transparent 100%)',
-                  maskImage:       'linear-gradient(to right, transparent 0%, black 16%, black 84%, transparent 100%)',
+                  /* 4-directional soft mask — all edges fade to transparent so the
+                     header's own radial-gradient background bleeds through seamlessly.
+                     mask-composite:intersect means only pixels visible in BOTH
+                     the left/right gradient AND the top/bottom gradient are shown. */
+                  WebkitMaskImage: [
+                    'linear-gradient(to right,  transparent 0%, black 13%, black 87%, transparent 100%)',
+                    'linear-gradient(to bottom, transparent 0%, black 13%, black 87%, transparent 100%)',
+                  ].join(', '),
+                  WebkitMaskComposite: 'destination-in',
+                  maskImage: [
+                    'linear-gradient(to right,  transparent 0%, black 13%, black 87%, transparent 100%)',
+                    'linear-gradient(to bottom, transparent 0%, black 13%, black 87%, transparent 100%)',
+                  ].join(', '),
+                  maskComposite: 'intersect',
                 }}
               >
                 <DashboardHeroScene hideTram />
                 <HeroVehicle />
-                <div className="absolute inset-x-0 top-0 h-6" style={{ background: 'linear-gradient(to bottom, rgba(5,9,26,0.55) 0%, transparent 100%)' }} />
-                <div className="absolute inset-x-0 bottom-0 h-6" style={{ background: 'linear-gradient(to top, rgba(5,9,26,0.55) 0%, transparent 100%)' }} />
               </div>
 
               {/* Right: actions */}

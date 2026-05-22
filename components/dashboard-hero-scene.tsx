@@ -434,7 +434,7 @@ export default function DashboardHeroScene({
         viewBox="0 -20 418 138"
         xmlns="http://www.w3.org/2000/svg"
         style={{ width: '100%', height: '100%', display: 'block' }}
-        preserveAspectRatio="xMidYMid meet"
+        preserveAspectRatio="none"
       >
         <defs>
           <linearGradient id="phs-sky" x1="0" y1="0" x2="0" y2="1">
