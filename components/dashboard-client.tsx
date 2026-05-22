@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import React, { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   BellRing,
@@ -14,15 +14,18 @@ import {
   CircleDollarSign,
   ClipboardCheck,
   FileText,
+  Flame,
   Gauge,
   Home,
   Layers3,
+  Leaf,
   LifeBuoy,
   LogOut,
   Mail,
   MapPin,
   Radio,
   MessageSquare,
+  Recycle,
   Search,
   Send,
   ShieldCheck,
@@ -30,8 +33,10 @@ import {
   Sparkles,
   Terminal,
   TicketCheck,
+  TrendingUp,
   UserCog,
   UserRound,
+  Volume2,
   Vote,
   Wind,
   Wrench,
@@ -155,10 +160,10 @@ const navigation = [
   { href: '#finances', label: 'Pénzügyek', icon: CircleDollarSign },
   { href: '#meters', label: 'Mérőórák', icon: Gauge },
   { href: '#transport', label: 'Közlekedés', icon: Bus },
-  { href: `#kornyezet-link`, label: 'Levegő & Kerékpár', icon: Wind },
+  { href: '#kornyezet-link', label: 'Levegő & Kerékpár', icon: Wind },
   { href: '#meetings', label: 'Közgyűlések', icon: CalendarDays },
   { href: '#knowledge', label: 'Tudásbázis', icon: BookOpen },
-  { href: '#audit', label: 'Audit napló', icon: ShieldCheck }
+  { href: '#audit', label: 'Audit napló', icon: ShieldCheck },
 ];
 
 function formatDate(value?: string | null) {
@@ -967,10 +972,17 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     { href: '#finances', label: 'Pénzügyek', icon: CircleDollarSign, count: arrears > 0 ? 1 : 0, critical: arrears > 100000 ? 1 : 0 },
     { href: '#meters', label: 'Mérőórák', icon: Gauge, count: 0, critical: 0 },
     { href: '#transport', label: 'Közlekedés', icon: Bus, count: 0, critical: 0 },
-    { href: `/w/${data.buildingId}/kornyezet`, label: 'Levegő & Kerékpár', icon: Wind, count: 0, critical: 0 },
     { href: '#meetings', label: 'Közgyűlések', icon: CalendarDays, count: upcomingMeetings, critical: 0 },
     { href: '#knowledge', label: 'Tudásbázis', icon: BookOpen, count: 0, critical: 0 },
     ...(isAdminLike ? [{ href: '#audit', label: 'Audit napló', icon: ShieldCheck, count: 0, critical: 0 }] : []),
+    // ── Környezeti elemzések ─────────────────────────────────────────────────
+    { href: `/w/${data.buildingId}/kornyezet`,    label: 'Levegő & Kerékpár',   icon: Wind,       count: 0, critical: 0, section: 'env' as const },
+    { href: `/w/${data.buildingId}/klimakockazat`, label: 'Hőszigat kockázat',   icon: Flame,      count: 0, critical: 0, section: 'env' as const },
+    { href: `/w/${data.buildingId}/zaj`,           label: 'Zajriporter',          icon: Volume2,    count: 0, critical: 0, section: 'env' as const },
+    { href: `/w/${data.buildingId}/hulladek`,      label: 'Hulladék & Víz',       icon: Recycle,    count: 0, critical: 0, section: 'env' as const },
+    { href: `/w/${data.buildingId}/budapest-2030`, label: 'Budapest 2030',        icon: TrendingUp, count: 0, critical: 0, section: 'env' as const },
+    { href: `/w/${data.buildingId}/green-score`,   label: 'Zöld Épület Pontszám', icon: Sparkles,   count: 0, critical: 0, section: 'env' as const },
+    { href: `/w/${data.buildingId}/zold-akciok`,   label: 'Zöld Akciók',          icon: Leaf,       count: 0, critical: 0, section: 'env' as const },
   ];
 
   const handleOpenMeeting = async (meeting: MeetingItem) => {
@@ -1382,32 +1394,39 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
               {/* SIGNAL NAV — scrollable, takes all remaining space */}
               <nav className="sidebar-scroll flex-1 space-y-px overflow-y-auto">
-                {signalNav.map((item) => {
+                {signalNav.map((item, idx) => {
                   const Icon = item.icon;
                   const hasCritical = item.critical > 0;
                   const hasActivity = item.count > 0;
+                  const isFirstEnv = item.section === 'env' && (idx === 0 || signalNav[idx - 1].section !== 'env');
                   return (
-                    <a
-                      key={item.href}
-                      href={item.href}
-                      className="group relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 hover:bg-white/[0.07] hover:text-white"
-                    >
-                      {hasCritical && (
-                        <span className="absolute left-1.5 top-1/2 h-3.5 w-0.5 -translate-y-1/2 animate-pulse rounded-full bg-rose-500" />
+                    <React.Fragment key={item.href}>
+                      {isFirstEnv && (
+                        <p className="mt-3 mb-1 px-3 text-[9px] font-bold uppercase tracking-widest text-slate-700">
+                          Környezeti elemzések
+                        </p>
                       )}
-                      <Icon
-                        size={15}
-                        className={`shrink-0 transition-colors ${hasCritical ? 'text-rose-400' : hasActivity ? 'text-slate-400' : 'text-slate-600'} group-hover:text-current`}
-                      />
-                      <span className={`transition-colors ${hasCritical ? 'text-slate-300' : hasActivity ? 'text-slate-400' : 'text-slate-600'} group-hover:text-white`}>
-                        {item.label}
-                      </span>
-                      {hasActivity && (
-                        <span className={`ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${hasCritical ? 'bg-rose-500/20 text-rose-400' : 'bg-white/[0.07] text-slate-500'}`}>
-                          {item.count}
+                      <a
+                        href={item.href}
+                        className="group relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 hover:bg-white/[0.07] hover:text-white"
+                      >
+                        {hasCritical && (
+                          <span className="absolute left-1.5 top-1/2 h-3.5 w-0.5 -translate-y-1/2 animate-pulse rounded-full bg-rose-500" />
+                        )}
+                        <Icon
+                          size={15}
+                          className={`shrink-0 transition-colors ${hasCritical ? 'text-rose-400' : hasActivity ? 'text-slate-400' : 'text-slate-600'} group-hover:text-current`}
+                        />
+                        <span className={`transition-colors ${hasCritical ? 'text-slate-300' : hasActivity ? 'text-slate-400' : 'text-slate-600'} group-hover:text-white`}>
+                          {item.label}
                         </span>
-                      )}
-                    </a>
+                        {hasActivity && (
+                          <span className={`ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${hasCritical ? 'bg-rose-500/20 text-rose-400' : 'bg-white/[0.07] text-slate-500'}`}>
+                            {item.count}
+                          </span>
+                        )}
+                      </a>
+                    </React.Fragment>
                   );
                 })}
               </nav>
