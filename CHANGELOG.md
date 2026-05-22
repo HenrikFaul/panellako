@@ -1,4 +1,16 @@
 
+## 2026-05-22 — v0.9.7 Animált hős járművek + Workspace oldalsáv + Supabase MCP konfig
+
+### Added
+- **`components/HeroVehicle.tsx`** — Teljes újraírás: 6 részletes SVG jármű (CAF Urbos 5-szekciós villamos, Solaris-Trollino 18 trolibusz, Mercedes-Benz Citaro busz, 3 forgó kerekű bringás, A380 felszállás + leszállás) véletlenszerűen váltakoznak 16–32 másodpercenként. Inline CSS keyframe animációk (`vh-ground`, `vh-a380-to`, `vh-a380-ld`, `cyspin`, `aprop`, `astrobe`), TypeScript-szigorú típusok (`VehicleKey`, `VehicleConfig`), `onAnimationEnd`-alapú sorrend.
+- **`app/w/[buildingId]/(subpages)/layout.tsx`** — Route-group layout: auth + tagság-ellenőrzés, `WorkspaceShell` injektálás minden `/w/:id/*` aloldalon.
+- **`components/workspace-shell.tsx`** — Kliens shell: összeomlás-állapot kezelése, `paddingLeft` animáció.
+- **`components/workspace-sidebar.tsx`** — Rögzített oldalsáv, kibontható/összecsukható (272px ↔ 60px). Aktív útvonaljelölés `usePathname()`-szel, épületkártya, szerepkör-pill, számlázás hivatkozás (csak menedzsereknek).
+- **`.mcp.json`** — Supabase MCP HTTP konfiguráció env-változókkal (`${SUPABASE_PROJECT_REF}`, `${SUPABASE_ACCESS_TOKEN}`) — nincs többé kézi token beírás.
+
+### Changed
+- 7 környezeti aloldal (`kornyezet`, `zaj`, `hulladek`, `klimakockazat`, `budapest-2030`, `green-score`, `zold-akciok`) áthelyezve a `(subpages)/` route-csoportba — URL-ek nem változtak.
+
 ## 2026-05-22 — v0.9.6 Területfelhasználás Térkép a Környezet Oldalon
 
 ### Added
