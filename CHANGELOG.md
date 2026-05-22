@@ -1,4 +1,22 @@
 
+## 2026-05-22 — v0.9.8 Oldalsáv főoldalon + Zajtérkép WMS + Szöveg tisztítás
+
+### Added
+- **`components/noise-map-inner.tsx`** — Teljesen újraírva: NIF zajterkepek.hu WMS réteg (közút L_den / L_night, vasút L_den), rétegváltó vezérlő, dB-szintű jelmagyarázat (55–75+ dB), zajterkepek.hu mélylinkje az épület koordinátáival. Alap OSM tile 60% opacity-val, WMS réteg 80%-on felül.
+- **`components/workspace-sidebar.tsx`** — Szót `WorkspaceSidebar` immár a főoldalon (`/w/[buildingId]`) is megjelenik a `DashboardClient`-ben mint önálló beillesztett komponens, collapsible (272px ↔ 60px), `useState(sidebarCollapsed)` + `paddingLeft` animáció.
+
+### Changed
+- **`components/dashboard-client.tsx`** — Belső `<aside>` tömb eltávolítva, helyette `<WorkspaceSidebar>` komponens injektálva. Külső `grid-cols-[272px_1fr]` → `flex min-h-screen`, `<main>` dinamikus `paddingLeft`-tel. Hős szövegek (épületnév, cím, keresőmező) erős szövegárnyékkal ellátva a kontrasztos olvashatósághoz minden napszakban.
+- **`components/noise-dashboard-client.tsx`** — Zajtérkép magassága 288px → 420px.
+
+### Removed — VÉGLEGES, VISSZAVONHATATLAN
+- **„Operációs központ"** szöveg eltávolítva: `workspace-sidebar.tsx` és `dashboard-client.tsx` — **SOHA NE KERÜLJÖN VISSZA!** (lásd codingLessonsLearnt #LESSON-UI-BRAND-001)
+- **„Digitális műveleti központ"** szöveg eltávolítva: `dashboard-client.tsx` — **SOHA NE KERÜLJÖN VISSZA!** (lásd codingLessonsLearnt #LESSON-UI-BRAND-001)
+
+### Fixed
+- `environment-page-client.tsx` — `RefreshCw` nem használt import, `loadingPois` nem olvasott state eltávolítva → Vercel build hiba javítva.
+- `components/workspace-sidebar.tsx`, `dashboard-client.tsx` — `'Hőszigat kockázat'` (nagybetűs változat) → `'Hősziget kockázat'` javítva.
+
 ## 2026-05-22 — v0.9.7 Animált hős járművek + Workspace oldalsáv + Supabase MCP konfig
 
 ### Added

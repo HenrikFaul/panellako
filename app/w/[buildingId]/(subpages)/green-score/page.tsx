@@ -137,6 +137,6 @@ export async function generateMetadata({ params }: PageProps) {
       ? `Zöld Épület Pontszám · ${displayName} — PanelLakó`
       : 'Zöld Épület Pontszám — PanelLakó',
     description:
-      'Környezeti teljesítmény értékelés: levegőminőség, zöldfelület, közlekedés, kerékpározás, zaj és hőszigat 6 kategóriában.',
+      'Környezeti teljesítmény értékelés: levegőminőség, zöldfelület, közlekedés, kerékpározás, zaj és hősziget 6 kategóriában.',
   };
 }

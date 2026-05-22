@@ -314,7 +314,7 @@ export default function GreenScoreDashboardClient({
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Adatforrások</p>
         <ul className="text-[11px] text-slate-600 space-y-0.5 mt-1">
           <li>• Levegőminőség: OpenAQ v3 API (openaq.org)</li>
-          <li>• Zöldfelület, közlekedés, kerékpározás, zaj, hőszigat: OpenStreetMap / Overpass API</li>
+          <li>• Zöldfelület, közlekedés, kerékpározás, zaj, hősziget: OpenStreetMap / Overpass API</li>
           <li>• Koordináták: Nominatim (nominatim.openstreetmap.org)</li>
         </ul>
         <p className="text-[10px] text-slate-700 mt-2">

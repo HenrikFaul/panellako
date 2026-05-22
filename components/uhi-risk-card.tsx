@@ -88,7 +88,7 @@ export default function UHIRiskCard({ result }: Props) {
           {CATEGORY_LABELS[uhiCategory] ?? uhiCategory.toUpperCase()}
         </span>
         <span className="text-sm text-slate-400">
-          hőszigat intenzitás
+          hősziget intenzitás
         </span>
       </div>
 
