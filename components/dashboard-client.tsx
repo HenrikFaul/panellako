@@ -66,7 +66,6 @@ import type { ContactSubject } from '@/app/actions/contact';
 import WeatherWidget from '@/components/weather-widget';
 import AirQualityWidget from '@/components/air-quality-widget';
 import EnergyDashboard from '@/components/energy-dashboard';
-import TransportPanel from '@/components/transport-panel';
 
 // Defined here (not imported from server action file) to avoid 'use server' serialization issues
 const CONTACT_SUBJECTS: ContactSubject[] = ['Ajánlatkérés', 'Érdeklődés', 'Hibabejelentés', 'Visszajelzés', 'Partnerség', 'Egyéb'];
@@ -2655,15 +2654,26 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </SectionCard>
           </section>
 
-          {/* ── Térképek — oldal legaljára ─────────────────────────────────── */}
-          <SectionCard id="transport" title="Közlekedés és tömegközl. lefedettség" icon={<Bus size={18} />} note="Közlekedési adat: BKK Zrt., CC BY 4.0">
-            <TransportPanel
-              lat={data.buildingLat}
-              lon={data.buildingLon}
-              buildingAddress={data.buildingAddress}
-              buildingId={data.buildingId}
-            />
-          </SectionCard>
+          {/* ── Deep-link cards ─────────────────────────────────────────────── */}
+          {/* Transport deep-link card */}
+          <a
+            id="transport"
+            href={`/w/${data.buildingId}/kozlekedes`}
+            className="group flex items-center justify-between gap-4 overflow-hidden rounded-[2rem] border border-slate-200/60 bg-white px-6 py-5 shadow-card-md transition-shadow hover:shadow-card-lg"
+          >
+            <div className="flex items-center gap-4">
+              <div className="rounded-2xl bg-sky-50 p-3">
+                <Bus size={22} className="text-sky-500" />
+              </div>
+              <div>
+                <p className="text-sm font-black text-slate-900">Közlekedés és tömegközlekedés</p>
+                <p className="text-xs text-slate-500">Élő járattérkép, BKK menetrend, megállók, lefedettség</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-bold text-brand-600 group-hover:text-brand-700">
+              Megnyitás →
+            </div>
+          </a>
 
           {/* Environment deep-link card */}
           <a

@@ -55,9 +55,9 @@ export default function WorkspaceSidebar({
   const base = `/w/${buildingId}`;
 
   const mainNav = [
-    { href: `${base}#transport`, label: 'Közlekedés',  icon: Bus },
-    { href: `${base}#meetings`, label: 'Közgyűlések',  icon: CalendarDays },
-    { href: `${base}#knowledge`, label: 'Tudásbázis',  icon: BookOpen },
+    { href: `${base}/kozlekedes`, label: 'Közlekedés',  icon: Bus },
+    { href: `${base}#meetings`,   label: 'Közgyűlések', icon: CalendarDays },
+    { href: `${base}#knowledge`,  label: 'Tudásbázis',  icon: BookOpen },
     ...(isAdminLike ? [{ href: `${base}#audit`, label: 'Audit napló', icon: ShieldCheck }] : []),
   ];
 
