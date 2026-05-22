@@ -64,7 +64,7 @@ export default async function KornyezetPage({ params }: PageProps) {
   let lat: number = (building as { lat?: number | null }).lat ?? 47.5278845;
   let lon: number = (building as { lon?: number | null }).lon ?? 19.0705657;
 
-  if (!lat || !lon) {
+  if ((!lat || !lon) && building.address) {
     const geo = await geocodeAddress(building.address);
     if (geo) { lat = geo.lat; lon = geo.lon; }
   }
@@ -90,7 +90,7 @@ export default async function KornyezetPage({ params }: PageProps) {
   return (
     <EnvironmentPageClient
       buildingId={buildingId}
-      buildingName={building.name}
+      buildingName={(building as { name?: string | null }).name ?? building.address}
       buildingAddress={displayAddress}
       buildingLat={lat}
       buildingLon={lon}
@@ -108,7 +108,7 @@ export async function generateMetadata({ params }: PageProps) {
     .maybeSingle();
 
   return {
-    title: building ? `Környezet · ${building.name} — PanelLakó` : 'Környezet — PanelLakó',
+    title: building ? `Környezet · ${(building as { name?: string | null }).name ?? ''} — PanelLakó` : 'Környezet — PanelLakó',
     description: 'Levegőminőség, kerékpáros infrastruktúra és lokális környezeti adatok',
   };
 }

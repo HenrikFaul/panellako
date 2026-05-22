@@ -90,6 +90,11 @@ function buildingSvg() {
 }
 
 
+// ─── HTML escape helper (prevents XSS in popup innerHTML) ────────────────────
+function esc(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 // ─── Stop code helper ─────────────────────────────────────────────────────────
 function stopCode(stopId: string): string {
   // BKK_F090482 → #090482, BKK_090482 → #090482
@@ -139,11 +144,11 @@ function buildPopupHtml(
       const a11y  = d.accessible ? `<span class="bkk-a11y" title="Alacsonypadlós jármű">♿</span>` : '';
       const alert = (d.hasAlert || alertRouteSet.has(d.routeRef))
         ? `<span class="bkk-alert-dot" title="Aktív üzemzavar">⚠</span>` : '';
-      const tripAttr = d.tripId ? `data-tripid="${d.tripId}" data-route="${d.routeRef}" data-color="${bg}" data-headsign="${d.headsign.replace(/"/g, '&quot;')}"` : '';
+      const tripAttr = d.tripId ? `data-tripid="${d.tripId}" data-route="${d.routeRef}" data-color="${bg}" data-headsign="${esc(d.headsign ?? '')}"` : '';
       return `<div class="bkk-dep-row" ${tripAttr}>
-        <span class="bkk-route-badge" style="background:${bg};color:${textColor};min-width:36px;pointer-events:none">${d.routeRef}</span>
+        <span class="bkk-route-badge" style="background:${bg};color:${textColor};min-width:36px;pointer-events:none">${esc(d.routeRef)}</span>
         ${alert}${a11y}
-        <span style="flex:1;font-size:10px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.headsign}</span>
+        <span style="flex:1;font-size:10px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.headsign ?? '')}</span>
         <span style="display:flex;align-items:center;gap:3px">${min}${rtDot}</span>
       </div>`;
     }).join('');
@@ -376,6 +381,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         stopMarkersRef.current = new Map();
 
         for (const stop of newStops) {
+          if (stop.lat == null || stop.lon == null || isNaN(stop.lat) || isNaN(stop.lon)) continue;
           const color     = STOP_COLOR[stop.routeType] ?? '#64748b';
           const routes    = stop.routeRefs.slice(0, 4).join(' · ');
           const typeLabel = TYPE_LABEL_HU[stop.routeType] ?? stop.routeType;
@@ -427,7 +433,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
               `<span style="background:${color};color:${badgeTextColor};padding:1px 7px;border-radius:5px;font-weight:900;font-size:12px">${v.routeRef}</span>` +
               `<span style="color:#64748b;font-size:9px">${TYPE_LABEL_HU[v.vehicle] ?? v.vehicle}</span>` +
               `</div>` +
-              (v.headsign ? `<div style="color:#cbd5e1;max-width:210px">${v.headsign}</div>` : '') +
+              (v.headsign ? `<div style="color:#cbd5e1;max-width:210px">${esc(v.headsign)}</div>` : '') +
               (v.realtime ? `<div style="color:#34d399;font-size:8px;margin-top:2px">● Valós idejű</div>` : '') +
               `</div>`,
               { sticky: true }
@@ -490,6 +496,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
 
         const stopMarkers = new Map<string, unknown>();
         for (const stop of stops) {
+          if (stop.lat == null || stop.lon == null || isNaN(stop.lat) || isNaN(stop.lon)) continue;
           const color     = STOP_COLOR[stop.routeType] ?? '#64748b';
           const routes    = stop.routeRefs.slice(0, 4).join(' · ');
           const typeLabel = TYPE_LABEL_HU[stop.routeType] ?? stop.routeType;

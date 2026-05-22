@@ -42,7 +42,7 @@ export default async function HulladekPage({ params }: PageProps) {
   return (
     <WasteDashboardClient
       buildingId={buildingId}
-      buildingName={building.name}
+      buildingName={(building as { name?: string | null }).name ?? building.address}
     />
   );
 }
@@ -56,7 +56,7 @@ export async function generateMetadata({ params }: PageProps) {
     .maybeSingle();
 
   return {
-    title: building ? `Hulladékgazdálkodás · ${building.name} — PanelLakó` : 'Hulladékgazdálkodás — PanelLakó',
+    title: building ? `Hulladékgazdálkodás · ${(building as { name?: string | null }).name ?? ''} — PanelLakó` : 'Hulladékgazdálkodás — PanelLakó',
     description: 'Szelektív hulladékgyűjtés nyomon követése és szabálytalan lerakás bejelentése',
   };
 }

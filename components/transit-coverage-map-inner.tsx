@@ -180,6 +180,7 @@ export default function TransitCoverageMapInner({ buildingLat, buildingLon, stop
 
       // Layer 2 — Nappali járatok 420 m bufferzónája (solid amber)
       for (const stop of dayStops) {
+        if (stop.lat == null || stop.lon == null || isNaN(stop.lat) || isNaN(stop.lon)) continue;
         L.circle([stop.lat, stop.lon], {
           radius:      BUFFER_RADIUS,
           color:       '#d97706',
@@ -193,6 +194,7 @@ export default function TransitCoverageMapInner({ buildingLat, buildingLon, stop
       // Layer 3 — Éjszakai járatok 420 m bufferzónája (dashed yellow)
       // Visual equivalent of the hatched fill in the thesis GIS output
       for (const stop of nightStops) {
+        if (stop.lat == null || stop.lon == null || isNaN(stop.lat) || isNaN(stop.lon)) continue;
         L.circle([stop.lat, stop.lon], {
           radius:      BUFFER_RADIUS,
           color:       '#fde047',
@@ -206,6 +208,7 @@ export default function TransitCoverageMapInner({ buildingLat, buildingLon, stop
 
       // ── Stop dot markers ──────────────────────────────────────────────────────
       for (const stop of stops) {
+        if (stop.lat == null || stop.lon == null || isNaN(stop.lat) || isNaN(stop.lon)) continue;
         const refs  = stop.routeRefs ?? [];
         const night = hasNightService(refs);
         L.circleMarker([stop.lat, stop.lon], {
@@ -280,7 +283,7 @@ export default function TransitCoverageMapInner({ buildingLat, buildingLon, stop
       setLoadingPolys(true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buildingLat, buildingLon]);
+  }, [buildingLat, buildingLon, stops]);
 
   return (
     <div

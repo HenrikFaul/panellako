@@ -248,14 +248,14 @@ function DepartureBoardPanel({ stopId, stopName, refreshKey }: {
       )}
       <ul className="space-y-1">
         {board.departures.map((dep: Departure, i) => (
-          <li key={i}
+          <li key={`${dep.routeRef}-${dep.tripId ?? i}`}
             className="flex items-center gap-2 rounded-xl px-2.5 py-1.5"
             style={{ animation: `tp-slide-up 0.3s ease-out ${i * 0.06}s both`, background: 'rgba(255,255,255,0.04)' }}
           >
             <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: VEHICLE_COLOR[dep.vehicle] ?? '#94a3b8' }} />
             <span className="w-8 text-[11px] font-black tabular-nums leading-none"
               style={{ color: VEHICLE_COLOR[dep.vehicle] ?? '#94a3b8' }}>{dep.routeRef}</span>
-            <span className="min-w-0 flex-1 truncate text-[9px] text-slate-400">{dep.headsign}</span>
+            <span className="min-w-0 flex-1 truncate text-[9px] text-slate-400">{dep.headsign ?? ''}</span>
             <DepartureTime minutes={dep.minutesAway} realtime={dep.realtime} />
           </li>
         ))}

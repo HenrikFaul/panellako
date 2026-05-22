@@ -71,7 +71,7 @@ export default async function KlimakockazatPage({ params }: PageProps) {
   let lat: number = (building as { lat?: number | null }).lat ?? 47.4979;
   let lon: number = (building as { lon?: number | null }).lon ?? 19.0402;
 
-  if (!lat || !lon) {
+  if ((!lat || !lon) && building.address) {
     const geo = await geocodeAddress(building.address);
     if (geo) { lat = geo.lat; lon = geo.lon; }
   }

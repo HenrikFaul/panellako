@@ -70,7 +70,7 @@ export default async function GreenScorePage({ params }: PageProps) {
   let lat: number = (building as { lat?: number | null }).lat ?? 0;
   let lon: number = (building as { lon?: number | null }).lon ?? 0;
 
-  if (!lat || !lon) {
+  if ((!lat || !lon) && building.address) {
     const geo = await geocodeAddress(building.address);
     if (geo) { lat = geo.lat; lon = geo.lon; }
   }

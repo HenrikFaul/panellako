@@ -89,15 +89,10 @@ async function fetchObaAlerts(): Promise<TransitAlert[]> {
   if (otpRes.ok) rawJson = await otpRes.json() as Record<string, unknown>;
 
   if (!rawJson) {
-    const obaParams = new URLSearchParams({
-      key: BKK_KEY || 'apaiary-test', version: '3', appVersion: 'apiary-1.0',
-    });
-    const obaRes = await fetch(
-      `${OBA_BASE}/current-time.json?${obaParams}`,
-      { headers, signal: AbortSignal.timeout(5_000) }
-    );
-    if (!obaRes.ok) throw new Error(`OBA alerts HTTP ${obaRes.status}`);
-    rawJson = await obaRes.json() as Record<string, unknown>;
+    // No single-endpoint OBA fallback exists for global alerts — return empty rather
+    // than calling an unrelated endpoint (e.g. current-time.json) that returns no alerts.
+    console.warn('[transit/alerts] OTP alerts endpoint unavailable, returning empty alerts');
+    return [];
   }
 
   type AlertItem = {
