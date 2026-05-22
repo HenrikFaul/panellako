@@ -1515,15 +1515,17 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </div>
 
               {/* Center: animated time/season-aware skyline scene (v0.7.15) */}
-              <div className="pointer-events-none select-none relative flex-1 min-w-0 h-[108px] overflow-hidden">
-                {/* DashboardHeroScene with internal tram suppressed — HeroVehicle replaces it */}
+              <div
+                className="pointer-events-none select-none relative flex-1 min-w-0 h-[108px] overflow-hidden"
+                style={{
+                  WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 16%, black 84%, transparent 100%)',
+                  maskImage:       'linear-gradient(to right, transparent 0%, black 16%, black 84%, transparent 100%)',
+                }}
+              >
                 <DashboardHeroScene hideTram />
-                {/* Multi-vehicle overlay: tram / trolley / bus / cyclists / A380 */}
                 <HeroVehicle />
-                {/* Thin top/bottom blends only — no left/right dark fades so the sky
-                    colour flows seamlessly into the seasonal header background. */}
-                <div className="absolute inset-x-0 top-0 h-4" style={{ background: 'linear-gradient(to bottom, rgba(5,9,26,0.45) 0%, transparent 100%)' }} />
-                <div className="absolute inset-x-0 bottom-0 h-4" style={{ background: 'linear-gradient(to top, rgba(5,9,26,0.45) 0%, transparent 100%)' }} />
+                <div className="absolute inset-x-0 top-0 h-6" style={{ background: 'linear-gradient(to bottom, rgba(5,9,26,0.55) 0%, transparent 100%)' }} />
+                <div className="absolute inset-x-0 bottom-0 h-6" style={{ background: 'linear-gradient(to top, rgba(5,9,26,0.55) 0%, transparent 100%)' }} />
               </div>
 
               {/* Right: actions */}
