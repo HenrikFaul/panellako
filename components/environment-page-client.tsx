@@ -1,19 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Wind, Bike, ArrowLeft, RefreshCw, Leaf, Flower2, Sun, Zap, ChevronDown, AlertCircle, Database, Satellite, MapPin, Star } from 'lucide-react';
+import { Wind, ArrowLeft, RefreshCw, Leaf, Flower2, Sun, Zap, ChevronDown, AlertCircle, Database, Satellite, Star } from 'lucide-react';
 import LandUseMap from '@/components/land-use-map';
 import AirQualityMap from '@/components/air-quality-map';
 import type { AirQualityMapHandle } from '@/components/air-quality-map';
 import type { AQIStation } from '@/app/api/air-quality/stations/route';
-import CyclingMap from '@/components/cycling-map';
-import type { CyclingFeature } from '@/app/api/cycling/route';
 import EnvScoreHero from '@/components/env-score-hero';
 import PollenPanel from '@/components/pollen-panel';
 import UvWindPanel from '@/components/uv-wind-panel';
 import Sparkline24h from '@/components/sparkline-24h';
 import SatelliteNdviPanel from '@/components/satellite-ndvi-panel';
-import CompactCityPanel from '@/components/compact-city-panel';
 import LiveabilityPanel from '@/components/liveability-panel';
 import type { EnvAirQualityResult } from '@/app/api/environment/air-quality/route';
 import type { EnvWeatherResult } from '@/app/api/environment/weather/route';
@@ -156,7 +153,6 @@ export default function EnvironmentPageClient({
   const [urbanAtlas,   setUrbanAtlas]   = useState<UrbanAtlasData | null>(null);
   const [bpTrees,      setBpTrees]      = useState<BudapestTreesData | null>(null);
   const [stations,     setStations]     = useState<AQIStation[]>([]);
-  const [routes,       setRoutes]       = useState<CyclingFeature[]>([]);
 
   const [loadingAq,        setLoadingAq]        = useState(true);
   const [loadingWeather,   setLoadingWeather]    = useState(true);
@@ -165,26 +161,22 @@ export default function EnvironmentPageClient({
   const [loadingUrbanAtlas,setLoadingUrbanAtlas] = useState(false);
   const [loadingBpTrees,   setLoadingBpTrees]    = useState(false);
   const [loadingSolar,     setLoadingSolar]      = useState(false);
-  const [loadingCycle,     setLoadingCycle]      = useState(false);
   const [loadingSatellite, setLoadingSatellite]  = useState(false);
   const [loadingUrban,     setLoadingUrban]      = useState(false);
   const [errorGreen,       setErrorGreen]        = useState(false);
   const [errorSolar,       setErrorSolar]        = useState(false);
-  const [errorCycle,       setErrorCycle]        = useState(false);
   const [errorSatellite,   setErrorSatellite]    = useState(false);
   const [errorUrban,       setErrorUrban]        = useState(false);
   const [aqExpanded,       setAqExpanded]        = useState(true);
 
   const greenRef      = useRef<HTMLDivElement>(null);
   const solarRef      = useRef<HTMLDivElement>(null);
-  const cycleRef      = useRef<HTMLDivElement>(null);
   const satelliteRef  = useRef<HTMLDivElement>(null);
   const urbanRef      = useRef<HTMLDivElement>(null);
   const greenLoadedRef      = useRef(false);
   const urbanAtlasLoadedRef = useRef(false);
   const bpTreesLoadedRef    = useRef(false);
   const solarLoadedRef      = useRef(false);
-  const cycleLoadedRef      = useRef(false);
   const satelliteLoadedRef  = useRef(false);
   const urbanLoadedRef      = useRef(false);
   const mapRef    = useRef<AirQualityMapHandle>(null);
@@ -270,22 +262,6 @@ export default function EnvironmentPageClient({
     obs.observe(el); return () => obs.disconnect();
   }, [buildingId, lat, lon]);
 
-  // Lazy: cycling
-  const fetchCycling = useCallback(async () => {
-    setLoadingCycle(true); setErrorCycle(false);
-    try { setRoutes(await fetch('/api/cycling').then(r => r.json() as Promise<CyclingFeature[]>)); }
-    catch { setErrorCycle(true); }
-    setLoadingCycle(false);
-  }, []);
-
-  useEffect(() => {
-    const el = cycleRef.current; if (!el) return;
-    const obs = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && !cycleLoadedRef.current) { cycleLoadedRef.current = true; void fetchCycling(); }
-    }, { threshold: 0.1 });
-    obs.observe(el); return () => obs.disconnect();
-  }, [fetchCycling]);
-
   // Lazy: satellite NDVI
   const doSatellite = useCallback(() => {
     setLoadingSatellite(true); setErrorSatellite(false);
@@ -350,9 +326,7 @@ export default function EnvironmentPageClient({
     { id: 'sec-green',     icon: '🌳', label: 'Zöld' },
     { id: 'sec-solar',     icon: '☀️',  label: 'Napenergia' },
     { id: 'sec-satellite', icon: '🛰️', label: 'Műhold' },
-    { id: 'sec-compact',   icon: '🏙️', label: 'Kompakt' },
     { id: 'sec-liveable',  icon: '⭐', label: 'Élhetőség' },
-    { id: 'sec-cycling',   icon: '🚲', label: 'Kerékpár' },
   ];
 
   return (
@@ -891,37 +865,8 @@ export default function EnvironmentPageClient({
           </Section>
         </div>
 
-        {/* 7. Kompakt város + 8. Élhetőség (shared Overpass query) */}
+        {/* 7. Élhetőség (shared Overpass query) */}
         <div ref={urbanRef}>
-          <Section id="sec-compact">
-            <SectionHeader icon={<MapPin size={18} className="text-orange-400" />} title="Kompakt város — 15 perces élettér" source="OSM Overpass · BKK Transit" />
-            <div className="p-6">
-              {loadingUrban ? (
-                <div className="space-y-3 animate-pulse">
-                  <div className="h-32 rounded-2xl bg-white/[0.06]" />
-                  <div className="grid grid-cols-3 gap-3">{[1,2,3].map(i=><div key={i} className="h-20 rounded-2xl bg-white/[0.06]" />)}</div>
-                </div>
-              ) : errorUrban ? (
-                <div className="flex flex-col items-center gap-3 py-8">
-                  <p className="text-[11px] text-slate-500">Overpass API nem elérhető</p>
-                  <button type="button" onClick={() => { urbanLoadedRef.current = false; doUrban(); }}
-                    className="rounded-xl border border-white/[0.1] px-4 py-2 text-[10px] font-bold text-slate-400 hover:bg-white/[0.05] transition-colors">
-                    Újrapróbálás
-                  </button>
-                </div>
-              ) : (
-                <CompactCityPanel
-                  data={urban?.compactCity ?? null}
-                  loading={false}
-                  buildingLat={lat}
-                  buildingLon={lon}
-                  onRequestLivePois={() => doUrban(true)}
-                  loadingPois={loadingPois}
-                />
-              )}
-            </div>
-          </Section>
-
           <Section id="sec-liveable">
             <SectionHeader icon={<Star size={18} className="text-yellow-400" />} title="Élhetőség — Lakókörnyezet minőség" source="OSM · Open-Meteo · EIU módszertan" />
             <div className="p-6">
@@ -939,52 +884,6 @@ export default function EnvironmentPageClient({
           </Section>
         </div>
 
-        {/* 9. Kerékpáros útvonalak */}
-        <div ref={cycleRef}>
-          <Section id="sec-cycling">
-            <SectionHeader icon={<Bike size={18} className="text-emerald-400" />} title="Kerékpáros útvonalak" badge={buildingAddress} source="OSM · Overpass" />
-            <div className="p-6">
-              {loadingCycle ? (
-                <div className="flex flex-col items-center gap-3 py-16">
-                  <RefreshCw size={22} className="animate-spin text-slate-600" />
-                  <p className="text-[11px] text-slate-500">OpenStreetMap Overpass API lekérdezés…</p>
-                </div>
-              ) : errorCycle ? (
-                <div className="flex flex-col items-center gap-3 py-12">
-                  <p className="text-[11px] text-slate-500">Overpass API nem elérhető</p>
-                  <button type="button" onClick={fetchCycling}
-                    className="rounded-xl border border-white/[0.1] px-4 py-2 text-[10px] font-bold text-slate-400 hover:bg-white/[0.05] transition-colors">Újrapróbálás</button>
-                </div>
-              ) : routes.length > 0 ? (
-                <CyclingMap buildingLat={lat} buildingLon={lon} routes={routes} />
-              ) : (
-                <div className="flex flex-col items-center gap-2 py-8">
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500/30 border-t-emerald-500" />
-                  <p className="text-[11px] text-slate-600">Betöltés…</p>
-                </div>
-              )}
-            </div>
-            <div className="border-t border-white/[0.06] px-6 py-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-                  <p className="mb-2 text-[9px] font-black uppercase tracking-widest text-slate-500">Réteg típusok</p>
-                  <ul className="space-y-1 text-[9px] text-slate-500">
-                    <li><span className="text-[#22c55e] font-bold">Zöld</span> — Önálló kerékpárút</li>
-                    <li><span className="text-[#a78bfa] font-bold">Lila</span> — Védett sáv</li>
-                    <li><span className="text-[#60a5fa] font-bold">Kék</span> — Jelölt sáv úttesten</li>
-                    <li><span className="text-[#f97316] font-bold">Narancs</span> — Vegyes forgalmú</li>
-                  </ul>
-                </div>
-                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-                  <p className="mb-2 text-[9px] font-black uppercase tracking-widest text-slate-500">Adatforrás</p>
-                  <p className="text-[9px] leading-relaxed text-slate-500">
-                    OpenStreetMap önkéntes közösség — kerékpár-infrastruktúra, percenként frissülő. Overpass API · 60 perces cache.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </Section>
-        </div>
 
       </main>
     </div>

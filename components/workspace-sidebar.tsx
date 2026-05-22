@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   UserRound,
+  MapPin,
 } from 'lucide-react';
 
 interface WorkspaceSidebarProps {
@@ -55,20 +56,21 @@ export default function WorkspaceSidebar({
   const base = `/w/${buildingId}`;
 
   const mainNav = [
-    { href: `${base}/kozlekedes`, label: 'Közlekedés',  icon: Bus },
     { href: `${base}#meetings`,   label: 'Közgyűlések', icon: CalendarDays },
     { href: `${base}#knowledge`,  label: 'Tudásbázis',  icon: BookOpen },
     ...(isAdminLike ? [{ href: `${base}#audit`, label: 'Audit napló', icon: ShieldCheck }] : []),
   ];
 
   const envNav = [
-    { href: `${base}/kornyezet`,     label: 'Levegő & Kerékpár',   icon: Wind },
-    { href: `${base}/klimakockazat`, label: 'Hőszigat kockázat',   icon: Flame },
-    { href: `${base}/zaj`,           label: 'Zajriporter',          icon: Volume2 },
-    { href: `${base}/hulladek`,      label: 'Hulladék & Víz',       icon: Recycle },
-    { href: `${base}/budapest-2030`, label: 'Budapest 2030',        icon: TrendingUp },
-    { href: `${base}/green-score`,   label: 'Zöld Épület Pontszám', icon: Sparkles },
-    { href: `${base}/zold-akciok`,   label: 'Zöld Akciók',          icon: Leaf },
+    { href: `${base}/kozlekedes`,                    label: 'Közlekedés',                      icon: Bus },
+    { href: `${base}/kornyezet`,                     label: 'Lakókörnyezet - természet',        icon: Wind },
+    { href: `${base}/lakokornyzet-szolgaltatasok`,   label: 'Lakókörnyezet - szolgáltatások',   icon: MapPin },
+    { href: `${base}/klimakockazat`,                 label: 'Hőszigat kockázat',               icon: Flame },
+    { href: `${base}/zaj`,                           label: 'Zajriporter',                      icon: Volume2 },
+    { href: `${base}/hulladek`,                      label: 'Hulladék & Víz',                   icon: Recycle },
+    { href: `${base}/budapest-2030`,                 label: 'Budapest 2030',                    icon: TrendingUp },
+    { href: `${base}/green-score`,                   label: 'Zöld Épület Pontszám',             icon: Sparkles },
+    { href: `${base}/zold-akciok`,                   label: 'Zöld Akciók',                      icon: Leaf },
   ];
 
   const isActive = (href: string) =>
@@ -201,7 +203,7 @@ export default function WorkspaceSidebar({
           })}
 
           <p className="mt-3 mb-1 px-3 text-[9px] font-bold uppercase tracking-widest text-slate-700">
-            Környezeti elemzések
+            Élettér
           </p>
 
           {envNav.map((item) => {

@@ -1,4 +1,4 @@
-// Transit sub-page — Live map + BKK coverage
+// Transit sub-page — Live map + BKK coverage + Cycling routes
 // URL: /w/[buildingId]/kozlekedes
 
 import { redirect, notFound } from 'next/navigation';
@@ -96,6 +96,6 @@ export async function generateMetadata({ params }: PageProps) {
   const name = building ? ((building as { name?: string | null }).name ?? building.address) : '';
   return {
     title: building ? `Közlekedés · ${name} — PanelLakó` : 'Közlekedés — PanelLakó',
-    description: 'Élő járattérkép, BKK menetrend, tömegközlekedési lefedettség',
+    description: 'Élő járattérkép, BKK menetrend, tömegközlekedési lefedettség, kerékpáros útvonalak',
   };
 }
