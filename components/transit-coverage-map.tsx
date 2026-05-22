@@ -25,8 +25,9 @@ interface Props {
   buildingLat: number;
   buildingLon: number;
   stops:       Stop[];
+  radiusM?:    number;
 }
 
-export default function TransitCoverageMap(props: Props) {
-  return <TransitCoverageMapInner {...props} />;
+export default function TransitCoverageMap({ radiusM = 420, ...props }: Props) {
+  return <TransitCoverageMapInner {...props} radiusM={radiusM} />;
 }

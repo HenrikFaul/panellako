@@ -73,8 +73,8 @@ const GTFS_TYPE_MAP: Record<number, RouteType> = {
 };
 
 // ─── Coverage score (GTFS-based) ─────────────────────────────────────────────
-function computeCoverage(stops: NearbyStop[]): CoverageScore {
-  const close = stops.filter(s => s.distanceM <= 400);
+function computeCoverage(stops: NearbyStop[], radiusM = 400): CoverageScore {
+  const close = stops.filter(s => s.distanceM <= radiusM);
   const typeWeight: Record<RouteType, number> = {
     SUBWAY: 4, RAIL: 3, TRAM: 2.5, TROLLEYBUS: 2, BUS: 1, FERRY: 2, CABLE_CAR: 1,
   };
@@ -317,6 +317,7 @@ export async function GET(request: NextRequest) {
   const latSpan    = parseFloat(searchParams.get('latSpan') ?? '0.07');
   const lonSpan    = parseFloat(searchParams.get('lonSpan') ?? '0.10');
   const buildingId = searchParams.get('buildingId') ?? null;
+  const radiusM    = Math.max(100, Math.min(2000, parseInt(searchParams.get('radiusM') ?? '400', 10) || 400));
 
   // 5-min TTL in-memory cache (used when no buildingId is provided)
   if (!buildingId && _cache && _cache.expires > Date.now() &&
@@ -333,7 +334,7 @@ export async function GET(request: NextRequest) {
         const result: TransitNearbyResult = {
           stops:     cached,
           bubi,
-          coverage:  computeCoverage(cached),
+          coverage:  computeCoverage(cached, radiusM),
           source:    'db',
           fetchedAt: new Date().toISOString(),
         };
@@ -349,7 +350,7 @@ export async function GET(request: NextRequest) {
     const dbStops = await loadBuildingStops(createClient(), buildingId).catch(() => null);
     if (dbStops && dbStops.length > 0) {
       const bubi = await fetchBubi(lat, lon).catch(() => []);
-      const result: TransitNearbyResult = { stops: dbStops, bubi, coverage: computeCoverage(dbStops), source: 'db', fetchedAt: new Date().toISOString() };
+      const result: TransitNearbyResult = { stops: dbStops, bubi, coverage: computeCoverage(dbStops, radiusM), source: 'db', fetchedAt: new Date().toISOString() };
       return NextResponse.json(result);
     }
   }
@@ -368,7 +369,7 @@ export async function GET(request: NextRequest) {
     const bboxStops = await loadStopsInBbox(createClient(), minLat, maxLat, minLon, maxLon, lat, lon, bboxLimit).catch(() => null);
     if (bboxStops && bboxStops.length > 0) {
       const bubi = await fetchBubi(lat, lon).catch(() => []);
-      const result: TransitNearbyResult = { stops: bboxStops, bubi, coverage: computeCoverage(bboxStops.slice(0, 20)), source: 'db', fetchedAt: new Date().toISOString() };
+      const result: TransitNearbyResult = { stops: bboxStops, bubi, coverage: computeCoverage(bboxStops.slice(0, 20), radiusM), source: 'db', fetchedAt: new Date().toISOString() };
       return NextResponse.json(result);
     }
   }
@@ -378,7 +379,7 @@ export async function GET(request: NextRequest) {
   if (catalogStops && catalogStops.length > 0) {
     if (buildingId) void upsertBuildingStops(createClient(), buildingId, catalogStops.map(s => ({ stop_id: s.id, distance_m: s.distanceM }))).catch(() => {});
     const bubi = await fetchBubi(lat, lon).catch(() => []);
-    const result: TransitNearbyResult = { stops: catalogStops, bubi, coverage: computeCoverage(catalogStops), source: 'db', fetchedAt: new Date().toISOString() };
+    const result: TransitNearbyResult = { stops: catalogStops, bubi, coverage: computeCoverage(catalogStops, radiusM), source: 'db', fetchedAt: new Date().toISOString() };
     return NextResponse.json(result);
   }
 
@@ -413,7 +414,7 @@ export async function GET(request: NextRequest) {
   bubi = await fetchBubi(lat, lon).catch(() => []);
 
   const result: TransitNearbyResult = {
-    stops, bubi, coverage: computeCoverage(stops), source,
+    stops, bubi, coverage: computeCoverage(stops, radiusM), source,
     fetchedAt: new Date().toISOString(),
   };
 

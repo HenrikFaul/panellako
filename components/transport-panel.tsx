@@ -430,6 +430,7 @@ export default function TransportPanel({ lat, lon, buildingAddress, buildingId }
   const [refreshKey, setRefreshKey]   = useState(0);
   const [selectedStop, setSelectedStop] = useState<NearbyStop | null>(null);
   const [tab, setTab]                 = useState<'stops' | 'bubi' | 'co2' | 'alerts'>('stops');
+  const [walkRadiusM, setWalkRadiusM] = useState(420);
   const coordsReady                   = !geocoding && (realLat !== 47.5278845 || realLon !== 19.0705657 || lat !== undefined);
   const firstLoad                     = useRef(true);
   const mapRef                        = useRef<TransitLiveMapHandle>(null);
@@ -442,7 +443,7 @@ export default function TransportPanel({ lat, lon, buildingAddress, buildingId }
     }
 
     try {
-      const nearbyUrl = `/api/transit/nearby?lat=${realLat}&lon=${realLon}${buildingId ? `&buildingId=${encodeURIComponent(buildingId)}` : ''}`;
+      const nearbyUrl = `/api/transit/nearby?lat=${realLat}&lon=${realLon}${buildingId ? `&buildingId=${encodeURIComponent(buildingId)}` : ''}&radiusM=${walkRadiusM}`;
       const [nearbyRes, alertsRes] = await Promise.allSettled([
         fetch(nearbyUrl).then(r => r.json()),
         fetch('/api/transit/alerts').then(r => r.json()),
@@ -463,7 +464,7 @@ export default function TransportPanel({ lat, lon, buildingAddress, buildingId }
       firstLoad.current = false;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [realLat, realLon, buildingId]);
+  }, [realLat, realLon, buildingId, walkRadiusM]);
 
   // Initial load + coordinate changes
   useEffect(() => {
@@ -672,11 +673,22 @@ export default function TransportPanel({ lat, lon, buildingAddress, buildingId }
 
         <div className="flex flex-col gap-1.5">
           <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">
-            Tömegközlekedési lefedettség — 420 m gyaloglási buffer
+            Tömegközlekedési lefedettség — {walkRadiusM} m ({Math.round(walkRadiusM / 84)} p sétálva)
           </p>
+          <div className="flex items-center gap-2 mb-1">
+            <input
+              type="range" min={150} max={1000} step={50}
+              value={walkRadiusM}
+              onChange={e => setWalkRadiusM(Number(e.target.value))}
+              className="h-1 flex-1 accent-sky-400"
+              title="Gyaloglási sugár állítása"
+            />
+            <span className="w-12 shrink-0 text-right text-[8px] text-slate-600">{walkRadiusM} m</span>
+          </div>
           <TransitCoverageMap
             buildingLat={realLat}
             buildingLon={realLon}
+            radiusM={walkRadiusM}
             stops={stops.map(s => ({
               id:         s.id,
               name:       s.name,

@@ -95,9 +95,10 @@ interface Props {
   buildingLat: number;
   buildingLon: number;
   stops:       Stop[];
+  radiusM?:    number;
 }
 
-export default function TransitCoverageMapInner({ buildingLat, buildingLon, stops }: Props) {
+export default function TransitCoverageMapInner({ buildingLat, buildingLon, stops, radiusM = 420 }: Props) {
   const containerRef   = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef         = useRef<any>(null);
@@ -172,7 +173,7 @@ export default function TransitCoverageMapInner({ buildingLat, buildingLon, stop
       // ── Layers 2 & 3: Stop coverage buffers ──────────────────────────────────
       // Thesis §4.4: "megállóhelyek köré generált 420 méteres bufferzónával
       // (átlagos 5km/h-s gyalogos sebességgel 5 perc alatt lesétálható távolság)"
-      const BUFFER_RADIUS = 420;   // metres — 5 min walk @ 5 km/h
+      const BUFFER_RADIUS = radiusM;   // metres — configurable walk radius
 
       // Render daytime buffers first (below nighttime)
       const dayStops   = stops.filter(s => !hasNightService(s.routeRefs ?? []));

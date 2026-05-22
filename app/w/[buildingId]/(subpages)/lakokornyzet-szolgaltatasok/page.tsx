@@ -1,9 +1,9 @@
-// Transit sub-page — Live map + BKK coverage + Cycling routes
-// URL: /w/[buildingId]/kozlekedes
+// Lakókörnyezet - szolgáltatások sub-page
+// URL: /w/[buildingId]/lakokornyzet-szolgaltatasok
 
 import { redirect, notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import TransitPageClient from '@/components/transit-page-client';
+import ServicesPageClient from '@/components/services-page-client';
 
 interface PageProps {
   params: { buildingId: string };
@@ -30,32 +30,22 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lon: numb
   }
 }
 
-export default async function KozlekedesPage({ params }: PageProps) {
+export default async function LakokornyzeSzolgaltatasokPage({ params }: PageProps) {
   const { buildingId } = params;
-
   if (!UUID_REGEX.test(buildingId)) notFound();
 
   const supabase = createClient();
-
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) redirect(`/login?next=/w/${buildingId}/kozlekedes`);
+  if (authError || !user) redirect(`/login?next=/w/${buildingId}/lakokornyzet-szolgaltatasok`);
 
   const { data: memberships } = await supabase
-    .from('memberships')
-    .select('id')
-    .eq('profile_id', user.id)
-    .eq('building_id', buildingId)
-    .eq('active', true)
-    .limit(1);
-
+    .from('memberships').select('id')
+    .eq('profile_id', user.id).eq('building_id', buildingId).eq('active', true).limit(1);
   if (!memberships || memberships.length === 0) redirect('/app');
 
   const { data: building } = await supabase
-    .from('buildings')
-    .select('id, name, address, lat, lon')
-    .eq('id', buildingId)
-    .single();
-
+    .from('buildings').select('id, name, address, lat, lon')
+    .eq('id', buildingId).single();
   if (!building) redirect('/app');
 
   let lat: number = (building as { lat?: number | null }).lat ?? 47.5278845;
@@ -64,10 +54,8 @@ export default async function KozlekedesPage({ params }: PageProps) {
   if ((!lat || !lon) && building.address) {
     const geo = await geocodeAddress(building.address);
     if (geo) {
-      lat = geo.lat;
-      lon = geo.lon;
-      await supabase
-        .from('buildings')
+      lat = geo.lat; lon = geo.lon;
+      await supabase.from('buildings')
         .update({ lat: geo.lat, lon: geo.lon, geocoded_at: new Date().toISOString() })
         .eq('id', buildingId);
     }
@@ -76,7 +64,7 @@ export default async function KozlekedesPage({ params }: PageProps) {
   const buildingName = (building as { name?: string | null }).name ?? building.address;
 
   return (
-    <TransitPageClient
+    <ServicesPageClient
       buildingId={buildingId}
       buildingName={buildingName}
       buildingAddress={building.address}
@@ -89,13 +77,10 @@ export default async function KozlekedesPage({ params }: PageProps) {
 export async function generateMetadata({ params }: PageProps) {
   const supabase = createClient();
   const { data: building } = await supabase
-    .from('buildings')
-    .select('name, address')
-    .eq('id', params.buildingId)
-    .maybeSingle();
+    .from('buildings').select('name, address').eq('id', params.buildingId).maybeSingle();
   const name = building ? ((building as { name?: string | null }).name ?? building.address) : '';
   return {
-    title: building ? `Közlekedés · ${name} — PanelLakó` : 'Közlekedés — PanelLakó',
-    description: 'Élő járattérkép, BKK menetrend, tömegközlekedési lefedettség, kerékpáros útvonalak',
+    title: building ? `Lakókörnyezet - szolgáltatások · ${name} — PanelLakó` : 'Lakókörnyezet - szolgáltatások — PanelLakó',
+    description: 'Kompakt város, 15 perces élettér, közszolgáltatások, iskolák, óvodák, egészségügy',
   };
 }
