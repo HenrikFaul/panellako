@@ -1,4 +1,14 @@
 
+## 2026-05-22 — v0.9.4 Közösségi Zöld Akciók (Feature 05)
+
+### Added
+- **`app/w/[buildingId]/zold-akciok/page.tsx`** — Szerver oldal: UUID validáció, auth ellenőrzés, tagság-ellenőrzés (ugyanaz a pattern, mint `/w/[buildingId]/zaj`), épület neve + azonosítója átadva a kliens komponensnek. `generateMetadata` SEO-hoz.
+- **`components/green-actions-client.tsx`** — Kliens dashboard 3 szekcióval:
+  1. **CO₂ Megtakarítás Kalkulátor** — távolság-csúszka (0–50 km), közlekedési mód választó (Autó/BKK/Kerékpár/Gyalog), összehasonlító táblázat (Autó: 0,21 kg/km, BKK: 0,082 kg/km, többi 0), „Rögzítem" gomb localStorage mentéshez.
+  2. **Saját Közlekedési Napló** — legutóbbi 10 út `pl_trip_log` localStorage kulcsból, havi CO₂-megtakarítás összesítő, „Törlés" link, SSR-biztos hidratálás `useEffect`-tel.
+  3. **Épületi Zöld Akciók** — 6 előre definiált zöld akció kártya (faültetés, szelektív gyűjtés, LED-csere, kerékpártároló, zöldhomlokzat, esővíz-gyűjtés), „Szavazok rá!" toggle, lokális szavazatszámláló.
+- Teljes kliens-oldali állapot (localStorage + React state) — nincs új Supabase tábla, nincs új npm csomag.
+
 ## 2026-05-22 — v0.9.3 Panellako Supabase projektbe irányítás — OSM-cím adatok
 
 ### Fixed
