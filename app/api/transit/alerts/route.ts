@@ -42,7 +42,6 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const STALE_AGE_MS = 10 * 60 * 1000;
 
 const GTFS_RT_BASE = 'https://go.bkk.hu/api/query/v1/ws/gtfs-rt/full';
-const OBA_BASE     = 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where';
 const APP_ORIGIN   = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://panellako.hu').replace(/\/$/, '');
 const BKK_KEY      = process.env.BKKFUTAR_API_KEY ?? '';
 
