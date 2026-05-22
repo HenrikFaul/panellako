@@ -5,15 +5,37 @@ import 'leaflet/dist/leaflet.css';
 import { useMapTheme } from '@/hooks/use-map-theme';
 
 // ─── Noise layer config ───────────────────────────────────────────────────────
-type NoiseLayer = 'kozut_lden' | 'kozut_lnight' | 'vasut_lden';
+type NoiseLayer = 'kozut_lden' | 'kozut_lnight' | 'vasut_lden' | 'ipari_lden';
 
 const NOISE_LAYER_CFG: Record<NoiseLayer, { label: string; wmsLayer: string; color: string }> = {
   kozut_lden:   { label: 'Közút L_den',    wmsLayer: 'KOZUT_LDEN',   color: '#f97316' },
   kozut_lnight: { label: 'Közút L_night',  wmsLayer: 'KOZUT_LNIGHT', color: '#8b5cf6' },
   vasut_lden:   { label: 'Vasút L_den',    wmsLayer: 'VASUT_LDEN',   color: '#3b82f6' },
+  ipari_lden:   { label: 'Ipari L_den',    wmsLayer: 'IPARI_LDEN',   color: '#ec4899' },
 };
 
-// dB color scale matching zajterkepek.hu convention
+// WMS source configs — HungaroMet (met.hu) is the authoritative Hungarian strategic noise map
+// since 2023. NIF zajterkepek.hu is the legacy source kept as fallback.
+const WMS_SOURCES = [
+  {
+    id: 'met',
+    label: 'HungaroMet (OMSZ)',
+    url: 'https://geoportal.met.hu/geoserver/zajterkep/wms',
+    link: 'https://zajterkep.met.hu',
+    attribution: '<a href="https://zajterkep.met.hu" target="_blank">zajterkep.met.hu · HungaroMet / OMSZ</a>',
+  },
+  {
+    id: 'nif',
+    label: 'NIF Zrt.',
+    url: 'https://zajterkepek.hu/geoserver/zajterkep/wms',
+    link: 'https://zajterkepek.hu',
+    attribution: '<a href="https://zajterkepek.hu" target="_blank">zajterkepek.hu · NIF Zrt.</a>',
+  },
+] as const;
+
+type WmsSourceId = typeof WMS_SOURCES[number]['id'];
+
+// dB color scale (EU END Directive standard)
 const DB_LEGEND = [
   { label: '< 55 dB', color: '#22c55e' },
   { label: '55–60 dB', color: '#a3e635' },
@@ -50,9 +72,11 @@ export default function NoiseMapInner({ buildingLat, buildingLon, className }: P
   const [mapReady, setMapReady] = useState(false);
   const [wmsOk, setWmsOk]       = useState<boolean | null>(null);
   const [activeLayer, setActiveLayer] = useState<NoiseLayer>('kozut_lden');
+  const [wmsSourceId, setWmsSourceId] = useState<WmsSourceId>('met');
 
-  // zajterkepek.hu deep-link — centered on the building
-  const zajLink = `https://zajterkepek.hu/index.html#15/${buildingLat.toFixed(5)}/${buildingLon.toFixed(5)}`;
+  const activeSource = WMS_SOURCES.find(s => s.id === wmsSourceId) ?? WMS_SOURCES[0];
+  // Deep-link to the active source viewer centered on the building
+  const zajLink = `${activeSource.link}#15/${buildingLat.toFixed(5)}/${buildingLon.toFixed(5)}`;
 
   useEffect(() => {
     if (!document.getElementById('noise-map-css')) {
@@ -79,16 +103,16 @@ export default function NoiseMapInner({ buildingLat, buildingLon, className }: P
         opacity: 0.6,
       }).addTo(map);
 
-      // ── Strategic noise WMS from NIF zajterkepek.hu ───────────────────────
-      // WMS endpoint from the Hungarian National Infrastructure Development (NIF Zrt.)
-      const wmsLayer = L.tileLayer.wms('https://zajterkepek.hu/geoserver/zajterkep/wms', {
+      // ── Strategic noise WMS — HungaroMet (OMSZ) primary, NIF legacy fallback ──
+      const src = WMS_SOURCES.find(s => s.id === wmsSourceId) ?? WMS_SOURCES[0];
+      const wmsLayer = L.tileLayer.wms(src.url, {
         layers:      NOISE_LAYER_CFG[activeLayer].wmsLayer,
         format:      'image/png',
         transparent: true,
         version:     '1.1.1',
         opacity:     0.8,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        attribution: '<a href="https://zajterkepek.hu" target="_blank">zajterkepek.hu · NIF Zrt.</a>' as any,
+        attribution: src.attribution as any,
       });
 
       // Test WMS availability by listening to tile events
@@ -136,6 +160,19 @@ export default function NoiseMapInner({ buildingLat, buildingLon, className }: P
     (wmsRef.current as any).setParams({ layers: NOISE_LAYER_CFG[activeLayer].wmsLayer }, false);
   }, [activeLayer]);
 
+  // Switch WMS source — requires map remount (handled by wmsSourceId in dep array above)
+  // We trigger a remount by destroying + recreating the map
+  useEffect(() => {
+    if (!mapRef.current) return;
+    // Destroy map so the init effect re-runs with the new source
+    mapRef.current.remove();
+    mapRef.current = null;
+    wmsRef.current = null;
+    setMapReady(false);
+    setWmsOk(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wmsSourceId]);
+
   return (
     <div className={`relative overflow-hidden ${className ?? ''}`}
       style={{ background: '#060c18', minHeight: 360 }}>
@@ -150,37 +187,52 @@ export default function NoiseMapInner({ buildingLat, buildingLon, className }: P
         </div>
       )}
 
-      {/* Layer switcher */}
+      {/* Source + layer switcher */}
       {mapReady && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[400] flex gap-1 bg-black/75 rounded-xl px-2 py-1.5 backdrop-blur-sm">
-          {(Object.entries(NOISE_LAYER_CFG) as [NoiseLayer, typeof NOISE_LAYER_CFG[NoiseLayer]][]).map(([key, cfg]) => (
-            <button
-              key={key}
-              onClick={() => setActiveLayer(key)}
-              className={`rounded-lg px-2.5 py-1 text-[10px] font-bold transition-colors ${
-                activeLayer === key
-                  ? 'bg-white/20 text-white'
-                  : 'text-white/50 hover:text-white/80'
-              }`}
-            >
-              {cfg.label}
-            </button>
-          ))}
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[400] flex flex-col items-center gap-1">
+          {/* WMS source selector */}
+          <div className="flex gap-1 bg-black/80 rounded-xl px-2 py-1 backdrop-blur-sm">
+            {WMS_SOURCES.map(src => (
+              <button key={src.id} onClick={() => setWmsSourceId(src.id)}
+                className={`rounded-lg px-2.5 py-1 text-[9px] font-bold transition-colors ${
+                  wmsSourceId === src.id ? 'bg-cyan-500/30 text-cyan-300' : 'text-white/50 hover:text-white/80'
+                }`}>
+                {src.label}
+              </button>
+            ))}
+          </div>
+          {/* Layer selector */}
+          <div className="flex gap-1 bg-black/75 rounded-xl px-2 py-1.5 backdrop-blur-sm">
+            {(Object.entries(NOISE_LAYER_CFG) as [NoiseLayer, typeof NOISE_LAYER_CFG[NoiseLayer]][]).map(([key, cfg]) => (
+              <button key={key} onClick={() => setActiveLayer(key)}
+                className={`rounded-lg px-2.5 py-1 text-[10px] font-bold transition-colors ${
+                  activeLayer === key ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white/80'
+                }`}>
+                {cfg.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* WMS unavailable notice + zajterkepek.hu link */}
+      {/* WMS unavailable notice */}
       {mapReady && wmsOk === false && (
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-[400] bg-amber-950/90 border border-amber-700/50 rounded-xl px-4 py-2.5 text-center max-w-xs backdrop-blur-sm">
-          <p className="text-[10px] text-amber-300 font-medium">A NIF zajtérkép szerver nem elérhető</p>
-          <a
-            href={zajLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-amber-400 hover:text-amber-300 underline"
-          >
-            Megnyitás zajterkepek.hu-n →
-          </a>
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[400] bg-amber-950/90 border border-amber-700/50 rounded-xl px-4 py-2.5 text-center max-w-xs backdrop-blur-sm">
+          <p className="text-[10px] text-amber-300 font-medium">
+            A {activeSource.label} WMS szerver nem elérhető
+          </p>
+          <div className="mt-1.5 flex flex-col gap-1">
+            {wmsSourceId === 'met' && (
+              <button onClick={() => setWmsSourceId('nif')}
+                className="text-[10px] font-bold text-sky-400 hover:text-sky-300">
+                ← Váltás NIF zajterkepek.hu-ra
+              </button>
+            )}
+            <a href={zajLink} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-1 text-[10px] font-bold text-amber-400 hover:text-amber-300 underline">
+              Megnyitás {activeSource.label} weboldalán →
+            </a>
+          </div>
         </div>
       )}
 
@@ -194,18 +246,15 @@ export default function NoiseMapInner({ buildingLat, buildingLon, className }: P
               <span className="text-[9px] text-slate-300">{item.label}</span>
             </div>
           ))}
+          <p className="text-[7px] text-slate-600 mt-0.5">EU END 2002/49/EK irányelv</p>
         </div>
       )}
 
-      {/* zajterkepek.hu link */}
+      {/* Source deep-link */}
       {mapReady && (
-        <a
-          href={zajLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="absolute bottom-6 right-2 z-[400] flex items-center gap-1.5 bg-black/75 hover:bg-black/90 rounded-lg px-3 py-2 backdrop-blur-sm transition-colors"
-        >
-          <span className="text-[9px] font-bold text-slate-300">zajterkepek.hu</span>
+        <a href={zajLink} target="_blank" rel="noopener noreferrer"
+          className="absolute bottom-6 right-2 z-[400] flex items-center gap-1.5 bg-black/75 hover:bg-black/90 rounded-lg px-3 py-2 backdrop-blur-sm transition-colors">
+          <span className="text-[9px] font-bold text-slate-300">{activeSource.label}</span>
           <span className="text-[9px] text-slate-500">↗</span>
         </a>
       )}
