@@ -1,4 +1,21 @@
 
+### [LESSON-UI-BRAND-001] TILTOTT SZÖVEGEK — soha ne jelenjenek meg újra a felületen
+- **Dátum**: 2026-05-22
+- **Érintett fájlok**: `components/workspace-sidebar.tsx`, `components/dashboard-client.tsx`
+- **Gyökérok**: Az AI agent korábban „Operációs központ" és „Digitális műveleti központ" feliratokat helyezett el a sidebar logó alatt és a hero szekcióban. A felhasználó VÉGLEGESEN eltávolíttatta ezeket.
+- **TILALOM (visszavonhatatlan)**: A következő szövegeket **TILOS** bármelyik UI-komponensbe, page-be vagy layout-ba beírni:
+  - `Operációs központ`
+  - `Digitális műveleti központ`
+  - Ezek semmilyen változata, rövidítése, fordítása
+- **Megelőzés**: Minden PR review előtt grep-pel ellenőrizni: `grep -rn "Operációs\|műveleti" components/ app/`. Ha találat van → AZONNALI eltávolítás, no-exception.
+
+### [LESSON-TYPO-HU-001] Magyar helyesírás: „hősziget" (NEM „hőszigat")
+- **Dátum**: 2026-05-22
+- **Gyökérok**: Az „urban heat island" (városi hősziget) szót rendszeresen helytelenül írta az AI: „hőszigat" az összes felületen.
+- **Helyes alak**: `hősziget`, `Hősziget`, `hősziget-hatás`, `hősziget kockázat`
+- **Hibás alak** (TILOS): `hőszigat`, `Hőszigat`
+- **Megelőzés**: Minden klíma/környezet témájú szövegnél grep: `grep -rin "hőszigat" components/ app/`. Ha találat → azonnal javítani.
+
 ### [LESSON-TRANSIT-081] Vercel Cron nem küld custom Authorization Bearer tokent
 - **Dátum**: 2026-05-19
 - **Fájl**: `app/api/transit/sync/route.ts`

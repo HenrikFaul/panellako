@@ -78,6 +78,7 @@ import MeetingDetailPanel from '@/components/meeting-detail-panel';
 import AnnouncementComposer from '@/components/announcement-composer';
 import DashboardHeroScene, { detectTimeOfDay as heroDetectTod, skyGradient as heroSkyGradient, type TimeOfDay as HeroTimeOfDay } from '@/components/dashboard-hero-scene';
 import HeroVehicle from '@/components/HeroVehicle';
+import WorkspaceSidebar from '@/components/workspace-sidebar';
 
 // v0.7.14 — Magyarország-szintű címkereső eredmény-shape
 // (api/location/autocomplete válasz egy eleme)
@@ -904,6 +905,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [docActionLoading, setDocActionLoading] = useState(false);
   const [docActionError, setDocActionError] = useState('');
   const [demoInitStatus, setDemoInitStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [kommandOpen, setKommandOpen] = useState(false);
   const [kommandQuery, setKommandQuery] = useState('');
 
@@ -976,7 +978,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     ...(isAdminLike ? [{ href: '#audit', label: 'Audit napló', icon: ShieldCheck, count: 0, critical: 0 }] : []),
     // ── Környezeti elemzések ─────────────────────────────────────────────────
     { href: `/w/${data.buildingId}/kornyezet`,    label: 'Levegő & Kerékpár',   icon: Wind,       count: 0, critical: 0, section: 'env' as const },
-    { href: `/w/${data.buildingId}/klimakockazat`, label: 'Hőszigat kockázat',   icon: Flame,      count: 0, critical: 0, section: 'env' as const },
+    { href: `/w/${data.buildingId}/klimakockazat`, label: 'Hősziget kockázat',   icon: Flame,      count: 0, critical: 0, section: 'env' as const },
     { href: `/w/${data.buildingId}/zaj`,           label: 'Zajriporter',          icon: Volume2,    count: 0, critical: 0, section: 'env' as const },
     { href: `/w/${data.buildingId}/hulladek`,      label: 'Hulladék & Víz',       icon: Recycle,    count: 0, critical: 0, section: 'env' as const },
     { href: `/w/${data.buildingId}/budapest-2030`, label: 'Budapest 2030',        icon: TrendingUp, count: 0, critical: 0, section: 'env' as const },
@@ -1319,158 +1321,20 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_left,theme(colors.brand.50)_0%,theme(colors.slate.50)_40%,theme(colors.indigo.50/30%)_100%)] text-slate-900">
-      <div className="grid min-h-screen lg:grid-cols-[272px_1fr]">
-        <aside className="hidden border-r border-slate-800/50 bg-slate-950 text-slate-200 shadow-2xl lg:block">
-          <div className="relative sticky top-0 flex h-screen flex-col overflow-hidden">
+      <div className="flex min-h-screen">
+        <WorkspaceSidebar
+          buildingId={data.buildingId ?? ''}
+          buildingName={data.buildingName ?? ''}
+          buildingAddress={data.buildingAddress ?? ''}
+          role={data.currentUser.role}
+          collapsed={sidebarCollapsed}
+          onCollapse={setSidebarCollapsed}
+        />
 
-            {/* KOMMAND OVERLAY */}
-            {kommandOpen && (
-              <div className="absolute inset-0 z-50 flex flex-col bg-slate-950 p-4">
-                <div className="flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-black px-3 py-2.5 ring-2 ring-emerald-500/15 shadow-lg shadow-emerald-900/20">
-                  <span className="select-none font-mono text-base text-emerald-400">›</span>
-                  <input
-                    autoFocus
-                    className="flex-1 bg-transparent font-mono text-sm text-emerald-300 outline-none placeholder:text-emerald-900"
-                    placeholder="parancs vagy keresés..."
-                    value={kommandQuery}
-                    onChange={(e) => setKommandQuery(e.target.value)}
-                  />
-                  <button onClick={() => { setKommandOpen(false); setKommandQuery(''); }} className="rounded p-0.5 hover:bg-emerald-500/10">
-                    <X size={13} className="text-slate-600 transition-colors hover:text-emerald-400" />
-                  </button>
-                </div>
-                <div className="mt-3 flex-1 space-y-0.5 overflow-y-auto">
-                  {kommandResults.length === 0 && (
-                    <p className="py-6 text-center font-mono text-xs text-slate-700">nincs találat</p>
-                  )}
-                  {kommandResults.map((item) => (
-                    <a
-                      key={item.id}
-                      href={item.href}
-                      onClick={() => { setKommandOpen(false); setKommandQuery(''); }}
-                      className="group flex items-center gap-2.5 rounded-lg px-3 py-2.5 transition-colors hover:bg-emerald-500/10"
-                    >
-                      <span className="w-6 shrink-0 text-center font-mono text-[10px] text-emerald-800 transition-colors group-hover:text-emerald-500">{item.type}</span>
-                      <span className="flex-1 truncate text-sm text-slate-400 transition-colors group-hover:text-white">{item.label}</span>
-                      {item.meta && <span className="shrink-0 rounded-full bg-slate-900 px-1.5 py-0.5 text-[10px] text-slate-600">{item.meta}</span>}
-                    </a>
-                  ))}
-                </div>
-                <p className="mt-3 select-none text-center font-mono text-[10px] text-slate-800">ESC bezár</p>
-              </div>
-            )}
-
-            <div className="flex h-full flex-col p-4">
-
-              {/* LOGO */}
-              <div className="mb-4 flex items-center gap-3">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-sky-500 text-white shadow-lg shadow-brand-900/30">
-                  <Building2 size={20} />
-                </div>
-                <div>
-                  <p className="text-base font-black tracking-tight text-white">PanelLakó</p>
-                  <p className="text-[11px] text-slate-600">Operációs központ</p>
-                </div>
-              </div>
-
-              {/* BUILDING CONTEXT */}
-              {data.buildingName && (
-                <div className="mb-3 rounded-xl border border-slate-800/50 bg-white/[0.04] px-3 py-2.5">
-                  <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-slate-600">Aktuális épület</p>
-                  <p className="truncate text-xs font-semibold leading-snug text-slate-200">{data.buildingName}</p>
-                  {data.buildingAddress && (
-                    <p className="mt-0.5 truncate text-[10px] text-slate-500">{data.buildingAddress}</p>
-                  )}
-                  <Link
-                    href="/app"
-                    className="mt-2 flex items-center gap-1.5 text-[10px] font-semibold text-brand-400 transition-colors hover:text-brand-300"
-                  >
-                    <Layers3 size={11} />
-                    Épület váltása
-                  </Link>
-                </div>
-              )}
-
-              {/* SIGNAL NAV — scrollable, takes all remaining space */}
-              <nav className="sidebar-scroll flex-1 space-y-px overflow-y-auto">
-                {signalNav.map((item, idx) => {
-                  const Icon = item.icon;
-                  const hasCritical = item.critical > 0;
-                  const hasActivity = item.count > 0;
-                  const isFirstEnv = item.section === 'env' && (idx === 0 || signalNav[idx - 1].section !== 'env');
-                  return (
-                    <React.Fragment key={item.href}>
-                      {isFirstEnv && (
-                        <p className="mt-3 mb-1 px-3 text-[9px] font-bold uppercase tracking-widest text-slate-700">
-                          Környezeti elemzések
-                        </p>
-                      )}
-                      <a
-                        href={item.href}
-                        className="group relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 hover:bg-white/[0.07] hover:text-white"
-                      >
-                        {hasCritical && (
-                          <span className="absolute left-1.5 top-1/2 h-3.5 w-0.5 -translate-y-1/2 animate-pulse rounded-full bg-rose-500" />
-                        )}
-                        <Icon
-                          size={15}
-                          className={`shrink-0 transition-colors ${hasCritical ? 'text-rose-400' : hasActivity ? 'text-slate-400' : 'text-slate-600'} group-hover:text-current`}
-                        />
-                        <span className={`transition-colors ${hasCritical ? 'text-slate-300' : hasActivity ? 'text-slate-400' : 'text-slate-600'} group-hover:text-white`}>
-                          {item.label}
-                        </span>
-                        {hasActivity && (
-                          <span className={`ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${hasCritical ? 'bg-rose-500/20 text-rose-400' : 'bg-white/[0.07] text-slate-500'}`}>
-                            {item.count}
-                          </span>
-                        )}
-                      </a>
-                    </React.Fragment>
-                  );
-                })}
-              </nav>
-
-              {/* KOMMAND LAUNCHER */}
-              <div className="mt-3">
-                <button
-                  onClick={() => setKommandOpen(true)}
-                  className="group flex w-full items-center gap-2.5 rounded-xl border border-slate-800 bg-black/30 px-3 py-2.5 text-left transition-all hover:border-emerald-500/30 hover:bg-emerald-500/5"
-                >
-                  <Terminal size={12} className="shrink-0 text-slate-700 transition-colors group-hover:text-emerald-500" />
-                  <span className="font-mono text-xs text-slate-700 transition-colors group-hover:text-emerald-500">parancs / ugrás</span>
-                  <span className="ml-auto rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[10px] text-slate-700">›_</span>
-                </button>
-              </div>
-
-              {/* BILLING LINK — managers only */}
-              {isManager && (
-                <div className="mt-2">
-                  <a
-                    href={'/billing' + (data.buildingId ? `?building=${data.buildingId}` : '')}
-                    className="group flex w-full items-center gap-2.5 rounded-xl border border-violet-900/40 bg-violet-950/30 px-3 py-2.5 text-left transition-all hover:border-violet-500/40 hover:bg-violet-500/10"
-                  >
-                    <Sparkles size={12} className="shrink-0 text-violet-700 transition-colors group-hover:text-violet-400" />
-                    <span className="text-xs font-bold text-violet-700 transition-colors group-hover:text-violet-400">Előfizetés &amp; Számlázás</span>
-                    <ChevronRight size={11} className="ml-auto text-violet-800 group-hover:text-violet-500" />
-                  </a>
-                </div>
-              )}
-
-              {/* ROLE PANEL — compact, active role only */}
-              <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-slate-800/50 bg-white/[0.04] px-3 py-2.5">
-                <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-brand-900/60 text-brand-400 ring-1 ring-brand-800/40">
-                  <UserRound size={13} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600">Aktív szerepkör</p>
-                  <p className="truncate text-xs font-bold text-slate-200">{roleLabels[data.currentUser.role]}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        <main className="min-w-0 overflow-x-hidden space-y-5 px-4 py-5 md:px-8 lg:px-10">
+        <main
+          className="min-w-0 flex-1 overflow-x-hidden space-y-5 px-4 py-5 md:px-8 lg:px-10 transition-[padding] duration-200"
+          style={{ paddingLeft: sidebarCollapsed ? 60 : 272 }}
+        >
           {/* ── Premium header ──────────────────────────────────────────────── */}
           <header
             className="relative overflow-hidden rounded-[2rem] shadow-2xl shadow-slate-950/60"
@@ -1499,16 +1363,16 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     </Link>
                     <h1
                       className="text-2xl font-black tracking-tight break-words md:text-3xl"
-                      style={{ color: '#f0f4ff', textShadow: '0 2px 24px rgba(200,121,32,0.18)' }}
+                      style={{ color: '#f0f4ff', textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 2px 20px rgba(0,0,0,0.7)' }}
                     >
                       {data.buildingName}
                     </h1>
-                    <p className="mt-1 text-xs" style={{ color: '#4a6080' }}>{data.buildingAddress}</p>
+                    <p className="mt-1 text-xs" style={{ color: '#c0d0e8', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>{data.buildingAddress}</p>
                   </>
                 ) : (
                   <>
-                    <h1 className="text-2xl font-black tracking-tight md:text-3xl" style={{ color: '#f0f4ff' }}>PanelLakó</h1>
-                    <p className="mt-1 text-xs" style={{ color: '#4a6080' }}>Modern lakói és képviselői működés egy felületen.</p>
+                    <h1 className="text-2xl font-black tracking-tight md:text-3xl" style={{ color: '#f0f4ff', textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 2px 20px rgba(0,0,0,0.7)' }}>PanelLakó</h1>
+                    <p className="mt-1 text-xs" style={{ color: '#c0d0e8', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Modern lakói és képviselői működés egy felületen.</p>
                   </>
                 )}
               </div>
@@ -1541,13 +1405,13 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               <div className="flex items-center gap-2 shrink-0">
                 {/* Header search */}
                 <div className="relative" ref={searchRef}>
-                  <Search className="pointer-events-none absolute left-3 top-2.5" style={{ color: '#4a6080' }} size={14} />
+                  <Search className="pointer-events-none absolute left-3 top-2.5" style={{ color: '#8ba3c7' }} size={14} />
                   <input
                     className="w-full rounded-xl py-2 pl-9 pr-4 text-sm outline-none transition-all md:w-48"
                     style={{
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      color: '#c8d8f0',
+                      background: 'rgba(0,0,0,0.35)',
+                      border: '1px solid rgba(255,255,255,0.18)',
+                      color: '#dce8f8',
                     }}
                     placeholder="Keresés…"
                     value={searchQuery}
@@ -1632,7 +1496,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               <div className="p-6 md:p-8">
                 {data.buildingName ? (
                   <>
-                    <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-slate-500">Digitális műveleti központ</p>
+                    
                     <h2 className="max-w-xl text-3xl font-black leading-tight tracking-tight text-white md:text-4xl">
                       {data.buildingName}
                     </h2>
@@ -1645,7 +1509,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   </>
                 ) : (
                   <>
-                    <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-slate-500">Digitális műveleti központ</p>
+                    
                     <h2 className="max-w-2xl text-4xl font-black leading-tight tracking-tight md:text-5xl">
                       PanelLakó,<br/>a társasházi app.
                     </h2>

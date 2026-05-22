@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Wind, ArrowLeft, RefreshCw, Leaf, Flower2, Sun, Zap, ChevronDown, AlertCircle, Database, Satellite, Star } from 'lucide-react';
+import { Wind, ArrowLeft, Leaf, Flower2, Sun, Zap, ChevronDown, AlertCircle, Database, Satellite, Star } from 'lucide-react';
 import LandUseMap from '@/components/land-use-map';
 import AirQualityMap from '@/components/air-quality-map';
 import type { AirQualityMapHandle } from '@/components/air-quality-map';
@@ -283,10 +283,8 @@ export default function EnvironmentPageClient({
   // Lazy: urban (compact city + liveability — shared Overpass query)
   // When the panel switches to map view and the cached payload has no POI list,
   // we re-fetch with `?withPois=1` (bypasses cache) so the map can render.
-  const [loadingPois, setLoadingPois] = useState(false);
   const doUrban = useCallback((withPois = false) => {
-    if (withPois) setLoadingPois(true);
-    else          { setLoadingUrban(true); setErrorUrban(false); }
+    if (!withPois) { setLoadingUrban(true); setErrorUrban(false); }
     const qs = `buildingId=${buildingId}&lat=${lat}&lon=${lon}${withPois ? '&withPois=1' : ''}`;
     fetch(`/api/environment/urban?${qs}`)
       .then(r => {
@@ -303,10 +301,7 @@ export default function EnvironmentPageClient({
         else if (!withPois) setErrorUrban(true);
       })
       .catch(() => { if (!withPois) setErrorUrban(true); })
-      .finally(() => {
-        if (withPois) setLoadingPois(false);
-        else          setLoadingUrban(false);
-      });
+      .finally(() => { if (!withPois) setLoadingUrban(false); });
   }, [buildingId, lat, lon]);
 
   useEffect(() => {

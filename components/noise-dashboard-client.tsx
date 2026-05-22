@@ -61,7 +61,7 @@ export default function NoiseDashboardClient({ buildingId, buildingName, buildin
           <NoiseMap
             buildingLat={buildingLat}
             buildingLon={buildingLon}
-            className="h-72 rounded-2xl overflow-hidden"
+            className="h-[420px] rounded-2xl overflow-hidden"
           />
         )}
 

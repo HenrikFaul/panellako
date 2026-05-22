@@ -65,7 +65,7 @@ export default function WorkspaceSidebar({
     { href: `${base}/kozlekedes`,                    label: 'Közlekedés',                      icon: Bus },
     { href: `${base}/kornyezet`,                     label: 'Lakókörnyezet - természet',        icon: Wind },
     { href: `${base}/lakokornyzet-szolgaltatasok`,   label: 'Lakókörnyezet - szolgáltatások',   icon: MapPin },
-    { href: `${base}/klimakockazat`,                 label: 'Hőszigat kockázat',               icon: Flame },
+    { href: `${base}/klimakockazat`,                 label: 'Hősziget kockázat',               icon: Flame },
     { href: `${base}/zaj`,                           label: 'Zajriporter',                      icon: Volume2 },
     { href: `${base}/hulladek`,                      label: 'Hulladék & Víz',                   icon: Recycle },
     { href: `${base}/budapest-2030`,                 label: 'Budapest 2030',                    icon: TrendingUp },
@@ -160,7 +160,7 @@ export default function WorkspaceSidebar({
           </a>
           <div className="flex-1 min-w-0">
             <p className="text-base font-black tracking-tight text-white">PanelLakó</p>
-            <p className="text-[11px] text-slate-600">Operációs központ</p>
+            
           </div>
           <button
             onClick={() => onCollapse(true)}
