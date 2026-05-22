@@ -31,7 +31,6 @@ import {
   ShieldCheck,
   Siren,
   Sparkles,
-  Terminal,
   TicketCheck,
   TrendingUp,
   UserCog,
@@ -132,15 +131,6 @@ type DashboardData = {
   workOrders: WorkOrderItem[];
   kbArticles: KnowledgeBaseArticle[];
   auditLogs: AuditLogItem[];
-};
-
-const roleLabels: Record<Role, string> = {
-  lako: 'Lakó',
-  tulajdonos: 'Tulajdonos',
-  kozos_kepviselo: 'Közös képviselő',
-  megbizott: 'Megbízott',
-  bizottsag: 'Bizottsági tag',
-  konyvelo: 'Könyvelő'
 };
 
 const newsCategoryLabels: Record<string, string> = {
@@ -906,8 +896,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [docActionError, setDocActionError] = useState('');
   const [demoInitStatus, setDemoInitStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [kommandOpen, setKommandOpen] = useState(false);
-  const [kommandQuery, setKommandQuery] = useState('');
 
   // Header search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -963,29 +951,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const unacknowledgedDocs = data.documents.filter((d) => !d.acknowledged_at).length;
   const upcomingMeetings = data.meetings.filter((m) => m.status === 'tervezett').length;
 
-  // === SIGNAL NAV: nav items with live counts ===
-  const signalNav = [
-    { href: '#overview', label: 'Áttekintő', icon: Home, count: 0, critical: 0 },
-    { href: '#tasks', label: 'Teendők', icon: ClipboardCheck, count: openTicketCount + unreadNotificationCount, critical: criticalTickets },
-    { href: '#tickets', label: 'Bejelentések', icon: TicketCheck, count: openTicketCount, critical: criticalTickets },
-    { href: '#units', label: 'Albetétek', icon: Building2, count: 0, critical: 0 },
-    { href: '#documents', label: 'Dokumentumok', icon: FileText, count: unacknowledgedDocs, critical: 0 },
-    { href: '#finances', label: 'Pénzügyek', icon: CircleDollarSign, count: arrears > 0 ? 1 : 0, critical: arrears > 100000 ? 1 : 0 },
-    { href: '#meters', label: 'Mérőórák', icon: Gauge, count: 0, critical: 0 },
-    { href: '#transport', label: 'Közlekedés', icon: Bus, count: 0, critical: 0 },
-    { href: '#meetings', label: 'Közgyűlések', icon: CalendarDays, count: upcomingMeetings, critical: 0 },
-    { href: '#knowledge', label: 'Tudásbázis', icon: BookOpen, count: 0, critical: 0 },
-    ...(isAdminLike ? [{ href: '#audit', label: 'Audit napló', icon: ShieldCheck, count: 0, critical: 0 }] : []),
-    // ── Környezeti elemzések ─────────────────────────────────────────────────
-    { href: `/w/${data.buildingId}/kornyezet`,    label: 'Levegő & Kerékpár',   icon: Wind,       count: 0, critical: 0, section: 'env' as const },
-    { href: `/w/${data.buildingId}/klimakockazat`, label: 'Hősziget kockázat',   icon: Flame,      count: 0, critical: 0, section: 'env' as const },
-    { href: `/w/${data.buildingId}/zaj`,           label: 'Zajriporter',          icon: Volume2,    count: 0, critical: 0, section: 'env' as const },
-    { href: `/w/${data.buildingId}/hulladek`,      label: 'Hulladék & Víz',       icon: Recycle,    count: 0, critical: 0, section: 'env' as const },
-    { href: `/w/${data.buildingId}/budapest-2030`, label: 'Budapest 2030',        icon: TrendingUp, count: 0, critical: 0, section: 'env' as const },
-    { href: `/w/${data.buildingId}/green-score`,   label: 'Zöld Épület Pontszám', icon: Sparkles,   count: 0, critical: 0, section: 'env' as const },
-    { href: `/w/${data.buildingId}/zold-akciok`,   label: 'Zöld Akciók',          icon: Leaf,       count: 0, critical: 0, section: 'env' as const },
-  ];
-
   const handleOpenMeeting = async (meeting: MeetingItem) => {
     setSelectedMeeting(meeting);
     setMeetingPanelLoading(true);
@@ -1000,17 +965,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     setMeetingPanelData(details);
     setMeetings((prev) => prev.map((m) => m.id === selectedMeeting.id && details.meeting ? { ...m, ...details.meeting } : m));
   };
-
-  // === KOMMAND: searchable command palette items ===
-  const kommandItems = useMemo(() => [
-    ...navigation.map((n) => ({ id: `nav-${n.href}`, type: 'nav', label: n.label, href: n.href, meta: '' })),
-    ...tickets.slice(0, 6).map((t) => ({ id: `t-${t.id}`, type: 'ügy', label: t.title, href: '#tickets', meta: t.status })),
-    ...data.documents.slice(0, 4).map((d) => ({ id: `d-${d.id}`, type: 'dok', label: d.title, href: '#documents', meta: d.category })),
-  ], [tickets, data.documents]);
-
-  const kommandResults = kommandQuery.trim()
-    ? kommandItems.filter((i) => i.label.toLowerCase().includes(kommandQuery.toLowerCase()))
-    : kommandItems;
 
   // === HEADER SEARCH items (expanded set) ===
   const searchItems = useMemo(() => [
@@ -1070,7 +1024,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setKommandOpen(false); setKommandQuery('');
         setSearchOpen(false); setSearchQuery('');
         setContactOpen(false);
       }
