@@ -1,4 +1,11 @@
 
+## 2026-05-22 — v0.9.6 Területfelhasználás Térkép a Környezet Oldalon
+
+### Added
+- **`components/land-use-map-inner.tsx`** — 'use client' Leaflet komponens. Overpass API POST (1000m sugár, 20s timeout) lekérdezi a landuse/leisure/natural OSM poligonokat. Overpass `geometry` tömböt GeoJSON Feature-ré konvertál, `L.geoJSON` style függvénnyel színezi (park=#22c55e, erdő=#15803d, rét=#84cc16, cserjés=#65a30d, lakó=#64748b, kereskedelmi=#f97316, ipari=#94a3b8, mezőgazdaság=#eab308). Dark CARTO tile layer, indigo épületjelölő, bottom-left jelmagyarázat, betöltési/hibaállapot.
+- **`components/land-use-map.tsx`** — SSR:false dynamic import wrapper, `LandUseMap` export.
+- **`components/environment-page-client.tsx`** — `sec-green` szekció aljára (zajterhelés szekció után) hozzáadva a területfelhasználás térkép a `LandUseMap buildingLat={lat} buildingLon={lon}` komponenssel.
+
 ## 2026-05-22 — v0.9.5 Zöld Épület Pontszám (Feature 02)
 
 ### Added

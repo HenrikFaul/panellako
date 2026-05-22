@@ -6,6 +6,7 @@ import type { TransitNearbyResult, NearbyStop, RouteType } from '@/app/api/trans
 import type { DepartureBoard, Departure } from '@/app/api/transit/departures/route';
 import type { AlertsResult, TransitAlert, AlertSeverity } from '@/app/api/transit/alerts/route';
 import TransitLiveMap, { type TransitLiveMapHandle } from '@/components/transit-live-map';
+import TransitCoverageMap from '@/components/transit-coverage-map';
 
 // ─── Animation CSS ─────────────────────────────────────────────────────────────
 const TP_CSS = `
@@ -658,14 +659,27 @@ export default function TransportPanel({ lat, lon, buildingAddress, buildingId }
         </div>
       </div>
 
-      {/* ── Right: always-on live map ──────────────────────────────────── */}
-      <div className="flex flex-col gap-1.5">
-        <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">Élő járattérkép</p>
-        <TransitLiveMap ref={mapRef} lat={realLat} lon={realLon} stops={stops}
-          alertRoutes={alerts?.alerts.flatMap(a => a.routes)} />
-        <p className="text-[8px] text-slate-700">
-          Kattints megállóra a menetrendért · járatra az útvonalért · 15 mp-ként frissül
-        </p>
+      {/* ── Right: always-on live map + coverage map ───────────────────── */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">Élő járattérkép</p>
+          <TransitLiveMap ref={mapRef} lat={realLat} lon={realLon} stops={stops}
+            alertRoutes={alerts?.alerts.flatMap(a => a.routes)} />
+          <p className="text-[8px] text-slate-700">
+            Kattints megállóra a menetrendért · járatra az útvonalért · 15 mp-ként frissül
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">
+            Megállók lefedettségi területe (400 m)
+          </p>
+          <TransitCoverageMap
+            buildingLat={realLat}
+            buildingLon={realLon}
+            stops={stops.map(s => ({ id: s.id, name: s.name, lat: s.lat, lon: s.lon, routeType: s.routeType }))}
+          />
+        </div>
       </div>
 
     </div>

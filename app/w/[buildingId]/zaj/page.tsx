@@ -11,6 +11,26 @@ interface PageProps {
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Server-side geocoding — same helper as the main dashboard and kornyezet pages
+async function geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
+  try {
+    const searchParams = new URLSearchParams({
+      q: address, format: 'json', countrycodes: 'hu', limit: '1', addressdetails: '0',
+    });
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?${searchParams}`, {
+      headers: { 'User-Agent': 'panellako.hu/1.0 (contact via panellako.hu)', 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(5000),
+      next: { revalidate: 86400 },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) return null;
+    return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+  } catch {
+    return null;
+  }
+}
+
 export default async function ZajPage({ params }: PageProps) {
   const { buildingId } = params;
 
@@ -33,16 +53,26 @@ export default async function ZajPage({ params }: PageProps) {
 
   const { data: building } = await supabase
     .from('buildings')
-    .select('id, name, address')
+    .select('id, name, address, lat, lon')
     .eq('id', buildingId)
     .single();
 
   if (!building) redirect('/app');
 
+  let lat: number = (building as { lat?: number | null }).lat ?? 47.5278845;
+  let lon: number = (building as { lon?: number | null }).lon ?? 19.0705657;
+
+  if (!lat || !lon) {
+    const geo = await geocodeAddress(building.address);
+    if (geo) { lat = geo.lat; lon = geo.lon; }
+  }
+
   return (
     <NoiseDashboardClient
       buildingId={buildingId}
       buildingName={building.name}
+      buildingLat={lat}
+      buildingLon={lon}
     />
   );
 }

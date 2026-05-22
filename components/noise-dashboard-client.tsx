@@ -1,25 +1,31 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import NoiseReportForm from './noise-report-form';
 import NoiseHeatmap from './noise-heatmap';
 import NoiseHealthAdvisory from './noise-health-advisory';
 
+const NoiseMap = dynamic(() => import('./noise-map'), { ssr: false });
+
 const TABS = [
+  { id: 'terkep',      label: 'Térkép' },
   { id: 'bejeleentes', label: 'Bejelentés' },
-  { id: 'naptar', label: 'Naptár' },
-  { id: 'egeszseg', label: 'Egészségügyi tanácsok' },
+  { id: 'naptar',      label: 'Naptár' },
+  { id: 'egeszseg',    label: 'Egészségügyi tanácsok' },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
 
 interface Props {
-  buildingId: string;
+  buildingId:   string;
   buildingName: string;
+  buildingLat:  number;
+  buildingLon:  number;
 }
 
-export default function NoiseDashboardClient({ buildingId, buildingName }: Props) {
-  const [activeTab, setActiveTab] = useState<TabId>('bejeleentes');
+export default function NoiseDashboardClient({ buildingId, buildingName, buildingLat, buildingLon }: Props) {
+  const [activeTab, setActiveTab] = useState<TabId>('terkep');
 
   return (
     <div className="min-h-screen bg-slate-950 px-4 py-8 sm:px-6">
@@ -51,6 +57,14 @@ export default function NoiseDashboardClient({ buildingId, buildingName }: Props
         </div>
 
         {/* Tab content */}
+        {activeTab === 'terkep' && (
+          <NoiseMap
+            buildingLat={buildingLat}
+            buildingLon={buildingLon}
+            className="h-72 rounded-2xl overflow-hidden"
+          />
+        )}
+
         {activeTab === 'bejeleentes' && (
           <NoiseReportForm workspaceId={buildingId} />
         )}
