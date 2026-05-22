@@ -28,7 +28,7 @@ export default function UHIMonthlyChart({ data }: Props) {
   return (
     <div className="rounded-2xl bg-slate-900 border border-white/10 p-6">
       <div className="mb-4">
-        <h3 className="text-white font-semibold text-base">Szezonális hőszigat-hatás</h3>
+        <h3 className="text-white font-semibold text-base">Szezonális hősziget-hatás</h3>
         <p className="text-slate-400 text-sm mt-0.5">
           Becsült hőmérsékleti többlet hónaponként (°C felett a vidéki háttérhez képest)
         </p>

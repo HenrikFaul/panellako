@@ -205,7 +205,7 @@ interface CalendarEvent {
 const CAT_CFG: Record<EventCategory, { label: string; color: string; scopeLabel: string }> = {
   ticket:  { label: 'Hibabejelentés',    color: '#f43f5e', scopeLabel: '🏠 Albetét' },
   meeting: { label: 'Közgyűlés',         color: '#3b82f6', scopeLabel: '🏢 Épület'  },
-  meter:   { label: 'Mérőóra határidő',  color: '#10b981', scopeLabel: '🏢 Épület'  },
+  meter:   { label: 'Mérőóra határidő',  color: '#a855f7', scopeLabel: '🏢 Épület'  },
   vote:    { label: 'Szavazás',          color: '#f59e0b', scopeLabel: '🏢 Épület'  },
 };
 const SCOPE_LABEL: Record<EventScope, string> = {
@@ -320,7 +320,7 @@ function ActivityCalendar({ tickets, meetings, currentUnit }: ActivityCalendarPr
   const pastTicketMax = Math.max(1, ...cells.filter(c => !c.isFuture).map(c => c.events.filter(e => e.category === 'ticket').length));
 
   function cellBg(cell: typeof cells[0]): string {
-    if (cell.isToday && cell.events.length === 0) return 'bg-white/[0.12] ring-1 ring-white/20';
+    if (cell.isToday) return 'bg-green-500/20 ring-1 ring-green-500/50';
     if (cell.isFuture) {
       // Future: show upcoming events with a soft highlight
       const cat = dominantCat(cell.events);
@@ -340,7 +340,7 @@ function ActivityCalendar({ tickets, meetings, currentUnit }: ActivityCalendarPr
     }
     if (cat === 'vote')    return 'bg-amber-500/70';
     if (cat === 'meeting') return 'bg-blue-600/70';
-    return 'bg-emerald-600/60';
+    return 'bg-purple-600/60';
   }
 
   // Colored dot indicators per category present on a cell

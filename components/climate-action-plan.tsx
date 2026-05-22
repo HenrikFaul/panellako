@@ -107,7 +107,7 @@ export default function ClimateActionPlan() {
         <div>
           <h3 className="text-white font-semibold text-base">Klíma-cselekvési terv</h3>
           <p className="text-slate-400 text-sm mt-0.5">
-            Helyi intézkedések a hőszigat-hatás csökkentéséhez
+            Helyi intézkedések a hősziget-hatás csökkentéséhez
           </p>
         </div>
         {mounted && (
