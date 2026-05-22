@@ -1,4 +1,25 @@
 
+## 2026-05-22 — v0.9.11 SEO Sprint 1: Technical Foundation
+
+### Added — SEO technical foundation (ACT-001 … ACT-006)
+- **`app/robots.ts`** — robots.txt: allow `/`, block `/api/`, `/superadmin`, `/w/`, `/app/`, `/offline`, `/billing`, `/login`; sitemap directive to `https://panellako.hu/sitemap.xml`
+- **`app/sitemap.ts`** — XML sitemap: homepage (priority 1.0) + /elemzes/budapest-kozlekedes (priority 0.8)
+- **`app/layout.tsx`** — `metadataBase: new URL(BASE_URL)` unblocks OG/canonical URL resolution; title template `%s — PanelLakó`; full `openGraph` + `twitter` blocks; Organization + SoftwareApplication JSON-LD schema injected into `<head>`
+- **`app/page.tsx`** — SEO-clean title/description; `sr-only` static content block (hibabejelentés, dokumentumtár, közös költség, közgyűlés) for Googlebot; explicit `canonical: '/'`
+- **`app/elemzes/budapest-kozlekedes/page.tsx`** — SSR static content block above Leaflet map (Googlebot now reads 300+ words); Article JSON-LD schema; full OG metadata; canonical URL
+- **noindex on utility routes**: `app/superadmin/page.tsx`, `app/billing/page.tsx`, `app/app/page.tsx` via `Metadata.robots`; `app/login/layout.tsx`, `app/offline/layout.tsx`, `app/superadmin/login/layout.tsx` via layout wrappers (required for `'use client'` pages)
+- Removed banned phrase "Digitális működési központ" from all metadata
+
+## 2026-05-22 — v0.9.10 Fix: 15-min city map, public services, transit badges, noise map HungaroMet
+
+### Fixed
+- **15-minute city "Térkép" tab** (`services-page-client.tsx`): URL param `livePois=1` → `withPois=1`; live Overpass POI fetch now actually bypasses cache and the map tab loads correctly
+- **Közszolgáltatások data**: Overpass query radius 2.5 km → 3 km; added healthcare OSM tags (`healthcare`, `social_facility`, optician, physiotherapist, blood_bank, health_post, nursing_home, veterinary); limits raised to 40 healthcare / 20 schools / 20 kindergartens / 10 townhalls; `force=1` cache bypass param
+- **Public services map view** (`public-services-map-inner.tsx`, new component): Leaflet map with all 4 categories simultaneously, active category at full opacity, dimmed others; auto-fits bounds to active category; List/Map toggle in UI; Frissítés now passes `force=1`
+- **Transit vehicle badge rendering** (`transit-live-map-inner.tsx`): 4+ char route refs now use wider pill SVG instead of cramped circle; correct `iconSize`/`iconAnchor` for pill shapes
+- **Transit route info map** (`vehicles/route.ts`): also stores normalised (leading-zero-stripped) key so GTFS-RT lookups succeed for routes like `BKK_0047`→`47`
+- **Zajtérkép** (`noise-map-inner.tsx`): HungaroMet (`zajterkep.met.hu`) added as primary WMS source; NIF `zajterkepek.hu` as fallback; source toggle UI; Ipari L_den 4th layer; source-aware deep-link and WMS-unavailable switch
+
 ## 2026-05-22 — v0.9.9 Build fix: signalNav orphan cleanup (3rd pass)
 
 ### Fixed — dashboard-client.tsx dead code after signalNav removal
