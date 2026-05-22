@@ -1,4 +1,26 @@
 
+## 2026-05-22 — v0.9.9 Build fix: signalNav orphan cleanup (3rd pass)
+
+### Fixed — dashboard-client.tsx dead code after signalNav removal
+Eltávolított import ikonok (kizárólag signalNav envSection-ben voltak):
+- `Flame` — Hősziget kockázat nav elem ikonja
+- `Leaf` — Zöld Akciók nav elem ikonja
+- `Recycle` — Hulladék & Víz nav elem ikonja
+- `TrendingUp` — Budapest 2030 nav elem ikonja
+- `Volume2` — Zajriporter nav elem ikonja
+
+Eltávolított count-változók (kizárólag signalNav badge-ekben használtak):
+- `criticalTickets` — kritikus + nyitott ticketek száma
+- `unacknowledgedDocs` — nem aláírt dokumentumok száma
+- `upcomingMeetings` — tervezett közgyűlések száma
+
+### Note: levegőminőség-állomás jelölők
+A levegőminőség-monitor állomás SVG jelölők (`stationMarkerSvg`, `sensorDotSvg`) és az
+`air-quality-map-inner.tsx` / `air-quality-map.tsx` komponensek **változatlanok** — a PR
+egyetlen sorát sem érintette. Az állomás jelölők eltűnése azért látható a produkción, mert az
+ismételt build hibák megakadályozták az új kód deployolását; a produkció egy korábbi verzión
+futott. Ez a build fix lehetővé teszi az állomásjelölőket is tartalmazó új kód deployolását.
+
 ## 2026-05-22 — v0.9.8 Oldalsáv főoldalon + Zajtérkép WMS + Szöveg tisztítás
 
 ### Added

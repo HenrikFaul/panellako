@@ -14,28 +14,23 @@ import {
   CircleDollarSign,
   ClipboardCheck,
   FileText,
-  Flame,
   Gauge,
   Home,
   Layers3,
-  Leaf,
   LifeBuoy,
   LogOut,
   Mail,
   MapPin,
   Radio,
   MessageSquare,
-  Recycle,
   Search,
   Send,
   ShieldCheck,
   Siren,
   Sparkles,
   TicketCheck,
-  TrendingUp,
   UserCog,
   UserRound,
-  Volume2,
   Vote,
   Wind,
   Wrench,
@@ -947,9 +942,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const totalArea = data.units.reduce((acc, item) => acc + numberOrZero(item.area_m2), 0);
   const totalOwnershipShare = data.units.reduce((acc, item) => acc + numberOrZero(item.ownership_share), 0);
 
-  const criticalTickets = tickets.filter((t) => t.priority === 'kritikus' && t.status !== 'lezarva').length;
-  const unacknowledgedDocs = data.documents.filter((d) => !d.acknowledged_at).length;
-  const upcomingMeetings = data.meetings.filter((m) => m.status === 'tervezett').length;
 
   const handleOpenMeeting = async (meeting: MeetingItem) => {
     setSelectedMeeting(meeting);
