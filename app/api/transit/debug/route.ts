@@ -12,6 +12,13 @@ const APP_ORIGIN  = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://panellako.hu').
 const BKK_HEADERS = { 'Accept': 'application/json', 'User-Agent': 'panellako.hu/1.0', 'Referer': `${APP_ORIGIN}/`, 'Origin': APP_ORIGIN };
 
 export async function GET(req: NextRequest) {
+  // Guard: only accessible with CRON_SECRET header or in non-production environments
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers.get('x-cron-secret') ?? req.headers.get('authorization');
+  if (process.env.NODE_ENV === 'production' && cronSecret && authHeader !== cronSecret) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { searchParams } = req.nextUrl;
   const lat    = searchParams.get('lat') ?? '47.5278845';
   const lon    = searchParams.get('lon') ?? '19.0705657';
@@ -105,8 +112,7 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({
-    env:      { hasCustomKey: !!process.env.BKKFUTAR_API_KEY, keyPrefix: BKK_KEY.slice(0, 8), origin: APP_ORIGIN },
-    headers:  BKK_HEADERS,
+    env:      { hasCustomKey: !!process.env.BKKFUTAR_API_KEY, origin: APP_ORIGIN },
     params:   { lat, lon, stopId },
     results,
     testedAt: new Date().toISOString(),

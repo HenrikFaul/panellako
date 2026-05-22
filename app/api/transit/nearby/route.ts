@@ -310,8 +310,10 @@ function getMockResult(lat: number, lon: number): TransitNearbyResult {
 // ─── Main handler ─────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const lat        = parseFloat(searchParams.get('lat')     ?? '47.5278845');
-  const lon        = parseFloat(searchParams.get('lon')     ?? '19.0705657');
+  const latRaw     = parseFloat(searchParams.get('lat')     ?? '47.5278845');
+  const lonRaw     = parseFloat(searchParams.get('lon')     ?? '19.0705657');
+  const lat        = isNaN(latRaw) ? 47.5278845 : latRaw;
+  const lon        = isNaN(lonRaw) ? 19.0705657 : lonRaw;
   const latSpan    = parseFloat(searchParams.get('latSpan') ?? '0.07');
   const lonSpan    = parseFloat(searchParams.get('lonSpan') ?? '0.10');
   const buildingId = searchParams.get('buildingId') ?? null;

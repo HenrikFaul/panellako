@@ -191,8 +191,10 @@ async function fetchObaVehicles(lat: number, lon: number): Promise<VehiclePositi
 // ─── GET handler ──────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const lat      = parseFloat(searchParams.get('lat')      ?? '47.5278845');
-  const lon      = parseFloat(searchParams.get('lon')      ?? '19.0705657');
+  const latRaw   = parseFloat(searchParams.get('lat')      ?? '47.5278845');
+  const lonRaw   = parseFloat(searchParams.get('lon')      ?? '19.0705657');
+  const lat      = isNaN(latRaw)   ? 47.5278845 : latRaw;
+  const lon      = isNaN(lonRaw)   ? 19.0705657 : lonRaw;
   const radiusKm = parseFloat(searchParams.get('radiusKm') ?? '1.5');
 
   // Refresh global GTFS-RT cache when stale
