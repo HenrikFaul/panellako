@@ -1,4 +1,21 @@
 
+## 2026-05-22 — v0.9.5 Zöld Épület Pontszám (Feature 02)
+
+### Added
+- **`app/api/building-score/[buildingId]/route.ts`** — GET `/api/building-score/[buildingId]`. Auth + membership ellenőrzés. 6 al-pontszám párhuzamos számítása: levegőminőség (OpenAQ v3), zöldfelület, közlekedés, kerékpározás, zaj, hőszigat (mind Overpass API). Minden külső API-hívás `AbortSignal.timeout(15000)` + try/catch alapértelmezett értékekkel. Haversine-távolság segédfüggvény. Nominatim geocoding fallback ha az épületnek nincs lat/lon-ja. `Cache-Control: s-maxage=3600`. Visszaad: `{ total, air, green, transit, cycling, noise, uhi, badge, airEstimated, lat, lon, computedAt }`.
+- **`app/w/[buildingId]/green-score/page.tsx`** — Szerver oldal: UUID validáció, auth + tagság ellenőrzés (azonos pattern mint klimakockazat). Épület lat/lon lekérés Supabase-ből + Nominatim fallback. Budapest koordináta fallback (47.4979, 19.0402). `generateMetadata` SEO-hoz.
+- **`components/green-score-dashboard-client.tsx`** — Kliens dashboard: SVG körív pontszámkijelző, badge (Platina/Arany/Ezüst/Bronz/Fejlesztendő) Tailwind-színekkel, 6 al-pontszám kártya 2-3 oszlopos rácsban (progress bar, ikon, forrás-attribúció), skeleton töltési állapot, hibaállapot, Frissítés gomb, adatforrás-attribúciós blokk, vissza-navigáció.
+
+## 2026-05-22 — v0.9.4 Közösségi Zöld Akciók (Feature 05)
+
+### Added
+- **`app/w/[buildingId]/zold-akciok/page.tsx`** — Szerver oldal: UUID validáció, auth ellenőrzés, tagság-ellenőrzés (ugyanaz a pattern, mint `/w/[buildingId]/zaj`), épület neve + azonosítója átadva a kliens komponensnek. `generateMetadata` SEO-hoz.
+- **`components/green-actions-client.tsx`** — Kliens dashboard 3 szekcióval:
+  1. **CO₂ Megtakarítás Kalkulátor** — távolság-csúszka (0–50 km), közlekedési mód választó (Autó/BKK/Kerékpár/Gyalog), összehasonlító táblázat (Autó: 0,21 kg/km, BKK: 0,082 kg/km, többi 0), „Rögzítem" gomb localStorage mentéshez.
+  2. **Saját Közlekedési Napló** — legutóbbi 10 út `pl_trip_log` localStorage kulcsból, havi CO₂-megtakarítás összesítő, „Törlés" link, SSR-biztos hidratálás `useEffect`-tel.
+  3. **Épületi Zöld Akciók** — 6 előre definiált zöld akció kártya (faültetés, szelektív gyűjtés, LED-csere, kerékpártároló, zöldhomlokzat, esővíz-gyűjtés), „Szavazok rá!" toggle, lokális szavazatszámláló.
+- Teljes kliens-oldali állapot (localStorage + React state) — nincs új Supabase tábla, nincs új npm csomag.
+
 ## 2026-05-22 — v0.9.3 Panellako Supabase projektbe irányítás — OSM-cím adatok
 
 ### Fixed
