@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Wind, Bike, ArrowLeft, RefreshCw, Leaf, Flower2, Sun, Zap, ChevronDown, AlertCircle, Database, Satellite, MapPin, Star } from 'lucide-react';
+import LandUseMap from '@/components/land-use-map';
 import AirQualityMap from '@/components/air-quality-map';
 import type { AirQualityMapHandle } from '@/components/air-quality-map';
 import type { AQIStation } from '@/app/api/air-quality/stations/route';
@@ -803,6 +804,12 @@ export default function EnvironmentPageClient({
                     <p className="mt-2 text-[8px] text-slate-700">
                       Becslés OSM úthálózat alapján.{green.source === 'cache' ? ' · Gyorsítótárból (7 napos frissítés)' : ' · Friss Overpass lekérdezés'}
                     </p>
+                  </div>
+
+                  {/* Land use map */}
+                  <div className="mt-4">
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-slate-600">Területfelhasználás térkép</p>
+                    <LandUseMap buildingLat={lat} buildingLon={lon} />
                   </div>
                 </>
               ) : (
