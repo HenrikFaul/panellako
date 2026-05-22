@@ -1,4 +1,18 @@
 
+### [LESSON-DEAD-CODE-002] signalNav eltávolítása után maradó orphan változók — 3 lépéses cleanup
+- **Dátum**: 2026-05-22
+- **Fájl**: `components/dashboard-client.tsx`
+- **Gyökérok**: A `signalNav` tömb eltávolítása (ami az `<aside>` sávból lett kitörölve) nem volt egylépéses — az eltávolítás 3 külön Vercel build hiba sorozatot okozott, mert az orphan kód részekben maradt:
+  - 1. pass: `Terminal`, `roleLabels`, `kommandOpen`, `kommandQuery`, `kommandItems`, `kommandResults` (Kommand palette)
+  - 2. pass: `Flame`, `Leaf`, `Recycle`, `TrendingUp`, `Volume2` (signalNav env-ikonok), `criticalTickets`, `unacknowledgedDocs`, `upcomingMeetings` (signalNav count változók)
+- **Eltávolított importok** (kizárólag signalNav-ban használtak, más helyen nem): `Terminal`, `Flame`, `Leaf`, `Recycle`, `TrendingUp`, `Volume2`
+- **Eltávolított state/változók**: `kommandOpen`, `kommandQuery`, `kommandItems`, `kommandResults`, `signalNav`, `criticalTickets`, `unacknowledgedDocs`, `upcomingMeetings`
+- **Megelőzés**: Ha egy nagy kód-blokkot (pl. `<aside>`, `signalNav`) távolítasz el, **MINDIG** futtasd le a következő grep-et ELŐTTE és UTÁNA is, hogy minden függőséget megtalálj:
+  ```
+  grep -n "signalNav\|kommand\|Terminal\|Flame\|Leaf\|Recycle\|TrendingUp\|Volume2\|criticalTickets\|unacknowledgedDocs\|upcomingMeetings" components/dashboard-client.tsx
+  ```
+  Egy lépésben távolíts el minden orphan import-ot, state-et és változót.
+
 ### [LESSON-UI-BRAND-001] TILTOTT SZÖVEGEK — soha ne jelenjenek meg újra a felületen
 - **Dátum**: 2026-05-22
 - **Érintett fájlok**: `components/workspace-sidebar.tsx`, `components/dashboard-client.tsx`
