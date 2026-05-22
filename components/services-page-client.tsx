@@ -1,10 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { MapPin, RefreshCw, School, Building2, Heart, Phone, Globe, Navigation } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { MapPin, RefreshCw, School, Building2, Heart, Phone, Globe, Navigation, Map, List } from 'lucide-react';
 import CompactCityPanel from '@/components/compact-city-panel';
 import type { UrbanData } from '@/app/api/environment/urban/route';
 import type { PublicService, PublicServicesResult } from '@/app/api/environment/public-services/route';
+
+const PublicServicesMap = dynamic(() => import('@/components/public-services-map-inner'), { ssr: false });
 
 interface Props {
   buildingId:      string;
@@ -74,7 +77,7 @@ export default function ServicesPageClient({ buildingId, buildingName, buildingA
   const doUrban = useCallback((livePois = false) => {
     setLoadingUrban(true); setErrorUrban(false);
     if (livePois) setLoadingPois(true);
-    const url = `/api/environment/urban?buildingId=${buildingId}&lat=${lat}&lon=${lon}${livePois ? '&livePois=1' : ''}`;
+    const url = `/api/environment/urban?buildingId=${buildingId}&lat=${lat}&lon=${lon}${livePois ? '&withPois=1' : ''}`;
     fetch(url)
       .then(r => r.json() as Promise<UrbanData>)
       .then(d => setUrban(d))
@@ -97,9 +100,10 @@ export default function ServicesPageClient({ buildingId, buildingName, buildingA
   const svcRef    = useRef<HTMLDivElement>(null);
   const svcLoaded = useRef(false);
 
-  const fetchServices = useCallback(() => {
+  const fetchServices = useCallback((force = false) => {
     setLoadingSvc(true); setErrorSvc(false);
-    fetch(`/api/environment/public-services?buildingId=${buildingId}&lat=${lat}&lon=${lon}`)
+    const qs = `/api/environment/public-services?buildingId=${buildingId}&lat=${lat}&lon=${lon}${force ? '&force=1' : ''}`;
+    fetch(qs)
       .then(r => r.json() as Promise<PublicServicesResult>)
       .then(d => setServices(d))
       .catch(() => setErrorSvc(true))
@@ -115,6 +119,7 @@ export default function ServicesPageClient({ buildingId, buildingName, buildingA
   }, [fetchServices]);
 
   const [activeCat, setActiveCat] = useState<string>('townhall');
+  const [svcView, setSvcView] = useState<'list' | 'map'>('list');
 
   const allServices: Record<string, PublicService[]> = {
     townhall:     services?.townhalls     ?? [],
@@ -122,6 +127,8 @@ export default function ServicesPageClient({ buildingId, buildingName, buildingA
     kindergarten: services?.kindergartens ?? [],
     healthcare:   services?.healthcare    ?? [],
   };
+
+  const hasAnyServices = Object.values(allServices).some(arr => arr.length > 0);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200">
@@ -177,7 +184,7 @@ export default function ServicesPageClient({ buildingId, buildingName, buildingA
               <span className="text-[9px] text-slate-600">OpenStreetMap · 7 napos cache</span>
             </div>
             {services && (
-              <button type="button" onClick={fetchServices}
+              <button type="button" onClick={() => fetchServices(true)}
                 className="flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1 text-[9px] font-bold text-slate-500 hover:text-slate-300 hover:bg-white/5">
                 <RefreshCw size={9} />Frissítés
               </button>
@@ -192,45 +199,83 @@ export default function ServicesPageClient({ buildingId, buildingName, buildingA
           ) : errorSvc ? (
             <div className="flex flex-col items-center gap-3 py-12">
               <p className="text-xs text-slate-500">Nem sikerült betölteni</p>
-              <button type="button" onClick={fetchServices}
+              <button type="button" onClick={() => fetchServices(true)}
                 className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-slate-400 hover:bg-white/5">
                 Újrapróbálás
               </button>
             </div>
           ) : (
             <>
-              {/* Category tabs */}
-              <div className="mb-4 flex flex-wrap gap-2">
-                {(Object.keys(CAT_CONFIG) as string[]).map(cat => {
-                  const cfg = CAT_CONFIG[cat];
-                  const count = allServices[cat]?.length ?? 0;
-                  return (
-                    <button key={cat} type="button"
-                      onClick={() => setActiveCat(cat)}
-                      className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[10px] font-bold transition-all ${
-                        activeCat === cat
-                          ? 'border-transparent text-white'
-                          : 'border-white/[0.08] text-slate-500 hover:text-slate-300'
-                      }`}
-                      style={activeCat === cat ? { background: cfg.color + '33', borderColor: cfg.color + '60', color: cfg.color } : {}}>
-                      {cfg.icon}
-                      {cfg.label}
-                      <span className="rounded-full px-1.5 py-0.5 text-[8px]"
-                        style={{ background: activeCat === cat ? cfg.color + '33' : 'rgba(255,255,255,0.05)' }}>
-                        {count}
-                      </span>
+              {/* Category tabs + list/map toggle */}
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <div className="flex flex-1 flex-wrap gap-2">
+                  {(Object.keys(CAT_CONFIG) as string[]).map(cat => {
+                    const cfg = CAT_CONFIG[cat];
+                    const count = allServices[cat]?.length ?? 0;
+                    return (
+                      <button key={cat} type="button"
+                        onClick={() => setActiveCat(cat)}
+                        className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[10px] font-bold transition-all ${
+                          activeCat === cat
+                            ? 'border-transparent text-white'
+                            : 'border-white/[0.08] text-slate-500 hover:text-slate-300'
+                        }`}
+                        style={activeCat === cat ? { background: cfg.color + '33', borderColor: cfg.color + '60', color: cfg.color } : {}}>
+                        {cfg.icon}
+                        {cfg.label}
+                        <span className="rounded-full px-1.5 py-0.5 text-[8px]"
+                          style={{ background: activeCat === cat ? cfg.color + '33' : 'rgba(255,255,255,0.05)' }}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* List/Map toggle */}
+                {hasAnyServices && (
+                  <div className="flex gap-1 rounded-xl border border-white/[0.08] bg-white/[0.03] p-1">
+                    <button type="button" onClick={() => setSvcView('list')}
+                      className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-bold transition-colors ${
+                        svcView === 'list' ? 'bg-violet-500/20 text-violet-300' : 'text-slate-500 hover:text-slate-300'
+                      }`}>
+                      <List size={11} />Lista
                     </button>
-                  );
-                })}
+                    <button type="button" onClick={() => setSvcView('map')}
+                      className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-bold transition-colors ${
+                        svcView === 'map' ? 'bg-violet-500/20 text-violet-300' : 'text-slate-500 hover:text-slate-300'
+                      }`}>
+                      <Map size={11} />Térkép
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {/* Service cards */}
-              {(allServices[activeCat] ?? []).length === 0 ? (
-                <p className="py-8 text-center text-xs text-slate-600">Nem találtunk ilyen intézményt a közelben.</p>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {(allServices[activeCat] ?? []).map(s => <ServiceCard key={s.id} s={s} />)}
-                </div>
+              {/* Map view */}
+              {svcView === 'map' && hasAnyServices && (
+                <PublicServicesMap
+                  buildingLat={lat}
+                  buildingLon={lon}
+                  services={{
+                    townhall:     allServices.townhall     as PublicService[],
+                    school:       allServices.school       as PublicService[],
+                    kindergarten: allServices.kindergarten as PublicService[],
+                    healthcare:   allServices.healthcare   as PublicService[],
+                  }}
+                  activeCategory={activeCat as 'townhall' | 'school' | 'kindergarten' | 'healthcare'}
+                />
+              )}
+
+              {/* List view */}
+              {svcView === 'list' && (
+                <>
+                  {(allServices[activeCat] ?? []).length === 0 ? (
+                    <p className="py-8 text-center text-xs text-slate-600">Nem találtunk ilyen intézményt a közelben.</p>
+                  ) : (
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {(allServices[activeCat] ?? []).map(s => <ServiceCard key={s.id} s={s} />)}
+                    </div>
+                  )}
+                </>
               )}
 
               {services && (

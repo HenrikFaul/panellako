@@ -61,16 +61,30 @@ function vehicleSvg(color: string, bearing?: number, vehicleType?: string, route
   const rot    = bearing ?? 0;
   const label  = (routeRef ?? '').substring(0, 5);
   const len    = label.length;
-  const fSize  = len <= 2 ? 13 : len === 3 ? 10.5 : len === 4 ? 9 : 7.5;
-  const fY     = (20 + fSize * 0.38).toFixed(1);
   const tColor = color === '#fbbf24' ? '#1a0a00' : '#ffffff';
-
-  // Mode-specific shape accent on the disc border
   const strokeW = vehicleType === 'SUBWAY' ? '2.5' : vehicleType === 'TRAM' ? '2' : '1.2';
   const glow    = `<circle cx="20" cy="20" r="18" fill="${color}" fill-opacity="0.18"/>`;
   const arrow   = bearing != null
     ? `<polygon points="20,1 24.5,11.5 20,9.5 15.5,11.5" fill="${color}" fill-opacity="0.9" transform="rotate(${rot} 20 20)"/>`
     : '';
+
+  // For 4+ char labels: use a pill/rect shape that's wider to avoid text overflow
+  if (len >= 4) {
+    const w = len === 4 ? 40 : 46;
+    const fSize = len === 4 ? 8.5 : 7.5;
+    const fY = '23';
+    const rx = 8;
+    const pillGlow  = `<rect x="1" y="6" width="${w-2}" height="28" rx="10" fill="${color}" fill-opacity="0.18"/>`;
+    const pillArrow = bearing != null
+      ? `<polygon points="${w/2},0 ${w/2+4},8 ${w/2},6 ${w/2-4},8" fill="${color}" fill-opacity="0.85" transform="rotate(${rot} ${w/2} 20)"/>`
+      : '';
+    const pill      = `<rect x="4" y="9" width="${w-8}" height="22" rx="${rx}" fill="${color}" stroke="rgba(255,255,255,0.35)" stroke-width="${strokeW}"/>`;
+    const txt       = `<text x="${w/2}" y="${fY}" text-anchor="middle" dominant-baseline="middle" fill="${tColor}" font-size="${fSize}" font-weight="900" font-family="Arial,Helvetica,sans-serif">${label}</text>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="40" viewBox="0 0 ${w} 40">${pillGlow}${pillArrow}${pill}${txt}</svg>`;
+  }
+
+  const fSize  = len <= 2 ? 13 : len === 3 ? 10.5 : 9;
+  const fY     = (20 + fSize * 0.38).toFixed(1);
   const disc    = `<circle cx="20" cy="20" r="13" fill="${color}" stroke="rgba(255,255,255,0.35)" stroke-width="${strokeW}"/>`;
   const text    = label
     ? `<text x="20" y="${fY}" text-anchor="middle" fill="${tColor}" font-size="${fSize}" font-weight="900" font-family="Arial,Helvetica,sans-serif">${label}</text>`
@@ -453,7 +467,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
           const color = VEHICLE_COLOR[v.vehicle] ?? '#94a3b8';
           const badgeTextColor = color === '#fbbf24' ? '#1a0a00' : '#fff';
           L.marker([v.lat, v.lon], {
-            icon: L.divIcon({ html: vehicleSvg(color, v.bearing, v.vehicle, v.routeRef), className: '', iconSize: [40,40], iconAnchor: [20,20], popupAnchor: [0,-20] }),
+            icon: L.divIcon({ html: vehicleSvg(color, v.bearing, v.vehicle, v.routeRef), className: '', iconSize: [(v.routeRef?.length ?? 0) >= 4 ? ((v.routeRef?.length ?? 0) >= 5 ? 46 : 40) : 40, 40], iconAnchor: [(v.routeRef?.length ?? 0) >= 4 ? ((v.routeRef?.length ?? 0) >= 5 ? 23 : 20) : 20, 20], popupAnchor: [0,-20] }),
             zIndexOffset: 100,
           })
             .bindTooltip(

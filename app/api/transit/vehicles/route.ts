@@ -80,8 +80,13 @@ async function ensureRouteInfoMap(): Promise<Map<string, RouteInfo>> {
       for (const r of (json?.data?.list ?? []) as RouteEntry[]) {
         if (r.id && r.shortName) {
           const info: RouteInfo = { name: r.shortName, type: GTFS_TYPE_MAP[r.type ?? 3] ?? 'BUS' };
-          map.set(r.id, info);                       // "BKK_3030" → {name:"75", type:"BUS"}
-          map.set(r.id.replace(/^BKK_/, ''), info);  // "3030"     → same
+          const idNoBkk = r.id.replace(/^BKK_/, '');
+          // Also normalise (strip leading zeros) so GTFS-RT lookups match:
+          // "BKK_0047" stores "47" → GTFS-RT normaliseRouteRef("BKK_0047") = "47" → lookup hits
+          const idNorm  = idNoBkk.replace(/^0+(\d)/, '$1').trim() || idNoBkk;
+          map.set(r.id, info);       // "BKK_4750"
+          map.set(idNoBkk, info);    // "4750"
+          if (idNorm !== idNoBkk) map.set(idNorm, info);  // "47" (when padded, e.g. "BKK_0047")
         }
       }
 
