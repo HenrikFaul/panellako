@@ -672,12 +672,19 @@ export default function TransportPanel({ lat, lon, buildingAddress, buildingId }
 
         <div className="flex flex-col gap-1.5">
           <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">
-            Megállók lefedettségi területe (400 m)
+            Tömegközlekedési lefedettség — 420 m gyaloglási buffer
           </p>
           <TransitCoverageMap
             buildingLat={realLat}
             buildingLon={realLon}
-            stops={stops.map(s => ({ id: s.id, name: s.name, lat: s.lat, lon: s.lon, routeType: s.routeType }))}
+            stops={stops.map(s => ({
+              id:         s.id,
+              name:       s.name,
+              lat:        s.lat,
+              lon:        s.lon,
+              routeType:  s.routeType,
+              routeRefs:  s.routeRefs,
+            }))}
           />
         </div>
       </div>
