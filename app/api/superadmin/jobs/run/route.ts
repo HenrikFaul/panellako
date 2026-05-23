@@ -117,10 +117,11 @@ async function logEnd(
 
 // ─── Job runners ──────────────────────────────────────────────────────────────
 
-async function runTransit(action: 'stops-routes' | 'building-stops' | 'alerts') {
+async function runTransit(action: 'stops-routes' | 'building-stops' | 'alerts', cell?: number) {
   const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const secret = process.env.TRANSIT_SYNC_SECRET || process.env.CRON_SECRET || '';
-  const url = `${base.replace(/\/$/, '')}/api/transit/sync?action=${action}${secret ? `&secret=${encodeURIComponent(secret)}` : ''}`;
+  const cellParam = cell !== undefined ? `&cell=${cell}` : '';
+  const url = `${base.replace(/\/$/, '')}/api/transit/sync?action=${action}${cellParam}${secret ? `&secret=${encodeURIComponent(secret)}` : ''}`;
   const res = await fetch(url, { cache: 'no-store' });
   const body = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, body };
@@ -332,6 +333,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: result.ok, job, result, ranAt: new Date().toISOString() }, { status: result.ok ? 200 : 207 });
   }
 
+  if (job === 'bkk_stops_cell_0' || job === 'bkk_stops_cell_1' || job === 'bkk_stops_cell_2') {
+    const cell = job === 'bkk_stops_cell_0' ? 0 : job === 'bkk_stops_cell_1' ? 1 : 2;
+    const logId = await logStart(job);
+    const result = await runTransit('stops-routes', cell).catch(err => ({ ok: false, status: 500, body: { error: String(err) } }));
+    await logEnd(logId, result.ok ? 'ok' : 'error', result);
+    return NextResponse.json({ ok: result.ok, job, result, ranAt: new Date().toISOString() }, { status: result.ok ? 200 : 207 });
+  }
+
   if (job === 'bkk_building_stops') {
     const logId = await logStart(job);
     const result = await runTransit('building-stops').catch(err => ({ ok: false, status: 500, body: { error: String(err) } }));
@@ -389,31 +398,36 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Pre-fetch which stop_ids actually exist in transit_stops.
-      // gtfs_derive_refs must ONLY update existing stops — never insert new ones,
-      // because new rows would lack the NOT NULL `name` column.
+      // Pre-fetch stop names for all candidate stop_ids.
+      // We MUST include `name` in every upserted row so that if PostgreSQL
+      // takes the INSERT path (conflict not matched) it satisfies the NOT NULL
+      // constraint. Fetching the existing name is the safest way to do this —
+      // any stop_id missing from this map is truly orphaned and gets skipped.
       const allStopIds = Array.from(byStop.keys());
       const CHUNK = 500;
-      const existingStopIds = new Set<string>();
+      const existingStopNames = new Map<string, string>(); // stop_id → name
       for (let ci = 0; ci < allStopIds.length; ci += CHUNK) {
         const { data: chunk } = await supabase
           .from('transit_stops')
-          .select('stop_id')
+          .select('stop_id, name')
           .in('stop_id', allStopIds.slice(ci, ci + CHUNK));
-        (chunk ?? []).forEach((r: { stop_id: string }) => existingStopIds.add(r.stop_id));
+        (chunk ?? []).forEach((r: { stop_id: string; name: string }) => {
+          if (r.name) existingStopNames.set(r.stop_id, r.name);
+        });
       }
 
-      // Only build rows for stops that exist (skip orphaned stop_route pairs)
+      // Only build rows for stops that exist and have a non-null name
       const rows = Array.from(byStop.entries())
-        .filter(([stop_id]) => existingStopIds.has(stop_id))
+        .filter(([stop_id]) => existingStopNames.has(stop_id))
         .map(([stop_id, v]) => ({
           stop_id,
+          name:       existingStopNames.get(stop_id)!,
           route_refs: Array.from(v.refs).sort(),
           route_type: v.bestType,
           synced_at:  new Date().toISOString(),
         }));
 
-      const orphanedCount = byStop.size - rows.length;
+      const orphanedCount = allStopIds.length - rows.length;
 
       let updated = 0;
       for (let i = 0; i < rows.length; i += CHUNK) {

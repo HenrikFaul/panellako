@@ -18,6 +18,21 @@ const JOBS: Job[] = [
     envVars: ['BKKFUTAR_API_KEY'],
   },
   {
+    id: 'bkk_stops_cell_0', label: 'BKK stops · Cell 0 (Nyugat)', description: 'stops-routes szinkron — csak 0. cella (nyugati Budapest). Rate limit esetén cellánként fusd.',
+    endpoints: [{ url: 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where/stops-for-location.json', note: 'cell=0' }],
+    envVars: ['BKKFUTAR_API_KEY'],
+  },
+  {
+    id: 'bkk_stops_cell_1', label: 'BKK stops · Cell 1 (Közép)', description: 'stops-routes szinkron — csak 1. cella (belső Budapest). Rate limit esetén cellánként fusd.',
+    endpoints: [{ url: 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where/stops-for-location.json', note: 'cell=1' }],
+    envVars: ['BKKFUTAR_API_KEY'],
+  },
+  {
+    id: 'bkk_stops_cell_2', label: 'BKK stops · Cell 2 (Kelet)', description: 'stops-routes szinkron — csak 2. cella (keleti Budapest). Rate limit esetén cellánként fusd.',
+    endpoints: [{ url: 'https://futar.bkk.hu/api/query/v1/ws/otp/api/where/stops-for-location.json', note: 'cell=2' }],
+    envVars: ['BKKFUTAR_API_KEY'],
+  },
+  {
     id: 'bkk_building_stops', label: 'BKK épület–megálló számítás', description: 'building_stops újraszámítás DB-ből (transit_stops)',
   },
   {

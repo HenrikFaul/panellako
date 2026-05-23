@@ -1,4 +1,19 @@
 
+## v0.9.18 — Fix: per-cell BKK sync + gtfs_derive_refs null name crash
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Superadmin: per-cella BKK stops szinkron
+- Hozzáadva 3 új job: `BKK stops · Cell 0/1/2` — minden cella külön Vercel invocation → nincs timeout rate limit esetén
+- A "BKK teljes szinkron" job 3 egymás utáni cella-hívással elszáll rate limit miatt (429); az új cellagombok ezt elkerülik
+- `runTransit()` kiegészítve `cell?: number` paramétterrel
+
+### `gtfs_derive_refs` null name constraint crash javítása
+- **Gyökérok**: az upsert INSERT path-ot futott orphan stop_id-kra, amelyek nem léteznek `transit_stops`-ban → `name = null` → NOT NULL constraint violation
+- **Fix**: a pre-fetch most `name` mezőt is lekéri (`select('stop_id, name')`); a sorok tartalmazzák a meglévő `name`-et, így az upsert soha nem írja null-ra
+
+---
+
 ## v0.9.17 — Fix: transit map vehicle route names (DB fallback for route resolution)
 **Dátum:** 2026-05-23
 **Branch:** claude/fix-cron-null-values-uDCqd
