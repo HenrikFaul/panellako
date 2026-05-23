@@ -46,6 +46,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     },
     {
+      url: `${BASE}/funkciok/konyveloknek`,
+      lastModified: MONTHLY_DATE,
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${BASE}/ingyenes-proba`,
+      lastModified: MONTHLY_DATE,
+      changeFrequency: 'monthly',
+      priority: 0.9,
+    },
+    {
       url: `${BASE}/arak`,
       lastModified: MONTHLY_DATE,
       changeFrequency: 'monthly',

@@ -104,17 +104,17 @@ export default async function HomePage() {
             </span>
 
             <h1 className="mt-6 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl lg:text-6xl animate-fade-in-up">
-              Digitális{' '}
+              Társasházkezelő szoftver{' '}
               <span className="bg-gradient-to-r from-brand-500 to-sky-500 bg-clip-text text-transparent">
-                társasházkezelő
-              </span>{' '}
-              platform
+                közös képviselőknek
+              </span>
             </h1>
 
             <p className="mt-6 mx-auto max-w-2xl text-lg leading-relaxed text-slate-600 animate-fade-in-up [animation-delay:60ms]">
-              A PanelLakó a legegyszerűbb módja a társasházi adminisztráció digitalizálásának.
-              Hibabejelentések, dokumentumok, közös költség nyilvántartás és közgyűlések —
-              egyetlen, könnyen kezelhető felületen. Közös képviselőknek, lakóknak és könyvelőknek.
+              A PanelLakó egy magyar fejlesztésű, böngészőalapú társasházkezelő szoftver, amely a
+              2003. évi CXXXIII. törvény és a GDPR szerint működik. Hibabejelentések, dokumentumok,
+              közös költség nyilvántartás és online közgyűlések — egyetlen felületen, közös
+              képviselőknek, lakóknak és könyvelőknek. 14 napos ingyenes próba, kártyaadat nélkül.
             </p>
 
             <div className="mt-10 flex flex-wrap items-center justify-center gap-4 animate-fade-in-up [animation-delay:120ms]">
