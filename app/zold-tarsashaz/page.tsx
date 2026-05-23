@@ -42,49 +42,25 @@ const breadcrumbSchema = {
 
 const PILLAR_ARTICLES = [
   {
-    href: '/zold-tarsashaz/naperomo-tervezes',
+    href: '/zold-tarsashaz/napelem-tarsashazban',
     icon: Sun,
     title: 'Naperőmű tervezés lépésről lépésre',
     summary:
       'Hogyan mérje fel a tető kapacitását, kérjen ajánlatokat, és vigye a döntést közgyűlés elé? Tervezési és engedélyezési útmutató.',
   },
   {
-    href: '/zold-tarsashaz/hoszigeteles-palyazatok',
+    href: '/zold-tarsashaz/hoszigeteles-panelprogram',
     icon: Thermometer,
     title: 'Hőszigetelési pályázatok 2024–2025',
     summary:
       'Az Otthon Felújítási Program és az EU-s alapok által finanszírozott hőszigetelési támogatások feltételei, igénylési folyamata.',
   },
   {
-    href: '/zold-tarsashaz/ev-tolto-bevezetes',
+    href: '/zold-tarsashaz/ev-tolto-tarsashazban',
     icon: Zap,
     title: 'EV töltő bevezetése a mélygarázsban',
     summary:
       'A 2021. évi CXLIII. tv. alapján az egyedi töltési kérelmek kezelése, mérő bővítés, közös töltési infrastruktúra kialakítása.',
-  },
-];
-
-const CLUSTER_ARTICLES = [
-  {
-    href: '/zold-tarsashaz/napelem-tarsashazban',
-    icon: Sun,
-    title: 'Napelem telepítés társasházi tetőre',
-    summary:
-      'Lépésről lépésre: hogyan valósítható meg napelemrendszer közös tetőn — engedélyek, közgyűlési határozat, hálózati csatlakozás.',
-  },
-  {
-    href: '/zold-tarsashaz/hoszigeteles-panelprogram',
-    icon: Thermometer,
-    title: 'Hőszigetelés és panelprogram',
-    summary:
-      'A panelprogram keretein belüli hőszigetelési lehetőségek, pályázati feltételek és a felújítás lépései társasházakban.',
-  },
-  {
-    href: '/zold-tarsashaz/ev-tolto-tarsashazban',
-    icon: Zap,
-    title: 'Elektromos autó töltő a parkolóban',
-    summary:
-      'Töltőpont kiépítése a társasházi parkolóban: egyéni jog, közös infrastruktúra, mérőbővítés és szükséges határozatok.',
   },
 ];
 
@@ -133,37 +109,6 @@ export default function ZoldTarsashazPillarPage() {
           </p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {PILLAR_ARTICLES.map((article) => {
-              const Icon = article.icon;
-              return (
-                <Link
-                  key={article.href}
-                  href={article.href as Route}
-                  className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-brand-300 hover:shadow-md"
-                >
-                  <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 transition-colors group-hover:bg-brand-100">
-                    <Icon size={20} className="text-brand-600" />
-                  </div>
-                  <p className="mb-1.5 font-bold text-slate-900 group-hover:text-brand-700">
-                    {article.title}
-                  </p>
-                  <p className="flex-1 text-sm leading-relaxed text-slate-500">{article.summary}</p>
-                  <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-brand-600">
-                    Olvasom <ArrowRight size={12} />
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Cluster article cards */}
-        <section className="mb-16">
-          <h2 className="mb-2 text-2xl font-black text-slate-900">Kapcsolódó cikkek</h2>
-          <p className="mb-7 text-slate-500">
-            Mélyebben merüljön el egy-egy konkrét zöld fejlesztési témában.
-          </p>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {CLUSTER_ARTICLES.map((article) => {
               const Icon = article.icon;
               return (
                 <Link

@@ -1,4 +1,15 @@
 
+## v0.9.19 — Fix: /zold-tarsashaz broken pillar article links + duplicate cluster section removed
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### SEO P0 fix: helytelen hrefs a Zöld Társasház pillar page-en
+- `PILLAR_ARTICLES` 3 hibás href-je javítva: `/naperomo-tervezes` → `/napelem-tarsashazban`, `/hoszigeteles-palyazatok` → `/hoszigeteles-panelprogram`, `/ev-tolto-bevezetes` → `/ev-tolto-tarsashazban`
+- A `CLUSTER_ARTICLES` konstans és a duplikált „Kapcsolódó cikkek" szekció eltávolítva — ugyanazok az URL-ek szerepeltek más slug-okkal, ami belső linkelési inkoherenciát és tartalom-kannibalizációt okozott
+- Érintett fájl: `app/zold-tarsashaz/page.tsx`
+
+---
+
 ## v0.9.18 — Fix: per-cell BKK sync + gtfs_derive_refs null name crash
 **Dátum:** 2026-05-23
 **Branch:** claude/fix-cron-null-values-uDCqd
