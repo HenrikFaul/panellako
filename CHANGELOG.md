@@ -1,4 +1,19 @@
 
+## v0.9.27 — fix: Transit shape polyline gap-split (deadhead egyenes eltávolítása)
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Probléma
+Hurkoló/visszafordítós vonalaknál (pl. 1-es villamos) a shape polyline egy hosszú átlós egyenessel "zárta be" az útvonalat a start- és végpont között. Gyökérok: a GTFS shapes adatokban a garázsmenet-szakaszok (deadhead) > 1 km-es ugrások → a Leaflet egyenes vonallal kötötte össze.
+
+### Javítás — `components/transit-live-map-inner.tsx`
+- Új: `shapeGapDistM(a, b)` — szomszédos shape pontok méteres távolságbecslése
+- Új: `splitShapeAtGaps(points, maxGapM=1000)` — polyline feldarabolása > 1 km-es ugrásoknál
+- `drawShape()`: N szegmens → külön `L.polyline()` hívások → nincs bezáró egyenes
+- `map.fitBounds()` az összes szegmens union bounding box-ára: nézet nem változott
+
+---
+
 ## v0.9.26 — fix: Transit megálló-sorrend, irány-deduplication, directionId
 **Dátum:** 2026-05-23
 **Branch:** claude/fix-cron-null-values-uDCqd
