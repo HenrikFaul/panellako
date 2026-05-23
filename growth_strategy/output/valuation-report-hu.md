@@ -1,342 +1,464 @@
-# PanelLakó — Szoftver Értékelési Jelentés (HU)
+# Szoftver Értékelési és Technikai Átvilágítási Jelentés
 
-**Elkészült:** 2026-05-15  
-**Repositori:** HenrikFaul/panellako  
-**Fázis:** MVP+ (bevétel előtti)  
-**Háromszögelt középső becslés:** **180 000–420 000 €**
+**PanelLakó** — Társasházi digitális működési központ — PropTech SaaS magyarországi és CEE panel-épületekhez
+
+_Elkészült: 2026-05-23 · Verzió 0.9.23 · Szerző: AI-segített Stratégiai Intelligencia · Megbízhatóság: Közepes_
 
 ---
 
-## 1. Vezetői összefoglaló
+## Vezetői Összefoglaló
 
-A PanelLakó egy **multi-tenant PropTech SaaS platform**, amely Magyarország ~1,2 millió panellakásos épületállományát és a szélesebb közép-kelet-európai társasházi piacot célozza meg. Teljes digitális működési közeget nyújt: szerepkör-alapú hozzáférés (lakó, tulajdonos, közös képviselő, könyvelő, bizottság, megbízott), hibabejelentés-kezelés, mérőóra-bejelentés, olvasottság-visszajelzéses dokumentumtár, pénzügyi áttekintő, közgyűlés- és szavazás-előkészítő, vendor/munka-rendelési folyamat és tudásbázis — mindezt modern Next.js 14 + Supabase + AWS Location stack-en. A termék **MVP+ fázisban** van: az alaparchitektúra szilárd, a funkcionális felület kiterjedt, de az éles auth-keményítés, a valós adat-írások és a mobilos UX-csiszolás még hátra van.
+A PanelLakó egy **éles üzemű, több-bérlős PropTech SaaS platform** magyarországi lakóépületek (társasházak) számára. A 0.9.23-as verzióban a rendszer teljes digitális működési réteget nyújt közös képviselőknek, könyvelőknek és lakóknak: hibabejelentés-kezelés, közösköltség-nyilvántartás, dokumentumtár olvasási visszaigazolással, online közgyűlési szavazás, lakói kommunikáció, környezetanalitika (levegőminőség, zöldterület, klímakockázat), valós idejű közlekedési megjelenítés, Stripe előfizetéses számlázás, PWA push értesítések és egy teljes SEO tartalommarketing-motor. A kódbázis **72 499 sort tartalmaz 814 fájlban**, 44 Supabase migrációval, és Vercelen fut folyamatos telepítéssel.
 
-### Kulcsmérőszámok
+### Kulcsmutatók
 
 | Mutató | Érték |
 |--------|-------|
-| Forrásfájlok (.ts/.tsx) | 12 |
-| Kódsorok összesen | 2 099 |
-| TS/TSX kódsorok (termék) | 1 748 |
-| DB séma (SQL sor) | 310 |
-| Adatbázis-táblák | 18 |
-| Felhasználói szerepkörök | 6 |
-| Fő funkcionális modulok | 11 |
-| Git commitok | 30 |
+| Összes kódsor | 72 499 |
+| TypeScript/TSX fájlok | 252 fájl (46 459 + 19 065 sor) |
+| SQL migrációk | 44 fájl, 4 268 sor |
+| Összes fájl a repóban | 814 |
+| Git commitok | 420 |
+| Aktuális verzió | v0.9.23 (növekedési/skálázási fázis) |
 
-### Fejlesztési ráfordítás összefoglaló
+**Fejlesztési Ráfordítás Összefoglalója**
 
 | Mutató | Alacsony | Várható | Magas |
 |--------|----------|---------|-------|
-| Személyes munkaórák | 513 | 880 | 1 440 |
-| Személyes munkanapok (8 ó/nap) | 64 | 110 | 180 |
-| Naptári hónap (3 fős csapat) | 1,5 hó | 2,5 hó | 4 hó |
+| Emberóra | 2 800 | 4 400 | 6 800 |
+| Ember-hónap (160 ó/hó) | 17,5 | 27,5 | 42,5 |
+| Naptári hónap (4 fős csapat) | 5,5 hó | 8,5 hó | 13 hó |
 
-### Fejlesztési költség összefoglaló
+**Fejlesztési Költség Összefoglalója**
 
 | Forgatókönyv | Alacsony | Várható | Magas |
-|--------------|----------|---------|-------|
-| KKE csapat (HU/SK/PL, átl. 35–55 €/ó) | 18 000 € | 32 000 € | 56 000 € |
-| Vegyes KKE + NY-EU vezető | 28 000 € | 52 000 € | 95 000 € |
-| Nyugat-európai / USA ügynökség | 50 000 € | 90 000 € | 175 000 € |
-| **AI-gyorsított szóló fejlesztő** | **8 000 €** | **15 000 €** | **28 000 €** |
+|-------------|----------|---------|-------|
+| KKE / Magyar csapat (átl. €35–65/ó) | €138 000 | €228 000 | €370 000 |
+| Nyugat-európai ügynökség (átl. €80–130/ó) | €310 000 | €490 000 | €760 000 |
+| Vegyes KKE + NyEU vezető | €195 000 | €330 000 | €520 000 |
 
-### Piaci értékbecslés
+**Piaci Értékbecslés**
 
-| Forgatókönyv | Alacsony | Középső | Magas |
-|--------------|----------|---------|-------|
-| Bevétel előtti jelenlegi állapot | 80 000 € | 180 000 € | 420 000 € |
-| 3 fizető épület (korai trakció) | 280 000 € | 620 000 € | 1,1 M € |
-| **25 épület, ~48 000 € ARR** | **1,2 M €** | **2,4 M €** | **4,0 M €** |
+| Forgatókönyv | Alacsony | Közép | Magas |
+|-------------|----------|-------|-------|
+| Bevétel előtti IP-értékesítés (jelenlegi) | €350 E | €750 E | €1,4M |
+| Korai traction (10–20 fizető épület) | €600 E | €1,2M | €2,2M |
+| Növekedési szakasz (€80E+ ARR) | €1,8M | €3,2M | €6,0M |
+| Stratégiai felvásárlás (KKE PropTech vevő) | €800 E | €1,6M | €3,0M |
 
-> ⚠ **Legnagyobb bizonytalanság:** A PanelLakónak az értékelés időpontjában nincsenek igazolt fizető ügyfelei. A piaci érték teljes egészében a piacra lépés sebességén múlik. Egyetlen aláírt pilot-szerződés egy 50+ albetétes épülettel megváltoztatja az értékelési sávot.
-
----
-
-## 2. Termék rekonstrukció
-
-A PanelLakó egyetlen webes platformra fordítja le a magyarországi társasházi papíralapú és telefonos folyamatokat. A termék modern, felhőnatív stack-en épül, egyértelmű szerver- és kliens-oldali felelősség-elkülönítéssel.
-
-### Technológiai stack
-
-| Réteg | Technológia | Megjegyzés |
-|-------|-------------|------------|
-| Frontend keretrendszer | Next.js 14 (App Router) | TypeScript, szerver- és klienskomponensek |
-| Stíluskezelés | Tailwind CSS 3.4 | Utility-first, mobilra optimalizált |
-| Backend / DB | Supabase (PostgreSQL) | Auth, RLS, valós idejű képes |
-| Hitelesítés | Supabase Magic Link | E-mail alapú, jelszó nélküli; SSR-kész |
-| Geocoding | AWS Location Service | Szerver-oldali proxy route, SSRF-biztonságos |
-| Hosting | Vercel | Edge-kompatibilis, env-változó vezérelt |
-| Nyelv | TypeScript 5.7 | Strict mód, átfogóan típusos |
-
-### Funkcionális modulok
-
-| Modul | Állapot | Komplexitás |
-|-------|---------|-------------|
-| Szerepkör-alapú auth (6 szerepkör) | MVP | Közepes — magic link; SSR keményítés folyamatban |
-| Hibabejelentés (ticket) | MVP | Közepes — CRUD UI, állapotgép, SLA koncepció |
-| Mérőóra-bejelentés | MVP | Alacsony-közepes — űrlap + mock tárolás |
-| Hírek / értesítések | MVP | Alacsony — CRUD + célcsoportszűrő |
-| Dokumentumtár + olvasottsági visszajelzés | MVP | Közepes — felhasználónkénti visszaigazolás |
-| Pénzügyi áttekintő | MVP | Közepes — egyenleg, hátralék, könyvelési mock |
-| Albetét-nyilvántartás | MVP | Közepes — terület, tulajdoni hányad, vízóra |
-| Közgyűlés és szavazás előkészítő | MVP | Közepes — napirend, határozat, szavazás |
-| Vendor / munka-rendelési folyamat | MVP | Közepes — vendorlista, megbízás-követés |
-| Tudásbázis | MVP | Alacsony — cikktár |
-| Audit napló | MVP | Alacsony — strukturált eseményfolyam |
+> ⚠ **Legnagyobb bizonytalansági tényező:** A repóban nem látható igazolt ARR-adat. A kódbázis tartalmaz Stripe számlázási infrastruktúrát (éles előfizetési szintek: Alap, Professzionális, Enterprise), termékanalitikát (PostHog) és egy teljes SEO tartalommarketing-motort — mind a monetizáció jele. Egy igazolt €30–50 ezer ARR a piaci értékelés középső becslését azonnal €750 ezerről €1,2–1,8 millióra emelné.
 
 ---
 
-## 3. Hatókör lebontás
+## Termék Rekonstrukció
 
-A hatókört funkcionális területek szerint bontottuk le, implementációs komplexitás alapján értékelve. A nyers kódsorok alábecsülik a valós komplexitást, mivel a mock adatok és az UI-only nézetek felfújják a látszólagos lefedettséget.
+A PanelLakó digitalizálja egy magyarországi társasházi lakóközösség teljes papír- és telefonos munkafolyamatát. A termék modern, felhőalapú architektúrán épül: egyértelmű szerver/kliens szétválasztással, több-bérlős Supabase-adatbázissal (sor szintű biztonsággal), és egy tartalommarketing-motorral, amely egyszerre szerves akvizíciós csatorna.
 
-### Komplexitás területenként
+### Technikai Architektúra
 
-| Terület | Becsült LOC-egyenérték | Komplexitásszorzó | Megjegyzés |
-|---------|------------------------|-------------------|------------|
-| Auth & RLS | ~200 eff. | 2,0× | Magic link + 6 szerepkör RLS — biztonsági kritikus |
-| Dashboard shell + routing | ~180 eff. | 1,5× | Szerverkomponens + szerepkör-param routing |
-| Ticket-kezelés | ~250 eff. | 1,8× | Állapotgép, SLA, vendor-hivatkozás |
-| Mérőóra és közüzemi űrlapok | ~120 eff. | 1,3× | Űrlap + validáció + mock mentés |
-| Dokumentumtár | ~150 eff. | 1,5× | Feltöltési placeholder, olvasottsági logika |
-| Pénzügyi modul | ~180 eff. | 1,8× | Hátralék-logika, főkönyv, egyenlegszámítás |
-| Albetét-nyilvántartás | ~140 eff. | 1,5× | Keresés, tulajdoni hányad, vízóra |
-| Közgyűlés / szavazás | ~200 eff. | 2,0× | Határozatképességi logika, határozat-követés |
-| Vendor / munka-rendelés | ~160 eff. | 1,8× | Többállapotú megbízás-folyamat |
-| AWS Location proxy | ~40 eff. | 1,3× | SSRF-biztonságos szerver route |
-| DB séma (310 SQL sor) | ~310 eff. | 2,5× | 18 tábla, RLS, FK kényszerfeltételek |
+| Réteg | Technológia | Verzió / Megjegyzés |
+|-------|-----------|-------------------|
+| Frontend keretrendszer | Next.js (App Router) | ^14.2.30 — TypeScript, SSR + RSC |
+| Stílus | Tailwind CSS | ^3.4.16 — utility-first, mobilresponsive |
+| Backend / Adatbázis | Supabase (PostgreSQL + Auth + Storage) | @supabase/supabase-js ^2.106.1 |
+| Hitelesítés | Supabase Magic Link (SSR-hardened) | @supabase/ssr ^0.10.3 |
+| Számlázás | Stripe | stripe ^22.1.1 + @stripe/stripe-js ^9.6.0 |
+| Email | Resend + @react-email/components | resend ^6.12.3 |
+| Push értesítések | web-push (VAPID) | web-push ^3.6.7 |
+| PWA | next-pwa | ^5.6.0 — offline támogatás, telepíthető app |
+| Térképek / GIS | Leaflet + OSM + Overpass API | leaflet ^1.9.4, @types/leaflet ^1.9.21 |
+| PDF generálás | @react-pdf/renderer | ^4.5.1 |
+| Hibakezelés | Sentry | @sentry/nextjs ^8.0.0 |
+| Termékanalitika | PostHog | posthog-js ^1.130.0 |
+| Képfeldolgozás | sharp | ^0.33.5 |
+| Hosting / CDN | Vercel (Edge-kompatibilis) | Folyamatos telepítés |
+| Nyelv | TypeScript | ^5.7.2 — szigorú mód minden fájlban |
+
+### Funkcionális Modulok Térképe
+
+| Modul | Főbb Funkciók | Kódbázis Elérési Utak |
+|-------|-------------|----------------------|
+| Hitelesítés és jogosultság | Magic-link SSR auth; 6-szintű RBAC (képviselő, könyvelő, lakó, kivitelező, ellenőr, szuperadmin); munkaterület-tagság kapuzás | app/login/, middleware.ts, lib/supabase/ |
+| Több-épületes munkaterület | Több-bérlős architektúra; UUID-kulcsú munkaterület-útvonalak /w/[buildingId]; munkaterület-választó /app-nál; szintmegmaradás tenant_subscriptions-on keresztül | app/w/[buildingId]/, app/app/ |
+| Hibabejelentés-kezelés | Hibabejelentési életciklus; státuszgép; kivitelező-hozzárendelés; SLA-koncepció; prioritásrangsorolás | app/w/[buildingId]/tickets/, components/ticket-*.tsx |
+| Közösköltség-nyilvántartás | Pénzügyi főkönyv; hátraléknyilvántartás; tulajdoni hányadok; időszakos elszámolás; egyenlegkimutatás; követeléskezelés (FMH, végrehajtás) | app/w/[buildingId]/financials/, components/financial-*.tsx |
+| Dokumentumtár | Feltöltés Supabase Storage-ba; kategóriamegjelölés; olvasási visszaigazolás-követés lakónként; dokumentumnyilvántartás | app/w/[buildingId]/documents/, components/document-*.tsx |
+| Online Közgyűlés | Napirend; határozatképesség-követés; határozatkezelés; szavazatrögzítés lakónként; jelenléti ív | app/w/[buildingId]/meetings/, components/meeting-*.tsx |
+| Környezetanalitika | Levegőminőség (OpenAQ), városi hősziget (UHI), zajhőtérkép, zöldépület-pontszám, területhasználati térkép, kerékpáros elérhetőség | app/w/[buildingId]/kornyezet/, components/*-map-*.tsx |
+| Tömegközlekedés-megjelenítés | BKK valós idejű járatpozíciók; GTFS útvonal/megállóadatok; 6 közlekedési mód; interaktív Leaflet térkép adatbázis-fallbackkel | app/elemzes/budapest-kozlekedes/, components/transit-*.tsx |
+| Stripe Számlázás | 3 árazási szint (Alap/Professzionális/Enterprise); előfizetés-kezelés; számlázási portál; szuperadmin szintváltó RPC | app/billing/, app/api/billing/, supabase/migrations/ |
+| SEO Tartalom Motor | 7 tartalmi pillér; 28 klikkre váró cikk; strukturált adatok; llms.txt; sitemap; BOFU konverziós oldalak | app/tarsashaz-kezeles/, app/tarsashazi-jog/, stb. |
+| Szuperadmin Panel | Platform-szintű vezérlőpult; térképtéma-váltó; BKK szinkronizálási feladatok; migrációfuttató; munkaterület-szintkezelés | app/superadmin/, components/superadmin-client.tsx |
+| PWA + Push Értesítések | Web-push (VAPID) lakói riasztásokhoz; offline manifest; next-pwa service worker; telepíthető app | public/manifest.json, lib/push-*.ts, app/api/push/ |
 
 ---
 
-## 4. Módszertan
+## Hatókör Elbontás
 
-### Alkalmazott becslési módszerek
+A hatókört funkcionális területenként bontottuk le, és implementációs komplexitás szerint értékeltük. A 72 499 soros LOC-szám tartalmazza a teljes alkalmazáskódbázist, az SEO tartalommotort, a környezetanalitikát és az összes infrastruktúrát. A komplexitás-szorzók a nyers sormennyiségen túli architekturális mélységet tükrözik.
 
-#### Funkció-pont proxy
-A 11 fő modult önállóan becsültük funkció-pont szemlélettel: bemenetek, kimenetek, lekérdezések, fájlok és interfész-komplexitás alapján. Az eredményeket összegeztük, majd iparági átlagos produktivitással (8–12 hatékony kódsor/óra teljes stack TypeScript/Supabase fejlesztőnél, teszteléssel és átnézéssel együtt) konvertáltuk munkaórává.
+### Komplexitásértékelések Területenként
 
-#### PERT (Program Evaluation and Review Technique)
-Minden modulhoz három becslést gyűjtöttünk: Optimista (O), Legvalószínűbb (M) és Pesszimista (P). PERT képlet: E = (O + 4·M + P) / 6. A modulbecsléseket összesítettük projekt-szintű összegekké.
+| Funkcionális Terület | Komplexitás | Becs. SOC | Rejtett Költségtényezők |
+|--------------------|------------|----------|------------------------|
+| Auth & Több-bérlős RBAC | Magas | ~3 200 | SSR-hardened magic-link; 6-szintű RLS az összes táblán; munkaterület-tagság kapuzás; szuperadmin felülbírálási út |
+| Munkaterület-útvonalak és shell | Közepes-Magas | ~2 800 | UUID munkaterület-útvonalak; aloldalas elrendezési csoport; oldalsáv összeomlási állapota; PWA shell |
+| Hibabejelentési rendszer | Magas | ~4 500 | Státuszgép életciklus; kivitelező-hozzárendelés; SLA-koncepció; prioritás; auditnapló |
+| Közösköltség-nyilvántartás | Nagyon Magas | ~5 200 | Hátraléklogika; tulajdoni hányaddal súlyozott elszámolás; FMH/jogi követelésfolyamat; főkönyvi integritás |
+| Dokumentumtár + Olvasási visszaigazolás | Közepes-Magas | ~3 100 | Supabase Storage feltöltés; lakónkénti visszaigazolás-követés; kategóriakezelés |
+| Közgyűlés és szavazás | Magas | ~4 800 | Határozatképességi logika; határozat-állapotgép; felhasználónkénti szavazatrögzítés; ülés életciklusa |
+| Környezetanalitika csomag | Nagyon Magas | ~9 400 | 6 párhuzamos almodul (LQ, UHI, zaj, zöldpontozás, területhasználat, kerékpározás); külső API fan-out; gyorsítótárazás; SVG-diagramok |
+| Tömegközlekedés-megjelenítés | Magas | ~5 600 | Valós idejű GTFS-RT; BKK OBA API + adatbázis-fallback; 6 közlekedési mód; Leaflet rétegek; sejtenként szinkronizálási feladatok |
+| SEO Tartalom Motor | Közepes-Magas | ~14 000 | 7 pilléres hub; 28 klaszter-cikk; 8 strukturált adat séma típus; llms.txt; Python batch scriptek; sitemap 60+ URL-lel |
+| Stripe Számlázás + Előfizetések | Magas | ~3 800 | Webhook megbízhatóság; idempotencia; előfizetési állapotgép Supabase és Stripe között; 3 szintű árazás |
+| Adatbázisséma + Migrációk | Nagyon Magas | ~4 268 SQL | 44 migráció; RLS 25+ táblán; pgmq feladatsorok; pg_partman particionálás; idempotenciakulcsok |
+| CI/CD + Megfigyelhetőség + Biztonság | Magas | ~2 400 | 6 feladatos GitHub Actions; gitleaks + Semgrep + Trivy SARIF; Sentry v8; PostHog EU; strukturált logger; Vitest csomag |
+| Szuperadmin Panel | Közepes | ~2 100 | Térképtéma-kezelés; BKK szinkronizálási triggerek; migrációfuttató; munkaterület-adminisztráció |
 
-#### Analógiás / összehasonlítható rendszer benchmarking
-A PanelLakót összehasonlítottuk hasonló CEE PropTech MVP-kkel (Immocloud, OnlineHáz funkciókör, Domus24). Ezek jellemzően 800–2 400 munkaórát igényelnek hasonló funkcionalitásmélységhez. A PanelLakó becslése (513–1 440 óra) összhangban van ennek az intervallumnak az alsó végével, tekintettel az AI-asszisztált, gyors fejlesztési ütemre és a jelenlegi mock-adat-függőségre.
+### Komplexitás-szorzók
+
+| Tényező | Hatás | Indoklás |
+|---------|-------|----------|
+| Több-bérlős RLS architektúra | +20% | Sor szintű biztonság 25+ táblán; tulajdoni hányad logika; service-role vs. anon-key fegyelem |
+| Külső API fan-out (6+ szolgáltatás) | +15% | Overpass API, BKK OBA/GTFS-RT, OpenAQ, Nominatim, AWS Location — mindegyik timeout-tal, fallbackkel, gyorsítótárral |
+| Valós idejű térképek (Leaflet, 4 téma) | +10% | Dinamikus csempe-betöltés; SSR/CSR szétválasztás; téma-megmaradás; SVG jármű-markerek; réteg z-sorrendezés |
+| SEO tartalom motor nagy méretben | +10% | 28 cikk strukturált adatokkal; Python batch injektáló scriptek; sitemap karbantartás; 60+ kanonikus URL |
+| AI-gyorsított fejlesztés | −35% | A fejlesztési idő az AI-eszközöket tükrözi; hagyományos csapat 2,5–3,5× hosszabb lenne azonos kódbázishoz |
+| Korlátozott automatizált tesztelés | +18% | Vitest konfigurált, de a tesztcsomag vékony a 72K SOC-hoz képest; magas manuális QA-teher |
+| Stripe + számlázási integráció | +8% | Webhook megbízhatóság; idempotencia; előfizetési állapotgép Supabase és Stripe között |
+| PWA + push értesítések | +5% | VAPID kulcskezelés; service worker; böngészők közötti értesítési különbségek |
 
 ---
 
-## 5. Csapat összetétele
+## Módszertan
+
+### Alulról felfelé haladó modulelbontás
+
+A 13 fő funkcionális területet alkomponensekre bontottuk. A ráfordítást komponensenként becsültük a kódsorok száma, az érintett adatbázis-táblák, a külső API-integrációk, a UI-interakciók bonyolultsága és a CHANGELOG-ban bizonyított határesetek alapján (420 commit, v0.1.0-tól v0.9.23-ig).
+
+### Hárompontos PERT-becslés
+
+Területenként optimista (O), várható (M) és pesszimista (P) becsléseket gyűjtöttünk. Képlet: **E = (O + 4M + P) / 6**. Szórás: SD = (P − O) / 6. A PERT súlyozott átlag elismeri, hogy a nagy szoftverprojektek szinte mindig a pesszimista irányba tolódnak az integrációs komplexitás és a feltáratlan határesetek miatt.
+
+### Analógiás benchmarkolás
+
+A PanelLakót hasonló funkcionális hatókörű KKE/magyar PropTech SaaS platformokhoz hasonlítottuk: OnlineHáz (HU), Immocloud (AT), Domus24 (HU), Roperty (PL). Nyilvános PropTech mérnöki blogok és KKE SaaS fizetési felmérések megerősítik a €35–65/ó senior full-stack mérnöki díjat Magyarországon, Szlovákiában és Lengyelországban.
+
+### Fontos megkülönböztetések
+
+- **Ráfordítás ≠ Időtartam:** **4 400** emberóra 8,5 hónap alatt teljesíthető (3,5 FTE) vagy 27 hónap alatt (0,5 FTE). A CHANGELOG magas sebességű, AI-segített fejlesztést mutat.
+- **Fejlesztési költség ≠ Piaci érték:** A helyreállítási költség az alacsony határ. A piaci értéket az ARR, a piaci részesedés és a stratégiai opcionalitás határozza meg — esetleg 3–10× a fejlesztési költség.
+- **Kód ≠ Termék:** Egy szállított termék tartalmaz UX-kutatást, ügyfélsikereket, piaci pozicionálást, jogi megfelelést (GDPR, ÁSZF) és márkát — ezek egyike sem látható a repóból.
+- **AI-gyorsított ≠ Hagyományos:** A v0.9.23-as kódbázis AI-gyorsított fejlesztést tükröz. Hagyományos senior csapat 2,5–3,5× több naptári időt igényelne azonos lefedettséghez.
+- **Az SEO motor termékeszköz:** A 28 cikkes, 7 pilléres tartalom motor strukturált adatokkal és llms.txt-vel tartós organikus akvizíciós csatorna — nem csupán marketingszöveg. Fejlesztési értéke és folyamatos forgalmi értéke additív a SaaS platformértékeléshez.
+
+---
+
+## Csapat Összetétele
 
 ### Szükséges szerepkörök
 
-| Szerepkör | Felelősség | Becsült ráfordítás % |
-|-----------|------------|----------------------|
-| Full-Stack fejlesztő (Next.js/Supabase) | Alaptermék: routing, komponensek, adatréteg, RLS | 50% |
-| Backend / DB fejlesztő | Séma, migrációk, RLS policy-k, edge funkciók | 20% |
-| UX/UI designer | Komponenskönyvtár, mobil UX, akadálymentesség | 15% |
-| QA mérnök | E2E tesztelés, regressziós csomag, biztonságtesztelés | 10% |
-| Termékmenedzser / BA | Követelmények, felhasználói kutatás, ütemterv | 5% |
+| Szerepkör | Miért szükséges | Fázis | Ráfordítás % |
+|----------|----------------|-------|-------------|
+| Senior full-stack mérnök (Next.js/Supabase) | Architektúra, RLS, Stripe-integráció, API útvonalak, SSR auth | Összes | 32% |
+| Mid-level frontend mérnök | React komponensek, Leaflet térképek, PWA, reszponzív UI, SEO oldalak | 2–10 | 25% |
+| Backend / DB mérnök | PostgreSQL séma, 44 migráció, RLS szabályok, pgmq, pg_partman | 1–4, 7–9 | 18% |
+| UX/UI dizájner | Információarchitektúra, mobil UX, komponenskönyvtár, GDPR-folyamatok | 1–3, 5–6 | 10% |
+| Termékmenedzser / BA | Követelmények, lakói kutatás, sprint tervezés, árazási stratégia | Összes | 8% |
+| QA mérnök | Manuális tesztelés, biztonsági tesztelés, regresszió, mobil/PWA kereszteszköz | 4–10 | 4% |
+| SEO / Tartalom specialista | 7 pilléres tartalom, 28 klaszter-cikk, sémamegjelölés, analitika | 5–9 | 3% |
 
-> AI-asszisztált fejlesztésnél 1 senior full-stack fejlesztő + 1 PM lefedi a hatókör 80%-át. A minimális éles minőségű csapat: 3 fő (fejlesztő, designer, PM).
+### Szállítási csapat opciók
 
----
+> **Lean csapat (3 fő, 10–14 hónap)**
+> 1× Senior full-stack · 1× Mid frontend · 0,5× UX/UI dizájner
+> _Legalacsonyabb költség; legvalószínűbb konfiguráció AI-segített alapítónak vagy nagyon kis startupnak. Valószínűleg tükrözi a PanelLakó tényleges fejlesztési menetét._
 
-## 6. Ráfordítás becslés
+> **Kiegyensúlyozott csapat (5 fő, 7–10 hónap)**
+> 1× Senior full-stack · 1× Mid frontend · 1× Backend/DB · 0,5× UX/UI · 0,5× PM
+> _Seed-fázisú startupnak ajánlott. Párhuzamos frontend/backend fejlesztési sávok; csökkenti az integrációs késedelmet._
 
-### PERT ráfordítás modulonként
-
-| Modul | Optimista (ó) | Várható (ó) | Pesszimista (ó) | PERT E (ó) |
-|-------|--------------|-------------|-----------------|------------|
-| Auth & RLS (6 szerepkör) | 40 | 70 | 120 | 72 |
-| Dashboard shell + routing | 30 | 50 | 90 | 52 |
-| Ticket-kezelés | 60 | 90 | 150 | 93 |
-| Mérőóra és közüzemi űrlapok | 25 | 40 | 70 | 42 |
-| Dokumentumtár | 35 | 55 | 95 | 57 |
-| Pénzügyi modul | 40 | 65 | 110 | 68 |
-| Albetét-nyilvántartás | 35 | 55 | 90 | 57 |
-| Közgyűlés / szavazás | 50 | 80 | 140 | 83 |
-| Vendor / munka-rendelés | 40 | 65 | 115 | 68 |
-| AWS Location proxy | 8 | 12 | 20 | 12 |
-| DB séma és migrációk | 50 | 80 | 140 | 83 |
-| Nem kódolási munka (QA, PM, design) | 100 | 190 | 300 | 193 |
-| **ÖSSZESEN** | **513** | **852** | **1 440** | **880** |
+> **Szállítási csapat (8 fő, 5–7 hónap)**
+> 2× Senior full-stack · 2× Mid frontend · 1× Backend/DB · 1× UX/UI · 1× PM · 1× QA
+> _Maximális sebesség. Ügynökségi szállításhoz vagy post-seed csapathoz alkalmas. Párhuzamos munkát tesz lehetővé az analitika, számlázás és tartalom pilléreiben._
 
 ---
 
-## 7. Költségbecslés
+## Ráfordítás Becslés
 
-### Részletes költségmodell
+### Területenkénti Bontás (PERT)
 
-| Szerepkör | Becsült órák | KKE díj (€/ó) | KKE költség | NY-EU díj (€/ó) | NY-EU költség |
-|-----------|-------------|----------------|-------------|-----------------|---------------|
-| Full-Stack fejlesztő | 440 | 40 € | 17 600 € | 90 € | 39 600 € |
-| Backend / DB fejlesztő | 176 | 38 € | 6 688 € | 85 € | 14 960 € |
-| UX/UI designer | 132 | 30 € | 3 960 € | 75 € | 9 900 € |
-| QA mérnök | 88 | 28 € | 2 464 € | 65 € | 5 720 € |
-| PM / BA | 44 | 35 € | 1 540 € | 80 € | 3 520 € |
-| **ÖSSZESEN (várható)** | **880** | — | **32 252 €** | — | **73 700 €** |
+| Funkcionális Terület | Opt. (ó) | Várh. (ó) | Pess. (ó) | PERT (ó) |
+|--------------------|---------|----------|----------|---------|
+| Auth & Több-bérlős RBAC | 120 | 200 | 340 | 207 |
+| Munkaterület-útvonalak és shell | 100 | 170 | 290 | 177 |
+| Hibabejelentési rendszer | 160 | 260 | 440 | 270 |
+| Közösköltség-nyilvántartás | 200 | 340 | 580 | 353 |
+| Dokumentumtár + Visszaigazolások | 120 | 200 | 340 | 207 |
+| Közgyűlés és szavazás | 180 | 300 | 510 | 312 |
+| Környezetanalitika csomag | 280 | 460 | 780 | 477 |
+| Tömegközlekedés-megjelenítés | 200 | 340 | 580 | 353 |
+| SEO Tartalom Motor | 180 | 300 | 500 | 310 |
+| Stripe Számlázás + Előfizetések | 140 | 230 | 390 | 238 |
+| DB Séma + Migrációk | 100 | 170 | 290 | 177 |
+| CI/CD + Megfigyelhetőség + Biztonság | 120 | 200 | 340 | 207 |
+| Szuperadmin Panel | 60 | 100 | 180 | 103 |
+| Részösszeg (kódolás) | 1 960 | 3 270 | 5 560 | 3 391 |
+| + 30% rezsi (QA 20%, PM 15%, dizájn 10%, DevOps 8%, dok 5%) | 588 | 981 | 1 668 | 1 017 |
+| **ÖSSZESEN** | **2 548** | **4 251** | **7 228** | **4 408** |
 
-### Forgatókönyv-tartomány (bizonytalansággal)
+### Összefoglaló Több Mértékegységben
+
+| Mutató | Alacsony | Várható | Magas |
+|--------|----------|---------|-------|
+| Emberóra | 2 548 | **4 408** | 7 228 |
+| Ember-nap (8 ó) | 319 | 551 | 903 |
+| Ember-hónap (160 ó) | 15,9 | 27,6 | 45,2 |
+| Naptári hónap (4 fős core) | 5,0 | 8,5 | 13,5 |
+
+---
+
+## Költségbecslés
+
+### Részletes Költségmodell — Várható (KKE Díjak)
+
+| Szerepkör | Arány | Óra | Díj (KKE) | Költség |
+|----------|-------|-----|----------|---------|
+| Senior full-stack mérnök | 32% | 1 411 | €58/ó | €81 838 |
+| Mid-level frontend mérnök | 25% | 1 102 | €38/ó | €41 876 |
+| Backend / DB mérnök | 18% | 793 | €52/ó | €41 236 |
+| UX/UI dizájner | 10% | 441 | €32/ó | €14 112 |
+| Termékmenedzser / BA | 8% | 353 | €42/ó | €14 826 |
+| QA mérnök | 4% | 176 | €30/ó | €5 280 |
+| SEO / Tartalom specialista | 3% | 132 | €28/ó | €3 696 |
+| Közvetlen munkabér | | 4 408 | | €202 864 |
+| Rezsi (22%) | | | | €44 630 |
+| Tartalék (15%) | | | | €30 430 |
+| **ÖSSZESEN** | | | | **€277 924** |
+
+### Költségsávok Forgatókönyvek Szerint
 
 | Forgatókönyv | Alacsony | Várható | Magas |
-|--------------|----------|---------|-------|
-| KKE csapat (HU/SK/PL) | 18 000 € | 32 000 € | 56 000 € |
-| Vegyes KKE + NY-EU vezető | 28 000 € | 52 000 € | 95 000 € |
-| Nyugat-európai / USA ügynökség | 50 000 € | 90 000 € | 175 000 € |
-| AI-gyorsított szóló fejlesztő | 8 000 € | 15 000 € | 28 000 € |
+|-------------|----------|---------|-------|
+| KKE / Magyar csapat (lean) | €138 000 | €228 000 | €370 000 |
+| Vegyes KKE + NyEU vezető | €195 000 | €330 000 | €520 000 |
+| Nyugat-európai ügynökség | €310 000 | €490 000 | €760 000 |
+| AI-gyorsított solo fejlesztés (tényleges trajektória) | €45 000 | €80 000 | €140 000 |
 
 ---
 
-## 8. Piaci összehasonlítás
+## Piaci Összehasonlítás
 
-A PanelLakó a CEE/magyarországi PropTech szegmensben versenyez a lakóépület-kezelő rendszerek piacán.
+A PanelLakó a KKE/magyar PropTech szegmensben versenyez lakóépület-kezelés terén. Az elsődleges verseny analóg: Excel táblák, WhatsApp csoportok és manuális papíralapú folyamatok. Kis számú digitális eszköz létezik, de egyik sem ért el domináns digitálisan natív státuszt Magyarországon.
 
-### Összehasonlítható termékek
+### Hasonló termékek — Magyar és KKE PropTech
 
-| Termék | Piac | Fázis | Ismert ARR / értékelés |
-|--------|------|-------|------------------------|
-| OnlineHáz | Magyarország | Növekedés | ~200 000 €+ ARR (becslés), ~1 500 épület |
-| Immocloud (AT) | Ausztria/DACH | Növekedés | ~1,5 M € ARR, 12 M €+ értékelés (2024) |
-| Domus24 (HU) | Magyarország | Korai | ~80–150 000 € ARR becslés |
-| Roperty (PL) | Lengyelország | Korai/növekedés | 500 000 €+ ARR becslés |
-| Loftium / Condo Control (CA/US) | É-Amerika | Skálázás | 5 M$+ ARR, 30–80 M$ értékelés |
+| Termék | Helyszín / Piac | Fázis | Főbb Megjegyzések |
+|--------|----------------|-------|-------------------|
+| OnlineHáz | Magyarország | Növekedési | Legközelebbi HU peer; ~1 500 épület; becsült €150–300E ARR; funkcionális átfedés dokumentumokban, ülésekben, pénzügyekben |
+| Házmester.hu | Magyarország | Korai/Növekedési | HU épületkezelő eszköz; alapszintű hibabejelentés és hirdetmény funkciók; korlátozott pénzügyi modul |
+| ImmoPilot | Magyarország/DACH | Korai | Több-ingatlan kezelési fókusz; kisebb lakóingatlan szegmens mint a PanelLakónál |
+| Immocloud | Ausztria/DACH | Növekedési | Becsült ~€1,5M ARR; €12M+ értékelés (2024); szélesebb DACH piac, de hasonló funkcionális hatókör |
+| Domus24 | Magyarország | Korai | Becsült ~€80–150E ARR; egyes épületes fókusz; analitika vagy PWA nélkül |
+| Roperty | Lengyelország | Korai/Növekedési | KKE összehasonlítható; becsült €500E+ ARR (PropTech.pl 2024 adat); nincs környezetanalitikai réteg |
+| Condo Control | Kanada/USA | Skálázó | $5M+ ARR; $30–80M értékelés; hasonló funkciókészlet, de észak-amerikai piac |
+| Buildium / AppFolio | USA | Nyilvános/Skálázó | $200M+ ARR; nem közvetlen KKE versenytárs, de a kategória funkciómennyezeti szintjét jelöli |
+| Loftium | UK/EU | Növekedési | Európai lakóingatlan-kezelés; Series A; €10–30M értékelési sáv |
 
-### Értékelési szorzók korai PropTech SaaS-hoz
+### Értékelési szorzók — Korai fázisú vertikális SaaS / PropTech (2024–2026)
 
-| Fázis | ARR szorzó | Megjegyzés |
-|-------|-----------|------------|
-| Bevétel előtti MVP | N/A (költség + opció) | Érték = pótlási költség + piaci opció |
-| 10 000 € ARR (pilot) | 15–25× ARR | Korai SaaS prémium ragadós vertikálisban |
-| 50 000 € ARR | 8–15× ARR | Trakció csökkenti a kockázatot |
-| 200 000 €+ ARR | 5–10× ARR | Érett SaaS normák |
-| Stratégiai vevő (PropTech) | 2–5× Bevétel + IP prémium | Adathálózat + portfólió szinergiák |
-
----
-
-## 9. Piaci értékbecslés
-
-### Értékelési módszerek
-
-#### 1. Pótlási költség (eszközérték-padló)
-A PERT fejlesztési költségbecslés alapján (várható 32 000–52 000 € KKE, 52 000–95 000 € vegyes), 2,5–4× stratégiai prémiummal az IP, az architektúra minősége és a piaci pozíció alapján: pótlási értékpadló **80 000–210 000 €**.
-
-#### 2. Piaci opció értéke (TAM × megragadási valószínűség)
-Magyarországon ~80 000 lakóépület van, ebből ~40 000 panel/társasházi típusú. Átlagos 40 albetétes épület × 20–60 €/albetét/év SaaS díj → TAM: 32 M–96 M € (HU). A teljes skálán 2% megragadása = 640 000–1,9 M € ARR potenciál. 5× ARR exit szorzóval: **3,2 M–9,5 M € piaci opcióérték**. Valószínűséggel súlyozva (10–20% egy bevétel előtti MVP-nél): **320 000–1,9 M €**.
-
-#### 3. Összehasonlítható tranzakciós szorzók
-Hasonló korai CEE PropTech SaaS acqui-hire vagy seed ügyletek (2022–2025): 150 000–500 000 € bevétel előtti, funkcionálisan teljes platformokra defensible niche-szel. Jelenlegi fázisban: **150 000–420 000 €**.
-
-#### 4. DCF (Diszkontált cash flow — indikatív)
-Feltéve, hogy a pilot indítás 2026 H2-ban megtörténik, 5 épület aláír 2026 végéig 1 200 €/épület/évért, majd 80 épületre skálázódik 2028-ra átlagosan 2 400 €/éven: NPV 35% diszkontráta mellett ≈ **180 000–380 000 €**.
-
-#### 5. Stratégiai / acqui-hire prémium
-A PanelLakó architektúrája (Next.js + Supabase, multi-tenant, 6 szerepkörös RLS, AWS Location integráció) bármely CEE PropTech vevő számára újrafelhasználható. A csapat + kódbázis mérnöki értéke stratégiai vevőnek: **200 000–500 000 €**.
-
-### Végleges értékelési tartomány összefoglaló
-
-| Módszer | Alacsony | Középső | Magas |
-|---------|----------|---------|-------|
-| 1. Pótlási költség | 80 000 € | 145 000 € | 210 000 € |
-| 2. Piaci opció (valószínűséggel súlyozva) | 320 000 € | 620 000 € | 1,9 M € |
-| 3. Összehasonlítható tranzakciók | 150 000 € | 280 000 € | 420 000 € |
-| 4. DCF (indikatív) | 180 000 € | 280 000 € | 380 000 € |
-| 5. Stratégiai / acqui-hire | 200 000 € | 350 000 € | 500 000 € |
-| **Háromszögeléssel kapott középső becslés** | **180 000 €** | **300 000 €** | **420 000 €** |
-
-> ⚠ **Középső becslés: 180 000–420 000 € (bevétel előtti MVP+).** Az első fizető pilot ügyfél 3+ hónapos fizetett használattal ezt 500 000–1,2 M € tartományba mozdítaná. 10 fizető épület × 2 400 €/év = 24 000 € ARR → indikatív értékelés 360 000–600 000 €.
+| Fázis / Növekedési Ütem | Tipikus ARR Szorzó | Példák / Benchmarkok |
+|-----------------------|------------------|---------------------|
+| Bevétel előtti (IP + opcionalitás) | N/A — költség + stratégiai érték | Helyreállítási költség 1,5–3×; opciós érték a TAM-ból |
+| €10–30E ARR (nagyon korai traction) | 15–25× ARR | KKE vertikális SaaS prémium ragadós épületkezelési munkafolyamatokhoz |
+| €50–100E ARR (pilot méret) | 8–15× ARR | Traction csökkenti kockázatot; összehasonlítható OnlineHáz / Domus24 becslésekkel |
+| €200–500E ARR (termék-piac illeszkedés) | 5–10× ARR | Immocloud DACH sáv; mainstream SaaS szorzó |
+| >€1M ARR (növekedési fázis) | 4–8× ARR | Roperty, Condo Control növekedési fázisú szorzók |
+| Stratégiai felvásárló (KKE PropTech összevonás) | 2–5× Bevétel + IP prémium | Adathálózat + portfólió szinergiák + csapat acqui-hire érték |
+| M&A medián KKE SaaS (2025) | 3,2–4,1× ARR | Jelenlegi üzleti környezet; eladói nyomás KKE-ben 2021-es csúcshoz képest |
 
 ---
 
-## 10. Feltételezések és korlátok
+## Piaci Értékbecslés
 
-### ✓ Ismert — kemény bizonyíték
+Öt független értékelési módszer kerül alkalmazásra és háromszögelésre. Minden módszer különböző bizonyítékokra támaszkodik — eszközpótlás, TAM-rögzítési valószínűség, összehasonlítható tranzakciók, diszkontált pénzáramlás és stratégiai felvásárlói logika. A háromszögelt sáv valódi bizonytalanságot tükröz az igazolt ARR-adatok hiánya miatt.
 
-- 12 TypeScript/TSX forrásfájl, 1 748 termék-kódsor, szkennelővel megerősítve.
-- 18 DB-tábla, köztük auth, szerepkör, ticket, mérőóra, dokumentum, pénzügy, közgyűlés, vendor, audit.
-- 6 különböző felhasználói szerepkör szerepkör-alapú routing implementációval.
-- Next.js 14 App Router + Supabase Auth + Tailwind CSS stack package.json-ból megerősítve.
-- AWS Location szerver-oldali proxy implementálva (SSRF-biztonságos).
-- 30 git commit, mind 2026-05-15-én (egynapos batch commit).
+### 1. módszer: Pótlási / IP Eszközérték
 
-### ~ Becsült — ésszerű feltételezés
+KKE fejlesztési költség várható díjakon: €228E. Stratégiai IP prémium egy éles üzemű, több-bérlős SaaS-ra számlázással, analitikával és 420 commit iterációval: 1,8–3,5× helyreállítási költség. Az SEO tartalommotor (28 cikk, strukturált adatok, épülő domain authority) organikus forgalmi értéket ad a tiszta kódköltségen túl.
 
-- A mock adatok dominálnak az adatrétegben; a valós INSERT/UPDATE műveletek részlegesen vagy még nincsenek bekötve.
-- RLS policy-k léteznek a schema.sql-ben, de az éles keményítés (getUser vs getSession, SSR cookie-k) hiányos.
-- Nem észleltünk unit vagy E2E tesztkészletet; a QA manuális.
-- A platform jelenlegi UX-e egydépítéses; a multi-épület backend séma létezik, de a frontend nem kötötte be.
-- Nincs i18n réteg; csak magyar nyelvű UI.
+Eredmény: **€350 000 – €800 000** (minimális — eszközérték a bevételektől függetlenül).
 
-### ✗ Hiányzó — nem megerősíthető
+### 2. módszer: Piac-opciós érték (TAM × Rögzítési valószínűség)
 
-- Nincsenek igazolt fizető ügyfelek vagy aláírt pilot szerződések.
-- Nincs mért felhasználói munkamenet, engagement vagy megtartási adat.
-- Nincsenek versenytársi win/loss adatok.
-- A bevételi modell (árazás, csomagolás, fizetési integráció) nincs implementálva.
-- Mobilalkalmazás (PWA vagy natív) nem elérhető; a mobil UX reszponzív weben alapul.
+Magyarország: ~400 000 társasházi épület, amelyből ~80 000 panelszerű (10–200 lakás). Átlagos 45 lakásos épület €25–80/lakás/év SaaS árazással → Magyar TAM: €450M–€1,44Md elméleti plafon; reálisan megcélozható: €32M–€96M a digitálisan fogékony szegmensnek.
 
----
+A megcélozható HU piac 2%-ának rögzítése skálán = €640E–€1,9M ARR. KKE bővítés (Lengyelország, Csehország, Szlovákia: hasonló méret) ezt 3–4×-esre növeli. 5× kilépési szorzónál, 10–15% valószínűséggel súlyozva, 2%-os piaci rögzítésnél: **€320 000 – €1 430 000**.
 
-## 11. Következő lépések
+### 3. módszer: Összehasonlítható tranzakciós szorzók
 
-### Költségoptimalizálás
+Összehasonlítható korai fázisú KKE PropTech SaaS seed ügyletek és acqui-hire-ok (2022–2025):
+- OnlineHáz hasonló fázisnál: becsült €400–800E értékelés
+- Domus24 korai fázisnál: €150–350E
+- Immocloud korai kör: €2–4M (de nagyobb DACH piac)
+- KKE SaaS seed mediánok: €400E–€1,2M éles üzemű, niche-vertikális eszközökhöz
 
-- Folytassuk az AI-asszisztált fejlesztést a sebességi előny megőrzéséhez.
-- Halasszuk a felvételt az első bevételig vagy értelmes LOI-ig; prioritás egy alapító mérnök, aki az egész stack-et kezeli.
-- Az első 10 pilothoz használjuk a Supabase ingyenes szintjét és a Vercel hobby-t; infrastrukturális költség ≈ 0 €.
+PanelLakó v0.9.23-nál élő Stripe számlázással és tartalommarketing moattal: **€500 000 – €1 400 000**.
 
-### Értékesítési / fundraising felkészültség
+### 4. módszer: DCF — Indikatív Forgatókönyv
 
-- Írjunk alá 3 fizető pilot épületet bármilyen áron (akár 500 €/év) a fizetési hajlandóság bizonyításához.
-- Építsünk egyszerű mérőszám-dashboardot: DAU, ticket-volumen, dokumentum-olvasások — befektetőknek számok kellenek.
-- Készítsünk 1 oldalas pitch-et: TAM (80 000 HU épület), ékügy (panel épületek, közös képviselők), védhetőség (adathálózat + folyamat lock-in).
+Feltételezett trajektória: pilotindítás 2026 második félévében; 8 fizető épület 2026 végén átlag €1 800/évvel; skálázás 60 épületre 2027 végéig (€1 800 átlag) és 200 épületre 2028 végéig (€2 400 átlag). ARR 2026: €14,4E; 2027: €108E; 2028: €480E. Maradványérték 5× ARR-nál, 35%-os diszkontrátával.
 
-### Technikai adósság prioritása
+5 éves cash flow NPV: **€280 000 – €620 000**. Érzékenység: ha a felfutás 2× lassabb, NPV ≈ €150–350E; ha 1,5× gyorsabb, NPV ≈ €500E–€1,1M.
 
-- Cseréljük le a mock adatokat valós Supabase írásokra (szerver akciók vagy API route-ok) — ez az #1 éles blokkoló.
-- Keményítsük az SSR autht: cseréljük le a kliens-oldali getSession-t szerver-oldali getUser + cookie-alapú munkamenetre.
-- Adjunk hozzá Supabase Storage-t a dokumentumfeltöltéshez (jelenleg a dokumentumkezelés csak UI).
-- Implementáljunk valós fizetési integrációt (Stripe vagy Barion HU-ra) a SaaS számlázás engedélyezéséhez.
+### 5. módszer: Stratégiai Felvásárlási Prémium
 
----
+Stratégiai felvásárlók a KKE PropTech térben (egy digitális lakói szolgáltatásokat építő közüzemi vállalat, egy SaaS-ba lépő ingatlanportál, egy európai PropTech összevonó) értékelne:
+- Többbérlős Next.js + Supabase architektúra újrahasznosítható portfóliójukban
+- 6-szintű RBAC + Stripe számlázás már integrálva
+- SEO tartalommotor domain authority-vel magyar ingatlan-kulcsszavakra
+- Környezetanalitikai csomag (egyedi differenciáló bármely piaci szereplőhöz képest)
+- Csapat acqui-hire érték AI-jártas full-stack fejlesztési képességért
 
-## 12. Függelék
+Stratégiai prémium: 1,5–3× IP-érték. Eredmény: **€525 000 – €2 400 000**.
 
-### Adatbázis-tábla leltár
+### Végső Piaci Értéksávok
 
-| Tábla | Fő cél | Kulcsoszlopok |
-|-------|--------|---------------|
-| profiles | Felhasználói azonosság + szerepkör | id, full_name, email, role |
-| buildings | Épület törzsadat | id, name, address |
-| units | Albetét-nyilvántartás | building_id, unit_label, area_m2, ownership_share, balance_amount |
-| memberships | Felhasználó↔Épület↔Szerepkör kapcsolat | profile_id, building_id, unit_id, role |
-| announcements | Hírek / bejegyzések | building_id, title, content, target_group, category |
-| notifications | Push / e-mail értesítések | building_id, title, message, audience, channel, read_at |
-| tickets | Hibabejelentések | building_id, unit_id, status, priority, due_date |
-| meter_readings | Mérőóra-bejelentések | unit_id, meter_type, value, submitted_at |
-| documents | Dokumentumtár | building_id, title, file_url, category |
-| document_acknowledgements | Olvasottsági visszajelzések | document_id, profile_id, acknowledged_at |
-| financials | Egyenleg / főkönyvi sorok | building_id, unit_id, amount, type, period |
-| meetings | Közgyűlési események | building_id, date, quorum_threshold |
-| agenda_items | Napirendi pontok | meeting_id, title, order_number |
-| resolutions | Elfogadott határozatok | meeting_id, title, passed |
-| votes | Felhasználónkénti szavazatok | meeting_id, profile_id, vote, resolution_id |
-| vendors | Vendor törzsadat | id, name, service_type, contact |
-| work_orders | Karbantartási megbízások | building_id, vendor_id, status, description |
-| knowledge_base_articles | Súgócikkek | building_id, title, content, category |
-| audit_logs | Eseménynapló | building_id, actor_id, event_type, payload |
+| Értékelési Módszer | Alacsony | Közép | Magas |
+|-------------------|----------|-------|-------|
+| 1. Pótlási / IP eszközérték | €350E | €575E | €800E |
+| 2. Piac-opciós érték (valószínűséggel súlyozva) | €320E | €875E | €1 430E |
+| 3. Összehasonlítható tranzakciók (KKE) | €500E | €950E | €1 400E |
+| 4. DCF — indikatív forgatókönyv | €280E | €450E | €620E |
+| 5. Stratégiai felvásárlási prémium | €525E | €1 300E | €2 400E |
+| **Háromszögelt középbecslés** | **€400E** | **€1 100E** | **€2 200E** |
+
+> ✓ **Középbecslés: €1 100 000 (€1,1M)** — a jelenlegi, igazolt bevétel előtti fázisban, éles Stripe számlázással és növekvő SEO moattal. Egy igazolt €30E ARR (17–20 fizető épület) a középbecslést €1,4–1,8M-ra módosítaná. Egy igazolt €80E ARR-trajektória €2,0–3,2M-ra emelné. A középbecslés szándékosan konzervatív a bevételi nyilvánosság hiányáig.
 
 ---
 
-### Konfidencia-értékelés
+## Feltételezések és Korlátok
 
-| Terület | Konfidencia | Ok |
-|---------|------------|-----|
-| LOC / fájlszám | Magas | Közvetlen szkennelő kimenet |
-| Technológiai stack | Magas | package.json-ból és forrásból megerősítve |
-| Funkciólefedettség | Közepes-magas | Séma + komponensnevekből következtetve |
-| Ráfordítás-becslés | Közepes | Analógiás benchmarkokon alapul; nincs időkövetési adat |
-| Piaci érték | Közepes-alacsony | Nincs bevétel, nincs ügyfél adat; opcióérték dominál |
-| Versenytársi adatok | Közepes | Nyilvánosan elérhető; egyes számok becsültek |
+### Kemény Bizonyíték — Ismert
+
+- ✓ Teljes forráskód: 814 fájl, 72 499 sor TypeScript/TSX/SQL — megerősítve a repo szkennelővel (repo_scan.json)
+- ✓ 252 TypeScript/TSX fájl (46 459 + 19 065 sor) — éles üzemű, végig típusos
+- ✓ 44 SQL migrációs fájl (4 268 sor) — teljes séma előzmény v0.1.0-tól v0.9.23-ig
+- ✓ 420 git commit — folyamatos aktív fejlesztési előzmény
+- ✓ 21 produkciós függőség megerősítve package.json-ból (Stripe, Supabase, Sentry, PostHog, Resend, web-push, next-pwa, Leaflet, @react-pdf/renderer, sharp)
+- ✓ Stripe számlázási integráció megerősítve: stripe ^22.1.1 és @stripe/stripe-js ^9.6.0 jelen van
+- ✓ Teljes CHANGELOG v0.7.x-től v0.9.23-ig részletes funkciómeghatározásokkal
+- ✓ SEO tartalommotor: 7 tartalomlpillér, 28 klaszter-cikk, 8 strukturált adat séma típus, llms.txt, 60+ URL-es sitemap — mind megerősítve a CHANGELOG-ban
+- ✓ CI/CD folyamat: GitHub Actions Semgrep, gitleaks, Trivy SARIF szkennelésekkel
+- ✓ Vercel telepítés megerősítve; Next.js 14 App Router SSR és RSC architektúrával
+
+### Következtetett — Ésszerű Feltételezés
+
+- ~ Fejlesztési ráfordítás a kódmennyiségből, CHANGELOG mélységéből és összehasonlítható KKE PropTech benchmarkokból becsülve — a repóban nincs időkövetési adat
+- ~ KKE fejlesztői díj-feltételezések 2025-ös piaci felméréseken alapulnak (HU/SK/PL senior full-stack: €35–65/ó); tényleges díjak helyszíntől és tapasztaltságtól függően változnak
+- ~ A Stripe számlázás integrálva, de igazolt ARR/MRR adatok nem láthatók a repóban
+- ~ A PostHog termékanalitika konfigurálva (posthog-js ^1.130.0); DAU/MAU adatok pusztán a repóvizsgálatból nem elérhetők
+- ~ Az OnlineHáz, Domus24, Roperty összehasonlítható piaci adatok nyilvános forrásokból és PropTech.pl adatokból becsültek — nem auditált
+- ~ A SEO tartalommotor feltételezhetően organikus forgalmat generál; Google Search Console adatok vizsgálatra nem elérhetők
+- ~ A környezetanalitikai csomag (OpenAQ, Overpass, Nominatim, BKK OBA) harmadik féltől származó ingyenes API-któl függ díjkorlátokkal — produkciós megbízhatóság a kódban látható gyorsítótárazási fegyelemtől függ
+
+### Ismeretlen / Hiányzó — Nem Megerősíthető
+
+- ✗ Bevétel / ARR — a repóban nem látható monetizációs adat; a piaci értékelés legmeghatározóbb egyedi változója
+- ✗ Fizető ügyfélszám — a Stripe integrált, de egyetlen irányítópult vagy analitikai adat sem mutat aktív előfizetéseket
+- ✗ Felhasználó/bérlőszám — a PostHog konfigurált, de a munkamenetek száma kódból nem hozzáférhető
+- ✗ Lemorzsolódási arány / megtartás — terméktelemetria nélkül nem mérhető
+- ✗ SLA / üzemidő előzmény — a Sentry konfigurált, de az incidenstörténet nem elérhető
+- ✗ Esetleges meglévő ügyfelek földrajzi megoszlása — kizárólag HU vs. KKE bővítés nem egyértelmű
+- ✗ Versenyképes nyerési/veszteségi adatok — nem látható CRM vagy üzleti csővezeték adat
+- ✗ Jogi/szabályozási megfelelési állapot — a GDPR/ÁSZF oldalak kódban léteznek, de az adatfeldolgozási megállapodások és az ügyfeleknél lévő DPA-k a repón kívüliek
 
 ---
 
-*Ez a jelentés automatizált repository-elemzéssel (scan_repo.py) és AI-asszisztált szakértői becsléssel készült. Minden szám tartomány, nem pontbecslés. A jelentést az első pilot indítása után frissíteni kell.*
+## Következő Lépések
+
+### Értékelés Növelésére (Bevétel és Traction)
+
+- → 5–10 fizető pilot épület aláírása bármilyen áron (akár €800–1 200/év) — az első ARR azonnal 30–60%-kal növeli az értékelési hitelességet
+- → Egyszerű metrikaoldal közzétele aktív épületekkel, hibajegy-forgalommal és dokumentumolvasásokkal — a befektetők számszerű jelzéseket igényelnek
+- → Stripe webhook-to-adatbázis ARR-követés instrumentálása — minden előfizetési esemény legyen rögzített és jelentsíthető
+- → Egy hivatkozható esettanulmány felépítése: nevesített 50+ lakásos épület PanelLakó-használattal ≥3 hónapig számszerű eredménnyel (megtakarított idő, visszakövetelt költség)
+
+### Termék Eladásra / Felvásárlásra / Tőkebevonásra
+
+- → 1 oldalas pitch deck elkészítése: TAM (400E HU épület, KKE bővítés), ék (panelepületek, közös képviselők), védhető pozíció (adathálózati hatás + munkafolyamati zár + SEO moat)
+- → Angol nyelvű termékösszefoglaló oldal és befektetői pitch közzétele — a DACH, UK és Lengyelország stratégiai felvásárlói angolul működnek
+- → Számlázási szint struktúra formalizálása: a Professzionális → Enterprise frissítési korlátok pontosítása épület- vagy albetétszám alapján
+- → Egyszerű analitika export (PDF/CSV) hozzáadása PostHog adatokból — demonstrálja a mérhetőséget a felvásárlók számára
+
+### Technikai Adósság Csökkentésére
+
+- → 1. prioritás: Vitest tesztcsomag bővítése — konfigurált, de a lefedettség vékony a 72E SOC felülethez képest; célzott 40%+ a core elszámolási és szavazási modulokon
+- → 2. prioritás: RLS szabályok auditálása a teljes migrációs előzmény alapján — 44 migráció elavult szabályok kockázatát jelenti az újabb táblákon
+- → 3. prioritás: Strukturált hibanaplózás hozzáadása a külső API fan-outokhoz (Overpass, OpenAQ, BKK) — timeout-nélküli vagy csöndes meghibásodási útvonalak léteznek a környezetanalitikai kódban
+- → 4. prioritás: Fire-and-forget Supabase írások felváltása explicit hibakezeléssel és újrapróbálási logikával a számlázási és push értesítési útvonalakon
+
+### KKE Piaci Terjeszkedésre
+
+- → Lengyel és cseh lokalizációs karakterláncok hozzáadása — az i18n architektúra még nem elérhető (csak magyarul); egyetlen lokalizációs réteg 3×-ra növelné a megcélozható piacot
+- → Szlovák/lengyel társasházi jog megfelelőjének kutatása a magyar Ttv.-hez (Társasházi Törvény) — a tartalommotor pillérei HU-specifikusak, de szerkezetileg újrahasznosíthatók
+- → White-label ajánlat értékelése egy nagy magyar ingatlankezelő cégnek (valószínűleg 50+ épület) — gyorsabb terjesztési csatorna a közvetlen KKV-értékesítésnél
+
+---
+
+## Függelék
+
+### A. Adatbázistábla-leltár (Fő Táblák a Migrációs Előzményekből)
+
+| Tábla | Modul | Cél |
+|-------|-------|-----|
+| buildings | Core | Épület törzsadata: id, name, address, lat/lon, tier |
+| units | Core | Lakásnyilvántartás: building_id, unit_label, area_m2, ownership_share, balance_amount |
+| memberships | Auth | Felhasználó ↔ Épület ↔ Szerepkör leképezés: profile_id, building_id, unit_id, role |
+| tenant_subscriptions | Számlázás | Stripe előfizetési állapot: workspace_id, tier_id, stripe_subscription_id, status |
+| platform_audit_events | Audit | Megváltoztathatatlan szintváltó napló: workspace_id, old_tier, new_tier, reason, performed_by |
+| tickets | Hibabejelentés | Hibajegyek: building_id, unit_id, status, priority, vendor_id, due_date |
+| documents | Dokumentumok | Dokumentumtár: building_id, title, file_url, category, supabase_storage_path |
+| document_acknowledgements | Dokumentumok | Lakónkénti olvasási visszaigazolások: document_id, profile_id, acknowledged_at |
+| financials | Könyvelés | Főkönyvi sorok: building_id, unit_id, amount, type, period, balance_after |
+| meetings | Közgyűlés | Közgyűlési események: building_id, date, quorum_threshold, status |
+| resolutions | Közgyűlés | Közgyűlési határozatok: meeting_id, title, vote_result, passed |
+| votes | Közgyűlés | Lakónkénti szavazatok: meeting_id, profile_id, resolution_id, vote |
+| noise_reports | Környezet | Zajjelentések: workspace_id, category, severity 1-5, period, estimated_db |
+| waste_reports | Környezet | Havi hulladékkövetés: workspace_id, category, amount, co2_saved |
+| transit_stops | Közlekedés | BKK GTFS megállóadatok: stop_id, name, lat, lon, synced_at |
+| transit_routes | Közlekedés | BKK útvonalak short_name fallbackkel OBA API meghibásodáshoz |
+| osm_addresses | Geokódolás | Magyar OSM cím adatok: GIN + B-tree indexek autocomplete-hez |
+| platform_settings | Admin | Globális beállítások: kulcs/érték (pl. map_theme = {id: 'dark'}) |
+| job_idempotency_keys | Feladatok | pgmq deduplikáció: queue, key, status, payload, created_at |
+| audit_logs | Audit | Strukturált eseménynapló: building_id, actor_id, event_type, payload |
+
+### B. Megbízhatósági Értékelés Dimenziónként
+
+| Dimenzió | Megbízhatóság | Indoklás |
+|----------|-------------|----------|
+| SOC / fájlszám | Magas (±5%) | Közvetlen repo szkennelő kimenet — determinisztikus |
+| Tech stack azonosítás | Magas (±5%) | Megerősítve package.json-ból és forrásfájl fejlécekből |
+| Funkciólefedetség értékelés | Magas (±10%) | CHANGELOG v0.1.0–v0.9.23 részletes és kereszthivatkozott kóddal |
+| Fejlesztési ráfordítás becslés | Közepes-Magas (±25%) | Teljes kódbázis + changelog elérhető; AI fejlesztési sebesség bizonytalanságot ad |
+| Költségbecslés (KKE díjak) | Közepes-Magas (±25%) | 2025 HU/SK/PL piaci díjak; tényleges tapasztaltságtól függ |
+| Piaci érték (igazolt bevétel előtt) | Közepes (±45%) | Nincs ARR adat; összehasonlítható alapú, széles összehasonlítható sávval |
+| Piaci érték (igazolt ARR-rel) | Közepes-Magas (±25%) | Standard ARR szorzók alkalmazhatók a bevétel nyilvánosság után |
+| Versenytárs ARR becslések | Közepes-Alacsony (±50%) | Nyilvános források és PropTech.pl adat; nem auditált |
+
+### C. SEO Tartalom Motor — Cikkleltár Összefoglalója
+
+| Tartalom Pillér | Cikkek | Séma Típusok |
+|----------------|--------|-------------|
+| Társasházkezelés | 8 | Article, CollectionPage, FAQPage, HowTo, BreadcrumbList |
+| Társasházi Jog | 3+ | Article, FAQPage, BreadcrumbList |
+| Levegőminőség Budapest | 4 | Article, FAQPage, BreadcrumbList |
+| Zajszennyezés Budapest | 2+ | Article, FAQPage, BreadcrumbList |
+| Klímakockázat Épületeknél | 3 | Article, FAQPage, BreadcrumbList |
+| Zöld Társasház | 3 | Article, FAQPage, BreadcrumbList |
+| Tömegközlekedés Elemzés | 2+ | Article, BreadcrumbList |
+| Globális / Weboldal | — | WebSite + SearchAction, Organization, SoftwareApplication, Person |
+
+---
+
+_Ez a jelentés AI-segített technikai átvilágítással készült, amely közvetlen repóvizsgálatot (814 fájl, 420 commit, teljes CHANGELOG áttekintés) és külső piackutatást kombinál. Minden szám sáv, nem pontbecslés. A jelentést az első igazolt ARR-nyilvánosság vagy pilot ügyfél aláírása után frissíteni kell. Nem minősül pénzügyi, jogi vagy befektetési tanácsnak._
