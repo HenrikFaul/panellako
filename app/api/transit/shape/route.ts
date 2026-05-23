@@ -45,6 +45,22 @@ const GTFS_TYPE: Record<number, string> = {
   0: 'TRAM', 1: 'SUBWAY', 2: 'RAIL', 3: 'BUS', 11: 'TROLLEYBUS', 12: 'TRAM',
 };
 
+// ─── Google encoded-polyline decoder (BKK OBA shape.json returns this format) ─
+function decodePolyline(encoded: string): ShapePoint[] {
+  const points: ShapePoint[] = [];
+  let index = 0, lat = 0, lon = 0;
+  while (index < encoded.length) {
+    let b: number, shift = 0, result = 0;
+    do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+    shift = 0; result = 0;
+    do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    lon += (result & 1) ? ~(result >> 1) : (result >> 1);
+    points.push({ lat: lat / 1e5, lon: lon / 1e5 });
+  }
+  return points;
+}
+
 // ─── Cache (5 min — shapes don't change often) ────────────────────────────────
 const _cache = new Map<string, { data: TripShape; expires: number }>();
 
@@ -114,7 +130,10 @@ async function fetchShapeFromDb(tripId: string): Promise<TripShape | null> {
         };
       });
     }
-  } catch { /* gtfs_stop_times tables may not exist — stopTimes stays undefined */ }
+  } catch { /* gtfs_stop_times may not exist — stopTimes stays undefined */ }
+
+  // Only use DB result when we have stop times; otherwise BKK API has richer, current data
+  if (!stopTimes || stopTimes.length === 0) return null;
 
   return {
     points:     pts.map(p => ({ lat: p.lat as number, lon: p.lon as number })),
@@ -199,12 +218,16 @@ async function fetchShape(tripId: string): Promise<TripShape> {
   const shapeJson = await shapeRes.json();
   if (shapeJson.status !== 'OK') throw new Error(`shape status ${shapeJson.status}`);
 
-  const rawPoints: Array<{ lat?: number; lon?: number }> =
-    shapeJson?.data?.entry?.points ?? [];
-
-  const points: ShapePoint[] = rawPoints
-    .filter(p => p.lat !== undefined && p.lon !== undefined)
-    .map(p => ({ lat: p.lat!, lon: p.lon! }));
+  // BKK OBA shape.json returns `points` as a Google-encoded polyline string
+  const rawPoints = shapeJson?.data?.entry?.points;
+  let points: ShapePoint[] = [];
+  if (typeof rawPoints === 'string' && rawPoints.length > 0) {
+    points = decodePolyline(rawPoints);
+  } else if (Array.isArray(rawPoints)) {
+    points = (rawPoints as Array<{ lat?: number; lon?: number }>)
+      .filter(p => p.lat !== undefined && p.lon !== undefined)
+      .map(p => ({ lat: p.lat!, lon: p.lon! }));
+  }
 
   if (points.length === 0) throw new Error('Empty shape points');
 
