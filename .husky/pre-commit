@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -eu
+
+echo "Pre-commit: TypeScript ellenőrzés..."
+if ! npx tsc --noEmit 2>&1; then
+  echo ""
+  echo "COMMIT BLOKKOLVA: TypeScript hibák vannak. Javítsd, majd próbáld újra."
+  exit 1
+fi
+echo "TypeScript: OK"
+
+echo "Pre-commit: Lokalizáció ellenőrzés..."
+STAGED=$(git diff --cached --name-only 2>/dev/null || true)
+
+HAS_COMPONENT=$(echo "$STAGED" | grep -E "\.(tsx|ts)$" | grep -vE "(hu\.ts|en\.ts|\.d\.ts|test\.|spec\.|\.config\.)" | grep -E "^(components/|app/|pages/)" || true)
+
+if [ -n "$HAS_COMPONENT" ]; then
+  HAS_HU=$(echo "$STAGED" | grep -c "hu\.ts" || true)
+  HAS_EN=$(echo "$STAGED" | grep -c "en\.ts" || true)
+  if [ "${HAS_HU:-0}" -eq 0 ] || [ "${HAS_EN:-0}" -eq 0 ]; then
+    echo ""
+    echo "COMMIT BLOKKOLVA: Komponens módosult, de hu.ts és/vagy en.ts hiányzik."
+    echo "Ha nem adtál hozzá új user-facing stringet: git commit --no-verify"
+    echo "Érintett komponensek:"
+    echo "$HAS_COMPONENT" | head -10 | sed 's/^/  - /'
+    exit 1
+  fi
+fi
+echo "Lokalizáció: OK"
+echo "Pre-commit ellenőrzések sikeresek."
