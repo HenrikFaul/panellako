@@ -1,4 +1,140 @@
 
+## v0.9.14 — SEO Sprint 4: Mérés, befejezés és E-E-A-T
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Cluster cikkek befejezése — Tarsashazi Jog
+- `kozgyulesi-hatarozat-megtamadasa` — 30 napos jogvesztő határidő (Ttv. 42. §), piros alert box
+- `szomszed-jog-tarsashazban` — Ptk. 5:23. §, zajhatárok, albérlet, kisállat, dohányzás
+- `alapito-okirat-modositasa` — egyhangúság (100%), Inytv. 29/A. § 90 nap
+
+### Cluster cikkek befejezése — Klímakockázat
+- `hoszigetek-budapest` — UHI, OMSZ mérés, 5-8°C különbség, zöldtető/reflektív festés
+- `csapadek-es-arviz-budapest` — villámárvíz, pincebeázás, MABISZ biztosítás
+- `energetikai-tanusitvany` — EPC A++-G osztályok, EU EPBD 2024/1275/EU
+
+### Cluster cikkek befejezése — Társasházkezelés
+- `felugyelobizottsag` — Ttv. 53-56. §, ellenőrzési jogkör, digitális hozzáférés
+- `kozos-kepviselo-valasztasa` — Ttv. 27/33. §§, 90 napos felmondás, átadás-átvétel
+
+### Hub oldalak frissítése (belső linkek)
+- Minden pillar hub frissítve: valós cluster cikk linkek, "coming soon" eltávolítva
+- `/elemzes` hub: levegőminőség/klíma/zaj linkek frissítve valós oldalakra
+- `public-footer.tsx`: tarsashazi-jog, zöld-tarsashaz, adatforrasok hozzáadva
+
+### Technikai frissítések
+- `app/sitemap.ts`: 60+ URL (teljes tartalomtérkép)
+- `app/page.tsx`: "Szakértői tudástár" szekció (4 content pillar kártya)
+
+### Sprint 4 sikerkritériumok
+- [ ] 50+ oldal indexálva GSC Coverage-ben
+- [ ] 5+ BOFU keyword top 100-ban
+- [ ] Homepage organikus session vs. baseline mérhető
+- [ ] Trial signup konverzió tracking by landing page (PostHog)
+
+## v0.9.13 — SEO Sprint 3: Topikai autoritás — tartalom pillérek
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Tartalom-pillérek (hub oldalak)
+- `app/tarsashaz-kezeles/page.tsx` — Társasházkezelés pillar hub
+- `app/levegominoseg-budapest/page.tsx` — Levegőminőség Budapest hub (kibővítve)
+- `app/zajszennyezes-budapest/page.tsx` — Zajszennyezés Budapest hub
+- `app/klimakockazat-epuleteknel/page.tsx` — Klímakockázat épületeknél hub
+- `app/zold-tarsashaz/page.tsx` — Zöld Társasház hub
+- `app/tarsashazi-jog/page.tsx` — Magyar Társasházi Jog hub
+- `app/tomegkozlekedes-elemzes/page.tsx` — Tömegközlekedés Elemzés hub
+
+### Cluster cikkek — Társasházkezelés pillar
+- `kozos-kepviselo-feladatai` — 2003. évi CXXXIII. tv., adminisztratív/pénzügyi/jogi feladatok
+- `kozgyules-osszehivasa` — 2021. évi CXLIII. tv., 8 lépéses checklist, minősített többség
+- `szmsz-keszitese` — 10 kötelező elem, 5 tipikus hiba, 2/3 vs 4/5 szavazatarány
+- `kozos-koltseg-nyilvantartas` — tételek, éves elszámolás, Ptk. késedelmi kamat
+- `dijhatlarak-kezelese` — FMH, végrehajtás, jelzálogjog bejegyzés
+- `dokumentumkezeles-tarsashazban` — megőrzési idők táblázata, lakói betekintési jog
+- `felugyelobizottsag` — Ttv. 53-56. §, ellenőrzési jogkör
+- `kozos-kepviselo-valasztasa` — megbízási szerződés, 90 napos felmondás, átadás-átvétel
+
+### Cluster cikkek — Levegőminőség pillar
+- `pm25-pm10-mit-jelent` — WHO vs EU határértékek, egészségügyi hatások
+- `budapest-legszennyezettebb-keruletek` — OLM mérőállomások, kerületi összehasonlítás
+- `belteri-levegominoseg-tarsashazban` — VOC, HEPA, CO-érzékelő, páratartalom
+- `pollen-allergia-budapest` — pollenszezon táblázat, parlagfű, 340/2013. Korm. rendelet
+
+### Cluster cikkek — Zajszennyezés pillar
+- `tarsashazi-zaj-panasz` — 45/35 dB(A) határok, 5 lépéses jogorvoslat
+- `zajvedes-tarsashazban` — Rw/Lw értékek, ablakcsere, panelprogram
+
+### Cluster cikkek — Zöld Társasház pillar
+- `napelem-tarsashazban` — METÁR 2023, önfogyasztás, 2/3-os közgyűlés
+- `hoszigeteles-panelprogram` — EPBD 2024, EPC osztályok, felújítási kötelezettség 2033
+- `ev-tolto-tarsashazban` — 2021. évi CXLIII. tv. 8/A. §, load balancing
+
+### Cluster cikkek — Klímakockázat pillar
+- `hoszigetek-budapest` — UHI, OMSZ mérés, zöldtető, reflektív festés
+- `csapadek-es-arviz-budapest` — villámárvíz, pincebeázás, MABISZ
+- `energetikai-tanusitvany` — EPC osztályok, EU EPBD 2024/1275/EU, 30-40% értékkülönbség
+
+### Cluster cikkek — Társasházi Jog pillar
+- `kozgyulesi-hatarozat-megtamadasa` — 30 napos jogvesztő határidő (Ttv. 42. §)
+- `szomszed-jog-tarsashazban` — Ptk. 5:23. §, zajhatárok, albérlet, kisállat, dohányzás
+- `alapito-okirat-modositasa` — egyhangú szavazatarány, közjegyző, Inytv. 29/A. §
+
+### Egyéb új oldalak
+- `app/tomegkozlekedes-elemzes/gtfs-adatok-budapest/page.tsx` — BKK GTFS fájlstruktúra
+- `app/tomegkozlekedes-elemzes/villamos-metro-hev-elerheto-lakoneegyedek/page.tsx`
+- `app/15-perces-varos/page.tsx` — Budapest 2030 stratégia
+- `app/adatforrasok/page.tsx` — E-E-A-T Dataset JSON-LD, 6 adatkategória
+
+### Technikai módosítások
+- `app/sitemap.ts`: 50+ URL (minden tartalom-pillér + cluster cikk)
+- `public/manifest.json`: theme_color + leíró description
+- `app/page.tsx`: /elemzes link szekció (ACT-019)
+
+### Sprint 3 sikerkritériumok
+- [ ] 5+ tartalom-pillér oldal indexálva GSC-ben
+- [ ] /levegominoseg-budapest első benyomások megjelennek
+- [ ] BreadcrumbList Rich Results Test átmegy
+- [ ] 3+ külső visszamutató hivatkozás elnyerve
+
+## v0.9.12 — SEO Sprint 2: Konverziós felületek és navigáció
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Új oldalak
+- `app/funkciok/page.tsx` — Funkciók hub (SoftwareApplication JSON-LD schema)
+- `app/funkciok/hibabejelentes-kezeles/page.tsx` — Hibabejelentés feature oldal
+- `app/funkciok/dokumentumtar/page.tsx` — Dokumentumtár feature oldal
+- `app/funkciok/kozos-koltseg/page.tsx` — Közös költség feature oldal
+- `app/funkciok/online-kozgyules/page.tsx` — Online közgyűlés feature oldal
+- `app/arak/page.tsx` — Árak oldal (3 csomag, Offer JSON-LD)
+- `app/gyik/page.tsx` — GYIK oldal (FAQPage JSON-LD, 15 kérdés)
+- `app/rolunk/page.tsx` — Rólunk oldal (Organization JSON-LD, E-E-A-T)
+- `app/kapcsolat/page.tsx` — Kapcsolat oldal (ContactPage JSON-LD)
+- `app/adatvedelmi-iranyelvek/page.tsx` — GDPR Adatvédelmi irányelvek
+- `app/aszf/page.tsx` — ÁSZF (12 fejezet, jogi megfelelés)
+- `app/osszehasonlitas/page.tsx` — PanelLakó vs Excel+WhatsApp összehasonlítás
+- `app/elemzes/page.tsx` — Elemzések hub (4 analysis card)
+
+### Módosított fájlok
+- `components/public-nav.tsx` (ÚJ) — Sticky publikus navigáció (5 menüpont + CTA)
+- `components/public-footer.tsx` (ÚJ) — 4 hasábos footer jogi + hub linkekkel
+- `app/page.tsx` — Teljes homepage újraírás (600+ szó, FAQPage schema, /elemzes link)
+- `app/sitemap.ts` — 30+ URL a teljes tartalmibázishoz
+- `public/manifest.json` — Leíró description + theme_color=#0f766e
+
+### SEO hatás
+- Megvalósított ACT-010 (homepage rewrite), ACT-011/012 (feature pages), ACT-013 (árak), ACT-014 (GYIK), ACT-015 (jogi oldalak), ACT-016 (rólunk), ACT-017 (nav), ACT-018 (footer), ACT-019 (elemzések link), ACT-038 (kapcsolat)
+- 10+ új indexálható oldal FAQPage, SoftwareApplication, Organization, ContactPage sémákkal
+- GDPR jogi megfelelés: adatvédelmi irányelvek és ÁSZF élő
+
+## Sprint 2 sikerkritériumok
+- [ ] Homepage top 50 brand query-re
+- [ ] 10+ új oldal indexálva GSC-ben
+- [ ] FAQPage Rich Results Test átmegy
+- [ ] SoftwareApplication schema valid
+- [ ] Jogi oldalak élők és footerből linkelt
+
 ## 2026-05-22 — v0.9.11 SEO Sprint 1: Technical Foundation
 
 ### Added — SEO technical foundation (ACT-001 … ACT-006)
