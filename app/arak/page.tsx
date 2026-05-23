@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   title: 'Árak — PanelLakó Társasházkezelő Szoftver',
   description:
     '14 napos ingyenes próba kártyaadat nélkül. PanelLakó árazása épület méret szerint — kis és nagy társasházak számára is elérhető.',
-  alternates: { canonical: '/arak' },
+  alternates: { canonical: 'https://panellako.hu/arak' },
   openGraph: {
     title: 'Árak — PanelLakó Társasházkezelő Szoftver',
     description:

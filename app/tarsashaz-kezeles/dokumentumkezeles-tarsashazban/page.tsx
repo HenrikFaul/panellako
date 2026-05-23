@@ -34,6 +34,9 @@ const articleSchema = {
     'Milyen dokumentumokat köteles megőrizni a közös képviselő? SZMSZ, közgyűlési jegyzőkönyvek, számviteli iratok — kötelező megőrzési idők és digitális megoldások.',
   url: 'https://panellako.hu/tarsashaz-kezeles/dokumentumkezeles-tarsashazban',
   publisher: { '@type': 'Organization', name: 'PanelLakó', url: 'https://panellako.hu' },
+  datePublished: '2024-01-15',
+  dateModified: '2026-05-23',
+  author: { '@type': 'Organization', name: 'PanelLakó', url: 'https://panellako.hu' },
 };
 
 const breadcrumbSchema = {

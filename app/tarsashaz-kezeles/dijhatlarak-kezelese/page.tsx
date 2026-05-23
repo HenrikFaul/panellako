@@ -32,6 +32,9 @@ const articleSchema = {
     'Mit tehet a közös képviselő, ha valaki nem fizeti a közös költséget? Felszólítás, fizetési meghagyás, végrehajtás, jelzálogjog — lépésről lépésre.',
   url: 'https://panellako.hu/tarsashaz-kezeles/dijhatlarak-kezelese',
   publisher: { '@type': 'Organization', name: 'PanelLakó', url: 'https://panellako.hu' },
+  datePublished: '2024-01-15',
+  dateModified: '2026-05-23',
+  author: { '@type': 'Organization', name: 'PanelLakó', url: 'https://panellako.hu' },
 };
 
 const breadcrumbSchema = {
