@@ -74,6 +74,7 @@ import DashboardHeroScene, { detectTimeOfDay as heroDetectTod, skyGradient as he
 import HeroVehicle from '@/components/HeroVehicle';
 import WorkspaceSidebar from '@/components/workspace-sidebar';
 import BillingWarningBanner, { type SubscriptionStatus } from '@/components/billing-warning-banner';
+import ResidentBottomNav from '@/components/resident-bottom-nav';
 
 // v0.7.14 — Magyarország-szintű címkereső eredmény-shape
 // (api/location/autocomplete válasz egy eleme)
@@ -936,6 +937,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
   const isManager = useMemo(() => ['kozos_kepviselo', 'megbizott'].includes(data.currentUser.role), [data.currentUser.role]);
   const isAdminLike = useMemo(() => ['kozos_kepviselo', 'megbizott', 'bizottsag', 'konyvelo'].includes(data.currentUser.role), [data.currentUser.role]);
+  const isResident = useMemo(() => ['lako', 'tulajdonos'].includes(data.currentUser.role), [data.currentUser.role]);
 
   const totalDue = data.finances.reduce((acc, item) => acc + numberOrZero(item.expected_amount), 0);
   const totalPaid = data.finances.reduce((acc, item) => acc + numberOrZero(item.paid_amount), 0);
@@ -2082,6 +2084,48 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 </button>
               ) : undefined
             }>
+              {/* ── Resident balance quick-view (read-only) ── */}
+              {isResident && (() => {
+                // Find the most recent charge entry for this period's due date
+                const charges = data.finances.filter((f) => !f.entry_type || f.entry_type === 'charge');
+                const nextDue = charges
+                  .filter((f) => f.due_date)
+                  .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
+                  .find((f) => new Date(f.due_date) >= new Date(new Date().toDateString()));
+                const isOverdue = nextDue && new Date(nextDue.due_date) < new Date();
+                return (
+                  <div className="mb-5 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Előírt összeg</p>
+                      <p className="text-lg font-black text-slate-900">{formatCurrency(totalDue)}</p>
+                    </div>
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 px-4 py-3">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Befizetve</p>
+                      <p className="text-lg font-black text-emerald-700">{formatCurrency(totalPaid)}</p>
+                    </div>
+                    <div className={`rounded-2xl border px-4 py-3 ${arrears > 0 ? 'border-rose-100 bg-rose-50/60' : 'border-slate-100 bg-slate-50'}`}>
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Hátralék</p>
+                      <p className={`text-lg font-black ${arrears > 0 ? 'text-rose-600' : 'text-slate-900'}`}>{formatCurrency(arrears)}</p>
+                    </div>
+                    {nextDue && (
+                      <div className={`sm:col-span-3 rounded-2xl border px-4 py-3 flex items-center gap-3 ${isOverdue ? 'border-rose-200 bg-rose-50' : 'border-slate-100 bg-slate-50'}`}>
+                        <CircleDollarSign size={16} className={isOverdue ? 'text-rose-500 shrink-0' : 'text-slate-400 shrink-0'} />
+                        <div>
+                          <span className="text-xs font-bold text-slate-500">Következő esedékes: </span>
+                          <span className={`text-sm font-bold ${isOverdue ? 'text-rose-600' : 'text-slate-700'}`}>
+                            {formatDate(nextDue.due_date)}
+                            {isOverdue && ' — Lejárt!'}
+                          </span>
+                          {nextDue.description && (
+                            <span className="ml-1 text-xs text-slate-400">({nextDue.description})</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               <p className="mb-4 text-sm text-slate-500">Összesen: {formatCurrency(totalDue)} · Befizetve: {formatCurrency(totalPaid)} · Hátralék: <span className={arrears > 0 ? 'font-bold text-rose-600' : 'text-emerald-700'}>{formatCurrency(arrears)}</span></p>
               <div className="mb-4 h-3 overflow-hidden rounded-full bg-slate-100">
                 <div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-cyan-400" style={{ width: `${Math.min((totalPaid / Math.max(totalDue, 1)) * 100, 100)}%` }} />
@@ -2734,6 +2778,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           />
         ) : null
       )}
+
+      {/* ── Resident mobile bottom navigation (mobile-only, residents only) ── */}
+      {isResident && <ResidentBottomNav />}
     </div>
   );
 }

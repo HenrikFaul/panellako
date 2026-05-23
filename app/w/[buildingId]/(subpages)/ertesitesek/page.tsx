@@ -3,7 +3,7 @@
 
 import { redirect, notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import ErtesitesekClient from './ertesitesek-client';
+import ErtesitesekClient from '@/components/ertesitesek-client';
 
 interface PageProps {
   params: { buildingId: string };
