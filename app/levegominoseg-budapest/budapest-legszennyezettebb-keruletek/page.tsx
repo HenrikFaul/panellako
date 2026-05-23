@@ -15,6 +15,7 @@ import {
   Wind,
   Car,
   Building2,
+  Thermometer,
 } from 'lucide-react';
 import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
@@ -143,9 +144,6 @@ const SEASONAL_CHANGES = [
     desc: 'Az alacsonyabb PM2.5 ellenére az ózonszennyezés (O₃) nő a napsütéses napok számával. Május-júniusban a pollenkoncentráció is kiugróan magas Budapesten, különösen a platánsorokban gazdag belvárosi utcákon. Az afrikai porszelek júliusban-augusztusban átmeneti PM10-csúcsokat okoznak.',
   },
 ];
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const Thermometer = Activity; // placeholder — we use Activity icon here
 
 const GREEN_INITIATIVES = [
   {

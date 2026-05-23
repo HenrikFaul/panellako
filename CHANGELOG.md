@@ -1,4 +1,42 @@
 
+## v0.9.12 — SEO Sprint 2: Konverziós felületek és navigáció
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Új oldalak
+- `app/funkciok/page.tsx` — Funkciók hub (SoftwareApplication JSON-LD schema)
+- `app/funkciok/hibabejelentes-kezeles/page.tsx` — Hibabejelentés feature oldal
+- `app/funkciok/dokumentumtar/page.tsx` — Dokumentumtár feature oldal
+- `app/funkciok/kozos-koltseg/page.tsx` — Közös költség feature oldal
+- `app/funkciok/online-kozgyules/page.tsx` — Online közgyűlés feature oldal
+- `app/arak/page.tsx` — Árak oldal (3 csomag, Offer JSON-LD)
+- `app/gyik/page.tsx` — GYIK oldal (FAQPage JSON-LD, 15 kérdés)
+- `app/rolunk/page.tsx` — Rólunk oldal (Organization JSON-LD, E-E-A-T)
+- `app/kapcsolat/page.tsx` — Kapcsolat oldal (ContactPage JSON-LD)
+- `app/adatvedelmi-iranyelvek/page.tsx` — GDPR Adatvédelmi irányelvek
+- `app/aszf/page.tsx` — ÁSZF (12 fejezet, jogi megfelelés)
+- `app/osszehasonlitas/page.tsx` — PanelLakó vs Excel+WhatsApp összehasonlítás
+- `app/elemzes/page.tsx` — Elemzések hub (4 analysis card)
+
+### Módosított fájlok
+- `components/public-nav.tsx` (ÚJ) — Sticky publikus navigáció (5 menüpont + CTA)
+- `components/public-footer.tsx` (ÚJ) — 4 hasábos footer jogi + hub linkekkel
+- `app/page.tsx` — Teljes homepage újraírás (600+ szó, FAQPage schema, /elemzes link)
+- `app/sitemap.ts` — 30+ URL a teljes tartalmibázishoz
+- `public/manifest.json` — Leíró description + theme_color=#0f766e
+
+### SEO hatás
+- Megvalósított ACT-010 (homepage rewrite), ACT-011/012 (feature pages), ACT-013 (árak), ACT-014 (GYIK), ACT-015 (jogi oldalak), ACT-016 (rólunk), ACT-017 (nav), ACT-018 (footer), ACT-019 (elemzések link), ACT-038 (kapcsolat)
+- 10+ új indexálható oldal FAQPage, SoftwareApplication, Organization, ContactPage sémákkal
+- GDPR jogi megfelelés: adatvédelmi irányelvek és ÁSZF élő
+
+## Sprint 2 sikerkritériumok
+- [ ] Homepage top 50 brand query-re
+- [ ] 10+ új oldal indexálva GSC-ben
+- [ ] FAQPage Rich Results Test átmegy
+- [ ] SoftwareApplication schema valid
+- [ ] Jogi oldalak élők és footerből linkelt
+
 ## 2026-05-22 — v0.9.11 SEO Sprint 1: Technical Foundation
 
 ### Added — SEO technical foundation (ACT-001 … ACT-006)
