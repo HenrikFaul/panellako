@@ -287,6 +287,10 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
 
       sl.clearLayers();
       setTripInfo({ routeRef, color, headsign });
+      // Hide all vehicles while a specific trip is focused
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const vl = vehicleLayer.current as any;
+      if (vl) { try { vl.remove(); } catch { /* ignore */ } }
 
       try {
         const sr = await fetch(`/api/transit/shape?tripId=${encodeURIComponent(tripId)}`);
@@ -604,6 +608,24 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [lat, lon, theme.id]);
 
+    const clearTrip = useCallback(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sl = shapeLayer.current as any;
+      if (sl) sl.clearLayers();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tsl = tripStopLayer.current as any;
+      if (tsl) { try { tsl.remove(); } catch { /* ignore */ } tripStopLayer.current = null; }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const map = mapRef.current as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const regularLayer = stopLayerRef.current as any;
+      if (map && regularLayer && showStops) { try { regularLayer.addTo(map); } catch { /* ignore */ } }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const vl = vehicleLayer.current as any;
+      if (map && vl && showVehicles) { try { vl.addTo(map); } catch { /* ignore */ } }
+      setTripInfo(null);
+    }, [showStops, showVehicles]);
+
     const timeStr = lastUpdate
       ? lastUpdate.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
       : null;
@@ -617,7 +639,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
             style={{ background: '#1e293b' }}
           />
 
-          {/* Layer toggles */}
+          {/* Layer toggles + back-to-building (right column) */}
           <div className="absolute right-2 top-2 z-[1000] flex flex-col gap-1">
             <button
               onClick={toggleStops}
@@ -637,6 +659,22 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
                 style={{ background: showVehicles ? '#34d399' : '#475569' }} />
               Járművek
             </button>
+            {isPanned && (
+              <button
+                className="flex items-center gap-1 rounded-lg border border-white/10 bg-slate-900/90 px-2.5 py-1 text-[9px] font-black text-indigo-400 backdrop-blur-sm transition-all hover:bg-slate-800/90"
+                onClick={() => {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const map = mapRef.current as any;
+                  if (map) {
+                    map.flyTo([lat, lon], 15, { animate: true, duration: 0.8 });
+                    mapCenterRef.current = { lat, lon };
+                    setIsPanned(false);
+                  }
+                }}
+              >
+                ⌖ Épületre
+              </button>
+            )}
           </div>
 
           {/* Refreshing chip */}
@@ -646,131 +684,114 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
             </div>
           )}
 
-          {/* Back to building */}
-          {isPanned && (
-            <button
-              className="absolute left-2 top-2 z-[1000] flex items-center gap-1 rounded-lg border border-white/10 bg-slate-900/90 px-2.5 py-1 text-[9px] font-black text-indigo-400 backdrop-blur-sm transition-all hover:bg-slate-800/90"
-              onClick={() => {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const map = mapRef.current as any;
-                if (map) {
-                  map.flyTo([lat, lon], 15, { animate: true, duration: 0.8 });
-                  mapCenterRef.current = { lat, lon };
-                  setIsPanned(false);
-                }
-              }}
-            >
-              ⌖ Épületre
-            </button>
-          )}
-
-          {/* Trip stop list panel (left overlay) */}
-          {tripInfo?.stopTimes && tripInfo.stopTimes.length > 0 && (
+          {/* Unified trip detail panel — replaces all other route/stop overlays */}
+          {tripInfo && (
             <div
-              className="absolute left-2 top-12 z-[1000] flex flex-col rounded-xl backdrop-blur-sm overflow-hidden"
+              className="absolute left-2 top-2 z-[1000] flex flex-col rounded-xl overflow-hidden"
               style={{
-                background: 'rgba(15,23,42,0.92)',
-                border: `1px solid ${tripInfo.color}40`,
-                width: '190px',
-                maxHeight: '380px',
+                background: 'rgba(15,23,42,0.95)',
+                border: `1px solid ${tripInfo.color}50`,
+                width: '224px',
+                maxHeight: 'calc(100% - 16px)',
+                backdropFilter: 'blur(8px)',
               }}
             >
-              {/* Panel header */}
+              {/* Header */}
               <div
-                className="flex items-center gap-2 px-2.5 py-1.5 shrink-0"
-                style={{ borderBottom: `1px solid ${tripInfo.color}30` }}
+                className="flex items-center gap-2 px-2.5 py-2 shrink-0"
+                style={{ borderBottom: `2px solid ${tripInfo.color}` }}
               >
                 <span
-                  className="flex h-5 min-w-[28px] items-center justify-center rounded px-1.5 text-[10px] font-black"
+                  className="flex h-6 min-w-[32px] items-center justify-center rounded px-1.5 text-[11px] font-black shrink-0"
                   style={{ background: tripInfo.color, color: tripInfo.color === '#fbbf24' ? '#78350f' : '#fff' }}
                 >
                   {tripInfo.routeRef}
                 </span>
-                <span className="truncate text-[9px] font-bold text-slate-300 flex-1">
+                <span className="flex-1 truncate text-[10px] font-bold text-slate-200 min-w-0">
                   {tripInfo.headsign}
                 </span>
+                <button
+                  onClick={clearTrip}
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+                  title="Útvonal törlése"
+                >
+                  ✕
+                </button>
               </div>
-              {/* Scrollable stop list */}
-              <div className="overflow-y-auto flex-1" style={{ maxHeight: '330px' }}>
-                {tripInfo.stopTimes.map((st, i) => (
-                  <div
-                    key={`${st.stopId}-${i}`}
-                    className="flex items-center gap-2 px-2.5 py-1"
-                    style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
-                  >
-                    {/* Colored dot */}
-                    <span
-                      className="shrink-0 rounded-full"
-                      style={{ width: 6, height: 6, background: tripInfo.color, opacity: st.isPast ? 0.4 : 1 }}
-                    />
-                    {/* Time */}
-                    <span
-                      className="shrink-0 font-mono text-[9px]"
-                      style={{ color: st.isPast ? '#475569' : '#e2e8f0', minWidth: '30px' }}
-                    >
-                      {st.timeStr || '—'}
-                    </span>
-                    {/* Stop name */}
-                    <span
-                      className="truncate text-[9px] leading-tight"
-                      style={{ color: st.isPast ? '#475569' : '#94a3b8' }}
-                      title={st.stopName}
-                    >
-                      {st.stopName}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {/* Active trip info panel */}
-          {tripInfo && (
-            <div
-              className="absolute bottom-3 left-3 right-3 z-[1000] flex items-center gap-3 rounded-xl px-3 py-2.5 backdrop-blur-sm"
-              style={{ background: 'rgba(15,23,42,0.92)', border: `1px solid ${tripInfo.color}40` }}
-            >
-              {/* Route badge */}
-              <span
-                className="flex h-7 min-w-[40px] items-center justify-center rounded-lg px-2 text-[12px] font-black"
-                style={{ background: tripInfo.color, color: tripInfo.color === '#fbbf24' ? '#78350f' : '#fff' }}
-              >
-                {tripInfo.routeRef}
-              </span>
-              {/* Headsign + vehicle */}
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[11px] font-bold text-slate-200 leading-tight">
-                  ▶ {tripInfo.headsign}
-                </p>
-                {(tripInfo.vehicleId || tripInfo.vehicleModel) && (
-                  <p className="mt-0.5 truncate text-[9px] text-slate-500">
+              {/* Vehicle info row */}
+              {(tripInfo.vehicleId || tripInfo.vehicleModel || tripInfo.accessible != null) && (
+                <div
+                  className="flex items-center gap-2 px-2.5 py-1 text-[9px] text-slate-500 shrink-0"
+                  style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                >
+                  <span className="flex-1 truncate">
                     {[tripInfo.vehicleId, tripInfo.vehicleModel].filter(Boolean).join('  ')}
-                  </p>
+                  </span>
+                  {tripInfo.accessible && <span className="text-sky-400 shrink-0">♿</span>}
+                </div>
+              )}
+
+              {/* Stop timeline */}
+              <div className="overflow-y-auto flex-1">
+                {tripInfo.stopTimes && tripInfo.stopTimes.length > 0 ? (
+                  tripInfo.stopTimes.map((st, i) => {
+                    const isFirst   = i === 0;
+                    const isLast    = i === (tripInfo.stopTimes?.length ?? 0) - 1;
+                    const isCurrent = !st.isPast && (i === 0 || (tripInfo.stopTimes?.[i - 1]?.isPast ?? true));
+                    return (
+                      <div
+                        key={`${st.stopId}-${i}`}
+                        className="flex items-stretch"
+                        style={{ opacity: st.isPast ? 0.45 : 1 }}
+                      >
+                        {/* Timeline column */}
+                        <div className="relative flex flex-col items-center shrink-0" style={{ width: 28 }}>
+                          {!isFirst && (
+                            <div style={{ width: 2, height: 8, background: tripInfo.color, opacity: 0.7, flexShrink: 0 }} />
+                          )}
+                          <div style={{
+                            width:        isFirst || isLast || isCurrent ? 10 : 7,
+                            height:       isFirst || isLast || isCurrent ? 10 : 7,
+                            borderRadius: '50%',
+                            background:   isFirst || isLast || isCurrent ? tripInfo.color : 'transparent',
+                            border:       `2px solid ${tripInfo.color}`,
+                            flexShrink:   0,
+                            marginTop:    isFirst ? 10 : 0,
+                            marginBottom: isLast  ? 10 : 0,
+                          }} />
+                          {!isLast && (
+                            <div style={{ width: 2, flex: 1, minHeight: 8, background: tripInfo.color, opacity: 0.7, flexShrink: 0 }} />
+                          )}
+                        </div>
+                        {/* Stop content */}
+                        <div className="flex items-baseline gap-1.5 py-1.5 pr-2.5 flex-1 min-w-0">
+                          <span
+                            className="font-mono tabular-nums shrink-0 text-[9px]"
+                            style={{ color: st.isPast ? '#475569' : '#64748b', minWidth: 30 }}
+                          >
+                            {st.timeStr || '—'}
+                          </span>
+                          <span
+                            className="text-[10px] leading-tight"
+                            style={{
+                              color:      st.isPast ? '#475569' : isCurrent ? '#f1f5f9' : '#cbd5e1',
+                              fontWeight: isCurrent ? 700 : 400,
+                              wordBreak:  'break-word',
+                            }}
+                          >
+                            {st.stopName}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="px-3 py-2 text-[9px] text-slate-500">
+                    Megállók betöltése…
+                  </div>
                 )}
               </div>
-              {/* Clear shape button */}
-              <button
-                onClick={() => {
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  const sl = shapeLayer.current as any;
-                  if (sl) sl.clearLayers();
-                  // Remove trip stop layer
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  const tsl = tripStopLayer.current as any;
-                  if (tsl) { try { tsl.remove(); } catch { /* ignore */ } tripStopLayer.current = null; }
-                  // Restore regular stop layer
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  const map = mapRef.current as any;
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  const regularLayer = stopLayerRef.current as any;
-                  if (map && regularLayer && showStops) { try { regularLayer.addTo(map); } catch { /* ignore */ } }
-                  setTripInfo(null);
-                }}
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/10 hover:text-white"
-                title="Útvonal törlése"
-              >
-                ✕
-              </button>
             </div>
           )}
         </div>
@@ -779,12 +800,12 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-3">
             {([
-              { color: VEHICLE_COLOR.BUS,       type: 'BUS',        label: 'Busz' },
-              { color: VEHICLE_COLOR.TRAM,      type: 'TRAM',       label: 'Villamos' },
-              { color: VEHICLE_COLOR.TROLLEYBUS,type: 'TROLLEYBUS', label: 'Trolibusz' },
-              { color: VEHICLE_COLOR.SUBWAY,    type: 'SUBWAY',     label: 'Metró' },
-              { color: VEHICLE_COLOR.RAIL,      type: 'RAIL',       label: 'HÉV/Vasút' },
-              { color: '#6366f1',               type: 'BLD',        label: 'Épület' },
+              { color: VEHICLE_COLOR.BUS,        type: 'BUS',        label: 'Busz' },
+              { color: VEHICLE_COLOR.TRAM,       type: 'TRAM',       label: 'Villamos' },
+              { color: VEHICLE_COLOR.TROLLEYBUS, type: 'TROLLEYBUS', label: 'Trolibusz' },
+              { color: VEHICLE_COLOR.SUBWAY,     type: 'SUBWAY',     label: 'Metró' },
+              { color: VEHICLE_COLOR.RAIL,       type: 'RAIL',       label: 'HÉV/Vasút' },
+              { color: '#6366f1',                type: 'BLD',        label: 'Épület' },
             ] as { color: string; type: string; label: string }[]).map(({ color, type, label }) => (
               <div key={label} className="flex items-center gap-1">
                 {type === 'BLD'
@@ -807,11 +828,6 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
             {timeStr && <span className="text-[8px] text-slate-700">{timeStr}</span>}
           </div>
         </div>
-        {tripInfo && (
-          <p className="text-center text-[8px] text-slate-700">
-            Kattints ✕-re az útvonal törléséhez · ♿ = alacsonypadlós jármű · ⚠ = aktív üzemzavar
-          </p>
-        )}
       </div>
     );
   }
