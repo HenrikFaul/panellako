@@ -146,43 +146,10 @@ export default function LandUseMapInner({ buildingLat, buildingLon }: Props) {
       setTimeout(() => { if (mapRef.current) (mapRef.current as any).invalidateSize(); }, 300);
       setMapReady(true);
 
-      // Fetch Overpass data
-      const query = `[out:json][timeout:25];
-(
-  way["landuse"](around:1000,${buildingLat},${buildingLon});
-  way["leisure"="park"](around:1000,${buildingLat},${buildingLon});
-  way["leisure"="garden"](around:1000,${buildingLat},${buildingLon});
-  way["natural"="wood"](around:1000,${buildingLat},${buildingLon});
-  way["natural"="scrub"](around:1000,${buildingLat},${buildingLon});
-  way["natural"="grassland"](around:1000,${buildingLat},${buildingLon});
-);
-out geom;`;
-
-      const OVERPASS_MIRRORS = [
-        'https://overpass-api.de/api/interpreter',
-        'https://overpass.kumi.systems/api/interpreter',
-      ];
-
-      const fetchOverpass = async (): Promise<OverpassResponse> => {
-        for (const mirror of OVERPASS_MIRRORS) {
-          try {
-            const res = await fetch(mirror, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: `data=${encodeURIComponent(query)}`,
-              signal: AbortSignal.timeout(25000),
-            });
-            if (!res.ok) continue;
-            return await res.json() as OverpassResponse;
-          } catch {
-            // try next mirror
-          }
-        }
-        throw new Error('All Overpass mirrors failed');
-      };
-
+      // Fetch land-use polygon data via server-side API route (avoids CSP restrictions)
       try {
-        const data = await fetchOverpass();
+        const res = await fetch(`/api/environment/land-use-polygons?lat=${buildingLat}&lon=${buildingLon}`);
+        const data: OverpassResponse = res.ok ? await res.json() as OverpassResponse : { elements: [] };
 
         if (destroyed || !mapRef.current) return;
 

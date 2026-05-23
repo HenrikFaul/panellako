@@ -138,21 +138,15 @@ export default function TransitCoverageMapInner({ buildingLat, buildingLon, stop
       setTimeout(() => { if (mapRef.current) mapRef.current.invalidateSize(); }, 300);
       setMapReady(true);
 
-      // ── Layer 1: Lakóövezet polygons from OSM (Overpass) ─────────────────────
+      // ── Layer 1: Lakóövezet polygons from OSM (via server-side API, avoids CSP) ──
       // Thesis §4.4: "az Openstreetmap landusage rétegéből … a residential
       // attribútumú polygon objektumokat … elkészíthetjük a lakóövezeti térkép réteget"
-      const POLY_RADIUS = 2200;
-      const ovQuery = `[out:json][timeout:30];(way["landuse"="residential"](around:${POLY_RADIUS},${buildingLat},${buildingLon}););out body;>;out skel qt;`;
       try {
-        const res = await fetch('https://overpass-api.de/api/interpreter', {
-          method: 'POST',
-          body: `data=${encodeURIComponent(ovQuery)}`,
-          signal: AbortSignal.timeout(25000),
-        });
+        const res = await fetch(`/api/environment/residential-zones?lat=${buildingLat}&lon=${buildingLon}`);
         if (res.ok && !destroyed) {
-          const json = await res.json();
-          const nodeMap = buildNodeMap(json.elements as OvEl[]);
-          const ways    = (json.elements as OvEl[]).filter((e): e is OvWay => e.type === 'way');
+          const json = await res.json() as { elements: OvEl[] };
+          const nodeMap = buildNodeMap(json.elements);
+          const ways    = json.elements.filter((e): e is OvWay => e.type === 'way');
           for (const way of ways) {
             const latlngs = wayToLatLngs(way, nodeMap);
             if (!latlngs || destroyed) continue;

@@ -71,12 +71,18 @@ export async function loadBuildingStops(
   if (error || !data || data.length === 0) return null;
 
   const stops: NearbyStop[] = [];
+  const seenIds = new Set<string>();
   for (const row of data as Array<{ distance_m: number; transit_stops: StopRow[] | StopRow | null }>) {
     // Supabase returns the related row as array or object depending on the relation cardinality
     const s = Array.isArray(row.transit_stops)
       ? row.transit_stops[0]
       : row.transit_stops;
     if (!s) continue;
+    // Deduplicate: skip if we've already seen this stop_id (guards against bad cron data)
+    if (seenIds.has(s.stop_id)) continue;
+    // Guard against null/empty names from bad cron writes
+    if (!s.name) continue;
+    seenIds.add(s.stop_id);
     stops.push({
       id:         s.stop_id,
       name:       s.name,

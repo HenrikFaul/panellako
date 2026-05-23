@@ -1,4 +1,24 @@
 
+## v0.9.24 — fix: CSP Overpass blokkolt hívások + megálló-duplikáció + departure field
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### BUG 1 — CSP: böngészős Overpass hívások server-side API route-ra cserélve
+- `components/land-use-map-inner.tsx`: közvetlen `overpass-api.de`/`kumi.systems` POST helyett `GET /api/environment/land-use-polygons?lat=&lon=`
+- `components/transit-coverage-map-inner.tsx`: `overpass-api.de` POST helyett `GET /api/environment/residential-zones?lat=&lon=`
+- Új: `app/api/environment/land-use-polygons/route.ts` — 4-tükrös Overpass, `maxDuration=30`
+- Új: `app/api/environment/residential-zones/route.ts` — 4-tükrös Overpass, `maxDuration=30`
+
+### BUG 2 — Megálló-duplikáció (pl. minden megálló "Honvédkórház")
+- `lib/transit-cache.ts`: `loadStopsFromCache` most deduplikálja stop id szerint és szűri a null nevű sorokat (cron null-value bugból maradt szennyezett adatok)
+- `lib/transit-catalog.ts`: `loadBuildingStops` szintén deduplikál és null-névszűrőt alkalmaz
+
+### BUG 3 — Indulási adatok: `arrivalsAndDepartures` mező fallback
+- `app/api/transit/departures/route.ts`: `fetchObaBoard` OBA v2 `arrivalsAndDepartures` mező fallback hozzáadva (`entry?.stopTimes ?? entry?.arrivalsAndDepartures ?? []`)
+- `routeId` most az item-ről is olvasódik közvetlenül (`st.routeId ?? tripMap[...]`)
+
+---
+
 ## v0.9.23 — SEO Sprint 2: author bylines, CollectionPage, Person schema, stats citations
 **Dátum:** 2026-05-23
 **Branch:** claude/fix-cron-null-values-uDCqd
