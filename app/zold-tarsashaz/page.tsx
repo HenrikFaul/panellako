@@ -20,7 +20,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Zöld Társasház — Fenntartható Épületüzemeltetés és Felújítás | PanelLakó',
+  title: 'Zöld Társasház — Fenntartható Épületüzemeltetés | PanelLakó',
   description:
     'Hogyan lesz a társasház zöldebb? Napelemes rendszerek, hőszigetelés, zöldtető, e-autó töltők, és a szükséges határozatok megszerzése közgyűlésen.',
   alternates: { canonical: 'https://panellako.hu/zold-tarsashaz' },
@@ -64,12 +64,47 @@ const PILLAR_ARTICLES = [
   },
 ];
 
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'Lehet-e napelemet telepíteni egy társasházi tetőre?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Igen, de közgyűlési döntés szükséges hozzá, legalább kétharmados szavazattöbbséggel. A METÁR rendszeren keresztül a megtermelt energia visszatáplálható a hálózatba, vagy a közös területek ellátására fordítható.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Milyen feltételek kellenek EV töltő telepítéséhez társasházban?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Saját parkolóban a lakástulajdonos bejelentéssel telepíthet töltőt. Közös területi töltőhöz közgyűlési hozzájárulás és 50%+1 szavazat szükséges. Az elektromos hálózat terhelhetőségét vizsgálni kell.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Milyen pályázati lehetőségek léteznek társasházi hőszigetelésre?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'A Panelprogram keretei lehetővé teszik a panel lakóépületek komplex felújítását állami támogatással. A pályázathoz energetikai tanúsítvány és közgyűlési döntés szükséges. A támogatás általában a beruházási költség 50-70%-át fedezi.',
+      },
+    },
+  ],
+};
+
 export default function ZoldTarsashazPillarPage() {
   return (
     <div className="min-h-screen bg-white">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
 
       <PublicNav />

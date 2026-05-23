@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Zajvédelem Társasházban — Hangszigetelés és Műszaki Megoldások | PanelLakó',
+  title: 'Zajvédelem Társasházban — Hangszigetelés | PanelLakó',
   description:
     'Hogyan javítható a hangszigetelés társasházi lakásban és épületszinten? Közös döntések, pályázatok, hatékony megoldások lépésről lépésre.',
   alternates: {

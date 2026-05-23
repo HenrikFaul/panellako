@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Díjhátralékosok Kezelése Társasházban — Jogi Lépések | PanelLakó',
+  title: 'Díjhátralékosok Kezelése Társasházban | PanelLakó',
   description:
     'Mit tehet a közös képviselő, ha valaki nem fizeti a közös költséget? Felszólítás, fizetési meghagyás, végrehajtás, jelzálogjog — lépésről lépésre.',
   alternates: { canonical: 'https://panellako.hu/tarsashaz-kezeles/dijhatlarak-kezelese' },

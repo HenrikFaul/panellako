@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Kötelező Dokumentumok Társasházban — Teljes Lista és Megőrzési Idők | PanelLakó',
+  title: 'Kötelező Dokumentumok Társasházban — Lista | PanelLakó',
   description:
     'Milyen dokumentumokat köteles megőrizni a közös képviselő? SZMSZ, közgyűlési jegyzőkönyvek, számviteli iratok — kötelező megőrzési idők és digitális megoldások.',
   alternates: {

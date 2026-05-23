@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Társasházi Zajpanasz — Mit Tehet a Közös Képviselő és a Lakó? | PanelLakó',
+  title: 'Társasházi Zajpanasz — Megoldások | PanelLakó',
   description:
     'Hogyan kezeljük a zajpanaszt társasházban? Hangos szomszéd, felújítási zaj, éjszakai zeneszó — jogi lépések, szomszédjog, önkormányzati hatóság.',
   alternates: {

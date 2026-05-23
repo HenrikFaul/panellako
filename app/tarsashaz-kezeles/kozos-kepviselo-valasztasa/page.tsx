@@ -19,7 +19,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Közös Képviselő Választása és Visszahívása — Eljárási Útmutató | PanelLakó',
+  title: 'Közös Képviselő Választása és Visszahívása | PanelLakó',
   description:
     'Hogyan választunk közös képviselőt? Pályáztatás, megbízási szerződés, visszahívás menete, összeférhetetlenség — 2003. évi CXXXIII. törvény alapján részletesen.',
   alternates: { canonical: 'https://panellako.hu/tarsashaz-kezeles/kozos-kepviselo-valasztasa' },

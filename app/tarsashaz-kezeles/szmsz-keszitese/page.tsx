@@ -17,7 +17,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'SZMSZ készítése — Szervezeti és Működési Szabályzat társasházaknak | PanelLakó',
+  title: 'SZMSZ készítése társasházaknak — Útmutató | PanelLakó',
   description:
     'Hogyan készítsük el a társasház SZMSZ-ét (Szervezeti és Működési Szabályzatát)? Kötelező tartalom, elfogadás menete, módosítás szabályai.',
   alternates: { canonical: 'https://panellako.hu/tarsashaz-kezeles/szmsz-keszitese' },

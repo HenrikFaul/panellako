@@ -19,7 +19,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Hőszigetelés és Panelprogram — Pályázati Lehetőségek 2025 | PanelLakó',
+  title: 'Hőszigetelés Társasházban — Panelprogram 2025 | PanelLakó',
   description:
     'Társasházi hőszigetelés és panelprogram: pályázati feltételek, energetikai tanúsítvány szükségessége, megtakarítható fűtési költség, közgyűlési döntés menete.',
   alternates: { canonical: 'https://panellako.hu/zold-tarsashaz/hoszigeteles-panelprogram' },

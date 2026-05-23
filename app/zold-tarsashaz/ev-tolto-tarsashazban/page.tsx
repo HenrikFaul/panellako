@@ -19,7 +19,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Elektromos Autó Töltő Társasházban — Jogi Háttér és Telepítés | PanelLakó',
+  title: 'Elektromos Töltő Társasházban — Jogi Háttér | PanelLakó',
   description:
     'Hogyan kérhet és telepíthet elektromos autó töltőt a társasházi parkolóban? 2021. évi CXLIII. tv., közgyűlési döntés, egyedi vs. közös töltő, mérőbővítés.',
   alternates: { canonical: 'https://panellako.hu/zold-tarsashaz/ev-tolto-tarsashazban' },

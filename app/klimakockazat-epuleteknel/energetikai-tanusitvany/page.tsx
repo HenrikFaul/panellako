@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Energetikai Tanúsítvány — Kötelező Megléte, EPC Osztályok és Felújítás | PanelLakó',
+  title: 'Energetikai Tanúsítvány — EPC és Felújítás | PanelLakó',
   description:
     'Az energetikai tanúsítvány (EPC) kötelező megléte 2024-ben, A++-tól G osztályig, EU EPBD 2024 felújítási kötelezettség, hogyan javítható az épület energiaosztálya.',
   alternates: {

@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Hőszigetek Budapest — Melyik Kerületekben a Legmelegebb Nyáron? | PanelLakó',
+  title: 'Hőszigetek Budapest — Legmelegebb Kerületek | PanelLakó',
   description:
     'Budapest városi hősziget-térképe: melyik kerületekben mér a OMSZ 5-8°C-kal magasabb hőmérsékletet? UHI hatás mérséklésének lehetőségei épületszinten.',
   alternates: { canonical: 'https://panellako.hu/klimakockazat-epuleteknel/hoszigetek-budapest' },

@@ -2,13 +2,13 @@ import type { Metadata } from 'next';
 import BudapestTransitAnalysisMount from './mount';
 
 export const metadata: Metadata = {
-  title: 'Budapest tömegközlekedésének elemzése — GTFS-adatok és interaktív térkép',
+  title: 'Budapest tömegközlekedése — GTFS elemzés | PanelLakó',
   description:
     'Budapest összes tömegközlekedési vonala GTFS-adatok alapján: villamos, metró, busz, HÉV, trolibusz és hajójáratok interaktív, ' +
     'ArcGIS-stílusú térképen — 420 m bufferzónákkal, megálló-sűrűséggel és OSM lakóövezet-réteggel.',
   openGraph: {
     type: 'article',
-    title: 'Budapest tömegközlekedésének elemzése — GTFS-adatok és interaktív térkép',
+    title: 'Budapest tömegközlekedése — GTFS elemzés | PanelLakó',
     description:
       'Villamos, metró, busz, HÉV, trolibusz és hajójáratok interaktív térképen GTFS-adatok alapján. ' +
       'Be- és kikapcsolható rétegek, 420 m gyalogos bufferzónák, megálló-sűrűség.',

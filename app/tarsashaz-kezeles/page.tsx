@@ -21,7 +21,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Társasházkezelés digitálisan — Útmutató közös képviselőknek | PanelLakó',
+  title: 'Digitális Társasházkezelés — Útmutató 2025 | PanelLakó',
   description:
     'Teljes útmutató a modern társasházkezeléshez: közös képviselő feladatai, SZMSZ készítése, közgyűlés összehívása, pénzügyek, dokumentumkezelés — digitálisan.',
   alternates: { canonical: 'https://panellako.hu/tarsashaz-kezeles' },
@@ -159,12 +159,55 @@ const LEGAL_REFS = [
   },
 ];
 
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'Mi a közös képviselő fő feladata egy társasházban?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'A közös képviselő felelős az épület adminisztrációjáért, a közgyűlések szervezéséért, a pénzügyek kezeléséért, az iratok megőrzéséért és a lakókkal való kommunikációért. A 2003. évi CXXXIII. törvény kötelezi az éves elszámolás elkészítésére és a határozatkönyv vezetésére.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Mikor kötelező közgyűlést tartani társasházban?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Évente legalább egyszer rendes közgyűlést kell tartani, ahol az éves elszámolást és a következő évi költségvetést jóváhagyják. Rendkívüli közgyűlés szükséges, ha a tulajdoni hányad legalább 10%-ával rendelkező tulajdonosok kérik.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Mit kell tartalmaznia a társasházi SZMSZ-nek?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'A Szervezeti és Működési Szabályzat kötelező elemei: a közös képviselő megválasztásának szabályai, a közgyűlési határozathozatal rendje, a közös költség felosztásának módja, az iratkezelés szabályai.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Hogyan kezeljük a díjhátralékosokat törvényesen?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'A folyamat: írásbeli felszólítás, majd közjegyzői fizetési meghagyás, végül végrehajtási eljárás. A közös képviselőnek dokumentálnia kell minden lépést.',
+      },
+    },
+  ],
+};
+
 export default function TarsashazKezelesPillarPage() {
   return (
     <div className="min-h-screen bg-white">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
 
       <PublicNav />

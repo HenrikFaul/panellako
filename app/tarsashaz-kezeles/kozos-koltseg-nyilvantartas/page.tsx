@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Közös Költség Nyilvántartás — Hogyan Csináljuk Jól? | PanelLakó',
+  title: 'Közös Költség Nyilvántartás — Útmutató | PanelLakó',
   description:
     'A társasházi közös költség nyilvántartásának szabályai, tételek listája, éves elszámolás menete, könyvelőknek szóló export, hátralékosok kezelése.',
   alternates: { canonical: 'https://panellako.hu/tarsashaz-kezeles/kozos-koltseg-nyilvantartas' },

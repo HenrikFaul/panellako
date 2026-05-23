@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Felügyelőbizottság a Társasházban — Feladatok és Választás | PanelLakó',
+  title: 'Felügyelőbizottság Társasházban — Feladatok | PanelLakó',
   description:
     'A társasházi felügyelőbizottság feladatai, tagjainak megválasztása, jogai és kötelezettségei — 2003. évi CXXXIII. törvény alapján. Mikor kötelező felügyelőbizottságot alakítani?',
   alternates: { canonical: 'https://panellako.hu/tarsashaz-kezeles/felugyelobizottsag' },

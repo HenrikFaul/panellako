@@ -16,7 +16,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'A közös képviselő feladatai 2025-ben — Jogszabályi kötelezettségek | PanelLakó',
+  title: 'Közös képviselő feladatai 2025 — Útmutató | PanelLakó',
   description:
     'Mik a közös képviselő feladatai a 2003. évi CXXXIII. törvény alapján? Adminisztratív, pénzügyi, jogi kötelezettségek és digitális megoldások összefoglalója.',
   alternates: { canonical: 'https://panellako.hu/tarsashaz-kezeles/kozos-kepviselo-feladatai' },

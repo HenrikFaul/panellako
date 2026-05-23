@@ -21,7 +21,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Budapest legszennyezettebb és legtisztább kerületei — Levegőminőség térkép | PanelLakó',
+  title: 'Budapest legszennyezettebb kerületei | PanelLakó',
   description:
     'Melyik budapesti kerületben a legjobb és legrosszabb a levegő? Kerületenkénti összehasonlítás PM2.5 és NO₂ adatok alapján — OLM mérőállomások szerint.',
   alternates: {

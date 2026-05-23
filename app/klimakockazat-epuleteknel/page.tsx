@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Klímakockázat Ingatlanoknál Budapest — Hőszigetek és Árvízkockázat | PanelLakó',
+  title: 'Klímakockázat Budapest — Hőszigetek és Árvíz | PanelLakó',
   description:
     'Budapest épületeinek klímakockázata: városi hőszigetek, szélsőséges hőhullámok, csapadék és árvíz. Hogyan érinti ez a társasházi ingatlanokat?',
   alternates: { canonical: 'https://panellako.hu/klimakockazat-epuleteknel' },
@@ -113,12 +113,47 @@ const ACTIONS = [
   },
 ];
 
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'Milyen klímakockázatokat jelentenek a hőhullámok az épületek számára?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'A városias hőszigetek hatására a budapesti belső kerületek hőmérséklete nyáron 5-8°C-kal magasabb lehet. Ez növeli a tetők és falak hőterhelését, az infrastruktúra kopását és a légkondicionáló rendszerek igénybevételét.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Mi az energetikai tanúsítvány és mikor kötelező?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Az energetikai tanúsítvány (EPC) az épület energiahatékonyságát értékeli A++-tól G-ig terjedő skálán. Eladás és bérbeadás esetén kötelező. Tartalmaz korszerűsítési útmutatót is.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Hogyan védekezhet egy társasház az árvíz- és csapadékkockázat ellen?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Pince víztelenítő szivattyú, vízszigetelés, csapadékvíz elvezetés rendszeres karbantartása, tetőcsatornák tisztítása. Veszélyeztetett területeken a kockázati térkép alapján érdemes tervezni.',
+      },
+    },
+  ],
+};
+
 export default function KlimakockazatEpuleteknelPage() {
   return (
     <div className="min-h-screen bg-white">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
 
       <PublicNav />

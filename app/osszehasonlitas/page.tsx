@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'PanelLakó vs Excel és WhatsApp — Társasházi Szoftver Összehasonlítás',
+  title: 'PanelLakó vs Excel és WhatsApp — Összehasonlítás | PanelLakó',
   description:
     'Összehasonlítás: PanelLakó digitális társasházi platform vs. Excel táblázat + WhatsApp + papír. Melyik a hatékonyabb közös képviselethez?',
   alternates: { canonical: 'https://panellako.hu/osszehasonlitas' },

@@ -17,7 +17,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Közgyűlési Határozat Megtámadása — 30 Napos Határidő és Eljárás | PanelLakó',
+  title: 'Közgyűlési Határozat Megtámadása — Eljárás | PanelLakó',
   description:
     'Hogyan támadható meg a társasházi közgyűlési határozat? A 30 napos jogvesztő határidő, bírói út, érvényes érvek és a perindítás menete — 2003. évi CXXXIII. tv. alapján.',
   alternates: { canonical: 'https://panellako.hu/tarsashazi-jog/kozgyulesi-hatarozat-megtamadasa' },

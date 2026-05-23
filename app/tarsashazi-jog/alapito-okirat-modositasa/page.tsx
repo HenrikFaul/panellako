@@ -16,7 +16,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Alapító Okirat Módosítása Társasházban — Eljárás és Feltételek | PanelLakó',
+  title: 'Alapító Okirat Módosítása Társasházban | PanelLakó',
   description:
     'Mikor és hogyan módosítható a társasházi alapító okirat? Közjegyző előtti eljárás, egyhangú határozat, ingatlan-nyilvántartás bejegyzés — Ttv. és Inytv. alapján.',
   alternates: { canonical: 'https://panellako.hu/tarsashazi-jog/alapito-okirat-modositasa' },

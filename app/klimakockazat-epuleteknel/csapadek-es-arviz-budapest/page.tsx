@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Villámárvíz és Csapadékszélsőségek Budapest — Pince és Épületkár | PanelLakó',
+  title: 'Villámárvíz Budapest — Pince és Épületkár | PanelLakó',
   description:
     'Budapest villámárvíz kockázata: melyik kerületek pincehelyiségei a legveszélyesebbek? Csapadékszélsőségek hatása épületekre, megelőzés és biztosítás.',
   alternates: {

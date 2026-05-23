@@ -1,0 +1,35 @@
+# PanelLakó — Társasházkezelő szoftver
+
+> PanelLakó egy digitális társasházkezelő platform közös képviselőknek, könyvelőknek és lakóknak Magyarországon. Segít kezelni a hibabejelentéseket, közös költséget, dokumentumokat, online közgyűléseket és szavazásokat.
+
+## Termék
+
+- [Főoldal](https://panellako.hu): Digitális társasházkezelő platform összefoglalója
+- [Funkciók](https://panellako.hu/funkciok): Az összes funkció áttekintése
+- [Hibabejelentés és feladatkezelés](https://panellako.hu/funkciok/hibabejelentes-kezeles): Lakói hibabejelentések kezelése közös képviselőknek
+- [Közös költség nyilvántartás](https://panellako.hu/funkciok/kozos-koltseg): Pénzügyi nyilvántartás, hátralékosok, könyvelői export
+- [Digitális dokumentumtár](https://panellako.hu/funkciok/dokumentumtar): SZMSZ, határozatok, szerződések biztonságos tárolása
+- [Online közgyűlés és szavazás](https://panellako.hu/funkciok/online-kozgyules): Törvényes elektronikus közgyűlés lebonyolítása
+- [Könyvelőknek](https://panellako.hu/funkciok/konyveloknek): Könyvelői hozzáférés, export, több épület kezelése
+- [Árak](https://panellako.hu/arak): Előfizetési csomagok épület méret szerint
+- [Ingyenes próba](https://panellako.hu/ingyenes-proba): 14 napos ingyenes próba kártyaadat nélkül
+- [GYIK](https://panellako.hu/gyik): Gyakori kérdések a PanelLakóról
+
+## Tudástár
+
+- [Társasházkezelés](https://panellako.hu/tarsashaz-kezeles): Közös képviselők feladatai, jogszabályok, útmutatók
+- [Társasházi jog](https://panellako.hu/tarsashazi-jog): 2003. évi CXXXIII. tv., tulajdonosi jogok, kötelezettségek
+- [Zöld társasház](https://panellako.hu/zold-tarsashaz): Napelem, hőszigetelés, EV töltő társasházban
+- [Levegőminőség Budapest](https://panellako.hu/levegominoseg-budapest): Kerületi PM2.5/PM10 adatok, pollen, beltéri levegő
+- [Zajszennyezés Budapest](https://panellako.hu/zajszennyezes-budapest): Zajtérkép, zajpanasz, zajvédelem
+- [Klímakockázat épületeknél](https://panellako.hu/klimakockazat-epuleteknel): Hőszigetek, árvíz, energetikai tanúsítvány
+- [Tömegközlekedés elemzés](https://panellako.hu/tomegkozlekedes-elemzes): GTFS adatok, megálló-sűrűség Budapest
+
+## Cégről
+
+PanelLakó egy magyar fejlesztésű SaaS termék, az Effectime Kft. fejleszti. Az adatokat GDPR-megfelelő módon EU-s szervereken tároljuk.
+
+- [Rólunk](https://panellako.hu/rolunk)
+- [Kapcsolat](https://panellako.hu/kapcsolat)
+- [Adatvédelmi irányelvek](https://panellako.hu/adatvedelmi-iranyelvek)
+- [ÁSZF](https://panellako.hu/aszf)

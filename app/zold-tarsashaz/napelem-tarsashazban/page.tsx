@@ -19,7 +19,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Napelem Társasházban — Közös Tető, Szavazás, METÁR | PanelLakó',
+  title: 'Napelem Társasházban — Közös Tető és METÁR | PanelLakó',
   description:
     'Hogyan telepítsünk napelemrendszert társasházi tetőre? Közgyűlési határozat (2/3 többség), METÁR szabályozás, megtérülési idő, közös energia-felhasználás.',
   alternates: { canonical: 'https://panellako.hu/zold-tarsashaz/napelem-tarsashazban' },

@@ -21,7 +21,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: '15 Perces Város Budapest — Milyen Kerületekben Valósul Meg? | PanelLakó',
+  title: '15 Perces Város Budapest — Kerületek | PanelLakó',
   description:
     'A 15 perces város koncepció Budapesten: melyik kerületekben elérhető gyalog minden napi szükséglet? Iskolák, orvosok, üzletek, tömegközlekedés 15 perces körzetben.',
   alternates: { canonical: 'https://panellako.hu/15-perces-varos' },

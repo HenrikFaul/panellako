@@ -20,7 +20,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Pollen és Allergia Budapest — Kerületi Pollenkoncentráció és Szezon | PanelLakó',
+  title: 'Pollen és Allergia Budapest — Kerületi Szezon | PanelLakó',
   description:
     'Budapest pollenkoncentrációja kerületenként: nyírfa, fű, parlagfű szezonok. Allergiások tippjei, pollenjelző apps, alacsony pollenkoncentrációjú kerületek.',
   alternates: {

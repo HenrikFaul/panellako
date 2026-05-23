@@ -22,7 +22,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Levegőminőség Budapest — Kerületi adatok, PM2.5, PM10 | PanelLakó',
+  title: 'Levegőminőség Budapest — PM2.5 és PM10 | PanelLakó',
   description:
     'Budapest levegőminőségi adatai kerületenként: PM2.5, PM10 szennyezők, pollenkoncentráció, EU határértékek, egészségügyi hatások — nyílt adatokból.',
   alternates: { canonical: 'https://panellako.hu/levegominoseg-budapest' },
@@ -193,12 +193,47 @@ const DATA_SOURCES = [
   },
 ];
 
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'Milyen a levegőminőség Budapesten általánosan?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Budapest levegőminősége kerületenként eltér. A belváros és a főforgalmi utak mentén a PM2.5 és PM10 koncentrációk télen rendszeresen meghaladják az EU határértékeket. A legjobb levegőjű kerületek a hegyvidéki és északi területek.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Mit jelent a PM2.5 és PM10 az egészségre nézve?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'A PM2.5 (2,5 mikrométer alatti részecskék) mélyen behatolnak a tüdőbe és a véráramba, szívbetegségeket és légzőszervi problémákat okozhatnak. Az EU éves határértéke PM2.5-re 25 μg/m³, PM10-re 40 μg/m³.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Hogyan javítható a beltéri levegőminőség társasházi lakásokban?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Rendszeres szellőztetés, HEPA-szűrős légtisztító, páratartalom kontrollja (40-60%), dohányzás tiltása a közös tereken mind javítják a beltéri levegőminőséget.',
+      },
+    },
+  ],
+};
+
 export default function LevegominosegBudapestPillarPage() {
   return (
     <div className="min-h-screen bg-white">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
 
       <PublicNav />

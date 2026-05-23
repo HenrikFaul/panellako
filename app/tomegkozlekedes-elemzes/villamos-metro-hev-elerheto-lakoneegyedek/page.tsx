@@ -15,7 +15,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Villamos, Metró, HÉV — Melyik Épületekből Elérhető Gyalog? | PanelLakó',
+  title: 'Villamos, Metró, HÉV — Gyalogos Elérhetőség | PanelLakó',
   description:
     'Melyik budapesti lakónegyedekben érhető el villamos, metró vagy HÉV megálló 420 méteren belül? Gyaloglási elérhetőség és közlekedési arány elemzés.',
   alternates: {

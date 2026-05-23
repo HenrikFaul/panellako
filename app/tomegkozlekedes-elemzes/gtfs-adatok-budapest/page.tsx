@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'GTFS Adatok Budapest — Mit Mutat a BKK Futár Open Data? | PanelLakó',
+  title: 'GTFS Adatok Budapest — BKK Futár Open Data | PanelLakó',
   description:
     'Budapest GTFS adatainak bemutatása: mit tartalmaz a BKK Futár menetrend, hogyan dolgozzuk fel, milyen elemzéseket tesz lehetővé — open data útmutató.',
   alternates: { canonical: 'https://panellako.hu/tomegkozlekedes-elemzes/gtfs-adatok-budapest' },

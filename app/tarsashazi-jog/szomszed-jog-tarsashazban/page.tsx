@@ -17,7 +17,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Szomszédjog Társasházban — Zajos Szomszéd, Felújítás, Albérlet Szabályozás | PanelLakó',
+  title: 'Szomszédjog Társasházban — Zajos Szomszéd | PanelLakó',
   description:
     'Szomszédjogi kérdések társasházban: hangos szomszéd jogi kezelése, felújítási munkák korlátai, albérlet-adás szabályozása az SZMSZ-ben — Ptk. és Ttv. alapján.',
   alternates: { canonical: 'https://panellako.hu/tarsashazi-jog/szomszed-jog-tarsashazban' },

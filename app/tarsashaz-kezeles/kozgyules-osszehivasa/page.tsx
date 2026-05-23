@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Hogyan hívjuk össze a közgyűlést? — Lépésről lépésre | PanelLakó',
+  title: 'Közgyűlés összehívása — Lépésről lépésre | PanelLakó',
   description:
     'A társasházi közgyűlés összehívásának menete a 2003. évi CXXXIII. törvény szerint. Meghívók, napirend, határozatképesség, digitális szavazás lehetőségei.',
   alternates: { canonical: 'https://panellako.hu/tarsashaz-kezeles/kozgyules-osszehivasa' },

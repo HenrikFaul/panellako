@@ -20,7 +20,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Beltéri levegőminőség társasházi lakásokban — Mit tehetünk? | PanelLakó',
+  title: 'Beltéri Levegőminőség Társasházban | PanelLakó',
   description:
     'Hogyan javíthatjuk a beltéri levegőminőséget társasházi lakásban? VOC szennyezők, párásítás, szellőztetés, HEPA légtisztítók, épületgépészeti megoldások.',
   alternates: {

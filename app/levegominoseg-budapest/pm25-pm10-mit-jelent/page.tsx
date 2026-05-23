@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'PM2.5 és PM10 — Mit jelent a lakóknak? Egészségügyi határértékek | PanelLakó',
+  title: 'PM2.5 és PM10 — Egészségügyi határértékek | PanelLakó',
   description:
     'Mi a PM2.5 és PM10 részecskeszennyezés? Hogyan befolyásolja az egészségünket? WHO és EU határértékek, Budapest mérési adatok magyarázata.',
   alternates: { canonical: 'https://panellako.hu/levegominoseg-budapest/pm25-pm10-mit-jelent' },
