@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
   try {
     const data = await fetchUrbanAtlas(lat, lon);
 
-    if (supabase && buildingId) {
+    if (supabase && buildingId && data.featureCount > 0) {
       await supabase.from('building_urban_atlas_cache').upsert({
         building_id:         buildingId,
         green_urban_pct:     data.greenUrbanPct,

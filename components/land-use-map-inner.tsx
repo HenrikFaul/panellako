@@ -150,7 +150,6 @@ export default function LandUseMapInner({ buildingLat, buildingLon }: Props) {
       const query = `[out:json][timeout:25];
 (
   way["landuse"](around:1000,${buildingLat},${buildingLon});
-  relation["landuse"](around:1000,${buildingLat},${buildingLon});
   way["leisure"="park"](around:1000,${buildingLat},${buildingLon});
   way["leisure"="garden"](around:1000,${buildingLat},${buildingLon});
   way["natural"="wood"](around:1000,${buildingLat},${buildingLon});
@@ -159,14 +158,31 @@ export default function LandUseMapInner({ buildingLat, buildingLon }: Props) {
 );
 out geom;`;
 
+      const OVERPASS_MIRRORS = [
+        'https://overpass-api.de/api/interpreter',
+        'https://overpass.kumi.systems/api/interpreter',
+      ];
+
+      const fetchOverpass = async (): Promise<OverpassResponse> => {
+        for (const mirror of OVERPASS_MIRRORS) {
+          try {
+            const res = await fetch(mirror, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: `data=${encodeURIComponent(query)}`,
+              signal: AbortSignal.timeout(25000),
+            });
+            if (!res.ok) continue;
+            return await res.json() as OverpassResponse;
+          } catch {
+            // try next mirror
+          }
+        }
+        throw new Error('All Overpass mirrors failed');
+      };
+
       try {
-        const res = await fetch('https://overpass-api.de/api/interpreter', {
-          method: 'POST',
-          body: query,
-          signal: AbortSignal.timeout(20000),
-        });
-        if (!res.ok) throw new Error('Overpass HTTP error');
-        const data: OverpassResponse = await res.json() as OverpassResponse;
+        const data = await fetchOverpass();
 
         if (destroyed || !mapRef.current) return;
 
