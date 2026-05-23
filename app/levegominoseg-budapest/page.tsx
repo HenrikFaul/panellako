@@ -63,6 +63,13 @@ const CLUSTER_ARTICLES = [
     summary:
       'VOC szennyezők, szellőztetési stratégiák panellakásban, HEPA légtisztítók és épületi megoldások.',
   },
+  {
+    href: '/levegominoseg-budapest/pollen-allergia-budapest',
+    icon: Leaf,
+    title: 'Pollen és allergia Budapest — pollenszezonok és védekezés',
+    summary:
+      'Nyírfa, fű, parlagfű szezonok Budapesten, kerületi pollenterhelés, pollenjelző alkalmazások és allergiás tippek.',
+  },
 ];
 
 const POLLUTANTS = [
