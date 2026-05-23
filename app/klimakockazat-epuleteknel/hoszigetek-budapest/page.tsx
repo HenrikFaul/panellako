@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Hőszigetek Budapest — Melyik Kerületekben a Legmelegebb Nyáron? | PanelLakó',
+  title: 'Hőszigetek Budapest — Legmelegebb Kerületek | PanelLakó',
   description:
     'Budapest városi hősziget-térképe: melyik kerületekben mér a OMSZ 5-8°C-kal magasabb hőmérsékletet? UHI hatás mérséklésének lehetőségei épületszinten.',
   alternates: { canonical: 'https://panellako.hu/klimakockazat-epuleteknel/hoszigetek-budapest' },
@@ -162,6 +162,14 @@ export default function HoszigetekBudapestPage() {
           <ChevronRight size={14} />
           <span className="font-medium text-slate-600">Hőszigetek Budapest</span>
         </nav>
+        {/* Author meta */}
+        <p className="mb-10 flex flex-wrap items-center gap-2 text-sm text-slate-400">
+          <span className="font-medium text-slate-600">PanelLakó szerkesztőség</span>
+          <span aria-hidden="true">·</span>
+          <time dateTime="2024-01-15">2024. január 15.</time>
+          <span aria-hidden="true">·</span>
+          <span>Frissítve: 2026. május 23.</span>
+        </p>
 
         {/* Hero */}
         <div className="mb-14">

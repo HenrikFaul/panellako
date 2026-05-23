@@ -19,7 +19,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Elektromos Autó Töltő Társasházban — Jogi Háttér és Telepítés | PanelLakó',
+  title: 'Elektromos Töltő Társasházban — Jogi Háttér | PanelLakó',
   description:
     'Hogyan kérhet és telepíthet elektromos autó töltőt a társasházi parkolóban? 2021. évi CXLIII. tv., közgyűlési döntés, egyedi vs. közös töltő, mérőbővítés.',
   alternates: { canonical: 'https://panellako.hu/zold-tarsashaz/ev-tolto-tarsashazban' },
@@ -162,6 +162,14 @@ export default function EvToltoTarsashazbanPage() {
           <ChevronRight size={14} />
           <span className="font-medium text-slate-600">EV Töltő Társasházban</span>
         </nav>
+        {/* Author meta */}
+        <p className="mb-10 flex flex-wrap items-center gap-2 text-sm text-slate-400">
+          <span className="font-medium text-slate-600">PanelLakó szerkesztőség</span>
+          <span aria-hidden="true">·</span>
+          <time dateTime="2024-01-15">2024. január 15.</time>
+          <span aria-hidden="true">·</span>
+          <span>Frissítve: 2026. május 23.</span>
+        </p>
 
         {/* Hero */}
         <div className="mb-14">

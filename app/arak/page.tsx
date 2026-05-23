@@ -17,6 +17,53 @@ export const metadata: Metadata = {
   },
 };
 
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'Hogyan fizethetek az előfizetésért?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Bankkártyával (Visa, Mastercard, American Express) és banki átutalással is lehetséges az előfizetés rendezése. Enterprise ügyfeleknek egyedi számlázás is elérhető.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Mikor számítsak az első díjra?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'A 14 napos ingyenes próbaidőszak lejárta után, ha úgy dönt, hogy folytatja a használatot. A próba során semmilyen összeget nem vonunk le.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Köthetek éves előfizetést?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Igen, éves előfizetés esetén kedvezményes díjat biztosítunk. A pontos feltételekről vegye fel velünk a kapcsolatot.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Mi történik, ha lemondok?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Bármikor lemondhatja az előfizetést, kötöttség nélkül. Adatait exportálhatja, és 30 napig megőrizzük törlés előtt.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Kell kártyaadat a regisztrációhoz?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Nem. A 14 napos ingyenes próbához csak e-mail cím és jelszó szükséges. Bankkártyát csak akkor kérünk, ha a próba után fizetős csomagra vált.',
+      },
+    },
+  ],
+};
+
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
@@ -135,6 +182,10 @@ export default function ArakPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
       <PublicNav />
 

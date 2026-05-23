@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Kötelező Dokumentumok Társasházban — Teljes Lista és Megőrzési Idők | PanelLakó',
+  title: 'Kötelező Dokumentumok Társasházban — Lista | PanelLakó',
   description:
     'Milyen dokumentumokat köteles megőrizni a közös képviselő? SZMSZ, közgyűlési jegyzőkönyvek, számviteli iratok — kötelező megőrzési idők és digitális megoldások.',
   alternates: {
@@ -154,6 +154,14 @@ export default function DokumentumkezelesTarsashazbanPage() {
           <ChevronRight size={14} />
           <span className="font-medium text-slate-600">Dokumentumkezelés társasházban</span>
         </nav>
+        {/* Author meta */}
+        <p className="mb-10 flex flex-wrap items-center gap-2 text-sm text-slate-400">
+          <span className="font-medium text-slate-600">PanelLakó szerkesztőség</span>
+          <span aria-hidden="true">·</span>
+          <time dateTime="2024-01-15">2024. január 15.</time>
+          <span aria-hidden="true">·</span>
+          <span>Frissítve: 2026. május 23.</span>
+        </p>
 
         {/* Hero */}
         <div className="mb-12">

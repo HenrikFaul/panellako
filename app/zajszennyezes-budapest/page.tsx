@@ -19,7 +19,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Zajszennyezés Budapest — Zajtérkép és Kerületi Adatok | PanelLakó',
+  title: 'Zajszennyezés Budapest — Zajtérkép | PanelLakó',
   description:
     'Budapest zajszennyezési térképe, legzajosabb és legcsendesebb kerületek, EU zajhatárértékek, társasházi zaj kezelése. HungaroMet és NIF Zrt. adatok alapján.',
   alternates: { canonical: 'https://panellako.hu/zajszennyezes-budapest' },
@@ -123,12 +123,47 @@ const COMPLAINT_STEPS = [
   },
 ];
 
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'Melyik budapesti kerületekben a legmagasabb a zajterhelés?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'A legmagasabb zajterhelés a belvárosban (V., VI., VII., VIII. kerületek), a főközlekedési útvonalak mentén és a repülőtér közelében mérhető.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Mit tehet a közös képviselő, ha zajpanasz érkezik?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Elsőként dokumentálja a panaszt írásban, és kísérli meg a szomszéd bevonásával rendezni. Ha ez nem vezet eredményre, értesítheti a kerületi önkormányzat zajvédelmi hatóságát mérési eljárásra.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Milyen zajvédelmi megoldások alkalmazhatók társasházban?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Hangszigetelő ablakok, ajtók, padlóburkolatok, válaszfalak hangszigetelése. Szervezési megoldások: csendes órák rögzítése az SZMSZ-ben, felújítási munkálatok időkorlátozása.',
+      },
+    },
+  ],
+};
+
 export default function ZajszennyezesBudapestPage() {
   return (
     <div className="min-h-screen bg-white">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
 
       <PublicNav />

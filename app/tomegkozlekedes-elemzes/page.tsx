@@ -19,7 +19,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Tömegközlekedés Elemzés Budapest — GTFS Adatok, Megálló-sűrűség | PanelLakó',
+  title: 'Tömegközlekedés Elemzés Budapest — GTFS Adatok | PanelLakó',
   description:
     'Budapest tömegközlekedési hálózatának részletes elemzése: villamos, metró, busz, HÉV, trolibusz vonalak GTFS-adatok alapján. Megálló-sűrűség, gyaloglási lefedettség.',
   alternates: { canonical: 'https://panellako.hu/tomegkozlekedes-elemzes' },
@@ -50,7 +50,7 @@ const CLUSTER_ARTICLES = [
   {
     href: '/tomegkozlekedes-elemzes/villamos-metro-hev-elerheto-lakoneegyedek',
     icon: Train,
-    title: 'Villamos, metró és HÉV — melyik kerületekből érhető el gyalog?',
+    title: 'Villamos, metró és HÉV — Gyalogos Elérhetőség | PanelLakó',
     summary:
       'Melyik budapesti lakónegyedekben érhető el kötöttpályás közlekedés 420 méteren belül? Kerületi lefedettségi arányok elemzése.',
   },

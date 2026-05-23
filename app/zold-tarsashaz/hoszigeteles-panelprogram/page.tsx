@@ -19,7 +19,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Hőszigetelés és Panelprogram — Pályázati Lehetőségek 2025 | PanelLakó',
+  title: 'Hőszigetelés Társasházban — Panelprogram 2025 | PanelLakó',
   description:
     'Társasházi hőszigetelés és panelprogram: pályázati feltételek, energetikai tanúsítvány szükségessége, megtakarítható fűtési költség, közgyűlési döntés menete.',
   alternates: { canonical: 'https://panellako.hu/zold-tarsashaz/hoszigeteles-panelprogram' },
@@ -146,6 +146,14 @@ export default function HoszigetelesPanelprogramPage() {
           <ChevronRight size={14} />
           <span className="font-medium text-slate-600">Hőszigetelés és Panelprogram</span>
         </nav>
+        {/* Author meta */}
+        <p className="mb-10 flex flex-wrap items-center gap-2 text-sm text-slate-400">
+          <span className="font-medium text-slate-600">PanelLakó szerkesztőség</span>
+          <span aria-hidden="true">·</span>
+          <time dateTime="2024-01-15">2024. január 15.</time>
+          <span aria-hidden="true">·</span>
+          <span>Frissítve: 2026. május 23.</span>
+        </p>
 
         {/* Hero */}
         <div className="mb-14">

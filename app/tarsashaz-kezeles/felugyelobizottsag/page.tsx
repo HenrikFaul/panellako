@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Felügyelőbizottság a Társasházban — Feladatok és Választás | PanelLakó',
+  title: 'Felügyelőbizottság Társasházban — Feladatok | PanelLakó',
   description:
     'A társasházi felügyelőbizottság feladatai, tagjainak megválasztása, jogai és kötelezettségei — 2003. évi CXXXIII. törvény alapján. Mikor kötelező felügyelőbizottságot alakítani?',
   alternates: { canonical: 'https://panellako.hu/tarsashaz-kezeles/felugyelobizottsag' },
@@ -127,6 +127,14 @@ export default function FelugyelobizottsagPage() {
           <ChevronRight size={14} />
           <span className="font-medium text-slate-600">Felügyelőbizottság</span>
         </nav>
+        {/* Author meta */}
+        <p className="mb-10 flex flex-wrap items-center gap-2 text-sm text-slate-400">
+          <span className="font-medium text-slate-600">PanelLakó szerkesztőség</span>
+          <span aria-hidden="true">·</span>
+          <time dateTime="2024-01-15">2024. január 15.</time>
+          <span aria-hidden="true">·</span>
+          <span>Frissítve: 2026. május 23.</span>
+        </p>
 
         {/* Hero */}
         <div className="mb-12">

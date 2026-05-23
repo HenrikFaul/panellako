@@ -119,10 +119,27 @@ const DATA_SOURCES = [
 ];
 
 const STATS = [
-  { value: '300+', label: 'Épület' },
-  { value: '12 000+', label: 'Lakó' },
-  { value: '98%', label: 'Elégedettség' },
+  { value: '300+', label: 'Épület', note: 'Aktív épületek száma, 2025. május' },
+  { value: '12 000+', label: 'Lakó', note: 'Regisztrált lakói fiókok száma' },
+  { value: '98%', label: 'Elégedettség', note: 'NPS alapú elégedettségi arány' },
 ];
+
+const TEAM = [
+  {
+    name: 'Faul Henrik',
+    role: 'Alapító & Termékfejlesztés',
+    bio: 'Szoftvermérnök, aki közel állt a társasházi ügyintézéshez és megunta a szétszórt WhatsApp-csoportokat. A PanelLakót azért hozta létre, hogy a közös képviselők végre egy helyen kezelhessék az összes feladatot.',
+  },
+];
+
+const personSchemas = TEAM.map((member) => ({
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: member.name,
+  jobTitle: member.role,
+  worksFor: { '@type': 'Organization', name: 'PanelLakó', url: 'https://panellako.hu' },
+  url: 'https://panellako.hu/rolunk',
+}));
 
 export default function RolunkPage() {
   return (
@@ -131,6 +148,13 @@ export default function RolunkPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
       />
+      {personSchemas.map((ps) => (
+        <script
+          key={ps.name}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(ps) }}
+        />
+      ))}
 
       <PublicNav />
 
@@ -279,28 +303,26 @@ export default function RolunkPage() {
             Csapat
           </h2>
           <p className="mb-6 text-slate-500">
-            Kis, elkötelezett csapatunk mögött valódi szakértelem áll.
+            Kis, elkötelezett csapat — mögötte közvetlen tapasztalat a társasházi ügyintézésből.
           </p>
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card">
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-md shadow-brand-100">
-                <Users size={22} className="text-white" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            {TEAM.map((member) => (
+              <div key={member.name} className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-card">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-md shadow-brand-100">
+                  <Users size={20} className="text-white" />
+                </div>
+                <div>
+                  <p className="text-base font-black text-slate-900">{member.name}</p>
+                  <p className="mb-2 text-sm font-medium text-brand-600">{member.role}</p>
+                  <p className="text-sm leading-relaxed text-slate-600">{member.bio}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-base leading-relaxed text-slate-600">
-                  Kis, elkötelezett csapatunk magyar fejlesztőkből, UX designerekből és
-                  ingatlankezelési szakértőkből áll. Tagjaink közvetlen tapasztalattal
-                  rendelkeznek a társasházi ügyintézésben — vannak köztük volt közös képviselők
-                  és lakóközösségi aktivistákból lett szoftverfejlesztők.
-                </p>
-                <p className="mt-3 text-base leading-relaxed text-slate-600">
-                  Munkánkat a folyamatos visszajelzés vezérli: rendszeresen konzultálunk aktív
-                  közös képviselőkkel és lakókkal, hogy a PanelLakó valóban a mindennapi
-                  kihívásokra adjon választ — ne csupán egy elméleti megoldás legyen.
-                </p>
-              </div>
-            </div>
+            ))}
           </div>
+          <p className="mt-6 text-sm leading-relaxed text-slate-500">
+            Munkánkat a folyamatos visszajelzés vezérli: rendszeresen konzultálunk aktív közös
+            képviselőkkel és lakókkal.
+          </p>
         </section>
 
         {/* ── Stats ──────────────────────────────────────────────────────── */}
@@ -327,6 +349,15 @@ export default function RolunkPage() {
               Átlagos értékelés az aktív felhasználóinktól
             </span>
           </div>
+          <ul className="mt-5 space-y-1 text-center">
+            {STATS.map((s) => (
+              <li key={s.label} className="text-xs text-slate-400">
+                <span className="font-medium text-slate-500">{s.value} {s.label}</span>
+                {' — '}
+                {s.note}
+              </li>
+            ))}
+          </ul>
         </section>
 
         {/* ── Bottom CTA ─────────────────────────────────────────────────── */}

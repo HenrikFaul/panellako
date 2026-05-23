@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'PM2.5 és PM10 — Mit jelent a lakóknak? Egészségügyi határértékek | PanelLakó',
+  title: 'PM2.5 és PM10 — Egészségügyi határértékek | PanelLakó',
   description:
     'Mi a PM2.5 és PM10 részecskeszennyezés? Hogyan befolyásolja az egészségünket? WHO és EU határértékek, Budapest mérési adatok magyarázata.',
   alternates: { canonical: 'https://panellako.hu/levegominoseg-budapest/pm25-pm10-mit-jelent' },
@@ -153,6 +153,14 @@ export default function Pm25Pm10MitJelentPage() {
           <ChevronRight size={14} />
           <span className="font-medium text-slate-600">PM2.5 és PM10</span>
         </nav>
+        {/* Author meta */}
+        <p className="mb-10 flex flex-wrap items-center gap-2 text-sm text-slate-400">
+          <span className="font-medium text-slate-600">PanelLakó szerkesztőség</span>
+          <span aria-hidden="true">·</span>
+          <time dateTime="2024-01-15">2024. január 15.</time>
+          <span aria-hidden="true">·</span>
+          <span>Frissítve: 2026. május 23.</span>
+        </p>
 
         {/* Hero */}
         <div className="mb-14">

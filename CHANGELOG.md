@@ -1,4 +1,47 @@
 
+## v0.9.23 — SEO Sprint 2: author bylines, CollectionPage, Person schema, stats citations
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Author bylines — E-E-A-T (ACT-024)
+- 28 article pages: visible `PanelLakó szerkesztőség · 2024. január 15. · Frissítve: 2026. május 23.` byline injected below the breadcrumb nav using Python batch script
+- Covers all cluster articles across tarsashaz-kezeles, tarsashazi-jog, levegominoseg, zajszennyezes, klimakockazat, zold-tarsashaz, tomegkozlekedes, and BOFU pages
+
+### CollectionPage schema (ACT-059)
+- `app/tarsashaz-kezeles/page.tsx`: CollectionPage JSON-LD schema added with 8 `hasPart` Article references — helps Google understand hub-cluster relationship
+
+### Named team members + Person schema (ACT-026)
+- `app/rolunk/page.tsx`: `const TEAM` array with Faul Henrik (Alapító & Termékfejlesztés); renders named team card grid
+- Person schema (`personSchemas`) injected as `<script>` blocks for E-E-A-T
+
+### Trust statistics citation footnote (ACT-025)
+- `app/rolunk/page.tsx`: stats footnote added below the 3 trust statistics (300+/12 000+/98%), each with source note ("Aktív épületek száma, 2025. május" etc.)
+- `app/page.tsx`: citation footnote below hero stats strip — "Saját üzemeltetési adatok, 2025. május" with link to /rolunk
+
+---
+
+## v0.9.22 — SEO Sprint 2: title shortening, FAQPage schemas, llms.txt
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Title tag optimisation (ACT-013)
+- Shortened 36 page titles from >60 chars to ≤60 chars across the public site — covers all pillar, cluster, and hub pages
+- Prevents Google truncation of ≈580px+ titles in SERPs; all titles now within Google's recommended 50–60 char window
+
+### FAQPage schema (ACT-046, ACT-058)
+- `app/tarsashaz-kezeles/page.tsx`: FAQPage schema with 4 Q&As (közös képviselő, közgyűlés, SZMSZ, hátralék)
+- `app/levegominoseg-budapest/page.tsx`: FAQPage schema with 3 Q&As (levegőminőség, PM2.5/PM10, beltéri minőség)
+- `app/zajszennyezes-budapest/page.tsx`: FAQPage schema with 3 Q&As (zajterhelés, zajpanasz, zajvédelem)
+- `app/klimakockazat-epuleteknel/page.tsx`: FAQPage schema with 3 Q&As (hőhullám, EPC, árvíz)
+- `app/zold-tarsashaz/page.tsx`: FAQPage schema with 3 Q&As (napelem, EV töltő, pályázatok)
+- `app/tarsashazi-jog/page.tsx`: FAQPage schema with 3 Q&As (határozat megtámadás, szomszédjog, alapító okirat)
+- `app/arak/page.tsx`: FAQPage schema with 5 Q&As mirroring existing payment FAQ section
+
+### GEO — llms.txt (from SEOptimizer audit recommendation)
+- `public/llms.txt`: standard llms.txt file for AI/LLM search engine discovery — lists product pages, tudástár pillars, and company info with canonical URLs
+
+---
+
 ## v0.9.21 — SEO Sprint 1+2: OG image, BOFU pages, homepage copy, CSP fix
 **Dátum:** 2026-05-23
 **Branch:** claude/fix-cron-null-values-uDCqd

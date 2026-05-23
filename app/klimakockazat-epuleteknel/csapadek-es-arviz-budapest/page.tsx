@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Villámárvíz és Csapadékszélsőségek Budapest — Pince és Épületkár | PanelLakó',
+  title: 'Villámárvíz Budapest — Pince és Épületkár | PanelLakó',
   description:
     'Budapest villámárvíz kockázata: melyik kerületek pincehelyiségei a legveszélyesebbek? Csapadékszélsőségek hatása épületekre, megelőzés és biztosítás.',
   alternates: {
@@ -149,6 +149,14 @@ export default function CsapadekEsArvizBudapestPage() {
           <ChevronRight size={14} />
           <span className="font-medium text-slate-600">Csapadék és Árvíz Budapest</span>
         </nav>
+        {/* Author meta */}
+        <p className="mb-10 flex flex-wrap items-center gap-2 text-sm text-slate-400">
+          <span className="font-medium text-slate-600">PanelLakó szerkesztőség</span>
+          <span aria-hidden="true">·</span>
+          <time dateTime="2024-01-15">2024. január 15.</time>
+          <span aria-hidden="true">·</span>
+          <span>Frissítve: 2026. május 23.</span>
+        </p>
 
         {/* Hero */}
         <div className="mb-14">

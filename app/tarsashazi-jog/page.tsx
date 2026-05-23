@@ -20,7 +20,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Magyar Társasházi Jog — 2003. évi CXXXIII. tv. Útmutató | PanelLakó',
+  title: 'Magyar Társasházi Jog — 2003. évi CXXXIII. tv. | PanelLakó',
   description:
     'A 2003. évi CXXXIII. törvény (Társasházi törvény) értelmezése gyakorlatban: közös tulajdon, közgyűlés szabályai, SZMSZ, közös képviselő jogállása, jogi viták.',
   alternates: { canonical: 'https://panellako.hu/tarsashazi-jog' },
@@ -64,12 +64,47 @@ const PILLAR_ARTICLES = [
   },
 ];
 
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'Hogyan támadható meg egy közgyűlési határozat?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'A 2003. évi CXXXIII. törvény 42. §-a alapján a határozat ellen bírósághoz lehet fordulni a hozatalától számított 60 napon belül. A bíróság semmissé nyilváníthatja, megváltoztathatja vagy helybenhagyhatja a határozatot.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Milyen szabályok vonatkoznak a szomszédjogra társasházban?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'A szomszédjog alapja a Ptk. és a társasháztörvény. Felső szomszéd vízkár esetén a felelősség a víz forrásától függ. Az állandó zajterhelés esetén polgári per is indítható szomszéd ellen kártérítés iránt.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Mikor és hogyan módosítható az alapító okirat?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Az alapító okirat módosításához egyhangú közgyűlési szavazat szükséges. A módosítást ügyvédnek kell ellenjegyeznie, és az ingatlan-nyilvántartásba kell bejegyeztetni.',
+      },
+    },
+  ],
+};
+
 export default function TarsashaziJogPillarPage() {
   return (
     <div className="min-h-screen bg-white">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
 
       <PublicNav />

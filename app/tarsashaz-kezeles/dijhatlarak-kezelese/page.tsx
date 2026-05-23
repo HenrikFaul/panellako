@@ -18,7 +18,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Díjhátralékosok Kezelése Társasházban — Jogi Lépések | PanelLakó',
+  title: 'Díjhátralékosok Kezelése Társasházban | PanelLakó',
   description:
     'Mit tehet a közös képviselő, ha valaki nem fizeti a közös költséget? Felszólítás, fizetési meghagyás, végrehajtás, jelzálogjog — lépésről lépésre.',
   alternates: { canonical: 'https://panellako.hu/tarsashaz-kezeles/dijhatlarak-kezelese' },
@@ -140,6 +140,14 @@ export default function DijhatlalakKezelesequePage() {
           <ChevronRight size={14} />
           <span className="font-medium text-slate-600">Díjhátralékosok kezelése</span>
         </nav>
+        {/* Author meta */}
+        <p className="mb-10 flex flex-wrap items-center gap-2 text-sm text-slate-400">
+          <span className="font-medium text-slate-600">PanelLakó szerkesztőség</span>
+          <span aria-hidden="true">·</span>
+          <time dateTime="2024-01-15">2024. január 15.</time>
+          <span aria-hidden="true">·</span>
+          <span>Frissítve: 2026. május 23.</span>
+        </p>
 
         {/* Hero */}
         <div className="mb-12">
