@@ -1,4 +1,29 @@
 
+## v0.9.26 — fix: Transit megálló-sorrend, irány-deduplication, directionId
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Gyökérok
+`transit_stop_routes` fallback MINDKÉT irány összes megállóját visszaadta → duplikált nevek + helytelen sorrend a stop panelben.
+
+### Javítás — `app/api/transit/shape/route.ts`
+- Új: `haversineM()` — GPS távolságszámítás méterben
+- Új: `projectStopsOntoShape()` — geometriai projekció a shape polyline-ra:
+  1. Minden megállót vetít a direction-specifikus shape legközelebbi pontjára
+  2. Azonos nevű + 500 m-en belüli megállókat deduplikálja (ellentétes peronok) → a shape-hez közelebb lévő marad
+  3. Rendezi along-track index szerint = helyes menetirány-sorrend
+  4. > 2 km-es megállók eldobása (nem ezen a variánson)
+- `gtfs_stop_times` keresés: az összes trip ID variánst próbálja (nem csak `variants[0]`)
+- `direction_id` hozzáadva a `gtfs_trips` queryhez → `TripShape.directionId` exportálva
+- Fallback limit: 80 → 200 (mindkét irány merge-elt adatból elegendő)
+
+### Javítás — `components/transit-live-map-inner.tsx`
+- `directionId` propagálva a state-be és a panelbe
+- Header: `→` / `←` nyíl chip direction 0 / 1 szerint
+- Stop count badge: "N megálló" felirat a lista tetején
+
+---
+
 ## v0.9.25 — feat: hero szöveg + /funkciok interaktív demo + Organization schema fix
 **Dátum:** 2026-05-23
 **Branch:** claude/fix-cron-null-values-uDCqd

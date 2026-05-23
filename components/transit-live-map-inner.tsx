@@ -238,6 +238,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
       routeRef: string; color: string; headsign: string;
       vehicleId?: string; vehicleModel?: string;
       accessible?: boolean;
+      directionId?: number;
       stopTimes?: TripStopTime[];
     } | null>(null);
 
@@ -335,13 +336,14 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         }
 
         setTripInfo({
-          routeRef:     sd.routeRef || routeRef,
-          color:        routeColor,
-          headsign:     sd.headsign || headsign,
-          vehicleId:    sd.vehicleId,
-          vehicleModel: sd.vehicleModel,
-          accessible:   sd.accessible,
-          stopTimes:    sd.stopTimes,
+          routeRef:    sd.routeRef || routeRef,
+          color:       routeColor,
+          headsign:    sd.headsign || headsign,
+          vehicleId:   sd.vehicleId,
+          vehicleModel:sd.vehicleModel,
+          accessible:  sd.accessible,
+          directionId: sd.directionId,
+          stopTimes:   sd.stopTimes,
         });
       } catch { /* shape draw failure is silent */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -707,6 +709,16 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
                 >
                   {tripInfo.routeRef}
                 </span>
+                {/* Direction arrow — 0 = outbound →, 1 = return ← */}
+                {tripInfo.directionId !== undefined && (
+                  <span
+                    className="shrink-0 text-[10px] font-black"
+                    style={{ color: tripInfo.color }}
+                    title={tripInfo.directionId === 0 ? 'Főirány' : 'Visszairány'}
+                  >
+                    {tripInfo.directionId === 0 ? '→' : '←'}
+                  </span>
+                )}
                 <span className="flex-1 truncate text-[10px] font-bold text-slate-200 min-w-0">
                   {tripInfo.headsign}
                 </span>
@@ -734,6 +746,12 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
 
               {/* Stop timeline */}
               <div className="overflow-y-auto flex-1">
+                {/* Stop count — quick sanity check for the user */}
+                {tripInfo.stopTimes && tripInfo.stopTimes.length > 0 && (
+                  <div className="px-2.5 pt-1.5 pb-0.5 text-[8px] text-slate-600">
+                    {tripInfo.stopTimes.length} megálló
+                  </div>
+                )}
                 {tripInfo.stopTimes && tripInfo.stopTimes.length > 0 ? (
                   tripInfo.stopTimes.map((st, i) => {
                     const isFirst   = i === 0;
