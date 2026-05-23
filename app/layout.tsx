@@ -93,32 +93,20 @@ const websiteSchema = {
 // Organization JSON-LD — entity definition for Google Knowledge Graph & LLM extractability
 const organizationSchema = {
   '@context': 'https://schema.org',
-  '@type': 'SoftwareApplication',
-  '@id': 'https://panellako.hu/#software',
+  '@type': 'Organization',
+  '@id': 'https://panellako.hu/#organization',
   name: 'PanelLakó',
-  applicationCategory: 'BusinessApplication',
-  operatingSystem: 'Web, iOS, Android',
   url: 'https://panellako.hu',
+  logo: {
+    '@type': 'ImageObject',
+    url: 'https://panellako.hu/icons/icon-512.png',
+  },
   description:
     'Magyar társasházkezelő szoftver: bejelentések, dokumentumok, pénzügyek és közgyűlések digitális kezelése.',
+  foundingDate: '2023',
+  areaServed: 'HU',
   inLanguage: 'hu',
-  offers: {
-    '@type': 'Offer',
-    price: '0',
-    priceCurrency: 'HUF',
-    description: '14 napos ingyenes próbaidőszak, kártyaadatok nélkül',
-    eligibleDuration: { '@type': 'QuantitativeValue', value: 14, unitCode: 'DAY' },
-  },
-  publisher: {
-    '@type': 'Organization',
-    '@id': 'https://panellako.hu/#organization',
-    name: 'PanelLakó',
-    url: 'https://panellako.hu',
-    logo: {
-      '@type': 'ImageObject',
-      url: 'https://panellako.hu/icons/icon-512.png',
-    },
-  },
+  knowsAbout: ['Társasházi törvény', 'Közös képviselet', 'Ingatlankezelés', 'GDPR'],
   sameAs: [],
 };
 

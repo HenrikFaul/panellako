@@ -8,11 +8,11 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'PanelLakó – Társasházkezelő szoftver közös képviselőknek',
+  title: 'PanelLakó – Társasházkezelő szoftver közös képviselőknek és lakóknak',
   description:
     'Kezelje a társasházát digitálisan: hibabejelentések, dokumentumok, pénzügyek és szavazások egy helyen. 14 napos ingyenes próba, kártyaadat nélkül.',
   openGraph: {
-    title: 'PanelLakó – Társasházkezelő szoftver közös képviselőknek',
+    title: 'PanelLakó – Társasházkezelő szoftver közös képviselőknek és lakóknak',
     description:
       'Kezelje a társasházát digitálisan: hibabejelentések, dokumentumok, pénzügyek és szavazások egy helyen. 14 napos ingyenes próba, kártyaadat nélkül.',
     url: 'https://panellako.hu',
@@ -25,24 +25,14 @@ export const metadata: Metadata = {
 
 const faqItems = [
   {
-    question: 'Mi a közös képviselő feladata?',
+    question: 'Mire való a PanelLakó szoftver?',
     answer:
-      'A közös képviselő a társasház törvényes képviselője: ő gondoskodik az épület karbantartásáról, összehívja és levezeti a közgyűléseket, kezeli a közös költség befizetéseket, megbízza a szükséges mesterembereket és vezeti az épülettel kapcsolatos adminisztratív dokumentációt. A PanelLakó mindezeket az adminisztrációs feladatokat digitalizálja, így a közös képviselőnek több ideje marad az érdemi munkára.',
+      'A PanelLakó egy böngészőalapú társasházkezelő platform közös képviselőknek, lakóknak és könyvelőknek. Digitalizálja a hibabejelentéseket, dokumentumtárat, közös költség nyilvántartást és online közgyűléseket — egyetlen felületen, a 2003. évi CXXXIII. törvény és GDPR szerint.',
   },
   {
-    question: 'Mennyibe kerül a PanelLakó?',
+    question: 'Valóban ingyenes a próbaidőszak?',
     answer:
-      'A PanelLakó 14 napos ingyenes próbaidőszakkal rendelkezik – kártyaadat megadása nélkül. A próbaidőszak után a havidíj az épület méretétől (lakások számától) függ. Részletes árinformációért látogasson el az Árak oldalra, vagy vegye fel velünk a kapcsolatot.',
-  },
-  {
-    question: 'Milyen biztonságos az adatkezelés?',
-    answer:
-      'A PanelLakó GDPR-kompatibilis adatkezelést alkalmaz. Az adatokat az EU területén, Supabase infrastruktúrán tároljuk, amely ISO 27001 tanúsítvánnyal rendelkező adatközpontokban üzemel. A kommunikáció végig TLS titkosítással védett. A személyes adatokat harmadik félnek nem adjuk ki.',
-  },
-  {
-    question: 'Kell-e telepíteni valamit?',
-    answer:
-      'Nem, a PanelLakó teljesen böngészőalapú szoftver – semmit nem kell letölteni vagy telepíteni. Bármilyen modern böngészőből elérhető számítógépen, tableten és okostelefonon egyaránt. Az alkalmazás reszponzív designja biztosítja, hogy mobilon is kényelmes legyen a használata.',
+      'Igen — a 14 napos próba teljesen ingyenes és kártyaadat megadása sem szükséges. Azonnal hozzáférést kap az összes funkcióhoz. A próba után, ha folytatja a használatot, a havidíj az épület méretétől függ.',
   },
   {
     question: 'Hogyan kezdhetem el?',
@@ -106,7 +96,7 @@ export default async function HomePage() {
             <h1 className="mt-6 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl lg:text-6xl animate-fade-in-up">
               Társasházkezelő szoftver{' '}
               <span className="bg-gradient-to-r from-brand-500 to-sky-500 bg-clip-text text-transparent">
-                közös képviselőknek
+                közös képviselőknek és lakóknak
               </span>
             </h1>
 

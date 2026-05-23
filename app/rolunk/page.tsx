@@ -25,20 +25,19 @@ export const metadata: Metadata = {
 const orgSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
+  '@id': 'https://panellako.hu/#organization',
   name: 'PanelLakó',
   url: 'https://panellako.hu',
-  logo: 'https://panellako.hu/icons/icon-512.png',
+  logo: {
+    '@type': 'ImageObject',
+    url: 'https://panellako.hu/icons/icon-512.png',
+  },
   description:
     'Magyar társasházkezelő szoftver. Hibabejelentések, dokumentumok, pénzügyek és közgyűlések digitálisan.',
   foundingDate: '2023',
   areaServed: 'HU',
   inLanguage: 'hu',
-  knowsAbout: [
-    'Társasházi törvény',
-    'Közös képviselet',
-    'Ingatlankezelés',
-    'GDPR',
-  ],
+  knowsAbout: ['Társasházi törvény', 'Közös képviselet', 'Ingatlankezelés', 'GDPR'],
   sameAs: [],
 };
 
