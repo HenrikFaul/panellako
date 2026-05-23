@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     locale: 'hu_HU',
     type: 'website',
   },
-  alternates: { canonical: '/' },
+  alternates: { canonical: 'https://panellako.hu' },
 };
 
 const faqItems = [

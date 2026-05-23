@@ -17,6 +17,16 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://panellako.hu/elemzes/budapest-kozlekedes' },
 };
 
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Főoldal', item: 'https://panellako.hu' },
+    { '@type': 'ListItem', position: 2, name: 'Elemzések', item: 'https://panellako.hu/elemzes' },
+    { '@type': 'ListItem', position: 3, name: 'Budapest tömegközlekedésének elemzése', item: 'https://panellako.hu/elemzes/budapest-kozlekedes' },
+  ],
+};
+
 // Static article schema for Google + LLM extractability
 const articleSchema = {
   '@context': 'https://schema.org',
@@ -33,11 +43,18 @@ const articleSchema = {
     { '@type': 'Thing', name: 'GTFS adatok' },
     { '@type': 'Thing', name: 'BKK Futár' },
   ],
+  datePublished: '2024-01-15',
+  dateModified: '2026-05-23',
+  author: { '@type': 'Organization', name: 'PanelLakó', url: 'https://panellako.hu' },
 };
 
 export default function BudapestTransitAnalysisPage() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}

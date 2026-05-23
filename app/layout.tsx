@@ -62,22 +62,39 @@ export const metadata: Metadata = {
     ],
     apple: '/apple-touch-icon.png',
   },
-  alternates: {
-    canonical: BASE_URL,
-  },
+
 };
 
 export const viewport: Viewport = {
   themeColor: '#0f766e',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
+
+};
+
+const websiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  '@id': 'https://panellako.hu/#website',
+  name: 'PanelLakó',
+  url: 'https://panellako.hu',
+  inLanguage: 'hu',
+  publisher: { '@id': 'https://panellako.hu/#organization' },
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: {
+      '@type': 'EntryPoint',
+      urlTemplate: 'https://panellako.hu/gyik#{search_term_string}',
+    },
+    'query-input': 'required name=search_term_string',
+  },
 };
 
 // Organization JSON-LD — entity definition for Google Knowledge Graph & LLM extractability
 const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
+  '@id': 'https://panellako.hu/#software',
   name: 'PanelLakó',
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web, iOS, Android',
@@ -90,9 +107,11 @@ const organizationSchema = {
     price: '0',
     priceCurrency: 'HUF',
     description: '14 napos ingyenes próbaidőszak, kártyaadatok nélkül',
+    eligibleDuration: { '@type': 'QuantitativeValue', value: 14, unitCode: 'DAY' },
   },
   publisher: {
     '@type': 'Organization',
+    '@id': 'https://panellako.hu/#organization',
     name: 'PanelLakó',
     url: 'https://panellako.hu',
     logo: {
@@ -107,6 +126,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="hu" className={inter.variable}>
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}

@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   title: 'Gyakran Ismételt Kérdések — PanelLakó GYIK',
   description:
     'Minden válasz a PanelLakó társasházkezelő szoftverrel kapcsolatos kérdésekre: beállítás, adatbiztonság, árak, funkciók, jogi megfelelés.',
-  alternates: { canonical: '/gyik' },
+  alternates: { canonical: 'https://panellako.hu/gyik' },
   openGraph: {
     title: 'Gyakran Ismételt Kérdések — PanelLakó GYIK',
     description:

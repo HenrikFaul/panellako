@@ -54,6 +54,9 @@ const articleSchema = {
   url: 'https://panellako.hu/tarsashaz-kezeles/kozos-kepviselo-valasztasa',
   publisher: { '@type': 'Organization', name: 'PanelLakó', url: 'https://panellako.hu' },
   inLanguage: 'hu',
+  datePublished: '2024-01-15',
+  dateModified: '2026-05-23',
+  author: { '@type': 'Organization', name: 'PanelLakó', url: 'https://panellako.hu' },
 };
 
 const SZERZODES_ELEMEK = [

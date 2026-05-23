@@ -53,6 +53,9 @@ const articleSchema = {
   url: 'https://panellako.hu/tarsashaz-kezeles/kozgyules-osszehivasa',
   publisher: { '@type': 'Organization', name: 'PanelLakó', url: 'https://panellako.hu' },
   inLanguage: 'hu',
+  datePublished: '2024-01-15',
+  dateModified: '2026-05-23',
+  author: { '@type': 'Organization', name: 'PanelLakó', url: 'https://panellako.hu' },
 };
 
 const MINOSITETT_TABLE = [
@@ -87,6 +90,24 @@ const MINOSITETT_TABLE = [
     megjegyzes: 'Éves költségvetés részeként is elfogadható',
   },
 ];
+
+const howToSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'HowTo',
+  name: 'Hogyan hívjuk össze a társasházi közgyűlést?',
+  description: 'A társasházi közgyűlés összehívásának lépései a 2003. évi CXXXIII. törvény szerint.',
+  inLanguage: 'hu',
+  step: [
+    { '@type': 'HowToStep', position: 1, name: 'Határozza meg a közgyűlés típusát', text: 'Rendes évi közgyűlés (évente kötelező, legkésőbb május 31-ig) vagy rendkívüli közgyűlés (tulajdonosok 1/4-e kéri vagy sürgős döntés szükséges).' },
+    { '@type': 'HowToStep', position: 2, name: 'Állítsa össze a napirendet', text: 'Minden tárgyalandó pontot előre rögzíteni kell. A meghívóban nem szereplő kérdésben — főszabályként — nem hozható határozat.' },
+    { '@type': 'HowToStep', position: 3, name: 'Válasszon időpontot és helyszínt', text: 'Az időpont legyen mindenki számára elérhető (esti óra, hétvége). A helyszín legyen a lakók által könnyen megközelíthető — ideális a társasházon belüli közös helyiség.' },
+    { '@type': 'HowToStep', position: 4, name: 'Készítse el a meghívót', text: 'Tartalmazza: a közgyűlés dátumát, pontos kezdési időpontját, helyszínét (és online elérhetőségét, ha van), a napirendi pontokat, és a határozatképtelenség esetén tartandó folytatólagos közgyűlés időpontját.' },
+    { '@type': 'HowToStep', position: 5, name: 'Kézbesítse a meghívót igazolható módon', text: 'Legalább 8 nappal a közgyűlés előtt. Tértivevényes levél, személyes átadás aláírással, vagy e-mail — ha az SZMSZ és a tulajdonos hozzájárulása azt lehetővé teszi.' },
+    { '@type': 'HowToStep', position: 6, name: 'Készítse elő a szükséges dokumentumokat', text: 'Éves elszámolás, terv, határozatkönyv kivonat, esetleges ajánlatok és előterjesztések — a tulajdonosok a döntés előtt megismerhessék a releváns adatokat.' },
+    { '@type': 'HowToStep', position: 7, name: 'Vezesse le a közgyűlést és rögzítse a határozatokat', text: 'Jelenlévők listája (tulajdoni hányad szerinti), szavazati arányok rögzítése minden döntésnél, hiteles aláírással ellátott jelenléti ív.' },
+    { '@type': 'HowToStep', position: 8, name: 'Tegye közzé a határozatokat és vezesse a határozatkönyvet', text: 'A határozatokat legkésőbb 30 napon belül közzé kell tenni (hirdetőtábla, digitális csatorna). A határozatkönyvet naprakészen kell vezetni és bármely tulajdonos számára hozzáférhetővé kell tenni.' },
+  ],
+};
 
 const CHECKLIST_STEPS = [
   {
@@ -141,6 +162,10 @@ export default function KozgyulesOsszehivasaPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(howToSchema) }}
       />
 
       <PublicNav />
