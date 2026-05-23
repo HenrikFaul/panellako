@@ -4,18 +4,35 @@
 
 ## Quick reference (see AI_EXECUTION_PROMPTS.md for full detail)
 
-Read order every session:
-1. `AI_EXECUTION_PROMPTS.md` ← start here
-2. `codingLessonsLearnt.md` — avoid documented mistakes
-3. `CHANGELOG.md` — do not regress completed features
-4. `.governance/controller.md`
-5. `.governance/agent_execution_rules.md`
-6. `.governance/ui_ux_rules.md` when UI is affected
-7. Latest `versioning/*.md` relevant to the task
-8. `marketing/SYSTEM.md` — when the task has user-facing, positioning, or feature-announcement implications
-9. The relevant report-toolkit entry file — only when the task is to generate a valuation, growth-strategy, or documentation report (see "Repository report toolkits" below)
+### Session-start read order — MINDEN fejlesztési kérés előtt kötelező
 
-Required behavior:
+| # | Fájl | Mikor |
+|---|------|-------|
+| 1 | `AI_EXECUTION_PROMPTS.md` | **mindig** ← start here |
+| 2 | `codingLessonsLearnt.md` | **mindig** — ismert hibák elkerülése |
+| 3 | `CHANGELOG.md` | **mindig** — ne regresszálj kész funkciókat |
+| 4 | `.governance/controller.md` | **mindig** — Supabase, branch, no-regression szabályok |
+| 5 | `.governance/agent_execution_rules.md` | **mindig** — execution authority, act vs ask |
+| 6 | `.governance/ui_ux_rules.md` | ha UI érintett |
+| 7 | `AI_PROMPTING_FOLDERSTRUCTURE/SYSTEM.md` | **mindig** — Orchestrator master controller |
+| 8 | `AI_PROMPTING_FOLDERSTRUCTURE/localization_controller.md` | ha user-facing string érintett |
+| 9 | `AI_PROMPTING_FOLDERSTRUCTURE/` releváns almappa | feladattípus szerint (backend/, frontend/, ui/, database/, qa/, stb.) |
+| 10 | `full-stack-e2e-prompt-ecosystem/` releváns prompt | ha e2e tesztelés, API-ellenőrzés vagy deployment érintett |
+| 11 | `BI_FRAMEWORK/SYSTEM.md` | ha BI / analitika / dashboard feladat |
+| 12 | `doc creation/SYSTEM.md` | ha dokumentáció generálás a feladat |
+| 13 | `versioning/*.md` legfrissebb releváns fájlok | ha ismert modul érintett |
+| 14 | `marketing/SYSTEM.md` | ha marketing asset, copy vagy feature-announcement |
+| 15 | Report-toolkit entry file | csak ha valuation / growth-strategy / docs report a feladat |
+
+**Lépések 1–7 mindig kötelezőek. A többi feltételes — csak ha a feladattípus indokolja.**
+
+### Supabase — non-negotiable
+- **KIZÁRÓLAG panellako (`wzromwxpjlyrqbdiapep`) minden olvasás és írás számára**
+- `NEXT_PUBLIC_SUPABASE_URL` = panellako — mindig ezt használd
+- `SUPABASE_URL` (GeoData `buuoyyfzincmbxafvihc`) — soha nem használható alkalmazásadathoz
+- Service-role írás: `SUPABASE_SERVICE_ROLE_KEY` + `NEXT_PUBLIC_SUPABASE_URL`
+
+### Kötelező viselkedés minden fejlesztési kérésnél
 - **ALWAYS fetch + rebase on `origin/main` BEFORE writing code or editing CHANGELOG.md.** Other PRs may have merged into `main` since the feature branch was created — failing to rebase causes CHANGELOG conflicts and version-number collisions. Run `git fetch origin main && git rebase origin/main` (or `git pull --rebase origin main`) at the start of every session, and again before any CHANGELOG edit. Resolve conflicts manually; never force-push without verifying nothing was lost.
 - When adding a CHANGELOG entry, first read the **current top of `CHANGELOG.md` on `origin/main`** to pick the next free version number (do not duplicate an existing version).
 - Preserve existing working features

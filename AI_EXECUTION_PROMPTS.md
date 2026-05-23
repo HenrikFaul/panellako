@@ -11,20 +11,28 @@ Read ALL of the following before implementing anything:
 
 | # | File | When |
 |---|------|------|
-| 1 | `AI_EXECUTION_PROMPTS.md` | ← you are here, always |
-| 2 | `codingLessonsLearnt.md` | always — avoid previously documented mistakes |
-| 3 | `CHANGELOG.md` | always — know what is already built; never regress it |
-| 4 | `.governance/controller.md` | always — core governance rules |
-| 5 | `.governance/agent_execution_rules.md` | always — execution authority |
-| 6 | `.governance/ui_ux_rules.md` | only when UI is touched |
-| 7 | Latest `versioning/*.md` file(s) relevant to the task | when the task relates to a known module |
-| 8 | `marketing/SYSTEM.md` | when producing marketing assets, copy, campaign plans, or feature announcements |
-| 8a | `marketing/marketing_values/` (recent files) | when a marketing agent needs to know current product capabilities |
-| 9 | The relevant report-toolkit entry file (see "Repository report & documentation toolkits" below) | only when the task is to generate a valuation, growth-strategy, or repository-documentation report — and only if that toolkit folder is present in the repo |
+| 1 | `AI_EXECUTION_PROMPTS.md` | **always** ← you are here |
+| 2 | `codingLessonsLearnt.md` | **always** — avoid previously documented mistakes |
+| 3 | `CHANGELOG.md` | **always** — know what is already built; never regress it |
+| 4 | `.governance/controller.md` | **always** — Supabase target, branch discipline, no-regression |
+| 5 | `.governance/agent_execution_rules.md` | **always** — execution authority, act vs ask |
+| 6 | `AI_PROMPTING_FOLDERSTRUCTURE/SYSTEM.md` | **always** — Orchestrator master controller |
+| 7 | `.governance/ui_ux_rules.md` | when UI is touched |
+| 8 | `AI_PROMPTING_FOLDERSTRUCTURE/localization_controller.md` | when user-facing strings are added or changed |
+| 9 | `AI_PROMPTING_FOLDERSTRUCTURE/` relevant subfolder | by task type: `backend/`, `frontend/`, `ui/`, `database/`, `qa/`, `integration/`, `ux/` |
+| 10 | `full-stack-e2e-prompt-ecosystem/` relevant prompt | when e2e verification, API integrity, or deployment checks are needed |
+| 11 | `BI_FRAMEWORK/SYSTEM.md` | when BI, analytics, or dashboard work is involved |
+| 12 | `doc creation/SYSTEM.md` | when documentation generation is the task |
+| 13 | Latest `versioning/*.md` file(s) relevant to the task | when the task relates to a known module |
+| 14 | `marketing/SYSTEM.md` | when producing marketing assets, copy, campaign plans, or feature announcements |
+| 14a | `marketing/marketing_values/` (recent files) | when a marketing agent needs to know current product capabilities |
+| 15 | The relevant report-toolkit entry file | only when generating valuation, growth-strategy, or docs report |
 
-Do not skip steps 2 and 3. They are the primary defense against regressions and repeated mistakes.
+**Steps 1–6 are always mandatory. Steps 7–15 are conditional — read them only when the task type matches.**
 
-Steps 6, 7, 8, 8a and 9 are conditional — read them only when the task type matches. Step 9 toolkits are self-contained and self-governing; you read their entry file instead of guessing, not in addition to skipping it.
+Do not skip steps 2, 3, and 4. They are the primary defense against regressions, repeated mistakes, and writing to the wrong Supabase project.
+
+Step 15 toolkits are self-contained and self-governing; read their entry file instead of guessing.
 
 ---
 
