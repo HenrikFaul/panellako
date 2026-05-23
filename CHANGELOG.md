@@ -1,4 +1,26 @@
 
+## v0.9.21 — SEO Sprint 1+2: OG image, BOFU pages, homepage copy, CSP fix
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### OG kép (ACT-012)
+- `app/opengraph-image.tsx`: programmatikus branded OG kép (`ImageResponse`, 1200×630px) — javítja a megtörött social megosztásokat minden 49 oldalon
+
+### BOFU oldalak (ACT-033, ACT-034)
+- `app/ingyenes-proba/page.tsx`: dedikált ingyenes próba landing oldal — FAQPage schema, 6 funkció kártya, 4 lépéses onboarding, 3 persona szekció
+- `app/funkciok/konyveloknek/page.tsx`: könyvelő persona oldal — előtte/utána táblázat, funkciók, GDPR szekció, FAQ schema, „1 könyvelő = 10-50 épület" üzenet
+- `app/sitemap.ts`: új oldalak hozzáadva (`/ingyenes-proba` priority 0.9, `/funkciok/konyveloknek` priority 0.8)
+
+### Sprint 1 gyorsjavítások
+- `app/arak/page.tsx`: fizetős tierek pontatlan `price:'0'` eltávolítva; ingyenes próba Offer `eligibleDuration`-nel (ACT-014)
+- `app/page.tsx`: H1 → „Társasházkezelő szoftver közös képviselőknek"; hero paragrafus GDPR/törvényi hivatkozással (ACT-020, ACT-030)
+- `app/funkciok/page.tsx`: keyword-rich meta description (155ch); 6 tartalmi pillér belső link hozzáadva (ACT-021, ACT-023)
+- `next.config.mjs`: `https://eu.posthog.com` hozzáadva CSP connect-src-hez (ACT-054)
+- `.eslintrc.json`: `@next/next/no-img-element` warn rule bekapcsolva (ACT-051)
+- `package.json`: `eslint-config-next` verzió igazítva 14.2.30-ra (ACT-053)
+
+---
+
 ## v0.9.20 — SEO: Technical fixes + structured data batch update (27 Article schemas)
 **Dátum:** 2026-05-23
 **Branch:** claude/fix-cron-null-values-uDCqd
