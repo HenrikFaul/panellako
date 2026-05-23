@@ -6,7 +6,6 @@ import {
   Wind,
   AlertTriangle,
   BarChart2,
-  Building2,
   Leaf,
   CheckCircle,
   TrendingUp,
@@ -143,7 +142,7 @@ export default function KlimakockazatEpuleteknelPage() {
             <span className="text-brand-600">amit minden tulajdonosnak tudni kell</span>
           </h1>
           <p className="max-w-2xl text-lg leading-relaxed text-slate-500">
-            A klímaváltozás fizikailag, pénzügyileg és jogi szempontból is érinti a magyarországi ingatlanállományt — különösen a fővárosi panel és többlakásos épületeket. A HungaroMet adatai szerint Budapest átlaghőmérséklete az elmúlt 60 évben 1,8 °C-kal emelkedett; az extrém csapadékeseményekre vonatkozó előrejelzések szerint 2050-re a jelenlegi „ritka" hőhullámok rendszeres jelenséggé válnak. Ez nem csupán kényelmi, hanem vagyonbiztonsági kérdés is.
+            A klímaváltozás fizikailag, pénzügyileg és jogi szempontból is érinti a magyarországi ingatlanállományt — különösen a fővárosi panel és többlakásos épületeket. A HungaroMet adatai szerint Budapest átlaghőmérséklete az elmúlt 60 évben 1,8 °C-kal emelkedett; az extrém csapadékeseményekre vonatkozó előrejelzések szerint 2050-re a jelenlegi „ritka&quot; hőhullámok rendszeres jelenséggé válnak. Ez nem csupán kényelmi, hanem vagyonbiztonsági kérdés is.
           </p>
         </div>
 

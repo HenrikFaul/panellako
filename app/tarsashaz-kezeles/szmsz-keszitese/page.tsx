@@ -246,7 +246,7 @@ export default function SzmszKeszitesePage() {
                 <p className="mt-1 text-sm text-brand-700">
                   2003. évi CXXXIII. törvény a társasházakról, 13. §: „A közgyűlés a szervezeti és
                   működési szabályzatban határozza meg a tulajdonostársak közösségének szervezetét
-                  és működési rendjét, ideértve a közös képviselő jogait és kötelezettségeit is."
+                  és működési rendjét, ideértve a közös képviselő jogait és kötelezettségeit is.&quot;
                 </p>
               </div>
             </div>
@@ -408,7 +408,7 @@ export default function SzmszKeszitesePage() {
             <p className="leading-relaxed">
               Ideális megoldás, ha az SZMSZ (és a korábbi verziók is) a társasházi dokumentumtárban
               hozzáférhető minden tulajdonos számára. Ez biztosítja az átláthatóságot, csökkenti a
-              „nem tudtam róla" típusú vitákat, és megkönnyíti az új tulajdonosok tájékoztatását is —
+              „nem tudtam róla&quot; típusú vitákat, és megkönnyíti az új tulajdonosok tájékoztatását is —
               az ingatlan vásárlásakor a vevők általában igénylik a társasházi dokumentumok megtekintését.
             </p>
             <ul className="space-y-2 text-sm">

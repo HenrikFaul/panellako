@@ -186,7 +186,7 @@ export default function CsapadekEsArvizBudapestPage() {
               Csatornázási Művek (FCSM) adatai szerint Budapest csatornái jellemzően
               <strong className="text-slate-800"> 5–10 éves visszatérési idejű csapadékra</strong> lettek
               méretezve az 1950-es és 1960-as évek normái szerint. Ugyanakkor a klimatológiai előrejelzések
-              azt mutatják, hogy a mai „20–25 éves" szélsőséges esemény 2050-re már 5–10 éves eseménnyé
+              azt mutatják, hogy a mai „20–25 éves&quot; szélsőséges esemény 2050-re már 5–10 éves eseménnyé
               válhat — vagyis a csatornarendszer kapacitása strukturálisan nem lesz elegendő.
             </p>
             <div className="rounded-2xl border border-blue-100 bg-blue-50 p-5">

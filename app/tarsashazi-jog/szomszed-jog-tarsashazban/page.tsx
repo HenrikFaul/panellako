@@ -127,7 +127,7 @@ export default function SzomszedJogTarsashazbanPage() {
             viszonyokra.
           </p>
           <div className="rounded-2xl border border-brand-200 bg-brand-50 p-5">
-            <p className="mb-2 font-bold text-slate-900">A „szükségtelen zavarás" mércéje</p>
+            <p className="mb-2 font-bold text-slate-900">A &quot;szükségtelen zavarás&quot; mércéje</p>
             <p className="text-sm leading-relaxed text-slate-600">
               A Ptk. nem tiltja a zavarást általában — csak a <em>szükségtelent</em>. Az együttélés
               szükségszerű kellemetlenségeit tűrni kell (pl. egy rövid ideig tartó, nappali időben

@@ -3,7 +3,6 @@ import Link from 'next/link';
 import {
   Train,
   Bus,
-  MapPin,
   Navigation,
   ChevronRight,
   ArrowRight,
@@ -223,7 +222,7 @@ export default function VillamosMetroHevElerhetesekkPage() {
         <section className="mb-16">
           <h2 className="mb-3 text-2xl font-black text-slate-900">Miért fontos a gyaloglási elérhetőség?</h2>
           <p className="mb-5 leading-relaxed text-slate-500">
-            A várostudomány a <strong>„transit desert"</strong> (közlekedési sivatag) fogalmával jelöli
+            A várostudomány a <strong>„transit desert&quot;</strong> (közlekedési sivatag) fogalmával jelöli
             azokat a lakóterületeket, ahol a tömegközlekedési ellátottság annyira hiányos, hogy a lakók
             kénytelenek személyautóra támaszkodni a napi mozgáshoz. Ezek a területek egyszerre szenvednek
             magasabb közlekedési költségektől, rosszabb levegőminőségtől és alacsonyabb ingatlanlikviditástól.
@@ -231,7 +230,7 @@ export default function VillamosMetroHevElerhetesekkPage() {
           <p className="mb-5 leading-relaxed text-slate-500">
             A Szegedi Tudományegyetem 2022-es városmobilitási vizsgálata és az EU SUMP (Sustainable Urban
             Mobility Plan) keretrendszere egyaránt a <strong>400–500 méteres gyaloglási küszöböt</strong> alkalmazza
-            a „jó elérhetőség" minimumkövetelményeként. Az Egészségügyi Világszervezet (WHO) aktivitási
+            a „jó elérhetőség&quot; minimumkövetelményeként. Az Egészségügyi Világszervezet (WHO) aktivitási
             iránymutatásai szerint a napi 30 perces gyaloglás célértékéhez a rövid, megállóig tartó sétákat
             is számítani kell — ez teszi a gyalogos elérhetőséget népegészségügyi szemponttá is.
           </p>
