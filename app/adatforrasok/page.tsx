@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import type { LucideIcon } from 'lucide-react';
 import {
   Database,
   Globe,
@@ -245,7 +246,7 @@ function SourceCard({ source }: { source: DataSource }) {
 
 type SectionProps = {
   id: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: LucideIcon;
   iconBg: string;
   iconColor: string;
   title: string;

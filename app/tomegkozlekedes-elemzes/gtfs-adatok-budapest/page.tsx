@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
   Database,
-  Train,
   ChevronRight,
   ArrowRight,
   CheckCircle,
@@ -13,6 +12,7 @@ import {
   Code,
   Map,
   Clock,
+  MapPin,
 } from 'lucide-react';
 import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
