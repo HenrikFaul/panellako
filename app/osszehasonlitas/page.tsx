@@ -332,7 +332,7 @@ export default function OsszehasonlitasPage() {
           </p>
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
-              href="/auth/signup"
+              href="/login"
               className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-black text-brand-700 shadow-sm transition-transform hover:scale-[1.03]"
             >
               Ingyenes próba indítása

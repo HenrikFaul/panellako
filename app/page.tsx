@@ -271,6 +271,71 @@ export default async function HomePage() {
           </div>
         </section>
 
+        {/* ── URBAN DATA ────────────────────────────────────────────────────── */}
+        <section className="bg-slate-50 py-20 sm:py-24">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+            <div className="mb-12 text-center">
+              <h2 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                Budapest városi adatelemzések
+              </h2>
+              <p className="mt-4 mx-auto max-w-2xl text-base leading-relaxed text-slate-500">
+                Ingyenes, adatvezérelt elemzések Budapest közlekedési, levegőminőségi és
+                zajterhelési viszonyairól — hogy társasháza tájékozottan hozzon döntéseket a
+                környezeti hatásokról.
+              </p>
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <Link
+                href="/elemzes"
+                className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-card transition-shadow hover:shadow-card-md"
+              >
+                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600 ring-1 ring-brand-100 transition-colors group-hover:bg-brand-100">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <line x1="18" y1="20" x2="18" y2="10" />
+                    <line x1="12" y1="20" x2="12" y2="4" />
+                    <line x1="6" y1="20" x2="6" y2="14" />
+                  </svg>
+                </div>
+                <h3 className="mb-2 text-base font-bold text-slate-900">
+                  Városi adatelemzések
+                </h3>
+                <p className="text-sm leading-relaxed text-slate-500">
+                  Fedezze fel Budapest kerületeire vonatkozó levegőminőségi, zajterhelési és
+                  közlekedési adatokat — mind egy helyen, ingyenesen.
+                </p>
+                <span className="mt-4 text-sm font-semibold text-brand-600 group-hover:underline">
+                  Elemzések megtekintése →
+                </span>
+              </Link>
+
+              <Link
+                href="/elemzes/budapest-kozlekedes"
+                className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-card transition-shadow hover:shadow-card-md"
+              >
+                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-sky-600 ring-1 ring-sky-100 transition-colors group-hover:bg-sky-100">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="1" y="3" width="15" height="13" rx="2" />
+                    <path d="M16 8h4l3 3v5h-7V8z" />
+                    <circle cx="5.5" cy="18.5" r="2.5" />
+                    <circle cx="18.5" cy="18.5" r="2.5" />
+                  </svg>
+                </div>
+                <h3 className="mb-2 text-base font-bold text-slate-900">
+                  Budapest közlekedési forgalom
+                </h3>
+                <p className="text-sm leading-relaxed text-slate-500">
+                  Kerületenkénti forgalmi adatok, dugók és közlekedési terhelés elemzése —
+                  hasznos információ az épület elhelyezkedésének értékeléséhez.
+                </p>
+                <span className="mt-4 text-sm font-semibold text-sky-600 group-hover:underline">
+                  Közlekedési elemzés megtekintése →
+                </span>
+              </Link>
+            </div>
+          </div>
+        </section>
+
         {/* ── PERSONAS ──────────────────────────────────────────────────────── */}
         <section className="bg-slate-50 py-20 sm:py-24">
           <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
