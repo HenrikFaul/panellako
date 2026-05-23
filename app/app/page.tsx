@@ -146,6 +146,35 @@ export default async function BuildingPickerPage() {
           </div>
         )}
 
+        {/* ── Portfolio stats summary bar ── */}
+        {hasBuildings && (() => {
+          const bList = buildings as BuildingPickerRow[];
+          const totalBuildings  = bList.length;
+          const totalUnits      = bList.reduce((sum, b) => sum + (b.unit_count ?? 0), 0);
+          const totalOpenTickets = bList.reduce((sum, b) => sum + (b.open_tickets ?? 0), 0);
+          const needsAttention  = bList.filter((b) => b.open_tickets > 0).length;
+          return (
+            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="flex flex-col gap-0.5 rounded-2xl border border-slate-200/70 bg-white px-4 py-3.5 shadow-sm">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Összes épület</span>
+                <span className="text-2xl font-black text-slate-900">{totalBuildings}</span>
+              </div>
+              <div className="flex flex-col gap-0.5 rounded-2xl border border-slate-200/70 bg-white px-4 py-3.5 shadow-sm">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Összes lakás</span>
+                <span className="text-2xl font-black text-slate-900">{totalUnits}</span>
+              </div>
+              <div className="flex flex-col gap-0.5 rounded-2xl border border-slate-200/70 bg-white px-4 py-3.5 shadow-sm">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Nyitott hibajegyek</span>
+                <span className={`text-2xl font-black ${totalOpenTickets > 0 ? 'text-red-600' : 'text-slate-900'}`}>{totalOpenTickets}</span>
+              </div>
+              <div className="flex flex-col gap-0.5 rounded-2xl border border-amber-200/70 bg-amber-50 px-4 py-3.5 shadow-sm">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-600">Figyelmet igénylő</span>
+                <span className={`text-2xl font-black ${needsAttention > 0 ? 'text-amber-700' : 'text-slate-900'}`}>{needsAttention}</span>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Building grid */}
         {hasBuildings && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -169,7 +198,11 @@ function BuildingCard({ building, index }: { building: BuildingPickerRow; index:
     <Link
       href={`/w/${building.building_id}`}
       style={{ animationDelay: delay }}
-      className="card-lift group relative flex animate-fade-in-up flex-col overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white p-5 shadow-card hover:border-brand-300/70 hover:shadow-card-md"
+      className={`card-lift group relative flex animate-fade-in-up flex-col overflow-hidden rounded-[1.5rem] border bg-white p-5 shadow-card hover:shadow-card-md ${
+        hasAlerts
+          ? 'border-amber-300/70 hover:border-amber-400/80'
+          : 'border-slate-200/80 hover:border-brand-300/70'
+      }`}
     >
       {/* Alert dot */}
       {hasAlerts && (

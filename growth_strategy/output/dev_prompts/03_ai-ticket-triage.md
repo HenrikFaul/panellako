@@ -1,0 +1,801 @@
+# Initiative 03 — AI Ticket Triage (Claude API)
+## Competitive Moat via Anthropic claude-sonnet-4-6 | Value: +€320k–€680k
+
+---
+
+## 1. Initiative Header
+
+**Title:** AI Ticket Triage + Vendor Routing — Competitive Moat via Claude API
+
+**Value Range:** +€320k–€680k (AI-native PropTech moat + €15–30/month/building add-on tier)
+
+**Business Case:**
+
+PanelLakó already has a production-grade AI triage pipeline: `supabase/functions/triage-ticket/index.ts` uses `claude-haiku-4-5-20251001` to classify tickets and the `createTicket()` Server Action fires the triage as a fire-and-forget call. The `tickets` table already has `ai_category`, `ai_urgency`, `ai_vendor_suggestion`, `ai_summary_hu`, `ai_triage_at`, and `ai_override` columns. The pipeline is functional.
+
+What is missing is the **downstream** of the triage: the AI output currently sits in the database but is not used to automate anything. Specifically: (1) no `work_orders` row is automatically created from triage output, (2) no push notification is sent to the resident with the AI-generated `resident_update_hu` summary, (3) the urgency badge and vendor chip are not visible in the ticket list UI, and (4) the AI analysis is not shown in the ticket detail view. The pipeline produces output but nobody acts on it.
+
+Completing this loop — triage output → work order → resident push notification → ticket UI badge — creates a genuine automation moat. No Hungarian PropTech competitor has any AI in their ticket workflow. The global PropTech AI market is projected at $41.5B by 2030 (CBRE 2025); PanelLakó can establish the AI-native benchmark in the HU market with this single initiative.
+
+The model upgrade from `claude-haiku-4-5` to `claude-sonnet-4-6` (as specified in this initiative) increases classification accuracy for complex multilingual fault descriptions, especially structural issues described in colloquial Hungarian.
+
+---
+
+## 2. Codebase Context
+
+**Current relevant file tree (verified):**
+
+```
+/home/user/panellako/
+├── supabase/
+│   └── functions/
+│       ├── triage-ticket/
+│       │   └── index.ts              ← FULL IMPLEMENTATION EXISTS (claude-haiku-4-5)
+│       └── send-push/
+│           └── index.ts              ← Push notification Edge Function (EXISTS)
+├── app/
+│   ├── actions/
+│   │   ├── tickets.ts                ← createTicket() fires triage (fire-and-forget)
+│   │   │                               updateTicketStatus(), updateTicketAiOverride()
+│   │   └── work-orders.ts            ← EXISTS (file exists, contents unknown — check)
+│   └── w/
+│       └── [buildingId]/
+│           └── (subpages)/           ← Ticket list/detail views here
+└── lib/
+    └── supabase/
+        └── server.ts
+```
+
+**Current `triage-ticket/index.ts` state:** Fully functional. Calls Anthropic API with `claude-haiku-4-5-20251001`, returns `{category, urgency, vendor_suggestion, summary_hu}`, updates tickets table columns `ai_category`, `ai_urgency`, `ai_vendor_suggestion`, `ai_summary_hu`, `ai_triage_at`.
+
+**What the current triage does NOT do:**
+- Does NOT return or use `resident_update_hu` (a separate resident-facing message) — the current `summary_hu` is a manager-facing technical summary
+- Does NOT invoke `send-push` after triage completes
+- Does NOT create a `work_orders` row
+- Does NOT emit a PostHog event
+
+**Missing column:** `ai_resident_update_hu TEXT` — a plain-language Hungarian update message for the ticket reporter (separate from the technical `ai_summary_hu` shown to the manager).
+
+**Upgrade decision:** The initiative asks to upgrade from `claude-haiku-4-5` to `claude-sonnet-4-6`. Given the existing working pipeline, the upgrade path is: change one constant in `triage-ticket/index.ts` and update the prompt to request the additional `resident_update_hu` field.
+
+---
+
+## 3. Pre-conditions
+
+**Environment variables required (Supabase Edge Function secrets):**
+```
+ANTHROPIC_API_KEY=sk-ant-...         ← Set via: supabase secrets set ANTHROPIC_API_KEY=...
+SUPABASE_URL=https://xxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+```
+
+**Verify ANTHROPIC_API_KEY is set:**
+```bash
+supabase secrets list  # Should show ANTHROPIC_API_KEY
+```
+
+**Migration to apply:**
+- `20260523_020_ticket_ai_resident_update.sql` — add `ai_resident_update_hu` column
+
+**No new npm packages required** — Anthropic API is called via native `fetch()` in the Deno Edge Function.
+
+---
+
+## 4. Phase 1: Database Changes
+
+### Migration: `20260523_020_ticket_ai_resident_update.sql`
+
+```sql
+-- Add resident-facing AI update message to tickets table.
+-- The existing ai_summary_hu is manager-facing (technical).
+-- ai_resident_update_hu is plain-language for the ticket reporter.
+
+ALTER TABLE public.tickets
+  ADD COLUMN IF NOT EXISTS ai_resident_update_hu TEXT,
+  ADD COLUMN IF NOT EXISTS ai_estimated_cost_huf  TEXT;
+
+COMMENT ON COLUMN public.tickets.ai_resident_update_hu IS
+  'Plain-language Hungarian acknowledgement message generated by AI triage. '
+  'Suitable for sending directly to the resident who submitted the ticket. '
+  'Max 200 characters. Not a technical summary — a reassuring confirmation.';
+
+COMMENT ON COLUMN public.tickets.ai_estimated_cost_huf IS
+  'AI-estimated cost range in HUF as a string, e.g., "15.000–45.000 Ft". '
+  'Informational only — not a binding quote.';
+
+-- Index for finding tickets needing push notification dispatch
+CREATE INDEX IF NOT EXISTS idx_tickets_ai_triage_push_pending
+  ON public.tickets (id, ai_triage_at, ai_resident_update_hu)
+  WHERE ai_triage_at IS NOT NULL
+    AND ai_resident_update_hu IS NOT NULL
+    AND reporter_id IS NOT NULL;
+
+-- Work orders table (create if it doesn't exist yet)
+CREATE TABLE IF NOT EXISTS public.work_orders (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ticket_id             UUID NOT NULL REFERENCES public.tickets(id) ON DELETE CASCADE,
+  building_id           UUID NOT NULL REFERENCES public.buildings(id) ON DELETE CASCADE,
+  suggested_vendor_type TEXT NOT NULL,
+  status                TEXT NOT NULL DEFAULT 'pending_vendor'
+                          CHECK (status IN ('pending_vendor', 'vendor_contacted', 'scheduled', 'completed', 'cancelled')),
+  assigned_vendor_name  TEXT,
+  assigned_vendor_phone TEXT,
+  scheduled_at          TIMESTAMPTZ,
+  completed_at          TIMESTAMPTZ,
+  estimated_cost_huf    TEXT,
+  notes                 TEXT,
+  created_by_ai         BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_work_orders_ticket_id
+  ON public.work_orders (ticket_id);
+
+CREATE INDEX IF NOT EXISTS idx_work_orders_building_status
+  ON public.work_orders (building_id, status);
+
+ALTER TABLE public.work_orders ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Manager read own work orders" ON public.work_orders;
+CREATE POLICY "Manager read own work orders" ON public.work_orders
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.memberships m
+      WHERE m.building_id = work_orders.building_id
+        AND m.profile_id = auth.uid()
+        AND m.active = true
+        AND m.role IN ('kozos_kepviselo', 'megbizott', 'konyvelo', 'karbantarto')
+    )
+  );
+
+DROP POLICY IF EXISTS "Manager insert work orders" ON public.work_orders;
+CREATE POLICY "Manager insert work orders" ON public.work_orders
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.memberships m
+      WHERE m.building_id = work_orders.building_id
+        AND m.profile_id = auth.uid()
+        AND m.active = true
+        AND m.role IN ('kozos_kepviselo', 'megbizott')
+    )
+  );
+```
+
+---
+
+## 5. Phase 2: Server-side
+
+### Updated: `supabase/functions/triage-ticket/index.ts`
+
+Replace the full file with this updated version that uses `claude-sonnet-4-6`, adds `resident_update_hu` and `estimated_cost_huf` fields, and triggers `send-push` on completion:
+
+```typescript
+// Supabase Edge Function — AI triage for PanelLakó fault tickets
+// Runtime: Deno (Supabase Edge Runtime)
+// Model: claude-sonnet-4-6 (upgraded from claude-haiku-4-5 for improved Hungarian accuracy)
+// Deploy: supabase functions deploy triage-ticket --no-verify-jwt
+
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+interface TriageRequest {
+  ticket_id: string;
+  title: string;
+  description: string;
+  building_id?: string;
+}
+
+interface TriageResult {
+  category: string;
+  urgency: number;
+  vendor_suggestion: string;
+  summary_hu: string;
+  resident_update_hu: string;
+  estimated_cost_huf: string;
+}
+
+const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+const MODEL_ID = 'claude-sonnet-4-6';
+const MAX_TOKENS = 800;
+const VALID_CATEGORIES = [
+  'plumbing', 'electrical', 'structural', 'common_area',
+  'emergency', 'hvac', 'elevator', 'other'
+] as const;
+
+function buildSystemPrompt(): string {
+  return `Te egy magyarországi társasházi hibabejelentés-triázs AI asszisztens vagy.
+A feladatod: egy hibabejelentés alapján strukturált JSON választ adni.
+
+SZIGORÚ SZABÁLYOK:
+1. Mindig és kizárólag valid JSON objektumot adj vissza — semmi más szöveget.
+2. Ne írj magyarázatot, ne adj hozzá backtick-eket.
+3. A JSON egyetlen sorban legyen.
+
+VÁLASZ FORMÁTUM (mind a 6 mező kötelező):
+{"category":"KATEGÓRIA","urgency":SZAM,"vendor_suggestion":"JAVASLAT_MAGYARUL","summary_hu":"ÖSSZEFOGLALÓ_MAGYARUL","resident_update_hu":"LAKÓI_ÜZENET_MAGYARUL","estimated_cost_huf":"ÖSSZEG_TARTOMÁNY"}
+
+KATEGÓRIÁK: plumbing | electrical | structural | common_area | emergency | hvac | elevator | other
+
+SÜRGŐSSÉG (1–10): 1–4=rutinkarbantartás, 5–7=mielőbbi intézkedés, 8–9=sürgős, 10=életveszély
+
+VENDOR_SUGGESTION: Egy mondat magyarul — szükséges szakember típusa és sürgősség.
+SUMMARY_HU: Max 120 karakter — technikai összefoglaló a kezelőnek.
+RESIDENT_UPDATE_HU: Max 160 karakter — barátságos visszajelzés a bejelentőnek (pl. "Köszönjük a bejelentést! Vízvezeték-szakembert küldünk 2 napon belül.").
+ESTIMATED_COST_HUF: Becsült javítási költség tartomány (pl. "15 000–45 000 Ft") vagy "Nem becsülhető".`;
+}
+
+function buildUserMessage(title: string, description: string): string {
+  return `Hibabejelentés:\nCím: ${title}\nLeírás: ${description}\n\nTriázs kérés. Csak JSON.`;
+}
+
+function parseTriageResponse(rawText: string): TriageResult | null {
+  let cleaned = rawText.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  const jsonStart = cleaned.indexOf('{');
+  const jsonEnd = cleaned.lastIndexOf('}');
+  if (jsonStart === -1 || jsonEnd === -1) return null;
+  cleaned = cleaned.slice(jsonStart, jsonEnd + 1);
+
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (typeof parsed.category !== 'string') return null;
+    if (typeof parsed.urgency !== 'number' || parsed.urgency < 1 || parsed.urgency > 10) return null;
+    if (typeof parsed.vendor_suggestion !== 'string') return null;
+    if (typeof parsed.summary_hu !== 'string') return null;
+
+    const normalizedCategory = VALID_CATEGORIES.includes(
+      parsed.category as typeof VALID_CATEGORIES[number]
+    ) ? parsed.category : 'other';
+
+    return {
+      category: normalizedCategory,
+      urgency: Math.max(1, Math.min(10, Math.round(parsed.urgency))),
+      vendor_suggestion: String(parsed.vendor_suggestion).slice(0, 500),
+      summary_hu: String(parsed.summary_hu).slice(0, 200),
+      resident_update_hu: String(parsed.resident_update_hu ?? '').slice(0, 200),
+      estimated_cost_huf: String(parsed.estimated_cost_huf ?? 'Nem becsülhető').slice(0, 100),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function callAnthropicApi(title: string, description: string): Promise<TriageResult | null> {
+  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
+  if (!apiKey) { console.error('[triage] ANTHROPIC_API_KEY not set'); return null; }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+  try {
+    const response = await fetch(ANTHROPIC_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: MODEL_ID,
+        max_tokens: MAX_TOKENS,
+        system: buildSystemPrompt(),
+        messages: [{ role: 'user', content: buildUserMessage(title, description) }],
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    if (!response.ok) {
+      const err = await response.text();
+      console.error(`[triage] Anthropic error ${response.status}:`, err);
+      return null;
+    }
+
+    const data = await response.json();
+    const rawText = data.content?.[0]?.text ?? '';
+    console.log('[triage] token usage:', JSON.stringify(data.usage));
+    return parseTriageResponse(rawText);
+  } catch (err) {
+    clearTimeout(timeoutId);
+    console.error('[triage] API call failed:', err);
+    return null;
+  }
+}
+
+async function triggerPushNotification(
+  supabase: ReturnType<typeof createClient>,
+  supabaseUrl: string,
+  serviceKey: string,
+  reporterId: string,
+  message: string,
+  ticketId: string
+): Promise<void> {
+  try {
+    await fetch(`${supabaseUrl}/functions/v1/send-push`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        user_id: reporterId,
+        title: 'Hibabejelentés visszaigazolva',
+        body: message,
+        data: { ticket_id: ticketId, type: 'ticket_triage_complete' },
+      }),
+    });
+  } catch (err) {
+    console.warn('[triage] Push notification failed (non-fatal):', err);
+  }
+}
+
+async function createWorkOrder(
+  supabase: ReturnType<typeof createClient>,
+  ticketId: string,
+  buildingId: string,
+  vendorType: string,
+  estimatedCost: string
+): Promise<void> {
+  const { error } = await supabase.from('work_orders').insert({
+    ticket_id: ticketId,
+    building_id: buildingId,
+    suggested_vendor_type: vendorType,
+    status: 'pending_vendor',
+    estimated_cost_huf: estimatedCost,
+    created_by_ai: true,
+  });
+  if (error) console.warn('[triage] Work order creation failed (non-fatal):', error);
+  else console.log('[triage] Work order created for ticket', ticketId);
+}
+
+serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      },
+    });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  let body: TriageRequest;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+      status: 400, headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const { ticket_id, title, description, building_id } = body;
+  if (!ticket_id || !title || !description) {
+    return new Response(JSON.stringify({ error: 'ticket_id, title and description are required' }), {
+      status: 400, headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, serviceKey);
+
+  // Fetch ticket + reporter_id
+  const { data: ticket, error: fetchError } = await supabase
+    .from('tickets')
+    .select('id, title, description, reporter_id, building_id')
+    .eq('id', ticket_id)
+    .single();
+
+  if (fetchError || !ticket) {
+    return new Response(JSON.stringify({ error: 'Ticket not found' }), {
+      status: 404, headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const triageResult = await callAnthropicApi(title, description);
+  if (!triageResult) {
+    return new Response(
+      JSON.stringify({ success: false, ticket_id, error: 'AI triage failed' }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Update ticket with full triage result
+  const { error: updateError } = await supabase
+    .from('tickets')
+    .update({
+      ai_category: triageResult.category,
+      ai_urgency: triageResult.urgency,
+      ai_vendor_suggestion: triageResult.vendor_suggestion,
+      ai_summary_hu: triageResult.summary_hu,
+      ai_resident_update_hu: triageResult.resident_update_hu,
+      ai_estimated_cost_huf: triageResult.estimated_cost_huf,
+      ai_triage_at: new Date().toISOString(),
+      ai_override: false,
+    })
+    .eq('id', ticket_id);
+
+  if (updateError) {
+    console.error('[triage] DB update failed:', updateError);
+    return new Response(
+      JSON.stringify({ success: false, ticket_id, error: 'Database update failed' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const effectiveBuildingId = building_id ?? ticket.building_id;
+
+  // Fire-and-forget: create work order
+  if (effectiveBuildingId) {
+    createWorkOrder(
+      supabase,
+      ticket_id,
+      effectiveBuildingId,
+      triageResult.vendor_suggestion,
+      triageResult.estimated_cost_huf
+    ).catch(() => {});
+  }
+
+  // Fire-and-forget: send push notification to reporter
+  if (ticket.reporter_id && triageResult.resident_update_hu) {
+    triggerPushNotification(
+      supabase,
+      supabaseUrl,
+      serviceKey,
+      ticket.reporter_id,
+      triageResult.resident_update_hu,
+      ticket_id
+    ).catch(() => {});
+  }
+
+  console.log(`[triage] Complete for ${ticket_id}: category=${triageResult.category}, urgency=${triageResult.urgency}`);
+
+  return new Response(
+    JSON.stringify({ success: true, ticket_id, triage: triageResult }),
+    { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+  );
+});
+```
+
+### New file: `app/actions/work-orders.ts` — additions
+
+```typescript
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { createClient } from '@/lib/supabase/server';
+
+export type WorkOrderStatus = 'pending_vendor' | 'vendor_contacted' | 'scheduled' | 'completed' | 'cancelled';
+
+export interface UpdateWorkOrderInput {
+  workOrderId: string;
+  status?: WorkOrderStatus;
+  assignedVendorName?: string;
+  assignedVendorPhone?: string;
+  scheduledAt?: string;
+  completedAt?: string;
+  notes?: string;
+}
+
+export async function updateWorkOrder(input: UpdateWorkOrderInput) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, error: 'Nem vagy bejelentkezve.' };
+
+  const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (input.status !== undefined) updateData.status = input.status;
+  if (input.assignedVendorName !== undefined) updateData.assigned_vendor_name = input.assignedVendorName;
+  if (input.assignedVendorPhone !== undefined) updateData.assigned_vendor_phone = input.assignedVendorPhone;
+  if (input.scheduledAt !== undefined) updateData.scheduled_at = input.scheduledAt;
+  if (input.completedAt !== undefined) updateData.completed_at = input.completedAt;
+  if (input.notes !== undefined) updateData.notes = input.notes;
+
+  const { error } = await supabase
+    .from('work_orders')
+    .update(updateData)
+    .eq('id', input.workOrderId);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath('/');
+  return { success: true };
+}
+
+export async function getWorkOrdersForBuilding(buildingId: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, error: 'Nem vagy bejelentkezve.', orders: [] };
+
+  const { data, error } = await supabase
+    .from('work_orders')
+    .select('*, tickets(title, ai_category, ai_urgency, status)')
+    .eq('building_id', buildingId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) return { success: false, error: error.message, orders: [] };
+  return { success: true, orders: data ?? [] };
+}
+```
+
+---
+
+## 6. Phase 3: Client-side
+
+### New component: `components/ticket-ai-badge.tsx`
+
+```typescript
+'use client';
+
+// Urgency color badge + vendor chip + AI summary tooltip for ticket list items.
+// Renders only when ai_triage_at is set (triage completed).
+
+interface TicketAiBadgeProps {
+  aiCategory?: string | null;
+  aiUrgency?: number | null;
+  aiVendorSuggestion?: string | null;
+  aiSummaryHu?: string | null;
+  aiTriageAt?: string | null;
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  plumbing:    'Vízvezeték',
+  electrical:  'Villamos',
+  structural:  'Szerkezeti',
+  common_area: 'Közös tér',
+  emergency:   'Vészhelyzet',
+  hvac:        'Fűtés/Klíma',
+  elevator:    'Lift',
+  other:       'Egyéb',
+};
+
+function urgencyColor(urgency: number): string {
+  if (urgency >= 8) return 'bg-red-100 text-red-700 ring-red-200';
+  if (urgency >= 5) return 'bg-amber-100 text-amber-700 ring-amber-200';
+  return 'bg-green-100 text-green-700 ring-green-200';
+}
+
+function urgencyLabel(urgency: number): string {
+  if (urgency >= 8) return 'Sürgős';
+  if (urgency >= 5) return 'Mielőbbi';
+  return 'Rutín';
+}
+
+export default function TicketAiBadge({
+  aiCategory, aiUrgency, aiVendorSuggestion, aiSummaryHu, aiTriageAt,
+}: TicketAiBadgeProps) {
+  if (!aiTriageAt) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-400">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-slate-300" />
+        AI feldolgozás...
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {/* Urgency badge */}
+      {aiUrgency != null && (
+        <span
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ring-1 ${urgencyColor(aiUrgency)}`}
+          title={`AI sürgősség: ${aiUrgency}/10`}
+        >
+          {urgencyLabel(aiUrgency)} ({aiUrgency})
+        </span>
+      )}
+
+      {/* Category chip */}
+      {aiCategory && (
+        <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-indigo-200">
+          {CATEGORY_LABELS[aiCategory] ?? aiCategory}
+        </span>
+      )}
+
+      {/* Vendor suggestion tooltip */}
+      {aiVendorSuggestion && (
+        <span
+          className="inline-flex cursor-help items-center rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-500 ring-1 ring-slate-200"
+          title={aiVendorSuggestion}
+        >
+          💡 Javaslat
+        </span>
+      )}
+
+      {/* AI summary tooltip */}
+      {aiSummaryHu && (
+        <span
+          className="inline-flex cursor-help items-center rounded-full bg-purple-50 px-2 py-0.5 text-xs text-purple-600 ring-1 ring-purple-200"
+          title={aiSummaryHu}
+        >
+          🤖 AI összefoglaló
+        </span>
+      )}
+    </div>
+  );
+}
+```
+
+---
+
+## 7. Phase 4: Configuration
+
+**Supabase Edge Function secrets (set in Supabase Dashboard → Edge Functions → Secrets):**
+```bash
+supabase secrets set ANTHROPIC_API_KEY=sk-ant-api03-...
+```
+
+**Verify deployment:**
+```bash
+supabase functions deploy triage-ticket --no-verify-jwt
+supabase functions list  # Confirm triage-ticket shows as ACTIVE
+```
+
+**Model version in the function:** The constant `MODEL_ID = 'claude-sonnet-4-6'` refers to the current production Sonnet model. Verify the exact model ID at https://docs.anthropic.com/en/docs/models-overview before deploying.
+
+**No `next.config.mjs` changes required.**
+
+**Cost estimate:** `claude-sonnet-4-6` costs approximately $3/MTok input + $15/MTok output. A typical triage call uses ~400 input tokens + ~150 output tokens = ~$0.0034/triage. At 1,000 tickets/month across 100 buildings: ~$3.40/month. Extremely low cost relative to the value.
+
+---
+
+## 8. Phase 5: Testing
+
+### Manual Smoke Test
+
+1. **Submit a test ticket:** Navigate to any building's ticket submission form. Submit a ticket with title "A fürdőszobában csöpög a csap" and description "A főfürdőszobában az egyik csap már 3 napja csöpög. A padlón folyvást víz van."
+
+2. **Verify triage fires:** Check Supabase Edge Function logs: `supabase functions logs triage-ticket`. Should see `[triage] Complete for {id}: category=plumbing, urgency=...`.
+
+3. **Verify DB update:** In Supabase Table Editor → `tickets` → find the ticket. Check that `ai_category = 'plumbing'`, `ai_urgency = 4-6`, `ai_summary_hu` is populated, `ai_resident_update_hu` contains a friendly Hungarian message.
+
+4. **Verify work order created:** Check `work_orders` table — a row should exist with `ticket_id = {id}`, `created_by_ai = true`, `status = 'pending_vendor'`.
+
+5. **Verify push notification attempted:** Check `send-push` Edge Function logs for the reporter's user ID.
+
+6. **Test urgency badge in UI:** Reload the ticket list page — the AI badge should show urgency level and category chip.
+
+7. **Test emergency ticket:** Submit "Gázszivárgást érzek a konyhában!" — expect `ai_urgency >= 9`, `ai_category = 'emergency'`.
+
+### Automated Test Cases
+
+```typescript
+describe('parseTriageResponse (unit test)', () => {
+  it('parses valid 6-field JSON response', () => {
+    const raw = `{"category":"plumbing","urgency":5,"vendor_suggestion":"Vízszerelő 24 órán belül","summary_hu":"Csöpögő csap fürdőszobában","resident_update_hu":"Köszönjük! Vízszerelőt küldünk.","estimated_cost_huf":"8 000–25 000 Ft"}`;
+    const result = parseTriageResponse(raw);
+    expect(result?.category).toBe('plumbing');
+    expect(result?.urgency).toBe(5);
+    expect(result?.resident_update_hu).toBeDefined();
+  });
+
+  it('normalizes unknown category to other', () => {
+    const raw = `{"category":"unknown_category","urgency":3,"vendor_suggestion":"x","summary_hu":"x","resident_update_hu":"x","estimated_cost_huf":"x"}`;
+    const result = parseTriageResponse(raw);
+    expect(result?.category).toBe('other');
+  });
+
+  it('clamps urgency to 1–10 range', () => {
+    const raw = `{"category":"electrical","urgency":15,"vendor_suggestion":"x","summary_hu":"x","resident_update_hu":"x","estimated_cost_huf":"x"}`;
+    const result = parseTriageResponse(raw);
+    expect(result?.urgency).toBe(10);
+  });
+
+  it('returns null for malformed JSON', () => {
+    const result = parseTriageResponse('not json at all');
+    expect(result).toBeNull();
+  });
+
+  it('returns null when urgency field is missing', () => {
+    const raw = `{"category":"plumbing","vendor_suggestion":"x","summary_hu":"x","resident_update_hu":"x"}`;
+    const result = parseTriageResponse(raw);
+    expect(result).toBeNull();
+  });
+});
+```
+
+---
+
+## 9. Error Handling & Edge Cases
+
+**Scenario 1: Anthropic API is unavailable**
+The 20-second timeout fires → `controller.abort()`. `callAnthropicApi()` returns `null`. The Edge Function returns `{ success: false, error: 'AI triage failed' }` with HTTP 200 (not 500 — the ticket was successfully created, triage is non-blocking). The ticket's `ai_triage_at` remains null. The ticket list shows "AI feldolgozás..." badge indefinitely until a manual retry.
+
+**Scenario 2: Anthropic returns invalid JSON**
+`parseTriageResponse()` returns `null`. Same handling as scenario 1 — ticket is saved without AI fields. No crash.
+
+**Scenario 3: `work_orders` insert fails (e.g., building_id not found)**
+`createWorkOrder()` logs a warning and continues. The ticket triage result is still saved. Work order creation is non-critical.
+
+**Scenario 4: `send-push` fails (user has no push subscription)**
+`triggerPushNotification()` logs a warning and continues. Push failure is non-critical — triage completes successfully.
+
+**Scenario 5: Ticket is deleted before triage completes**
+The `.eq('id', ticket_id).single()` fetch at the start of the Edge Function returns `fetchError`. The function returns 404 cleanly — no orphaned data.
+
+**Scenario 6: `ANTHROPIC_API_KEY` not set in Edge Function secrets**
+`callAnthropicApi()` returns `null` immediately. The ticket is still saved. Log message: `[triage] ANTHROPIC_API_KEY not set`. Alert: monitor Edge Function logs for this error in production.
+
+**Scenario 7: Same ticket triggered twice (race condition)**
+If `createTicket()` is called twice (e.g., form double-submit), two triage calls fire. The second one will overwrite the first with identical (or slightly different) results. `ai_triage_at` gets updated. One extra `work_orders` row may be created. This is acceptable — add a DB trigger or check `WHERE ai_triage_at IS NULL` to prevent duplicate work orders.
+
+**Scenario 8: Very long ticket description (>10,000 characters)**
+The `buildUserMessage()` function should truncate description to 2,000 characters before sending to the API. Add: `description: description.slice(0, 2000)` in `buildUserMessage`.
+
+---
+
+## 10. Integration with Other Initiatives
+
+- **Initiative 01 (Portfolio Dashboard):** The `open_tickets` count in `get_portfolio_summary()` includes all non-closed tickets. High-urgency tickets (ai_urgency >= 8) could be surfaced as a separate "Sürgős ügyek" counter — add a `high_urgency_tickets` aggregate to the RPC in a future iteration.
+
+- **Initiative 06 (Email Suite):** Add an email notification for ticket reporters when triage completes. The `ai_resident_update_hu` field contains the ready-to-send message — wire it to `sendTypedEmail('ticket_triage', [reporter.email], { message: ai_resident_update_hu })`.
+
+- **Initiative 09 (Resident Portal):** The portal's ticket list for residents should show the `ai_resident_update_hu` message as a status update once triage completes.
+
+- **Initiative 10 (PostHog):** Add to the triage Edge Function after the DB update:
+  ```typescript
+  // PostHog server-side event (via HTTP API — no posthog-js in Deno)
+  await fetch('https://eu.i.posthog.com/capture/', {
+    method: 'POST',
+    body: JSON.stringify({
+      api_key: Deno.env.get('POSTHOG_API_KEY'),
+      event: 'ticket_ai_triage_completed',
+      properties: {
+        distinct_id: ticket.reporter_id ?? 'anonymous',
+        category: triageResult.category,
+        urgency: triageResult.urgency,
+      },
+    }),
+  });
+  ```
+
+---
+
+## 11. Rollback Plan
+
+1. **Revert model change:** Change `MODEL_ID` back to `'claude-haiku-4-5-20251001'` in `triage-ticket/index.ts`. Re-deploy: `supabase functions deploy triage-ticket`.
+
+2. **Revert triage output fields:** Remove `resident_update_hu` and `estimated_cost_huf` from the system prompt and response parsing. Remove the DB update lines for these fields.
+
+3. **Remove work order creation:** Comment out the `createWorkOrder()` call.
+
+4. **Remove push trigger:** Comment out the `triggerPushNotification()` call.
+
+5. **Revert migration (if needed):**
+   ```sql
+   ALTER TABLE public.tickets
+     DROP COLUMN IF EXISTS ai_resident_update_hu,
+     DROP COLUMN IF EXISTS ai_estimated_cost_huf;
+   DROP TABLE IF EXISTS public.work_orders;
+   ```
+   Note: only drop `work_orders` if it is empty. If it contains data, retain the table and just disable the AI auto-creation.
+
+6. **Remove UI component:** Delete `components/ticket-ai-badge.tsx` and remove its import from ticket list views.
+
+---
+
+## 12. Definition of Done
+
+- [ ] Migration `20260523_020_ticket_ai_resident_update.sql` applied — `ai_resident_update_hu` column exists on `tickets`
+- [ ] `work_orders` table created with correct RLS policies
+- [ ] `triage-ticket/index.ts` updated to `claude-sonnet-4-6` model
+- [ ] Triage response includes `resident_update_hu` field (verified in Edge Function logs)
+- [ ] `work_orders` row auto-created after triage (verified in Supabase Table Editor)
+- [ ] `send-push` invoked with `resident_update_hu` text after triage (verified in function logs)
+- [ ] `app/actions/work-orders.ts` implements `updateWorkOrder()` and `getWorkOrdersForBuilding()`
+- [ ] `components/ticket-ai-badge.tsx` renders urgency badge (red/amber/green) and category chip
+- [ ] Badge shows "AI feldolgozás..." animation while `ai_triage_at` is null
+- [ ] Emergency ticket (gázszivárgás) produces `ai_urgency >= 9` and `ai_category = 'emergency'`
+- [ ] TypeScript compiles cleanly for all new/modified client files
+- [ ] Edge Function deployed: `supabase functions list` shows triage-ticket as ACTIVE
+- [ ] ANTHROPIC_API_KEY confirmed in Edge Function secrets: `supabase secrets list`
+- [ ] Manual smoke test: 3 different ticket types produce correct category classifications

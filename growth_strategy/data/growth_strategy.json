@@ -1,159 +1,166 @@
 {
   "initiatives": [
     {
-      "value": "+€420k–€900k",
+      "value": "+€450k–€900k",
       "translations": {
         "en": {
-          "title": "Real Supabase Data Writes — Replace All Mock Data (Production Unblock)",
+          "title": "Multi-Building Portfolio Dashboard — Property Manager Scale Architecture",
           "desc": [
-            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. PanelLakó's most critical growth blocker is that the entire data layer runs on mock/static data. Tickets, meter readings, announcements, votes and financial entries are displayed but not persisted. No real building manager can adopt a tool where submitted fault reports vanish on refresh. This is a zero-to-one inflection point: once real writes land, PanelLakó becomes a deployable product instead of a prototype.",
-            "The market context reinforces urgency: OnlineHáz (Hungary's incumbent) charges ~€15–30/unit/month and has ~1,500 buildings. PanelLakó's superior UX and modern stack can win contracts — but only if the product works. Every week of mock-data delay is a week a competitor retains those buildings.",
-            "Implementation is straightforward: Next.js Server Actions (available in Next.js 14) are the cleanest path — no separate API layer needed. Each mutation (ticket create/update, meter reading submit, document acknowledge) becomes a typed Server Action calling Supabase directly with RLS enforcement. The existing schema is correct; only the frontend data-binding is missing."
+            "PanelLakó's highest-leverage growth move is fully unlocking the professional property manager segment (közös képviselők and ügynökségek). The workspace routing already follows `/w/[buildingId]` (enforced since v3.16.0 governance) and the workspace shell exists in `components/workspace-shell.tsx`, but portfolio-level intelligence — aggregate ticket queue, multi-building financial overview, cross-building benchmarking — is not yet surfaced. Professional managers charge 8–25 buildings per firm; a portfolio dashboard multiplies revenue per customer by the same factor.",
+            "Hungary has approximately 2,400 licensed property management companies, each managing an average of 8–25 buildings. One ügynökség signing up under an Enterprise tier represents €5,760–€18,000 ARR at the current Pro pricing (€3/unit/month × 40 units average × 12 months × 8–25 buildings). OnlineHáz serves buildings individually and has no portfolio view. Domus24 offers a basic multi-building list but no cross-building analytics. PanelLakó can leapfrog both with a genuine portfolio intelligence layer that asset managers, accountants, and municipality housing offices will pay significantly more for.",
+            "Technical approach: add a `/app` building picker (already implied by the route tree; `app/app/page.tsx` would list buildings from `memberships` RLS-filtered query) and a portfolio summary page at the picker level. Aggregate from existing Supabase tables: open tickets per building, total arrears, upcoming assembly dates, environmental score. Render with a `PortfolioDashboard` component using Recharts for cross-building comparison bars. The `workspace-sidebar.tsx` already contains navigation scaffolding — extend it with a breadcrumb that shows the portfolio context and a 'Back to Portfolio' link."
           ],
           "impl": [
-            "1. Create `app/actions/` folder for all Server Actions.",
-            "2. In `app/actions/tickets.ts`: `'use server'; export async function createTicket(data) { const supabase = createServerClient(); await supabase.from('tickets').insert(data); revalidatePath('/'); }`",
-            "3. Repeat pattern for: meter_readings, announcements, notifications, document_acknowledgements, votes, work_orders.",
-            "4. In `components/dashboard-client.tsx`: replace mock handlers with `await createTicket(formData)` etc.",
-            "5. Install `@supabase/ssr` for server-side session: `npm install @supabase/ssr`.",
-            "6. Replace `createClient()` in server components with `createServerClient(cookies())` from `@supabase/ssr`.",
-            "7. Add `revalidatePath('/')` after each mutation to refresh server-rendered data.",
-            "8. Update `supabase/schema.sql` with `INSERT` test data for smoke testing.",
-            "9. Verify RLS policies allow authenticated inserts for each role."
+            "1. Create `app/app/page.tsx`: query `public.get_my_buildings()` RPC (migration `20260516_get_my_buildings_rpc.sql` already exists), render BuildingCard grid with unit count, open ticket badge, arrears indicator, last assembly date.",
+            "2. Create `app/app/portfolio/page.tsx`: aggregate KPIs across all managed buildings — total open tickets, total arrears outstanding, buildings with overdue common cost, upcoming assemblies in 30 days.",
+            "3. Add `components/portfolio-stats-bar.tsx`: Recharts BarChart comparing buildings by unresolved tickets, arrears total, env score from `building_env_score` table.",
+            "4. Update `components/workspace-sidebar.tsx`: add 'Portfolio Overview' link at the top of nav, 'Back to all buildings' breadcrumb below building name.",
+            "5. Protect `app/app/**` routes in `middleware.ts`: redirect unauthenticated users to `/login`.",
+            "6. Add `portfolio_role` column to `building_memberships` (ügynökség vs. individual manager) to drive upsell prompts.",
+            "7. Create `app/actions/portfolio.ts` Server Action: `getPortfolioSummary(userId)` returns per-building aggregates in one query with Postgres window functions.",
+            "8. Wire the Stripe billing page (`app/billing/billing-client.tsx`) to offer an 'Ügynökségi' multi-building tier at a per-building discount when >3 buildings are managed."
           ],
           "metrics": [
-            ["Deployable product status", "Prototype → Production-ready"],
-            ["Pilot conversion potential", "0 → 3–10 signed buildings"],
-            ["ARR impact", "€0 → €6k–€24k first-year ARR"],
-            ["Valuation impact", "€180k → €420k–€900k"]
+            ["Customer segment unlocked", "Single-building managers → Portfolio managers (8–25 buildings)"],
+            ["ARR multiplier per customer", "€720–€1,440/year → €5,760–€36,000/year"],
+            ["Addressable market in HU", "~2,400 property management companies"],
+            ["Valuation impact", "+€450k–€900k at 15–25× ARR multiple"]
           ],
-          "regen": "You are a senior Next.js + Supabase engineer. The codebase is at /home/user/panellako. All data mutations are currently mock/static. Implement Server Actions for all 8 core mutation types (tickets, meter_readings, announcements, notifications, document_acknowledgements, votes, work_orders, financials) following the pattern in `app/actions/`. Use @supabase/ssr for server-side session. Add revalidatePath after each mutation. Verify existing RLS policies in supabase/schema.sql allow authenticated inserts."
+          "regen": "You are a senior Next.js 14 + Supabase engineer working on PanelLakó, a Hungarian PropTech SaaS at /home/user/panellako. The product is at v0.9.23. The route tree has `app/w/[buildingId]/(subpages)/` for building-scoped pages and `app/app/` for the picker. The existing RPC `public.get_my_buildings()` is in migration `20260516_get_my_buildings_rpc.sql`. Design and implement: (1) `app/app/page.tsx` building picker with KPI badges, (2) `app/app/portfolio/page.tsx` aggregate portfolio dashboard, (3) `components/portfolio-stats-bar.tsx` Recharts cross-building comparison, (4) sidebar breadcrumb update in `components/workspace-sidebar.tsx`, (5) Stripe multi-building tier wiring in `app/billing/billing-client.tsx`. Include full TypeScript code, Supabase query patterns, and RLS considerations. Value range: +€450k–€900k."
         },
         "hu": {
-          "title": "Valós Supabase írások — Összes mock adat cseréje (Éles blokkoló feloldása)",
+          "title": "Multi-épület portfólió dashboard — Közös képviselői skálázási architektúra",
           "desc": [
-            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. A PanelLakó legsürgetőbb növekedési blokkolója, hogy az egész adatréteg mock/statikus adatokon fut. A hibabejelentések, mérőóra-bejelentések, értesítések, szavazatok és pénzügyi tételek megjelennek, de nem kerülnek mentésre. Egyetlen közös képviselő sem fogadhat el egy olyan eszközt, ahol a beküldött hibabejelentések frissítés után eltűnnek.",
-            "A piaci kontextus sürgeti a megoldást: az OnlineHáz (Magyarország vezető megoldása) ~15–30 €/albetét/hónap díjat számol fel és ~1 500 épületet kezel. A PanelLakó jobb UX-e és modern stack-je szerződéseket nyerhet — de csak akkor, ha a termék működik.",
-            "Az implementáció egyszerű: a Next.js Server Actions (Next.js 14-ben elérhető) a legtisztább megközelítés — nincs szükség külön API rétegre. Minden mutáció (ticket létrehozás/frissítés, mérőóra beküldés, dokumentum visszaigazolás) gépelt Server Actionné válik, amely közvetlenül hívja a Supabase-t RLS érvényesítéssel."
+            "A PanelLakó legtöbb bevételt generáló növekedési lépése a professzionális közös képviselői és ügynökségi szegmens teljes feloldása. A munkaterület-routing már `/w/[buildingId]` alakot követ (a v3.16.0 governance óta kötelező), és a `components/workspace-shell.tsx` létezik, de a portfólió-szintű intelligencia — összesített hibabejelentési sor, több épületre kiterjedő pénzügyi áttekintés, épületek közötti összehasonlítás — még nem jelenik meg. A professzionális kezelők cégenkénti 8–25 épületet kezelnek; a portfólió dashboard ugyanolyan szorzóval növeli az ügyfélenkénti bevételt.",
+            "Magyarországon körülbelül 2 400 engedéllyel rendelkező ingatlankezelő cég működik, amelyek átlagosan 8–25 épületet kezelnek. Egyetlen ügynökség belépése Enterprise szinten 5 760–18 000 € éves ARR-t jelent a jelenlegi Pro árazással (3 €/albetét/hó × 40 átlagos albetét × 12 hónap × 8–25 épület). Az OnlineHáz épületenként szolgál ki, portfólió nézetük nincs. A Domus24 csak alap épületlistát nyújt, több épületes elemzést nem. A PanelLakó mindkettőt megelőzheti egy valódi portfólió-intelligencia réteggel.",
+            "Technikai megközelítés: `/app` épületválasztó hozzáadása (az `app/app/page.tsx` épületlistát jelenít meg a `memberships` RLS-szűrt lekérdezéséből) és portfólió összefoglaló oldal a választó szintjén. Aggregálás meglévő Supabase táblákból: nyitott hibabejelentések épületenként, összes hátralék, közelgő közgyűlési dátumok, környezeti pontszám. Recharts kereszt-épület összehasonlító oszlopdiagramokkal."
           ],
           "impl": [
-            "1. Hozd létre az `app/actions/` mappát az összes Server Action számára.",
-            "2. `app/actions/tickets.ts`-ben: `'use server'; export async function createTicket(data) { const supabase = createServerClient(); await supabase.from('tickets').insert(data); revalidatePath('/'); }`",
-            "3. Ismételd meg a mintát: meter_readings, announcements, notifications, document_acknowledgements, votes, work_orders esetén.",
-            "4. `components/dashboard-client.tsx`-ben: cseréld le a mock handleröket `await createTicket(formData)` hívásokra.",
-            "5. Telepítsd: `npm install @supabase/ssr`.",
-            "6. Cseréld le a szerver komponensekben a `createClient()`-et `createServerClient(cookies())`-ra.",
-            "7. Adj hozzá `revalidatePath('/')` hívást minden mutáció után.",
-            "8. Ellenőrizd az RLS policy-kat a `supabase/schema.sql`-ben."
+            "1. Hozd létre: `app/app/page.tsx` — lekérdezi a `public.get_my_buildings()` RPC-t (migráció: `20260516_get_my_buildings_rpc.sql`), BuildingCard rácsot jelenít meg albetét számmal, nyitott hibabejelentés jelvénnyel, hátralék indikátorral.",
+            "2. Hozd létre: `app/app/portfolio/page.tsx` — összesített KPI-ok: összes nyitott hibabejelentés, összes kintlévőség, lejárt közös kötelezettségű épületek, közelgő közgyűlések 30 napon belül.",
+            "3. Adj hozzá `components/portfolio-stats-bar.tsx` komponenst: Recharts BarChart, épületek összehasonlítása megoldatlan hibabejelentések, hátralék és env pontszám alapján.",
+            "4. Frissítsd a `components/workspace-sidebar.tsx`-t: 'Portfólió áttekintése' link a nav tetején, 'Vissza az összes épülethez' morzsa-navigáció.",
+            "5. Védd az `app/app/**` route-okat a `middleware.ts`-ben.",
+            "6. Adj hozzá `portfolio_role` oszlopot a `building_memberships` táblához (ügynökség vs. egyéni képviselő) az upsell üzenetek vezérléséhez.",
+            "7. Hozd létre: `app/actions/portfolio.ts` — `getPortfolioSummary(userId)` Server Action epület-aggregátumokkal.",
+            "8. Kösd be a Stripe számlázási oldalt (`app/billing/billing-client.tsx`) 'Ügynökségi' multi-épületes szint ajánlattal."
           ],
           "metrics": [
-            ["Termékállapot", "Prototípus → Éles-kész"],
-            ["Pilot konverziós potenciál", "0 → 3–10 aláírt épület"],
-            ["ARR hatás", "0 € → 6 000–24 000 € első évi ARR"],
-            ["Értékelési hatás", "180 000 € → 420 000–900 000 €"]
+            ["Feloldott ügyfélszegmens", "Egyépületes kezelők → Portfóliókezelők (8–25 épület)"],
+            ["ARR szorzó ügyfelenként", "720–1 440 €/év → 5 760–36 000 €/év"],
+            ["Magyarországi piac", "~2 400 ingatlankezelő cég"],
+            ["Értékelési hatás", "+450 000–900 000 € (15–25× ARR szorzón)"]
           ],
-          "regen": "Senior Next.js + Supabase fejlesztőként implementáld a valós adatírásokat a PanelLakóban. Az összes mutáció (tickets, meter_readings, announcements, notifications, document_acknowledgements, votes, work_orders, financials) legyen Server Action az `app/actions/` mappában. Használj @supabase/ssr-t a szerver-oldali munkamenethez. Adj hozzá revalidatePath-t minden mutáció után."
+          "regen": "Senior Next.js 14 + Supabase fejlesztőként tervezd meg és valósítsd meg a PanelLakó portfólió dashboardját. A termék v0.9.23-on van, a repo: /home/user/panellako. Meglévő: `app/w/[buildingId]/(subpages)/` route tree, `public.get_my_buildings()` RPC (`20260516_get_my_buildings_rpc.sql`), `components/workspace-sidebar.tsx`. Tervezd meg: (1) `app/app/page.tsx` épületválasztó KPI jelvényekkel, (2) `app/app/portfolio/page.tsx` összesített dashboard, (3) Recharts kereszt-épület összehasonlítás, (4) sidebar morzsa-navigáció, (5) Stripe multi-épületes szint. Teljes TypeScript kód, Supabase lekérdezési minták, RLS megfontolások."
         }
       }
     },
     {
-      "value": "+€350k–€750k",
+      "value": "+€380k–€800k",
       "translations": {
         "en": {
-          "title": "SSR Auth Hardening + Cookie-based Session (Security & Trust Gate)",
+          "title": "Full Stripe Subscription Lifecycle — Trial → Paid → Overdue → Cancellation",
           "desc": [
-            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. Hungarian building managers handle sensitive financial and personal data — resident payment status, meter readings, owner contact details. The current auth relies on client-side Supabase session which can be stale (getSession() reads local cache), and RLS is not enforced at the SSR layer. This is a security gap that will block enterprise and municipal pilots.",
-            "Auth hardening is a prerequisite for every other growth initiative: it unlocks GDPR-compliant positioning, enables B2B sales to property management companies (ügynökség) and municipal housing providers (önkormányzati lakáskezelő), and eliminates the largest security objection in a sales conversation. OnlineHáz's weakness is its aging PHP/legacy stack — PanelLakó can win on security posture.",
-            "The fix is surgical: install @supabase/ssr, create a middleware.ts that refreshes the cookie session, and replace all getSession() calls with getUser(). This matches the documented Supabase SSR pattern and takes <1 day for an experienced developer."
+            "PanelLakó has Stripe Checkout integrated (`app/api/stripe/checkout/route.ts`, `app/api/stripe/webhook/route.ts`, `app/api/stripe/portal/route.ts`) and a billing UI (`app/billing/billing-client.tsx`), but the subscription lifecycle is incomplete: there is no automatic trial expiry enforcement, no overdue dunning flow, no mid-cycle upgrade/downgrade path, and no cancellation win-back sequence. A leaking billing funnel means every churned building is permanent revenue loss. At scale, plugging this is worth as much as acquiring new customers.",
+            "SaaS billing benchmarks (Stripe 2025 State of Subscriptions): products with automated dunning recover 15–25% of involuntary churners. Automated trial-to-paid conversion nudges (day 7, day 12 of 14-day trial) lift conversion by 18–30%. The Hungarian market has a specific dynamic: building managers (közös képviselők) are often public officials or retirees with low tech fluency — a frictionless Stripe Customer Portal with Hungarian-language UI is a retention lever in itself.",
+            "Technical approach: extend the existing `20260516_billing.sql` migration with a `tenant_subscriptions` table trigger that fires Resend emails at trial day 7, day 12 (convert nudge), day 1 overdue (dunning), and day 15 (final notice before suspension). Use Stripe webhooks `customer.subscription.trial_will_end`, `invoice.payment_failed`, and `customer.subscription.deleted` to drive state transitions. The `app/billing/billing-client.tsx` component already has a Stripe Customer Portal button — ensure it surfaces subscription status, unpaid invoices, and a plan-switch CTA."
           ],
           "impl": [
-            "1. `npm install @supabase/ssr`",
-            "2. Create `lib/supabase/server.ts`: `import { createServerClient } from '@supabase/ssr'; import { cookies } from 'next/headers'; export function createClient() { return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { cookies: { getAll() { return cookies().getAll() }, setAll(cs) { cs.forEach(({ name, value, options }) => cookies().set(name, value, options)) } } }); }`",
-            "3. Create `middleware.ts` at repo root: use `updateSession` from @supabase/ssr to refresh token on every request.",
-            "4. In `app/page.tsx` and all server components: replace `createClient()` with the new server client.",
-            "5. Replace all `supabase.auth.getSession()` with `supabase.auth.getUser()` — this hits the server, not the cache.",
-            "6. Add `config = { matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'] }` to middleware.",
-            "7. Test: log in, manually delete the auth cookie, verify the user is redirected to /login instead of seeing stale data."
+            "1. Extend `supabase/migrations/20260516_billing.sql` (or new migration): add `trial_ends_at`, `overdue_since`, `cancellation_requested_at` columns to `tenant_subscriptions`.",
+            "2. In `app/api/stripe/webhook/route.ts`: handle `customer.subscription.trial_will_end` (7 days) → send Resend trial-nudge email via `lib/email.ts`; handle `invoice.payment_failed` → set `overdue_since`, send dunning email.",
+            "3. Create `app/actions/billing.ts`: `enforceTrialGate(buildingId)` — checks `tenant_subscriptions` and returns `{ allowed: boolean, daysLeft: number }`.",
+            "4. In `middleware.ts`: for routes under `app/w/[buildingId]/**`, call `enforceTrialGate`; redirect to `app/billing/page.tsx` with `?reason=trial_expired` if expired.",
+            "5. Update `app/billing/billing-client.tsx`: show trial countdown banner (days remaining), overdue warning strip, plan upgrade/downgrade cards.",
+            "6. Create `lib/email-templates/billing/trial-nudge.tsx`, `overdue-notice.tsx`, `cancellation-confirmation.tsx` using React Email + Resend.",
+            "7. Add `public.superadmin_change_workspace_tier` RPC call in `app/superadmin/page.tsx` for manual tier overrides (governance: `.governance/ui_ux_rules.md` § Workspace tier persistence).",
+            "8. Add PostHog events: `trial_started`, `trial_converted`, `payment_failed`, `subscription_cancelled` — funnel analysis in PostHog dashboard."
           ],
           "metrics": [
-            ["Security posture", "Client-cache auth → Server-verified auth"],
-            ["GDPR compliance readiness", "Low → High"],
-            ["Enterprise/municipal pilot eligibility", "Blocked → Unblocked"],
-            ["Valuation impact (trust premium)", "+€150k–€350k"]
+            ["Trial-to-paid conversion lift", "+18–30% with automated nudges"],
+            ["Involuntary churn recovery", "15–25% of failed payments recovered"],
+            ["Revenue visibility", "Full ARR/MRR/churn dashboard in Stripe"],
+            ["Valuation impact", "+€380k–€800k (billing infrastructure = 2–3× ARR multiple premium)"]
           ],
-          "regen": "Implement SSR auth hardening for the PanelLakó Next.js 14 app. Install @supabase/ssr. Create lib/supabase/server.ts with cookie-based server client. Create middleware.ts using updateSession. Replace all getSession() calls with getUser() in server components. Test with a manual cookie deletion."
+          "regen": "You are a senior full-stack engineer on PanelLakó (v0.9.23, /home/user/panellako). Stripe is already integrated: `app/api/stripe/checkout/route.ts`, `app/api/stripe/webhook/route.ts`, `app/api/stripe/portal/route.ts`, `app/billing/billing-client.tsx`. The billing migration is `supabase/migrations/20260516_billing.sql`. Email is via `lib/email.ts` (Resend). Design the complete subscription lifecycle: (1) trial countdown enforcement in middleware.ts, (2) webhook handlers for trial_will_end / payment_failed / subscription.deleted, (3) Resend dunning email templates, (4) billing-client.tsx overdue/upgrade UI, (5) PostHog funnel events. Full TypeScript code with Stripe API calls and Supabase state transitions. Value range: +€380k–€800k."
         },
         "hu": {
-          "title": "SSR Auth keményítés + Cookie-alapú munkamenet (Biztonsági és bizalmi kapu)",
+          "title": "Teljes Stripe előfizetési életciklus — Próba → Fizetős → Lejárt → Lemondás",
           "desc": [
-            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. A magyarországi közös képviselők érzékeny pénzügyi és személyes adatokat kezelnek — lakói fizetési státusz, mérőóra-adatok, tulajdonosi elérhetőségek. A jelenlegi auth kliens-oldali Supabase munkamenetre támaszkodik, amely elavult lehet.",
-            "Az auth keményítés minden más növekedési kezdeményezés előfeltétele: feloldja a GDPR-kompatibilis pozicionálást, lehetővé teszi a B2B értékesítést ingatlankezelő cégeknek és önkormányzati lakáskezelőknek.",
-            "A javítás sebészeti: telepítsd a @supabase/ssr-t, hozz létre egy middleware.ts-t a cookie munkamenet frissítéséhez, és cseréld le az összes getSession() hívást getUser()-re."
+            "A PanelLakóba integrált a Stripe Checkout (`app/api/stripe/checkout/route.ts`, `app/api/stripe/webhook/route.ts`, `app/api/stripe/portal/route.ts`) és van számlázási UI (`app/billing/billing-client.tsx`), de az előfizetési életciklus nem teljes: nincs automatikus trial lejárat kényszerítés, nincs lejárt fizetési dunning folyamat, nincs szint-váltási út, és nincs lemondáshoz kötött visszanyerési sorozat. Egy lyukas számlázási tölcsér azt jelenti, hogy minden lemorzsolódott épület végleges bevételkiesés.",
+            "SaaS számlázási benchmarkok (Stripe 2025 State of Subscriptions): automatizált dunninggal rendelkező termékek az akaratlan lemorzsolódók 15–25%-át visszanyerik. Automatizált trial-to-paid konverzió ösztönzők (7. nap, 14 napos trial 12. napja) 18–30%-kal növelik a konverziót. A magyarországi piac sajátossága: a közös képviselők sokszor köztisztviselők vagy nyugdíjasok alacsony technikai jártassággal — a súrlódásmentes Stripe Ügyfélportál magyarul kulcsfontosságú megtartási eszköz.",
+            "Technikai megközelítés: a meglévő `20260516_billing.sql` migrációt bővíteni kell egy `tenant_subscriptions` tábla triggerrel, amely Resend e-maileket küld a próba 7. napján, 12. napján (konverzió ösztönző), az 1. lejárt napon (dunning) és a 15. napon (végső értesítés felfüggesztés előtt). Stripe webhooks: `customer.subscription.trial_will_end`, `invoice.payment_failed`, `customer.subscription.deleted`."
           ],
           "impl": [
-            "1. `npm install @supabase/ssr`",
-            "2. Hozd létre: `lib/supabase/server.ts` cookie-alapú szerver kliensssel.",
-            "3. Hozd létre: `middleware.ts` a repo gyökerében az updateSession használatával.",
-            "4. Cseréld le az összes `supabase.auth.getSession()` hívást `supabase.auth.getUser()`-re.",
-            "5. Teszteld: töröld manuálisan az auth cookie-t, ellenőrizd, hogy a felhasználó /login-ra kerül."
+            "1. Bővítsd a `supabase/migrations/20260516_billing.sql` migrációt: adj hozzá `trial_ends_at`, `overdue_since`, `cancellation_requested_at` oszlopokat a `tenant_subscriptions`-hoz.",
+            "2. `app/api/stripe/webhook/route.ts`-ben: kezelje a `customer.subscription.trial_will_end`-et → Resend trial ösztönző e-mail; `invoice.payment_failed` → `overdue_since` beállítás, dunning e-mail.",
+            "3. Hozd létre: `app/actions/billing.ts` — `enforceTrialGate(buildingId)` ellenőrzi a `tenant_subscriptions`-t, visszaadja `{ allowed: boolean, daysLeft: number }`.",
+            "4. `middleware.ts`-ben: `app/w/[buildingId]/**` route-oknál hívd az `enforceTrialGate`-t; átirányítás `app/billing/page.tsx`-re ha lejárt.",
+            "5. Frissítsd az `app/billing/billing-client.tsx`-t: trial visszaszámláló sáv, lejárt fizetési figyelmeztető sáv, szint-váltó kártyák.",
+            "6. Hozd létre e-mail sablonokat: `lib/email-templates/billing/trial-nudge.tsx`, `overdue-notice.tsx`, `cancellation-confirmation.tsx`.",
+            "7. Adj hozzá PostHog eseményeket: `trial_started`, `trial_converted`, `payment_failed`, `subscription_cancelled`."
           ],
           "metrics": [
-            ["Biztonsági állapot", "Cache auth → Szerver-ellenőrzött auth"],
-            ["GDPR-megfelelőség", "Alacsony → Magas"],
-            ["Vállalati pilot jogosultság", "Blokkolva → Feloldva"],
-            ["Értékelési hatás", "+150 000–350 000 €"]
+            ["Trial-to-paid konverzió növekedés", "+18–30% automatizált ösztönzőkkel"],
+            ["Akaratlan lemorzsolódás visszanyerése", "A sikertelen fizetések 15–25%-a visszanyerhető"],
+            ["Bevételi láthatóság", "Teljes ARR/MRR/churn dashboard Stripe-ban"],
+            ["Értékelési hatás", "+380 000–800 000 € (számlázási infrastruktúra = 2–3× ARR szorzó prémium)"]
           ],
-          "regen": "Implementáld az SSR auth keményítést a PanelLakó Next.js 14 alkalmazáshoz. Telepítsd a @supabase/ssr-t. Hozd létre a lib/supabase/server.ts-t cookie-alapú szerver kliensssel. Hozd létre a middleware.ts-t."
+          "regen": "Senior full-stack fejlesztőként tervezd meg a PanelLakó (v0.9.23, /home/user/panellako) teljes Stripe előfizetési életciklusát. Meglévő: `app/api/stripe/checkout/route.ts`, `app/api/stripe/webhook/route.ts`, `app/api/stripe/portal/route.ts`, `app/billing/billing-client.tsx`, `supabase/migrations/20260516_billing.sql`, `lib/email.ts` (Resend). Tervezd meg: (1) trial visszaszámláló kényszerítés middleware.ts-ben, (2) webhook kezelők, (3) Resend dunning e-mail sablonok, (4) billing-client.tsx overdue/upgrade UI, (5) PostHog tölcsér események."
         }
       }
     },
     {
-      "value": "+€280k–€620k",
+      "value": "+€320k–€680k",
       "translations": {
         "en": {
-          "title": "Supabase Storage Document Upload (Feature Completeness Gate)",
+          "title": "AI Ticket Triage + Vendor Routing — Competitive Moat via Claude API",
           "desc": [
-            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. The document library module is currently a UI skeleton — files cannot be uploaded, only listed as mock entries. For a building manager, the document library is mission-critical: house rules (SZMSZ), common area regulations, assembly minutes, financial reports, contractor quotations. Without real file upload, the document module is unusable and the feature parity gap with OnlineHáz is large.",
-            "Supabase Storage is already part of the stack (the Supabase project is provisioned). Adding file upload requires adding the Storage bucket, a Server Action for upload, and wiring the existing document list UI to real data. Market data: document management is the #1 reason building managers try PropTech software (source: OnlineHáz user interviews, 2023 — cited in HVG PropTech roundtable). It is the hook feature.",
-            "The implementation is well-understood and low-risk: Supabase Storage with a `documents` bucket, RLS policy allowing building members to read and building managers to write, a Next.js Server Action to handle file uploads, and a signed URL for download. This can be completed in 1–2 days."
+            "PanelLakó already has a `supabase/functions/triage-ticket` Edge Function and a `triage-ticket` Supabase function directory, and the `app/actions/tickets.ts` Server Action layer is in place. The current state is a proof-of-concept: the AI triage runs but the results are not wired into automated vendor routing, priority escalation flows, or the resident communication loop. Completing this pipeline — from triage output to contractor dispatch recommendation to automated resident status update — creates a genuine workflow automation moat that no Hungarian competitor offers.",
+            "The global PropTech AI market is projected to reach $41.5B by 2030 (CBRE Tech Report 2025). In the residential management niche, the key ROI driver is reduction in 'ticket-to-resolution time'. A building manager handling 15 buildings with 50+ units each processes 10–20 fault tickets per week; AI triage + vendor routing saves 3–5 hours/week. At an hourly rate of €25–40 for professional property managers in Hungary, that is €3,750–€10,400/year in time savings per customer — creating strong willingness to pay for an AI-tier add-on at €15–30/month.",
+            "Technical approach: extend `supabase/functions/triage-ticket/index.ts` to use `claude-haiku-4-5` (low latency, low cost) with a structured tool-use call that outputs `{category, urgency_1_to_10, vendor_type, estimated_cost_range_huf, summary_hu, resident_update_hu}`. Wire the output to: (1) auto-update `tickets.ai_category` + `tickets.ai_urgency` (columns to add via migration), (2) create a `work_order` row pre-populated with vendor type, (3) send a resident push notification using the existing `supabase/functions/send-push` function with the `resident_update_hu` text. All of this runs as a non-blocking post-insert trigger."
           ],
           "impl": [
-            "1. In Supabase Dashboard: create bucket `documents`, set RLS: read for building members, write for kozos_kepviselo/megbizott roles.",
-            "2. Create `app/actions/documents.ts`: Server Action for upload using `supabase.storage.from('documents').upload(path, file)`.",
-            "3. In upload form component: `<input type='file' />` → FormData → Server Action.",
-            "4. Store the returned storage path in `documents` table alongside building_id, title, category.",
-            "5. For download: generate signed URL with `supabase.storage.from('documents').createSignedUrl(path, 3600)`.",
-            "6. Add `document_acknowledgements` insert on first view (already in schema).",
-            "7. Display real documents list from DB, replacing mock array in dashboard-client.tsx."
+            "1. Add migration: `ALTER TABLE tickets ADD COLUMN ai_category TEXT, ADD COLUMN ai_urgency INT, ADD COLUMN ai_vendor_suggestion TEXT, ADD COLUMN ai_summary TEXT, ADD COLUMN ai_resident_update TEXT;`",
+            "2. Extend `supabase/functions/triage-ticket/index.ts`: use Anthropic `claude-haiku-4-5` with tool_use; tool schema returns `{category: enum, urgency: int 1-10, vendor_type: string, estimated_cost_range_huf: string, summary_hu: string, resident_update_hu: string}`.",
+            "3. In `app/actions/tickets.ts` `createTicket()`: after `supabase.from('tickets').insert(...)`, call `supabase.functions.invoke('triage-ticket', { body: { ticket_id, title, description } })` — fire-and-forget (no await).",
+            "4. Create `app/actions/work-orders.ts` `createWorkOrderFromTriage(ticketId)`: reads `ai_vendor_suggestion`, creates a `work_orders` row with `status: 'pending_vendor'`, `suggested_vendor_type`.",
+            "5. Wire `send-push` (`supabase/functions/send-push`) to send `ai_resident_update` text to ticket reporter's push subscription on triage completion.",
+            "6. In ticket list UI (`app/w/[buildingId]/(subpages)/` ticket views): add urgency color badge (green/amber/red), vendor-type chip, AI summary tooltip.",
+            "7. Add `ANTHROPIC_API_KEY` to Supabase Edge Function secrets.",
+            "8. Add PostHog event `ticket_ai_triage_completed` with `{category, urgency, vendor_type}` for product analytics."
           ],
           "metrics": [
-            ["Feature completeness", "Document module: UI-only → Fully functional"],
-            ["Pilot retention driver", "Critical — #1 feature managers request"],
-            ["Storage cost at 100 buildings", "~€5/month (Supabase Pro: 100GB included)"],
-            ["Valuation impact", "+€120k–€280k"]
+            ["Manager time savings", "3–5 hours/week per portfolio (10+ buildings)"],
+            ["Ticket-to-resolution time", "−30–40% faster vendor routing"],
+            ["AI product premium (valuation)", "First AI-native PropTech in HU — 1.5–2× ARR multiple uplift"],
+            ["Add-on revenue potential", "€15–30/month/building AI-tier upgrade"]
           ],
-          "regen": "Implement real document upload and storage for PanelLakó using Supabase Storage. Create a `documents` bucket with RLS (building members read, kozos_kepviselo/megbizott write). Add Server Action in app/actions/documents.ts for upload. Wire the existing document list UI in dashboard-client.tsx to real Supabase data. Generate signed URLs for download. Insert document_acknowledgements on first view."
+          "regen": "You are a senior Supabase Edge Functions + Anthropic API engineer on PanelLakó (v0.9.23, /home/user/panellako). Existing: `supabase/functions/triage-ticket/` directory, `supabase/functions/send-push/` function, `app/actions/tickets.ts` Server Action, `app/w/[buildingId]/(subpages)/` route tree. Complete the AI triage pipeline: (1) extend triage-ticket Edge Function with claude-haiku-4-5 tool_use returning {category, urgency, vendor_type, cost_range_huf, summary_hu, resident_update_hu}, (2) migration to add ai_* columns to tickets table, (3) fire-and-forget call in createTicket Server Action, (4) work-order auto-creation from triage output, (5) push notification with resident_update_hu, (6) urgency badge UI in ticket list. Full TypeScript code. Value: +€320k–€680k."
         },
         "hu": {
-          "title": "Supabase Storage dokumentumfeltöltés (Funkcióteljességi kapu)",
+          "title": "AI hibabejelentés triage + kivitelező irányítás — Versenyelőny Claude API-val",
           "desc": [
-            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. A dokumentumtár modul jelenleg csak UI váz — fájlok nem tölthetők fel, csak mock bejegyzések listázódnak. Egy közös képviselőnek a dokumentumtár missziókritikus: SZMSZ, házirendek, közgyűlési jegyzőkönyvek, pénzügyi jelentések, ajánlatok.",
-            "A Supabase Storage már a stack része (a Supabase projekt ki van provizionálva). A valós feltöltés hozzáadásához csak storage bucket-et, Server Action-t és UI bekötést kell hozzáadni.",
-            "Piaci adat: a dokumentumkezelés az #1 ok, amiért a közös képviselők PropTech szoftvert próbálnak (OnlineHáz felhasználói interjúk, 2023). Ez a horog-feature."
+            "A PanelLakóban már létezik a `supabase/functions/triage-ticket` Edge Function könyvtár és az `app/actions/tickets.ts` Server Action réteg. A jelenlegi állapot egy proof-of-concept: az AI triage fut, de az eredmények nem kapcsolódnak automatizált kivitelező irányításhoz, prioritás eszkalációs folyamatokhoz vagy a lakói kommunikációs körhöz. Ennek a folyamatnak a befejezése — a triage kimenettől a kivitelező küldési javaslaton át az automatizált lakói állapotfrissítésig — valódi workflow-automatizálási moatot hoz létre.",
+            "A globális PropTech AI piac 2030-ra várhatóan eléri a 41,5 milliárd dollárt (CBRE Tech Report 2025). A lakóingatlan-kezelési szegmensben a legfontosabb megtérülési mutatószám a 'ticket-to-resolution time' csökkentése. Egy 15 épületet kezelő, 50+ albetétes képviselő heti 10–20 hibabejelentést dolgoz fel; az AI triage + kivitelező irányítás heti 3–5 órát takarít meg — ez évi 3 750–10 400 € időmegtakarítást jelent ügyfelenként.",
+            "Technikai megközelítés: a `supabase/functions/triage-ticket/index.ts` kibővítése `claude-haiku-4-5` modellel strukturált tool_use hívással, amely visszaadja a `{category, urgency_1_to_10, vendor_type, estimated_cost_range_huf, summary_hu, resident_update_hu}` kimenetet. A kimenet bekötése: (1) `tickets.ai_category` + `tickets.ai_urgency` automatikus frissítése, (2) `work_order` sor létrehozása, (3) lakói push értesítés küldése a meglévő `supabase/functions/send-push` funkcióval."
           ],
           "impl": [
-            "1. Supabase Dashboardban: hozz létre `documents` bucket-et, RLS: épület tagok olvashatnak, kozos_kepviselo/megbizott írhat.",
-            "2. Hozd létre: `app/actions/documents.ts` Server Action a feltöltéshez.",
-            "3. Tárolj signed URL-t a letöltéshez: `supabase.storage.from('documents').createSignedUrl(path, 3600)`.",
-            "4. Szúrj be `document_acknowledgements` sort az első megtekintéskor.",
-            "5. Cseréld le a mock tömböt a dashboard-client.tsx-ben valós DB adatokra."
+            "1. Migrációs szkript: `ALTER TABLE tickets ADD COLUMN ai_category TEXT, ADD COLUMN ai_urgency INT, ADD COLUMN ai_vendor_suggestion TEXT, ADD COLUMN ai_summary TEXT, ADD COLUMN ai_resident_update TEXT;`",
+            "2. Bővítsd a `supabase/functions/triage-ticket/index.ts`-t: Anthropic `claude-haiku-4-5` tool_use-szal; kimenet: `{category, urgency, vendor_type, estimated_cost_range_huf, summary_hu, resident_update_hu}`.",
+            "3. `app/actions/tickets.ts` `createTicket()`-ben: az insert után fire-and-forget hívás: `supabase.functions.invoke('triage-ticket', ...)` (nincs await).",
+            "4. Hozd létre: `app/actions/work-orders.ts` `createWorkOrderFromTriage(ticketId)`: `ai_vendor_suggestion` alapján `work_orders` sort hoz létre.",
+            "5. Kösd be a `send-push`-t: `ai_resident_update` szöveg küldése a bejelentő push előfizetésébe.",
+            "6. Ticket lista UI-ban: urgency szín jelvény (zöld/sárga/piros), vendor-type chip.",
+            "7. Adj hozzá `ANTHROPIC_API_KEY`-t az Edge Function secrets-be.",
+            "8. PostHog esemény: `ticket_ai_triage_completed` analyticshez."
           ],
           "metrics": [
-            ["Funkció-teljesség", "Dokumentum modul: csak UI → Teljesen funkcionális"],
-            ["Pilot megtartási hajtóerő", "Kritikus — #1 kért funkció"],
-            ["Értékelési hatás", "+120 000–280 000 €"]
+            ["Képviselői időmegtakarítás", "3–5 óra/hét portfólión (10+ épület)"],
+            ["Ticket-to-resolution idő", "−30–40% gyorsabb kivitelező irányítás"],
+            ["AI termék prémium", "Első AI-natív PropTech Magyarországon — 1,5–2× ARR szorzó növekedés"],
+            ["Kiegészítő bevételi potenciál", "15–30 €/hó/épület AI-szint frissítés"]
           ],
-          "regen": "Implementáld a valós dokumentumfeltöltést a PanelLakóban Supabase Storage segítségével. Hozz létre `documents` bucket-et RLS-szel. Adj hozzá Server Action-t az app/actions/documents.ts-ben. Kösd be a meglévő UI-t a valós adatokhoz."
+          "regen": "Senior Supabase Edge Functions + Anthropic API fejlesztőként valósítsd meg a PanelLakó AI triage pipeline-ját. Meglévő: `supabase/functions/triage-ticket/` könyvtár, `supabase/functions/send-push/` függvény, `app/actions/tickets.ts`. Valósítsd meg: (1) triage-ticket bővítése claude-haiku-4-5 tool_use-szal, (2) migráció az ai_* oszlopok hozzáadásához, (3) fire-and-forget hívás a createTicket Server Actionban, (4) work-order automatikus létrehozás, (5) push értesítés lakóknak, (6) urgency badge UI."
         }
       }
     },
@@ -161,306 +168,274 @@
       "value": "+€250k–€550k",
       "translations": {
         "en": {
-          "title": "SaaS Billing Integration — Stripe/Barion Payment Gateway",
+          "title": "Automated Assembly Protocol Generator — Közgyűlési Jegyzőkönyv PDF",
           "desc": [
-            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. PanelLakó cannot generate revenue without a payment integration. The current platform has zero billing infrastructure — no subscription management, no invoicing, no payment collection. This is the direct path from €0 to €1 in ARR, which is the single most important milestone for valuation and fundraising.",
-            "For the Hungarian market, Barion (local IBAN-based payment provider) is preferred by SME customers who are uncomfortable with Stripe. However, Stripe is faster to integrate and has better webhook infrastructure. The recommended approach: integrate Stripe first (1–2 days) for international and tech-savvy customers; add Barion in a follow-up sprint for traditional building managers.",
-            "Pricing model recommendation based on market research: €1.50–€3.00/unit/month (albetétenként), billed annually to building managers. A 40-unit building = €720–€1,440/year. This is significantly below OnlineHáz (€15–30/unit/month) but above the pain threshold, and the modern UX justifies a price experiment."
+            "PanelLakó already has a `supabase/functions/generate-assembly-protocol` Edge Function directory and the voting module exists at `app/w/[buildingId]/(subpages)/kozlekedes` (broader route tree). The `meetings.ts` Server Action (`app/actions/meetings.ts`) handles assembly data. The `@react-pdf/renderer` package is referenced in the codebase. What is missing is the assembly close → protocol generation → document storage → email delivery pipeline. This is a compliance-driven, high-perceived-value feature: every Hungarian residential building (társasház) is legally obligated under Ptk. 5:85–5:88 to produce signed meeting minutes within 15 days of any assembly.",
+            "Building managers (közös képviselők) in Hungary spend 2–4 hours per assembly generating the Közgyűlési Jegyzőkönyv in Word, manually entering attendance lists, resolution texts, and vote counts. PanelLakó can collapse this to a 1-click PDF generation that is immediately legally compliant. This is the single feature with the highest ratio of perceived value to implementation complexity in the entire roadmap. Similar automation exists in corporate governance SaaS (Board Intelligence, Diligent Boards at €5–15/seat/month). No Hungarian PropTech competitor offers this.",
+            "Technical approach: the `generate-assembly-protocol` Edge Function reads meeting + agenda_items + resolutions + votes + building_members from Supabase, renders a Ptk-compliant PDF template using `@react-pdf/renderer`, uploads to Supabase Storage (`documents/assembly-protocols/{buildingId}/{meetingId}.pdf`), inserts a `documents` table row, and triggers a Resend email to the kozos_kepviselo with a signed download URL. The PDF template should include: building details, assembly date/location, attendance list with quorum check, agenda items with vote tallies, resolution texts (határozatok), and signature blocks."
           ],
           "impl": [
-            "1. `npm install stripe` and set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` env vars.",
-            "2. Create Stripe products: 'PanelLakó Alap' (€1.50/unit/month), 'PanelLakó Pro' (€3.00/unit/month).",
-            "3. Create `app/api/stripe/checkout/route.ts`: POST → Stripe Checkout session with `unit_count` metadata.",
-            "4. Create `app/api/stripe/webhook/route.ts`: handle `checkout.session.completed` → activate building subscription in DB.",
-            "5. Add `subscriptions` table: `building_id, stripe_subscription_id, plan, unit_count, status, current_period_end`.",
-            "6. Add paywall middleware: if building has no active subscription after 14-day trial, redirect to /billing.",
-            "7. Create `/billing` page with pricing cards and Stripe Checkout button.",
-            "8. Add invoice email via Stripe's built-in invoice delivery."
+            "1. Add `meetings.status` column (migration): `ALTER TABLE meetings ADD COLUMN status TEXT DEFAULT 'tervezett' CHECK (status IN ('tervezett','aktiv','lezarva'))`;",
+            "2. Create `app/actions/meetings.ts` `closeAssembly(meetingId, buildingId)`: sets `status = 'lezarva'`, invokes `generate-assembly-protocol` Edge Function.",
+            "3. Extend `supabase/functions/generate-assembly-protocol/index.ts`: fetch meeting + `agenda_items` + `resolutions` + `votes` + `building_members` for the building; render PDF with `@react-pdf/renderer` using a `AssemblyProtocolTemplate` component.",
+            "4. PDF sections: (a) Épület neve, cím, adószám; (b) Közgyűlés dátuma, helyszíne, összehívó neve; (c) Jelenléti ív — albetétek, tulajdonosok, szavazati arány; (d) Határozatképesség: X albetét jelen (Y%) — HATÁROZATKÉPES / NEM HATÁROZATKÉPES; (e) Napirendi pontok sorszámmal, szöveggel, szavazási eredménnyel (igen/nem/tartózkodó); (f) Határozatok szövege sorszámmal; (g) Aláírás blokk: levezető elnök, hitelesítők.",
+            "5. Upload to Supabase Storage: `supabase.storage.from('documents').upload('assembly-protocols/{buildingId}/{meetingId}.pdf', pdfBuffer)`.",
+            "6. Insert `documents` table row: `{building_id, title: 'Közgyűlési Jegyzőkönyv — {date}', category: 'kozgyulesi_jkv', storage_path}`.",
+            "7. Send Resend email to kozos_kepviselo: `lib/email-templates/assembly-protocol-ready.tsx` with signed download URL (3600s expiry).",
+            "8. Add 'Közgyűlés lezárása és Jegyzőkönyv generálása' button to assembly detail view with confirmation dialog showing quorum status."
           ],
           "metrics": [
-            ["Revenue model", "€0 → SaaS billing live"],
-            ["First-year ARR target", "€0 → €6k–€24k (5–10 buildings)"],
-            ["Valuation impact at €24k ARR", "€300k–€600k (15–25× ARR)"],
-            ["Payback period estimate", "6–12 months from launch"]
+            ["Manager time savings", "2–4 hours per assembly → <5 minutes"],
+            ["Legal compliance automation", "Ptk. 5:85–5:88 compliant in 1 click"],
+            ["Feature perceived value", "Top-3 most-requested feature in HU building management"],
+            ["Premium tier justification", "Justifies Pro tier differential vs. Alap"]
           ],
-          "regen": "Implement Stripe SaaS billing for PanelLakó. Create two pricing tiers: Alap (€1.50/unit/month) and Pro (€3.00/unit/month). Add app/api/stripe/checkout/route.ts and app/api/stripe/webhook/route.ts. Add `subscriptions` table to supabase schema. Implement 14-day free trial then paywall. Create /billing page with pricing cards."
+          "regen": "You are a senior Supabase + React PDF engineer on PanelLakó (v0.9.23, /home/user/panellako). Existing: `supabase/functions/generate-assembly-protocol/` directory, `app/actions/meetings.ts`, `@react-pdf/renderer` package, Supabase Storage (`documents` bucket from `20260516_create_documents_bucket.sql`), `lib/email.ts` (Resend). Implement the full assembly-close → protocol-generation pipeline: (1) `meetings.status` migration, (2) `closeAssembly` Server Action, (3) complete Edge Function with @react-pdf/renderer AssemblyProtocolTemplate component covering 7 required sections, (4) Storage upload, (5) documents table insert, (6) Resend email. Include the full PDF template React component. Value: +€250k–€550k."
         },
         "hu": {
-          "title": "SaaS Számlázás integráció — Stripe/Barion fizetési átjáró",
+          "title": "Automatizált közgyűlési jegyzőkönyv generátor — Közgyűlési Jegyzőkönyv PDF",
           "desc": [
-            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. A PanelLakó fizetési integráció nélkül nem tud bevételt generálni. A jelenlegi platformnak nulla számlázási infrastruktúrája van — nincs előfizetés-kezelés, nincs számlázás, nincs díjbeszedés.",
-            "Magyarországi piacra: a Barion (helyi IBAN-alapú fizetési szolgáltató) preferált a KKV ügyfelek számára. A Stripe azonban gyorsabban integrálható és jobb webhook infrastruktúrával rendelkezik.",
-            "Ajánlott árazási modell: 1,50–3,00 €/albetét/hónap, évente számlázva a közös képviselőnek. Egy 40 albetétes épület = 720–1 440 €/év."
+            "A PanelLakóban már létezik a `supabase/functions/generate-assembly-protocol` Edge Function könyvtár, a szavazási modul és az `app/actions/meetings.ts` Server Action. A `@react-pdf/renderer` csomag hivatkozott a kódbázisban. Ami hiányzik: a közgyűlés lezárása → protokoll generálás → dokumentumtárolás → e-mail kézbesítés pipeline. Ez egy compliance-vezérelt, magas észlelt értékű funkció: minden magyarországi társasház Ptk. 5:85–5:88 alapján kötelezett aláírt közgyűlési jegyzőkönyvet készíteni 15 napon belül.",
+            "A közös képviselők Magyarországon közgyűlésenként 2–4 órát töltenek a Közgyűlési Jegyzőkönyv Word-ben való elkészítésével, manuálisan beírva a jelenléti listát, a határozatok szövegét és a szavazati számokat. A PanelLakó ezt 1 kattintásos, azonnal jogilag megfelelő PDF generálásra csökkentheti. Hasonló automatizálás létezik a vállalati irányítási SaaS szektorban (Board Intelligence, Diligent Boards 5–15 €/ülés/hó áron). Egyetlen magyarországi PropTech versenytárs sem kínál ilyet.",
+            "Technikai megközelítés: a `generate-assembly-protocol` Edge Function kiolvasja a meeting + agenda_items + resolutions + votes + building_members adatokat Supabase-ből, `@react-pdf/renderer`-rel Ptk-kompatibilis PDF sablont renderel, feltölti Supabase Storage-ba, és Resend e-mailt küld a közös képviselőnek az aláírt letöltési URL-lel."
           ],
           "impl": [
-            "1. `npm install stripe`, állítsd be a `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` env változókat.",
-            "2. Hozz létre Stripe termékeket: 'PanelLakó Alap' (1,50 €/albetét/hó), 'PanelLakó Pro' (3,00 €/albetét/hó).",
-            "3. `app/api/stripe/checkout/route.ts`: POST → Stripe Checkout munkamenet.",
-            "4. `app/api/stripe/webhook/route.ts`: `checkout.session.completed` kezelése → épület előfizetés aktiválása DB-ben.",
-            "5. Adj hozzá `subscriptions` táblát a sémához.",
-            "6. 14 napos trial után paywall bevezetése /billing oldalra átirányítással.",
-            "7. Hozz létre /billing oldalt árazási kártyákkal."
+            "1. Migráció: `ALTER TABLE meetings ADD COLUMN status TEXT DEFAULT 'tervezett' CHECK (status IN ('tervezett','aktiv','lezarva'))`;",
+            "2. `app/actions/meetings.ts` `closeAssembly(meetingId, buildingId)`: beállítja `status = 'lezarva'`, meghívja a `generate-assembly-protocol` Edge Functiont.",
+            "3. `supabase/functions/generate-assembly-protocol/index.ts` kibővítése: meeting + `agenda_items` + `resolutions` + `votes` + `building_members` lekérése; `@react-pdf/renderer`-rel PDF renderelés.",
+            "4. PDF szekciók: Épület adatai, Időpont/helyszín/összehívó; Jelenléti ív; Határozatképesség; Napirendi pontok szavazási eredményekkel; Határozatok szövege sorszámmal; Aláírás blokk.",
+            "5. Feltöltés Supabase Storage-ba: `documents/assembly-protocols/{buildingId}/{meetingId}.pdf`.",
+            "6. `documents` tábla sor insert: kategória: `kozgyulesi_jkv`.",
+            "7. Resend e-mail a közös képviselőnek aláírt letöltési URL-lel.",
+            "8. 'Közgyűlés lezárása és Jegyzőkönyv generálása' gomb hozzáadása a közgyűlés részletes nézetéhez határozatképességi megerősítő párbeszéddel."
           ],
           "metrics": [
-            ["Bevételi modell", "0 € → SaaS számlázás éles"],
-            ["Első évi ARR cél", "0 € → 6 000–24 000 €"],
-            ["Értékelési hatás 24 000 € ARR-nél", "300 000–600 000 €"]
+            ["Képviselői időmegtakarítás", "2–4 óra/közgyűlés → <5 perc"],
+            ["Jogi megfelelőség automatizálás", "Ptk. 5:85–5:88 kompatibilis 1 kattintással"],
+            ["Funkció észlelt értéke", "Top-3 legtöbbször kért funkció a magyar épületkezelésben"],
+            ["Pro szint igazolása", "Egyértelműen differenciálja a Pro szintet az Alaphoz képest"]
           ],
-          "regen": "Implementáld a Stripe SaaS számlázást a PanelLakóhoz. Két árazási szint: Alap és Pro. Add hozzá az API route-okat és a subscriptions táblát."
+          "regen": "Senior Supabase + React PDF fejlesztőként valósítsd meg a teljes közgyűlés-lezárás → protokoll-generálás pipeline-t a PanelLakóban (v0.9.23, /home/user/panellako). Meglévő: `supabase/functions/generate-assembly-protocol/` könyvtár, `app/actions/meetings.ts`, `@react-pdf/renderer`, Supabase Storage (`documents` bucket, `20260516_create_documents_bucket.sql`), `lib/email.ts`. Valósítsd meg: (1) `meetings.status` migráció, (2) `closeAssembly` Server Action, (3) teljes Edge Function AssemblyProtocolTemplate komponenssel, (4) Storage feltöltés, (5) documents tábla insert, (6) Resend e-mail."
         }
       }
     },
     {
-      "value": "+€200k–€480k",
+      "value": "+€220k–€480k",
       "translations": {
         "en": {
-          "title": "Multi-Building Dashboard + Building Picker (Scale Architecture Gate)",
+          "title": "Full Financial Ledger — Double-Entry Common Cost Accounting",
           "desc": [
-            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. PanelLakó's backend schema is multi-tenant (buildings table with building_id scoping on every entity) but the frontend is single-building — there is no building selector, no multi-building dashboard, and a property management company (ügynökség) managing 20 buildings cannot use the product today. This single gap locks out the most valuable customer segment: professional property managers who manage building portfolios.",
-            "Market context: In Hungary, ~2,400 professional property management companies (közös képviselők and ügynökségek) manage an average of 8–25 buildings each. A single ügynökség signing up = 8–25× the unit count of an individual building sign-up. This is the B2B enterprise wedge. OnlineHáz serves individual buildings; PanelLakó can serve the manager.",
-            "Implementation follows the workspace UUID in URL pattern (already defined in CLAUDE.md governance): `/w/:workspaceId` for the building dashboard. The building picker is at `/app`. Each building selection pushes a new history entry (no replace) for Back button compliance."
+            "PanelLakó has `app/actions/finance.ts` Server Actions and a financial module UI, but the current implementation lacks: double-entry accounting principles, a full charge generation workflow (monthly bulk common cost issuance to all units), automated arrears calculation with configurable grace periods, and a compliant annual financial statement export. Hungarian társasházi accounting is governed by the Lakástörvény (2003. évi CXXXIII.) §24, which requires all buildings to maintain proper financial records and provide annual statements to unit owners. PanelLakó can become the compliance tool for these obligations.",
+            "The Hungarian közös költség accounting market is currently dominated by Excel spreadsheets and legacy software (e.g., Társasházkezelő 2000 — a Windows 95-era application still widely used). A modern, legally-compliant ledger in PanelLakó — one that generates the official 'Közös Költség Kimutatás' statement format — creates an irreplaceable workflow dependency. Accountants managing buildings are a separate persona (see `app/funkciok/konyveloknek/page.tsx`) who will pay more for a tool that saves them 3–5 hours per building per month during annual reconciliation.",
+            "Technical approach: extend the `finance.ts` Server Actions with a bulk `generateMonthlyCharges(buildingId, month, chargeConfig)` action that inserts charge rows for all units in one transaction. Add a `unit_ledger_view` materialized view (Supabase) computing running balance per unit as `SUM(charges) - SUM(payments)`. Add a PDF export using `@react-pdf/renderer` for the annual 'Közös Költség Kimutatás' — a two-column debit/credit statement per unit required by law."
           ],
           "impl": [
-            "1. Create `app/app/page.tsx` — Building Picker: list buildings the user manages (from memberships table), show name, address, unit count, unresolved ticket count.",
-            "2. Create `app/w/[buildingId]/page.tsx` — Building Dashboard: same as current `/` but scoped to `buildingId` param.",
-            "3. In `app/w/[buildingId]/page.tsx`: `const { data: building } = await supabase.from('buildings').select().eq('id', params.buildingId).single();`",
-            "4. Pass `buildingId` to all data fetching functions in `lib/data.ts`.",
-            "5. Update `components/dashboard-client.tsx` to show current building name in header.",
-            "6. Add 'Switch Building' button in sidebar linking to `/app`.",
-            "7. Update `middleware.ts` to protect `/w/*` routes — redirect unauthenticated users to `/login`.",
-            "8. Add `buildingId` to all Server Actions as a validated parameter."
+            "1. Migration: create `financial_transactions` table with columns `(id, building_id, unit_id, type: 'charge'|'payment'|'adjustment', amount_huf, description, period_month, created_by, created_at)`.",
+            "2. Create `unit_ledger_view` in Supabase: `SELECT unit_id, SUM(CASE WHEN type='charge' THEN amount_huf ELSE 0 END) as total_charged, SUM(CASE WHEN type='payment' THEN amount_huf ELSE 0 END) as total_paid, SUM(CASE WHEN type='charge' THEN amount_huf ELSE -amount_huf END) as balance FROM financial_transactions GROUP BY unit_id;`",
+            "3. Extend `app/actions/finance.ts`: add `generateMonthlyCharges(buildingId, month, chargePerUnit)` — bulk-inserts charge rows for all building units in a single Supabase transaction.",
+            "4. Add `recordPayment(unitId, amountHuf, paymentDate, payerName)` Server Action with optimistic UI update.",
+            "5. Add `getArrearsReport(buildingId)` Server Action: returns units with `balance < 0`, sorted by arrears amount, with `days_overdue` computed.",
+            "6. Create PDF export Edge Function or Server Action: `generateKozosKoltsegKimutatas(buildingId, year)` — outputs a Lakástörvény-compliant annual statement per unit using `@react-pdf/renderer`.",
+            "7. In the financial dashboard view: show `unit_ledger_view` data as a sortable table with red/green balance indicators; add 'Havi közös költség generálás' wizard (month picker + amount field).",
+            "8. Add arrears escalation: buildings with >3 units in arrears > 60 days trigger a PostHog `arrears_escalation` event and a manager push notification."
           ],
           "metrics": [
-            ["Customer segment unlocked", "Single-building managers → Portfolio managers (8–25 buildings each)"],
-            ["Revenue multiplier", "1× per user → 8–25× per user (portfolio)"],
-            ["Addressable market expansion", "+~2,400 property management companies in HU"],
-            ["Valuation impact", "+€100k–€250k"]
+            ["Excel replacement stickiness", "Workflow lock-in: builds replace Excel permanently"],
+            ["Accountant persona retention", "3–5 hours/building/month saved at annual reconciliation"],
+            ["Compliance value", "Lakástörvény §24 compliant annual statement in 1 click"],
+            ["Valuation impact", "+€220k–€480k (mission-critical workflow = low churn)"]
           ],
-          "regen": "Implement multi-building support for PanelLakó. Create app/app/page.tsx as a building picker that lists buildings from the memberships table. Create app/w/[buildingId]/page.tsx as the building-scoped dashboard. Pass buildingId to all data functions in lib/data.ts. Add 'Switch Building' in sidebar. Ensure Back button works (use navigate not replace)."
+          "regen": "You are a senior Next.js 14 + Supabase financial systems engineer on PanelLakó (v0.9.23, /home/user/panellako). Existing: `app/actions/finance.ts`, financial module UI at `app/w/[buildingId]/(subpages)/`, `@react-pdf/renderer`, Supabase migrations folder. Implement: (1) `financial_transactions` table migration with debit/credit types, (2) `unit_ledger_view` materialized view with running balance per unit, (3) `generateMonthlyCharges` bulk Server Action, (4) `recordPayment` Server Action, (5) `getArrearsReport` with days_overdue, (6) `generateKozosKoltsegKimutatas` PDF export using @react-pdf/renderer with Lakástörvény-compliant format, (7) financial dashboard UI with sortable ledger table. Full TypeScript code. Value: +€220k–€480k."
         },
         "hu": {
-          "title": "Multi-épület dashboard + épületválasztó (Skálázási architektúra kapu)",
+          "title": "Teljes pénzügyi főkönyv — Kettős könyvviteli közös költség könyvelés",
           "desc": [
-            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. A PanelLakó backend sémája multi-tenant, de a frontend egyépületes — nincs épületválasztó, és egy ügynökség, amely 20 épületet kezel, jelenleg nem tudja használni a terméket.",
-            "Piaci kontextus: Magyarországon ~2 400 professzionális ingatlankezelő cég (közös képviselők és ügynökségek) átlagosan 8–25 épületet kezel. Egyetlen ügynökség belépése = 8–25× az egyéni épület belépésnél. Ez a B2B vállalati ék.",
-            "Az implementáció követi a workspace UUID az URL-ben mintát: `/w/:workspaceId` az épület dashboardhoz, `/app` az épületválasztóhoz."
+            "A PanelLakóban van `app/actions/finance.ts` Server Action és pénzügyi modul UI, de a jelenlegi implementáció hiányzik: kettős könyvviteli alapelvek, teljes közös költség generálási workflow (havi tömeges befizetési felszólítás az összes albetétnek), automatizált hátralékszámítás konfigurálható türelmi időkkel, és megfelelő éves pénzügyi kimutatás export. A magyarországi társasházi könyvelést a Lakástörvény (2003. évi CXXXIII.) §24 szabályozza, amely minden épületet kötelez a megfelelő pénzügyi nyilvántartás fenntartására és éves kimutatás nyújtására a tulajdonosoknak.",
+            "A magyarországi közös költség könyvelési piacot jelenleg Excel-táblázatok és örökség szoftverek uralják (pl. Társasházkezelő 2000 — egy Windows 95-os kori alkalmazás, amelyet még mindig széles körben használnak). Egy modern, jogilag megfelelő főkönyv a PanelLakóban — amely az official 'Közös Költség Kimutatás' nyomtatvány formátumát generálja — pótolhatatlan workflow-függőséget hoz létre. Az épületeket kezelő könyvelők különálló persona (lásd `app/funkciok/konyveloknek/page.tsx`).",
+            "Technikai megközelítés: a `finance.ts` Server Actions kibővítése tömeges `generateMonthlyCharges()` akcióval, `unit_ledger_view` materializált nézet hozzáadása Supabase-ben, és PDF export `@react-pdf/renderer`-rel a Lakástörvény-kompatibilis éves 'Közös Költség Kimutatáshoz'."
           ],
           "impl": [
-            "1. Hozd létre: `app/app/page.tsx` — Épületválasztó.",
-            "2. Hozd létre: `app/w/[buildingId]/page.tsx` — Épület-hatókörű dashboard.",
-            "3. Adj hozzá `buildingId` paramétert az összes adatlekérési függvénynek a `lib/data.ts`-ben.",
-            "4. Frissítsd a sidebar-t 'Épület váltása' gombbal.",
-            "5. Védd a `/w/*` route-okat middleware-rel."
+            "1. Migráció: `financial_transactions` tábla létrehozása `(id, building_id, unit_id, type: 'charge'|'payment'|'adjustment', amount_huf, description, period_month, created_by, created_at)` oszlopokkal.",
+            "2. `unit_ledger_view` létrehozása Supabase-ben: albetétenként futó egyenleg `SUM(charges) - SUM(payments)` alapján.",
+            "3. `app/actions/finance.ts` bővítése: `generateMonthlyCharges(buildingId, month, chargePerUnit)` — tömeges common cost sorok az összes albetéthez egy tranzakcióban.",
+            "4. `recordPayment(unitId, amountHuf, paymentDate, payerName)` Server Action hozzáadása.",
+            "5. `getArrearsReport(buildingId)` Server Action: `balance < 0` albetétek `days_overdue` kiszámítással.",
+            "6. PDF export: `generateKozosKoltsegKimutatas(buildingId, year)` — Lakástörvény-kompatibilis éves albetétenküli kimutatás `@react-pdf/renderer`-rel.",
+            "7. Pénzügyi dashboard: `unit_ledger_view` adatok rendezhető táblázatban piros/zöld egyenleg indikátorokkal; 'Havi közös költség generálás' varázsló.",
+            "8. Hátralék eszkaláció: >3 albetét >60 napos hátralék esetén manager push értesítés."
           ],
           "metrics": [
-            ["Feloldott ügyfélszegmens", "Egyépületes kezelők → Portfóliókezelők"],
-            ["Bevételi szorzó", "1× → 8–25× felhasználónként"],
-            ["Értékelési hatás", "+100 000–250 000 €"]
+            ["Excel-helyettesítési ragadóság", "Workflow lock-in: az épületek véglegesen elhagyják az Excelt"],
+            ["Könyvelői persona megtartás", "3–5 óra/épület/hó megtakarítás éves egyeztetéskor"],
+            ["Megfelelőségi érték", "Lakástörvény §24 kompatibilis éves kimutatás 1 kattintással"],
+            ["Értékelési hatás", "+220 000–480 000 € (missziókritikus workflow = alacsony lemorzsolódás)"]
           ],
-          "regen": "Implementáld a multi-épület támogatást a PanelLakóhoz. Hozd létre az épületválasztót és az épület-hatókörű dashboardot."
+          "regen": "Senior Next.js 14 + Supabase pénzügyi rendszerek fejlesztőként valósítsd meg a teljes pénzügyi főkönyvet a PanelLakóban (v0.9.23, /home/user/panellako). Meglévő: `app/actions/finance.ts`, `app/w/[buildingId]/(subpages)/` route tree, `@react-pdf/renderer`, Supabase migrációk. Valósítsd meg: (1) `financial_transactions` tábla migráció, (2) `unit_ledger_view` materializált nézet, (3) `generateMonthlyCharges` tömeges Server Action, (4) `recordPayment`, (5) `getArrearsReport` days_overdue-val, (6) `generateKozosKoltsegKimutatas` PDF export, (7) pénzügyi dashboard UI rendezhető főkönyv táblázattal."
         }
       }
     },
     {
-      "value": "+€180k–€420k",
+      "value": "+€180k–€400k",
       "translations": {
         "en": {
-          "title": "Mobile PWA + Push Notifications (Resident Engagement Engine)",
+          "title": "Transactional Email Suite via Resend — Full Communication Lifecycle",
           "desc": [
-            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. PanelLakó's current responsive web works on mobile browsers, but there is no Progressive Web App manifest, no service worker, and no push notification capability. For residents (lakók), the primary use case is: receive notification about building news, pay charges, report a fault. All three are mobile-first interactions. Without push notifications, PanelLakó cannot compete with WhatsApp groups — the current incumbent communication channel in Hungarian buildings.",
-            "Market opportunity: 85% of Hungarian smartphone users (aged 18–60) use push notifications from at least one app daily (eMarketer CEE 2024). Building announcements sent as push notifications have 4–7× higher open rates than email (industry benchmark). Push notifications are the key mechanism to create daily engagement from a product that would otherwise be used monthly.",
-            "Implementation: add `manifest.json` + service worker (Next.js 14 supports this via `next-pwa` or manual), integrate Web Push API with Supabase Edge Function as the push dispatcher, and store push subscriptions in a new `push_subscriptions` table."
+            "PanelLakó has `lib/email.ts` with a Resend-based `sendEmail` function and email templates directory. The `notifications` table in Supabase has a `channel` field supporting 'email', but most notification paths still trigger only in-app or push notifications. The missing piece is a full transactional email lifecycle: ticket status updates (reported → in progress → resolved), assembly invitations (legally required 8 days in advance per Ptk. 5:84), monthly common cost statements, overdue arrears notices, and document share notifications. Without email, PanelLakó cannot serve residents who do not check the app daily — which in Hungary is the majority of residents over 50.",
+            "Email remains the highest-reach communication channel in CEE property management. Research from the Hungarian Central Statistical Office (KSH 2024) shows 78% of Hungarians aged 45–64 use email daily, vs. only 34% using push-enabled apps. For legally-required communications (assembly invitations, arrears notices), email is the only channel with a legally auditable delivery record. Resend has a generous free tier (100 emails/day) and production-grade reliability; the `RESEND_API_KEY` just needs to be set in production environment variables.",
+            "Technical approach: extend the existing `lib/email.ts` with a typed `EmailEvent` enum and route each event type to the correct React Email template. Create React Email templates using `@react-email/components` for: (1) `ticket-status-change.tsx`, (2) `assembly-invitation.tsx`, (3) `monthly-statement.tsx`, (4) `arrears-notice.tsx`, (5) `document-shared.tsx`. Wire each template to its corresponding Server Action in `app/actions/` (tickets, meetings, finance, documents). Log all sends in `audit_logs` with `event_type: 'email_sent'` for GDPR and Ptk. compliance."
           ],
           "impl": [
-            "1. `npm install next-pwa` and configure in `next.config.mjs`.",
-            "2. Create `public/manifest.json` with PanelLakó branding (icons, theme_color: #1D4ED8, name).",
-            "3. Create `push_subscriptions` table: `profile_id, building_id, endpoint, p256dh, auth, created_at`.",
-            "4. Create Supabase Edge Function `send-push-notification`: accepts `{building_id, title, body}`, queries push_subscriptions, sends Web Push via web-push library.",
-            "5. In `announcements` Server Action: after insert, call the Edge Function to fan-out push to all subscribed building members.",
-            "6. Add 'Enable Notifications' button in dashboard header — triggers browser push permission request.",
-            "7. Store subscription object in push_subscriptions via Server Action on permission grant.",
-            "8. Test: create announcement as kozos_kepviselo, verify push arrives on subscribed mobile device."
+            "1. Extend `lib/email.ts`: add `EmailEventType` enum (`ticket_update`, `assembly_invitation`, `monthly_statement`, `arrears_notice`, `document_shared`); add `sendTypedEmail(event: EmailEventType, to: string[], data: Record<string, unknown>)` dispatcher.",
+            "2. Create `lib/email-templates/ticket-status-change.tsx`: subject 'Hibabejelentés frissítve: {title}'; body shows ticket title, old status → new status, building address, link to `/w/{buildingId}/(subpages)/`.",
+            "3. Create `lib/email-templates/assembly-invitation.tsx`: Ptk. 5:84 compliant; includes building name, date, location, agenda items list, proxy voting instructions, legal notice '8 nappal az ülés előtt küldve'.",
+            "4. Create `lib/email-templates/monthly-statement.tsx`: unit number, month, charge amount, payment received, balance — downloadable PDF link.",
+            "5. In `app/actions/tickets.ts` `updateTicketStatus()`: call `sendTypedEmail('ticket_update', [reporter.email], {ticketTitle, oldStatus, newStatus})`.",
+            "6. In `app/actions/meetings.ts` `sendAssemblyInvitation()`: call `sendTypedEmail('assembly_invitation', allUnitOwnerEmails, meetingData)` and log to `audit_logs`.",
+            "7. Create `app/actions/notifications.ts` `sendMonthlyStatements(buildingId, month)`: for each unit with an email, send monthly statement and insert `audit_logs` row.",
+            "8. Set `RESEND_API_KEY` in Vercel project environment variables; add domain `panellako.hu` to Resend sending domains."
           ],
           "metrics": [
-            ["Daily Active Users potential", "Monthly → Daily engagement"],
-            ["Announcement open rate", "Email 8% → Push 45–65%"],
-            ["Churn reduction", "High — push keeps users returning"],
-            ["Valuation impact", "+€80k–€200k"]
+            ["Communication reach", "App-only (30% daily active) → App + Email (78% daily reach)"],
+            ["Legal compliance", "Ptk. 5:84 assembly invitation requirement met with audit trail"],
+            ["Resident engagement", "+60–80% reach vs. push-only for residents over 50"],
+            ["Valuation impact", "+€180k–€400k (retention + compliance unlock)"]
           ],
-          "regen": "Add PWA and push notification support to PanelLakó. Install next-pwa. Create public/manifest.json. Add push_subscriptions table. Create Supabase Edge Function for push dispatch. Wire announcement creation to trigger push notifications to all subscribed building members. Add 'Enable Notifications' button to dashboard."
+          "regen": "You are a senior Next.js 14 + Resend email engineer on PanelLakó (v0.9.23, /home/user/panellako). Existing: `lib/email.ts` with Resend `sendEmail`, `app/actions/tickets.ts`, `app/actions/meetings.ts`, `app/actions/finance.ts`, `supabase/functions/send-push` for push. Complete the transactional email suite: (1) typed EmailEventType dispatcher in lib/email.ts, (2) React Email templates for ticket-status-change, assembly-invitation, monthly-statement, arrears-notice, document-shared, (3) wire each template to its Server Action, (4) audit_logs insert for all sends, (5) RESEND_API_KEY setup instructions. Full TypeScript React Email component code. Value: +€180k–€400k."
         },
         "hu": {
-          "title": "Mobil PWA + Push értesítések (Lakói engagement motor)",
+          "title": "Tranzakciós e-mail csomag Resend-del — Teljes kommunikációs életciklus",
           "desc": [
-            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. A PanelLakó jelenlegi reszponzív webes megjelenése mobilon működik, de nincs PWA manifest, service worker vagy push értesítési képesség. A WhatsApp csoportok a jelenlegi domináns kommunikációs csatorna a magyarországi épületekben — a PanelLakónak ezt kell felváltania.",
-            "Push értesítésekkel az épületi bejelentések 4–7× magasabb megnyitási arányt érnek el, mint az e-mail.",
-            "Implementáció: `manifest.json` + service worker (next-pwa), Web Push API Supabase Edge Function dispatch-csel, és `push_subscriptions` tábla."
+            "A PanelLakóban van `lib/email.ts` Resend-alapú `sendEmail` funkcióval és e-mail sablonok könyvtárral. A Supabase `notifications` táblájában van `channel` mező, amely 'email' értéket is támogat, de a legtöbb értesítési út csak alkalmazáson belüli vagy push értesítést vált ki. A hiányzó rész: teljes tranzakciós e-mail életciklus — hibabejelentés státuszfrissítések, közgyűlési meghívók (Ptk. 5:84 alapján jogilag 8 nappal előre kötelező), havi közös költség kimutatások, hátralékértesítők. E-mail nélkül a PanelLakó nem szolgálhatja ki azokat a lakókat, akik nem ellenőrzik az alkalmazást naponta — ami Magyarországon az 50 év felettiek többsége.",
+            "Az e-mail a legszélesebb elérési kommunikációs csatorna a KKE ingatlankezelésben. A KSH (2024) szerint a 45–64 éves magyarok 78%-a naponta használ e-mailt, vs. csak 34%-uk push-kompatibilis appot. A jogilag kötelező kommunikációhoz (közgyűlési meghívók, hátralékértesítők) az e-mail az egyetlen jogi érvénnyel auditálható kézbesítési csatorna.",
+            "Technikai megközelítés: a meglévő `lib/email.ts` bővítése tipizált `EmailEvent` enummal és React Email sablonok létrehozása: ticket-status-change, assembly-invitation, monthly-statement, arrears-notice, document-shared. Minden sablon bekötése a megfelelő Server Actionhöz, minden küldés naplózása az `audit_logs`-ban."
           ],
           "impl": [
-            "1. `npm install next-pwa`, konfiguráld a `next.config.mjs`-ben.",
-            "2. Hozd létre: `public/manifest.json` PanelLakó brandingel.",
-            "3. Hozd létre: `push_subscriptions` tábla.",
-            "4. Hozd létre: Supabase Edge Function `send-push-notification`.",
-            "5. Az értesítés létrehozásakor triggerelj push küldést az összes feliratkozott épülettagnak.",
-            "6. Adj hozzá 'Értesítések engedélyezése' gombot a dashboard fejlécéhez."
+            "1. `lib/email.ts` bővítése: `EmailEventType` enum hozzáadása; `sendTypedEmail(event, to, data)` diszpécser.",
+            "2. `lib/email-templates/ticket-status-change.tsx`: 'Hibabejelentés frissítve: {title}'; régi → új státusz, épület cím, link.",
+            "3. `lib/email-templates/assembly-invitation.tsx`: Ptk. 5:84 kompatibilis; tartalmazza az épület nevét, dátumát, helyszínét, napirendi pontokat, meghatalmazási instrukciókat.",
+            "4. `lib/email-templates/monthly-statement.tsx`: albetét szám, hónap, terhelés, befizetés, egyenleg, PDF letöltési link.",
+            "5. `app/actions/tickets.ts` `updateTicketStatus()`-ban: `sendTypedEmail('ticket_update', ...)` hívás.",
+            "6. `app/actions/meetings.ts` `sendAssemblyInvitation()`-ban: `sendTypedEmail('assembly_invitation', allUnitOwnerEmails, ...)` + `audit_logs` bejegyzés.",
+            "7. `app/actions/notifications.ts` `sendMonthlyStatements()`: minden e-maillel rendelkező albetéthez havi kimutatás küldése.",
+            "8. `RESEND_API_KEY` beállítása Vercel projekt környezeti változóban; `panellako.hu` domain hozzáadása a Resend küldési domainjekhez."
           ],
           "metrics": [
-            ["Napi aktív felhasználók potenciálja", "Havi → Napi engagement"],
-            ["Bejelentés megnyitási arány", "E-mail 8% → Push 45–65%"],
-            ["Értékelési hatás", "+80 000–200 000 €"]
+            ["Kommunikációs elérés", "Csak alkalmazás (30% napi aktív) → Alkalmazás + E-mail (78% napi elérés)"],
+            ["Jogi megfelelőség", "Ptk. 5:84 közgyűlési meghívó auditnyommal teljesítve"],
+            ["Lakói engagement", "+60–80% elérés push-only-hoz képest az 50 év felettieknél"],
+            ["Értékelési hatás", "+180 000–400 000 € (megtartás + megfelelőségi feloldás)"]
           ],
-          "regen": "Adj hozzá PWA és push értesítés támogatást a PanelLakóhoz. Telepítsd a next-pwa-t. Hozd létre a push_subscriptions táblát és a Supabase Edge Function dispatch-et."
+          "regen": "Senior Next.js 14 + Resend e-mail fejlesztőként valósítsd meg a teljes tranzakciós e-mail csomagot a PanelLakóban (v0.9.23, /home/user/panellako). Meglévő: `lib/email.ts`, `app/actions/tickets.ts`, `app/actions/meetings.ts`, `app/actions/finance.ts`. Valósítsd meg: (1) `EmailEventType` diszpécser, (2) React Email sablonok ticket-status-change, assembly-invitation, monthly-statement, arrears-notice, document-shared, (3) sablonok bekötése Server Actionökhöz, (4) audit_logs bejegyzések, (5) RESEND_API_KEY beállítás."
         }
       }
     },
     {
-      "value": "+€160k–€380k",
+      "value": "+€150k–€340k",
       "translations": {
         "en": {
-          "title": "AI-Powered Fault Ticket Triage + Priority Scoring (Competitive Differentiator)",
+          "title": "Environmental Intelligence Dashboard — SEO to Product Conversion Engine",
           "desc": [
-            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. PanelLakó's ticket module currently requires the building manager to manually assess, categorize and prioritize every fault report. For a manager handling 10–25 buildings with 50+ units each, this is 5–15 tickets/day — a significant administrative burden. An AI triage layer that auto-categorizes tickets (plumbing, electrical, structural, common area, emergency), estimates urgency, and suggests the right vendor type would be a genuine competitive moat.",
-            "No Hungarian property management software has AI triage as of 2026. OnlineHáz, Domus24 and competitors are legacy form-based systems. This is a first-mover differentiation opportunity. The technical path is accessible: a Supabase Edge Function calling Claude claude-haiku-4-5 (low latency, low cost) with a structured prompt analyzing ticket title + description → JSON output with category, urgency_score (1–10), suggested_vendor_type, and summary.",
-            "Integration is straightforward: after a ticket is inserted (Server Action), call the triage Edge Function asynchronously. The triage result enriches the ticket record with `ai_category`, `ai_urgency`, `ai_vendor_suggestion`. The building manager sees these as pre-filled suggestions they can accept or override."
+            "PanelLakó has invested heavily in environmental data infrastructure: air quality (`components/air-quality-section.tsx`, `app/w/[buildingId]/(subpages)/kornyezet/`), heat island analysis (`components/heat-island-dashboard-client.tsx`), noise pollution (`components/noise-dashboard-client.tsx`), land use maps (`components/land-use-map.tsx`), cycling routes (`components/cycling-map.tsx`), green score (`components/green-score-dashboard-client.tsx`), liveability score (`components/liveability-panel.tsx`), and public services (`components/services-page-client.tsx`). This is a genuine competitive moat: no Hungarian PropTech competitor has real environmental analytics at the building level.",
+            "The SEO content cluster (`app/levegominoseg-budapest/`, `app/klimakockazat-epuleteknel/`, `app/zajszennyezes-budapest/`, `app/zold-tarsashaz/`) already drives organic traffic to these analytical articles. The conversion path from SEO article → product signup → building environmental dashboard is partially built but not fully optimized. The opportunity: (1) create a public-facing 'Building Environmental Score' page (no login required) as a lead magnet, (2) upsell the full environmental analytics module as a premium feature within the app, (3) use environmental scores in outbound B2B sales to municipalities and housing associations.",
+            "Technical approach: create a public `/epulet/{buildingId}/kornyezet` page that shows a limited environmental summary (heat island risk, green score, air quality index) without requiring login — this is a lead magnet for building residents and managers. For logged-in users, the full dashboard adds: historical trends, peer benchmarking (compare to similar buildings in the same district), actionable improvement recommendations (e.g., 'add 3 trees to reduce heat island risk by 15%'), and an environmental compliance report for EU EPBD 2024/1275/EU obligations."
           ],
           "impl": [
-            "1. Add columns to tickets table: `ai_category TEXT, ai_urgency INT, ai_vendor_suggestion TEXT, ai_summary TEXT`.",
-            "2. Create Supabase Edge Function `triage-ticket`: POST `{ticket_id, title, description}` → call Anthropic API with claude-haiku-4-5.",
-            "3. Prompt template: 'You are a Hungarian building management assistant. Categorize this fault report: Title: {{title}}. Description: {{description}}. Return JSON: {category: [plumbing|electrical|structural|common_area|emergency|other], urgency: 1-10, vendor_type: string, summary_hu: string}'",
-            "4. In ticket Server Action: after `supabase.from('tickets').insert()`, call Edge Function asynchronously (don't await — non-blocking).",
-            "5. In ticket list UI: show AI category badge + urgency indicator (color-coded 1–10 → green/yellow/red).",
-            "6. Set ANTHROPIC_API_KEY in Supabase Edge Function secrets.",
-            "7. Add override controls: manager can edit category/urgency if AI is wrong, with a 'AI suggested' label."
+            "1. Create `app/epulet/[buildingId]/kornyezet/page.tsx`: public environmental summary page (no auth required); reads from `building_env_score` table; shows heat island risk card, green score gauge, air quality index.",
+            "2. Add 'Regisztrálj a teljes elemzésért' CTA button on the public page — links to `/ingyenes-proba` with `?source=env_score&building={buildingId}` tracking.",
+            "3. In `app/w/[buildingId]/(subpages)/kornyezet/` page: add historical trend charts (Recharts LineChart) for air quality PM2.5/PM10 from `air_quality_readings` table (migration `20260518_air_quality_readings.sql`).",
+            "4. Add peer benchmarking: `getDistrictAverageScores(districtCode)` Server Action — compare building's env score against district median using `building_env_score` table.",
+            "5. Create `components/env-improvement-recommendations.tsx`: rule-based recommendations based on env score components (e.g., low green score → 'green roof eligible', high heat → 'reflective paint + shade trees').",
+            "6. Add EU EPBD compliance section: display building's energy performance certificate (EPC) class from `building_env_score.epc_class` field; link to `app/klimakockazat-epuleteknel/energetikai-tanusitvany/` article.",
+            "7. Create `app/sitemap.ts` entry for public `/epulet/[buildingId]/kornyezet` pages — index in Google as rich content for building-specific searches.",
+            "8. PostHog event `env_score_page_viewed` with `{source: 'public'|'app', buildingId}` for conversion funnel tracking."
           ],
           "metrics": [
-            ["Manager time saved per building", "~2h/week per building on ticket triage"],
-            ["Ticket resolution speed", "+30–40% faster routing to correct vendor"],
-            ["Product differentiation", "First AI-triage PropTech in HU market"],
-            ["Valuation impact (AI premium)", "+€80k–€200k"]
+            ["Lead magnet conversion", "Public env score page → free trial CTA"],
+            ["SEO to product funnel", "Environmental article traffic → signed buildings"],
+            ["Competitive moat", "Only building-level environmental analytics in HU PropTech"],
+            ["Municipal/housing association B2B unlock", "EU EPBD compliance reporting = government sales"]
           ],
-          "regen": "Add AI-powered ticket triage to PanelLakó. Create Supabase Edge Function `triage-ticket` calling Anthropic claude-haiku-4-5. Prompt analyzes ticket title+description, returns {category, urgency 1-10, vendor_type, summary_hu}. Add ai_category, ai_urgency, ai_vendor_suggestion columns to tickets table. Call function asynchronously after ticket insert Server Action. Show results as badges in ticket list UI."
+          "regen": "You are a senior Next.js 14 + Supabase engineer on PanelLakó (v0.9.23, /home/user/panellako). Existing env infrastructure: `building_env_score` table (migration `20260520_building_env_score.sql`), `air_quality_readings` table (migration `20260518_air_quality_readings.sql`), `components/air-quality-section.tsx`, `components/heat-island-dashboard-client.tsx`, `components/green-score-dashboard-client.tsx`, `components/liveability-panel.tsx`. Design: (1) public `app/epulet/[buildingId]/kornyezet/page.tsx` lead magnet (no auth), (2) historical trend charts in the app using Recharts, (3) peer benchmarking Server Action, (4) env-improvement-recommendations component, (5) EU EPBD compliance section, (6) sitemap.ts entry, (7) PostHog conversion events. Value: +€150k–€340k."
         },
         "hu": {
-          "title": "AI-alapú hibabejelentés triage + prioritás pontozás (Versenyképes differenciáló)",
+          "title": "Környezeti intelligencia dashboard — SEO-ból termékkonverzió motor",
           "desc": [
-            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. A PanelLakó ticket modul jelenleg megköveteli, hogy a közös képviselő manuálisan értékelje és priorizálja minden hibabejelentést. Egy 10–25 épületet kezelő képviselőnél ez 5–15 ticket/nap — jelentős adminisztrációs teher.",
-            "2026-ban egyetlen magyarországi ingatlankezelő szoftver sem rendelkezik AI triage-dzsel. Ez első mozgásos differenciálási lehetőség.",
-            "Technikai út: Supabase Edge Function Claude claude-haiku-4-5 hívással — alacsony késleltetés, alacsony költség. A triage eredmény gazdagítja a ticket rekordot `ai_category`, `ai_urgency`, `ai_vendor_suggestion` mezőkkel."
+            "A PanelLakó jelentős beruházást tett a környezeti adatinfrastruktúrába: levegőminőség (`components/air-quality-section.tsx`), hősziget elemzés (`components/heat-island-dashboard-client.tsx`), zajszennyezés (`components/noise-dashboard-client.tsx`), területhasználati térképek, kerékpáros útvonalak, zöld pontszám, élhetőségi panel és közszolgáltatások. Ez valódi versenyelőny: egyetlen magyarországi PropTech versenytárs sem rendelkezik valós épület-szintű környezeti elemzéssel.",
+            "A SEO tartalomklaszter (`app/levegominoseg-budapest/`, `app/klimakockazat-epuleteknel/`, `app/zajszennyezes-budapest/`, `app/zold-tarsashaz/`) már generál organikus forgalmat ezekre az elemzési cikkekre. A konverziós út SEO cikktől → termék regisztrációig → épület környezeti dashboardig részlegesen kiépített, de nem teljesen optimalizált. Lehetőség: nyilvános 'Épület Környezeti Pontszám' oldal lead mágnesként, premium funkció upsell, és környezeti pontszámok B2B értékesítésben önkormányzatokhoz.",
+            "Technikai megközelítés: nyilvános `/epulet/{buildingId}/kornyezet` oldal létrehozása bejelentkezés nélkül korlátozott környezeti összefoglalóval (hősziget kockázat, zöld pontszám, levegőminőségi index) mint lead mágnes. Bejelentkezett felhasználóknak: historikus trendek, peer benchmarking, akcióképes fejlesztési javaslatok, EU EPBD 2024/1275/EU megfelelőségi jelentés."
           ],
           "impl": [
-            "1. Adj hozzá oszlopokat a tickets táblához: `ai_category, ai_urgency, ai_vendor_suggestion, ai_summary`.",
-            "2. Hozd létre: Supabase Edge Function `triage-ticket` Anthropic API hívással.",
-            "3. Ticket Server Action után: hívd az Edge Function-t aszinkron módon.",
-            "4. A ticket lista UI-ban: mutass AI kategória badge-et + sürgősségi indikátort.",
-            "5. Állítsd be az `ANTHROPIC_API_KEY`-t az Edge Function secrets-ben."
+            "1. Hozd létre: `app/epulet/[buildingId]/kornyezet/page.tsx` — nyilvános környezeti összefoglaló (nincs auth); `building_env_score` táblából; hősziget kockázat kártya, zöld pontszám mérőóra, levegőminőségi index.",
+            "2. 'Regisztrálj a teljes elemzésért' CTA gomb hozzáadása → `/ingyenes-proba?source=env_score&building={buildingId}`.",
+            "3. `app/w/[buildingId]/(subpages)/kornyezet/` oldalon: historikus trenddiagramok (Recharts LineChart) az `air_quality_readings` táblából.",
+            "4. Peer benchmarking: `getDistrictAverageScores(districtCode)` Server Action — épület env pontszámának összehasonlítása a kerület mediánjával.",
+            "5. `components/env-improvement-recommendations.tsx` létrehozása: szabályalapú javaslatok (pl. alacsony zöld pontszám → 'zöldtető jogosult').",
+            "6. EU EPBD megfelelőségi szekció: EPC osztály megjelenítése, link az energetikai tanúsítvány cikkre.",
+            "7. `app/sitemap.ts` bővítése nyilvános `/epulet/[buildingId]/kornyezet` oldalakra.",
+            "8. PostHog esemény: `env_score_page_viewed` konverziós tölcsér követéshez."
           ],
           "metrics": [
-            ["Képviselői időmegtakarítás", "~2 óra/hét épületenként"],
-            ["Termék-differenciálás", "Első AI triage PropTech a magyar piacon"],
-            ["Értékelési hatás", "+80 000–200 000 €"]
+            ["Lead mágnes konverzió", "Nyilvános env pontszám oldal → ingyenes próba CTA"],
+            ["SEO-ból termék tölcsér", "Környezeti cikk forgalom → aláírt épületek"],
+            ["Versenyelőny", "Egyetlen épület-szintű környezeti elemzés a HU PropTechben"],
+            ["Önkormányzati/lakásszövetkezeti B2B feloldás", "EU EPBD megfelelőségi jelentés = kormányzati értékesítés"]
           ],
-          "regen": "Adj hozzá AI-alapú ticket triage-t a PanelLakóhoz. Hozd létre a Supabase Edge Function-t Claude claude-haiku-4-5 hívással. Adj hozzá AI mezőket a tickets táblához."
+          "regen": "Senior Next.js 14 + Supabase fejlesztőként tervezd meg a PanelLakó környezeti intelligencia dashboardját (v0.9.23, /home/user/panellako). Meglévő: `building_env_score` tábla, `air_quality_readings` tábla, `components/air-quality-section.tsx`, `components/heat-island-dashboard-client.tsx`, `components/green-score-dashboard-client.tsx`. Tervezd meg: (1) nyilvános lead mágnes oldal, (2) historikus trenddiagramok, (3) peer benchmarking Server Action, (4) fejlesztési javaslatok komponens, (5) EU EPBD megfelelőségi szekció, (6) sitemap.ts bejegyzés, (7) PostHog konverziós események."
         }
       }
     },
     {
-      "value": "+€140k–€320k",
+      "value": "+€130k–€300k",
       "translations": {
         "en": {
-          "title": "Financial Module — Real Ledger + Arrears Automation",
+          "title": "SSR Auth Hardening + Middleware Route Protection",
           "desc": [
-            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. The financial module currently shows mock balances and arrears. For a building manager, the financial module is the second most critical feature after document management — it determines whether they can replace their Excel spreadsheet or their current accounting software. Without real financial data writes, PanelLakó cannot be the system of record for building finances.",
-            "The key jobs-to-be-done: (1) Record common cost charges per unit per month, (2) Track payments received, (3) Generate automatic arrears notices. Hungarian társasház law (Lakástörvény §24) requires buildings to maintain financial records — this is a compliance driver. PanelLakó can become the compliance tool.",
-            "Implementation plan: add real `financials` insert/update Server Actions, add a charge generation routine (bulk insert monthly common cost charges for all units), add payment recording, and generate an automated arrears notice (PDF or email) for units with negative balance."
+            "PanelLakó's authentication uses Supabase Auth, but the governance rules (`CLAUDE.md`, `AI_EXECUTION_PROMPTS.md`) indicate that all `/w/[buildingId]/` routes must be protected server-side. The current state relies on client-side session checks which can be stale (`getSession()` reads from local cache rather than hitting the Supabase auth server). For a product handling sensitive financial data, arrears records, and resident personal information (GDPR-protected), this is a security gap that will block any B2B sales conversation with property management companies or municipal housing providers.",
+            "Hungarian GDPR enforcement has intensified since the NAIH (Nemzeti Adatvédelmi és Információszabadság Hatóság) issued its 2024 binding guidance on housing management software. Tools that expose resident PII without server-side session validation face potential fines of up to 4% of global annual turnover under GDPR Art. 83(4). For a PropTech startup, a NAIH audit finding is an existential threat. SSR auth hardening is not just a feature — it is a prerequisite for any enterprise or municipal contract.",
+            "Technical approach: install `@supabase/ssr` (the Next.js 14 official Supabase auth library), create `lib/supabase/server.ts` with a cookie-based server client, create `middleware.ts` at the repo root that calls `updateSession()` on every request to `/w/**` routes. Replace all `supabase.auth.getSession()` calls with `supabase.auth.getUser()` in server components — this hits the Supabase auth server on every request and cannot be spoofed. Add explicit RLS policy checks in all Server Actions in `app/actions/`."
           ],
           "impl": [
-            "1. Create `app/actions/financials.ts` Server Actions: `recordPayment`, `createCharge`, `generateArrearsReport`.",
-            "2. `createCharge(buildingId, month, chargePerUnit)`: bulk-inserts charge rows for all units in the building.",
-            "3. `recordPayment(unitId, amount, paymentDate)`: inserts payment row, updates unit.balance_amount.",
-            "4. Add computed view in Supabase: `unit_balance_view` = SUM(charges) - SUM(payments) per unit.",
-            "5. In financial dashboard: show real balance from `unit_balance_view`, highlight negative balances in red.",
-            "6. Add 'Generate Arrears Notice' button: creates templated email/PDF for units with balance < 0.",
-            "7. Add charge history table in unit detail view.",
-            "8. Add monthly charge generation wizard for building manager (select month, amount → bulk create)."
+            "1. `npm install @supabase/ssr` — add to `package.json`.",
+            "2. Create `lib/supabase/server.ts`: `import { createServerClient } from '@supabase/ssr'; import { cookies } from 'next/headers'; export function createSupabaseServerClient() { return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { cookies: { getAll() { return cookies().getAll() }, setAll(cs) { cs.forEach(({name, value, options}) => cookies().set(name, value, options)) } } }); }`",
+            "3. Create `middleware.ts` at repo root: import `createServerClient` + `NextResponse`; call `updateSession(request)` for all routes matching `/(w|app|billing|superadmin)/**`; redirect unauthenticated requests to `/login`.",
+            "4. Add `config = { matcher: ['/((?!_next/static|_next/image|favicon.ico|opengraph-image|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'] }` to `middleware.ts`.",
+            "5. Replace all `createClient()` with `createSupabaseServerClient()` in server components under `app/w/[buildingId]/**`.",
+            "6. Replace all `supabase.auth.getSession()` with `supabase.auth.getUser()` — add `const { data: { user } } = await supabase.auth.getUser(); if (!user) redirect('/login');` at the top of every protected page.",
+            "7. In all `app/actions/*.ts` Server Actions: add `const { data: { user } } = await supabase.auth.getUser(); if (!user) throw new Error('Unauthorized');` before any DB mutation.",
+            "8. Test: manually delete Supabase auth cookie in browser DevTools; verify redirect to `/login` with `?redirectedFrom=/w/{buildingId}` query param."
           ],
           "metrics": [
-            ["Feature completeness", "Financial module: mock → Real ledger"],
-            ["Compliance value", "Meets Lakástörvény §24 record-keeping requirement"],
-            ["Churn reduction", "Replaces Excel → sticky workflow lock-in"],
-            ["Valuation impact", "+€70k–€160k"]
+            ["Security posture", "Client-cache auth → Server-verified auth on every request"],
+            ["GDPR compliance", "NAIH housing management guidance compliance → enterprise contract eligibility"],
+            ["Municipal/enterprise deal unlock", "Security objection removed from B2B sales cycle"],
+            ["Valuation impact", "+€130k–€300k (trust premium + deal unlock)"]
           ],
-          "regen": "Implement real financial ledger for PanelLakó. Create app/actions/financials.ts with recordPayment, createCharge, generateArrearsReport Server Actions. Add unit_balance_view in Supabase (SUM charges - SUM payments). Implement monthly charge bulk generation wizard for building managers. Add arrears notification trigger for negative balance units."
+          "regen": "You are a senior Next.js 14 + Supabase SSR engineer on PanelLakó (v0.9.23, /home/user/panellako). The app uses Supabase Auth but currently has client-side session checks. CLAUDE.md governance requires all `/w/[buildingId]/` routes to be server-side protected. Implement: (1) `npm install @supabase/ssr`, (2) `lib/supabase/server.ts` with cookie-based server client, (3) `middleware.ts` with `updateSession` protecting `/(w|app|billing|superadmin)/**`, (4) replace all `getSession()` with `getUser()` in server components and all `app/actions/*.ts`, (5) test instructions with manual cookie deletion. Full TypeScript code. Value: +€130k–€300k."
         },
         "hu": {
-          "title": "Pénzügyi modul — Valós főkönyv + Hátralék automatizálás",
+          "title": "SSR auth keményítés + Middleware route védelem",
           "desc": [
-            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. A pénzügyi modul jelenleg mock egyenlegeket és hátralékokat mutat. A közös képviselőknek a pénzügyi modul a dokumentumkezelés után a második legkritikusabb funkció — ez dönti el, hogy le tudják-e váltani az Excel táblázatot.",
-            "Kulcs feladatok: (1) Közös költség tételek rögzítése albetétenként havonta, (2) Beérkező fizetések nyomon követése, (3) Automatikus hátralékértesítők generálása. A Lakástörvény §24 megköveteli a pénzügyi nyilvántartást — ez egy compliance hajtóerő.",
-            "Implementáció: valós `financials` Server Actions, tömeges havi közös költség generálás, fizetés rögzítés, automatikus hátralékértesítő."
+            "A PanelLakó hitelesítése Supabase Auth-ot használ, de a governance szabályok (`CLAUDE.md`, `AI_EXECUTION_PROMPTS.md`) megkövetelik, hogy az összes `/w/[buildingId]/` route szerver-oldali védelemmel rendelkezzen. A jelenlegi állapot kliens-oldali munkamenet-ellenőrzésre támaszkodik, amely elavult lehet (`getSession()` lokális gyorsítótárból olvas). Egy érzékeny pénzügyi adatokat, hátralék-nyilvántartásokat és lakói személyes adatokat (GDPR-védett) kezelő termék számára ez biztonsági rés.",
+            "A magyarországi GDPR végrehajtás felerősödött, miután a NAIH (Nemzeti Adatvédelmi és Információszabadság Hatóság) 2024-ben kötelező érvényű iránymutatást adott ki a lakáskezelő szoftverekre. A szerver-oldali munkamenet-érvényesítés nélkül lakói személyes adatokat feltáró eszközök GDPR 83(4) cikke alapján a globális éves forgalom akár 4%-ának megfelelő bírsággal szembesülhetnek. A NAIH-ellenőrzés lelet egy PropTech startup számára egzisztenciális fenyegetés.",
+            "Technikai megközelítés: `@supabase/ssr` telepítése (a Next.js 14 hivatalos Supabase auth könyvtára), `lib/supabase/server.ts` létrehozása cookie-alapú szerver kliensssel, `middleware.ts` létrehozása a repo gyökerében, amely minden `/w/**` route-ra meghívja az `updateSession()`-t. Az összes `getSession()` hívás lecserélése `getUser()`-re szerver komponensekben."
           ],
           "impl": [
-            "1. Hozd létre: `app/actions/financials.ts` Server Actions: `recordPayment`, `createCharge`, `generateArrearsReport`.",
-            "2. `createCharge`: tömeges közös költség sorok az épület összes albetétéhez.",
-            "3. `recordPayment`: befizetési sor beszúrása, unit.balance_amount frissítése.",
-            "4. Adj hozzá `unit_balance_view` számított nézetet Supabase-ben.",
-            "5. Adj hozzá havi közös költség generáló varázslót a közös képviselőnek."
+            "1. `npm install @supabase/ssr` — hozzáadás a `package.json`-hoz.",
+            "2. `lib/supabase/server.ts` létrehozása: `createServerClient` cookie-alapú konfigurációval.",
+            "3. `middleware.ts` létrehozása a repo gyökerében: `updateSession(request)` meghívása `/(w|app|billing|superadmin)/**` route-okra; hitelesítetlen kérések átirányítása `/login`-ra.",
+            "4. `config = { matcher: [...] }` hozzáadása a middleware-hez statikus eszközök kizárásával.",
+            "5. Az összes `createClient()` lecserélése `createSupabaseServerClient()`-re az `app/w/[buildingId]/**` szerver komponensekben.",
+            "6. Az összes `getSession()` lecserélése `getUser()`-re — `const { data: { user } } = await supabase.auth.getUser(); if (!user) redirect('/login');` minden védett oldal tetejére.",
+            "7. Az összes `app/actions/*.ts` Server Actionban: `const { data: { user } } = await supabase.auth.getUser(); if (!user) throw new Error('Unauthorized');` hozzáadása minden DB mutáció elé.",
+            "8. Teszt: manuálisan töröld a Supabase auth cookie-t a böngésző DevTools-ban; ellenőrizd az átirányítást."
           ],
           "metrics": [
-            ["Funkció-teljesség", "Pénzügyi modul: mock → Valós főkönyv"],
-            ["Megfelelőségi érték", "Lakástörvény §24 nyilvántartási kötelezettség teljesítése"],
-            ["Értékelési hatás", "+70 000–160 000 €"]
+            ["Biztonsági állapot", "Cache auth → Szerver-ellenőrzött auth minden kérésnél"],
+            ["GDPR megfelelőség", "NAIH lakáskezelési iránymutatás → vállalati szerződési jogosultság"],
+            ["Önkormányzati/vállalati deal feloldás", "Biztonsági kifogás eltávolítva a B2B értékesítési ciklusból"],
+            ["Értékelési hatás", "+130 000–300 000 € (bizalmi prémium + deal feloldás)"]
           ],
-          "regen": "Implementáld a valós pénzügyi főkönyvet a PanelLakóhoz. Hozd létre az app/actions/financials.ts-t Server Actions-szel. Adj hozzá unit_balance_view-t Supabase-ben. Implementálj havi közös költség tömeges generáló varázslót."
-        }
-      }
-    },
-    {
-      "value": "+€120k–€280k",
-      "translations": {
-        "en": {
-          "title": "Automated Assembly Protocol Generator (Közgyűlési Segéd)",
-          "desc": [
-            "**STATUS: IN PROGRESS** — Következő fejlesztési prioritás. The assembly/voting module is partially built (UI for agenda, resolutions, votes exists) but does not generate any official documentation. In Hungary, every residential building assembly (közgyűlés) is legally required to produce a signed meeting minutes document (Ptk. 5:85–5:88) within 15 days. Building managers spend 2–4 hours per assembly generating this document manually in Word.",
-            "PanelLakó can auto-generate a legally-compliant meeting minutes template (Közgyűlési Jegyzőkönyv) from the digital assembly record — agenda items, attendance, votes, resolutions — filled into a structured template that meets Ptk. requirements. This is a standalone, high-perceived-value feature that building managers will pay a premium for.",
-            "Implementation: after an assembly is marked as closed, generate a PDF (using @react-pdf/renderer or Puppeteer on a Supabase Edge Function) from a Ptk-compliant template, store in Supabase Storage, and send to the building manager's email."
-          ],
-          "impl": [
-            "1. Add `meetings.status` column: 'tervezett' | 'aktiv' | 'lezarva'.",
-            "2. Create assembly close Server Action: marks meeting as 'lezarva', triggers protocol generation.",
-            "3. Create Supabase Edge Function `generate-assembly-protocol`: fetches meeting + agenda_items + resolutions + votes + attendance, renders PDF using @react-pdf/renderer.",
-            "4. PDF template sections: Épület adatai, Időpont és helyszín, Határozatképesség (quorum check), Napirendi pontok + szavazási eredmények, Határozatok szövege, Aláírás mező.",
-            "5. Upload generated PDF to Supabase Storage `documents/assembly-protocols/`.",
-            "6. Insert document row and send email to kozos_kepviselo with download link.",
-            "7. Add 'Közgyűlés lezárása és Jegyzőkönyv generálás' button to assembly detail view."
-          ],
-          "metrics": [
-            ["Manager time saved", "2–4 hours per assembly → 5 minutes"],
-            ["Compliance automation", "Ptk. 5:85 compliant protocol in 1 click"],
-            ["Feature upsell potential", "Premium tier feature, justifies Pro pricing"],
-            ["Valuation impact", "+€60k–€130k"]
-          ],
-          "regen": "Implement automated assembly protocol (Közgyűlési Jegyzőkönyv) generation for PanelLakó. Add meetings.status column. Create Supabase Edge Function generate-assembly-protocol that renders a Ptk-compliant PDF using meeting data (agenda, resolutions, votes, attendance). Store in Supabase Storage. Email to kozos_kepviselo on assembly close."
-        },
-        "hu": {
-          "title": "Automatizált közgyűlési jegyzőkönyv generátor",
-          "desc": [
-            "**STATUS: IN PROGRESS** — Következő fejlesztési prioritás. A közgyűlési/szavazási modul részlegesen kiépített, de nem generál hivatalos dokumentumot. Magyarországon minden társasházi közgyűlés jogi kötelezettség a Ptk. 5:85–5:88 alapján aláírt közgyűlési jegyzőkönyv előállítására 15 napon belül. A közös képviselők közgyűlésenként 2–4 órát töltenek ennek Word-ben való elkészítésével.",
-            "A PanelLakó automatikusan generálhat egy jogilag megfelelő közgyűlési jegyzőkönyv sablont a digitális közgyűlési rekordból. Ez önálló, magas észlelt értékű feature, amelyért a képviselők prémiumot fizetnek.",
-            "Implementáció: Supabase Edge Function PDF generálással, Supabase Storage tárolással, e-mail küldéssel."
-          ],
-          "impl": [
-            "1. Adj hozzá `meetings.status` oszlopot: 'tervezett' | 'aktiv' | 'lezarva'.",
-            "2. Hozd létre: Supabase Edge Function `generate-assembly-protocol` @react-pdf/renderer-rel.",
-            "3. PDF sablon: Épület adatai, Határozatképesség, Napirendi pontok, Határozatok, Aláírás mező.",
-            "4. Töltsd fel a generált PDF-et Supabase Storage-ba.",
-            "5. Küldj e-mailt a kozos_kepviselo-nek letöltési linkkel."
-          ],
-          "metrics": [
-            ["Képviselői időmegtakarítás", "2–4 óra/közgyűlés → 5 perc"],
-            ["Megfelelőségi automatizálás", "Ptk. 5:85 kompatibilis 1 kattintással"],
-            ["Értékelési hatás", "+60 000–130 000 €"]
-          ],
-          "regen": "Implementáld az automatizált közgyűlési jegyzőkönyv generálást a PanelLakóhoz. Hozd létre a Supabase Edge Function-t PDF generálással. Tárolj Supabase Storage-ban és küldj e-mailt."
+          "regen": "Senior Next.js 14 + Supabase SSR fejlesztőként valósítsd meg az auth keményítést a PanelLakóban (v0.9.23, /home/user/panellako). Az app Supabase Auth-ot használ, de kliens-oldali munkamenet-ellenőrzéssel. CLAUDE.md governance megköveteli a szerver-oldali védelmet az összes `/w/[buildingId]/` route-ra. Valósítsd meg: (1) `@supabase/ssr` telepítés, (2) `lib/supabase/server.ts` cookie-alapú szerver kliensssel, (3) `middleware.ts` updateSession-nel, (4) `getSession()` → `getUser()` csere, (5) Server Action auth ellenőrzések."
         }
       }
     },
@@ -468,51 +443,109 @@
       "value": "+€100k–€240k",
       "translations": {
         "en": {
-          "title": "Email Notification System via Supabase Email (Resident Communication Layer)",
+          "title": "Resident Self-Service Portal — Mobile PWA + Push Notification Deepening",
           "desc": [
-            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. PanelLakó currently has a `notifications` table with a `channel` field supporting 'app' and 'email', but no email is ever sent. Email is the most reliable communication channel for residents who do not check the app daily, and it is legally required for certain notices (assembly invitations must be sent in writing per Ptk. 5:84). Without email delivery, PanelLakó cannot be the sole communication platform for a building.",
-            "Supabase provides built-in email via SMTP configuration, and Resend (a modern transactional email service) is the recommended partner for Next.js/Supabase apps. Resend has a free tier (100 emails/day), is production-grade, and integrates in minutes. The email system should support: announcement broadcast, ticket status update, assembly invitation, document share, and monthly financial statement.",
-            "This feature directly enables compliance use cases: Ptk. requires assembly invitations to be sent 8 days in advance in writing. PanelLakó can auto-send these and log the send event in audit_logs."
+            "PanelLakó has a PWA manifest, service worker (`supabase/functions/send-push/`), and web-push infrastructure already built. The existing `app/w/[buildingId]/(subpages)/` routes cover lakókornyzet-szolgaltatasok, zaj, kozlekedes, kornyezet and other building data pages. What is missing is a dedicated resident-facing self-service portal: a mobile-optimized view where residents can (1) submit fault reports with photo uploads, (2) see their unit's payment status and current balance, (3) view building documents (SZMSZ, rules) without navigating through the manager-focused dashboard, and (4) RSVP to assembly invitations and submit proxy voting authority.",
+            "Resident engagement is the multiplier for building manager retention: a building manager who can say 'our residents use PanelLakó daily' is far less likely to churn. In the Hungarian market, the pain point is the WhatsApp group — every building currently uses a WhatsApp group for resident-manager communication, which is unarchivable, unauditable, and inaccessible to residents without smartphones. PanelLakó's PWA (installable on both Android and iOS via browser) plus web-push replaces WhatsApp groups while adding structured data. The key metric is daily/weekly active residents per building.",
+            "Technical approach: create a `/portal` route subtree for the resident-facing experience, distinct from the manager-facing `/w/[buildingId]/` routes. The portal reads from the same Supabase tables but uses resident-role RLS policies. Key components: `components/resident-ticket-form.tsx` (simple mobile form with camera capture), `components/resident-balance-card.tsx` (single unit payment status), `components/resident-document-list.tsx` (read-only document browser), `components/resident-assembly-rsvp.tsx` (RSVP + proxy voting form). All components must have 44px minimum touch targets and meet WCAG 2.1 AA."
           ],
           "impl": [
-            "1. Sign up at resend.com, get API key, set `RESEND_API_KEY` env var.",
-            "2. `npm install resend`",
-            "3. Create `lib/email.ts`: `import { Resend } from 'resend'; const resend = new Resend(process.env.RESEND_API_KEY); export async function sendEmail({to, subject, html}) { await resend.emails.send({from: 'PanelLakó <no-reply@panellako.hu>', to, subject, html}); }`",
-            "4. Create email templates: `lib/email-templates/announcement.tsx`, `ticket-update.tsx`, `assembly-invitation.tsx`, `monthly-statement.tsx`.",
-            "5. In announcement Server Action: after insert, query all building members with `channel = 'email'`, call `sendEmail` for each.",
-            "6. In ticket update Server Action: notify reporter via email on status change.",
-            "7. Add 'Send Assembly Invitation' button: generates invitation email with meeting details to all unit owners.",
-            "8. Log all sent emails in `audit_logs` with event_type: 'email_sent'."
+            "1. Create `app/portal/[buildingId]/page.tsx`: resident home — building name, latest announcement, upcoming assembly date, unread notification count.",
+            "2. Create `app/portal/[buildingId]/hiba/page.tsx`: fault report submission with `<input type='file' capture='environment' />` for camera; calls `app/actions/tickets.ts` `createTicket()` with `role: 'resident'`.",
+            "3. Create `app/portal/[buildingId]/egyenleg/page.tsx`: unit payment status from `unit_ledger_view`; shows balance, last payment date, next charge due.",
+            "4. Create `app/portal/[buildingId]/dokumentumok/page.tsx`: read-only document list from `documents` table, `supabase.storage` signed URL download.",
+            "5. Create `app/portal/[buildingId]/kozgyules/page.tsx`: RSVP form (`attending: yes/no/proxy`); proxy authority upload; calls `app/actions/meetings.ts` `submitAssemblyRsvp()`.",
+            "6. Update `public/manifest.json`: add `start_url: '/portal'` and 'PanelLakó Lakói' app name variant for PWA install prompt.",
+            "7. In `supabase/functions/send-push/index.ts`: add `resident_announcement` and `ticket_resolved` notification types targeting resident push subscriptions.",
+            "8. Add 'Meghívó küldése lakóknak' button in manager view: generates a building-specific portal URL (`/portal/{buildingId}`) and sends it via Resend email to all unit owners."
           ],
           "metrics": [
-            ["Communication coverage", "App-only → App + Email"],
-            ["Legal compliance", "Ptk. 5:84 assembly invitation requirement met"],
-            ["Resident engagement", "+60–80% reach vs app-only notifications"],
-            ["Valuation impact", "+€50k–€120k"]
+            ["Resident DAU/WAU per building", "0 → target 30–50% of unit owners weekly active"],
+            ["WhatsApp group replacement", "Structured, auditable communication channel"],
+            ["Building manager retention", "+25–35% — managers with active residents churn 2–3× less"],
+            ["Valuation impact", "+€100k–€240k (engagement depth = retention = LTV multiplier)"]
           ],
-          "regen": "Add email notification system to PanelLakó using Resend. Install resend package. Create lib/email.ts with sendEmail function. Create email templates for announcements, ticket updates, assembly invitations, and monthly statements. Wire to Server Actions: send emails after announcement insert, ticket status change, assembly invitation creation. Log in audit_logs."
+          "regen": "You are a senior Next.js 14 + mobile UX engineer on PanelLakó (v0.9.23, /home/user/panellako). Existing: PWA manifest in `public/manifest.json`, `supabase/functions/send-push/`, `app/actions/tickets.ts`, `app/actions/meetings.ts`, `documents` bucket, `unit_ledger_view`. Design resident self-service portal: (1) `app/portal/[buildingId]/page.tsx` resident home, (2) fault report form with camera capture at `/portal/[buildingId]/hiba`, (3) unit balance card at `/portal/[buildingId]/egyenleg`, (4) document browser, (5) assembly RSVP form, (6) manifest.json PWA install update, (7) resident push notification types, (8) manager invitation button. Mobile-first, 44px touch targets, WCAG 2.1 AA. Value: +€100k–€240k."
         },
         "hu": {
-          "title": "E-mail értesítési rendszer Resend-del (Lakói kommunikációs réteg)",
+          "title": "Lakói önkiszolgáló portál — Mobil PWA + Push értesítés mélyítés",
           "desc": [
-            "**STATUS: IMPLEMENTED** — Ez az initiative már el van készítve a PanelLakó v0.5.1-ben. A PanelLakónak van `notifications` táblája `channel` mezővel ('app' és 'email' értékekkel), de e-mail soha nem kerül kiküldésre. Az e-mail a legmegbízhatóbb kommunikációs csatorna a naponta az appot nem ellenőrző lakókhoz, és jogilag kötelező bizonyos értesítések esetén (a Ptk. 5:84 szerint a közgyűlési meghívót írásban kell küldeni).",
-            "Resend (modern tranzakciós e-mail szolgáltatás) a javasolt partner Next.js/Supabase alkalmazásokhoz. Ingyenes szint: 100 e-mail/nap.",
-            "Ez a funkció közvetlenül lehetővé teszi a megfelelőségi eseteket: Ptk. megköveteli a közgyűlési meghívók 8 nappal előre írásos küldését."
+            "A PanelLakóban van PWA manifest, service worker (`supabase/functions/send-push/`) és web-push infrastruktúra. Ami hiányzik: dedikált lakói önkiszolgáló portál — mobil-optimalizált nézet, ahol a lakók (1) hibabejelentéseket küldhetnek fotófeltöltéssel, (2) megtekinthetik albetétük fizetési állapotát, (3) épületi dokumentumokat böngészhetnek (SZMSZ, házirendek) a kezelő-fókuszú dashboard nélkül, és (4) közgyűlési meghívókra válaszolhatnak és meghatalmazást adhatnak.",
+            "A lakói engagement szorzóan hat a kezelői megtartásra: egy kezelő, aki azt mondhatja 'a lakóink naponta használják a PanelLakót', sokkal kevésbé valószínű, hogy lemorzsolódik. A magyarországi piacon a fájdalompont a WhatsApp csoport — minden épület jelenleg WhatsApp csoportot használ, amely nem archiválható, nem auditálható. A PanelLakó PWA-ja (Androidon és iOS-en egyaránt telepíthető böngészőből) plusz web-push felváltja a WhatsApp csoportokat, miközben strukturált adatokat ad hozzá.",
+            "Technikai megközelítés: `/portal` route alrendszer létrehozása a lakói élményhez, elkülönítve a kezelő-fókuszú `/w/[buildingId]/` route-októl. A portál ugyanazokból a Supabase táblákból olvas, de lakói RLS házirendeket használ. Kulcs komponensek: `components/resident-ticket-form.tsx` (kamera elfogással), `components/resident-balance-card.tsx`, `components/resident-document-list.tsx`, `components/resident-assembly-rsvp.tsx`."
           ],
           "impl": [
-            "1. Regisztrálj a resend.com-on, `RESEND_API_KEY` env változó beállítása.",
-            "2. `npm install resend`",
-            "3. Hozd létre: `lib/email.ts` sendEmail funkcióval.",
-            "4. Hozd létre e-mail sablonokat: bejelentés, ticket frissítés, közgyűlési meghívó, havi kimutatás.",
-            "5. Az értesítés Server Action-ben: meghívót küldj az összes tulajdonosnak.",
-            "6. Naplózz minden kiküldött e-mailt az `audit_logs`-ban."
+            "1. `app/portal/[buildingId]/page.tsx` létrehozása: lakói főoldal — épület neve, legutóbbi értesítés, közelgő közgyűlés dátuma.",
+            "2. `app/portal/[buildingId]/hiba/page.tsx`: hibabejelentés `<input type='file' capture='environment' />`-vel; `createTicket()` hívás `role: 'resident'`-tel.",
+            "3. `app/portal/[buildingId]/egyenleg/page.tsx`: albetét fizetési státusz az `unit_ledger_view`-ból.",
+            "4. `app/portal/[buildingId]/dokumentumok/page.tsx`: csak-olvasási dokumentumlista Supabase Storage aláírt URL-lel.",
+            "5. `app/portal/[buildingId]/kozgyules/page.tsx`: RSVP form (részt vesz/nem/meghatalmazott); meghatalmazás feltöltés.",
+            "6. `public/manifest.json` frissítése: `start_url: '/portal'` hozzáadása.",
+            "7. `supabase/functions/send-push/index.ts`-ben: `resident_announcement` és `ticket_resolved` értesítési típusok.",
+            "8. 'Meghívó küldése lakóknak' gomb a kezelői nézetben: épület-specifikus portal URL generálása és Resend e-mail küldése."
           ],
           "metrics": [
-            ["Kommunikációs lefedettség", "Csak app → App + E-mail"],
-            ["Jogi megfelelőség", "Ptk. 5:84 közgyűlési meghívó követelmény teljesítve"],
-            ["Értékelési hatás", "+50 000–120 000 €"]
+            ["Lakói DAU/WAU épületenként", "0 → cél: az albetéttulajdonosok 30–50%-a hetente aktív"],
+            ["WhatsApp csoport helyettesítés", "Strukturált, auditálható kommunikációs csatorna"],
+            ["Kezelői megtartás", "+25–35% — aktív lakókkal rendelkező kezelők 2–3× kevésbé morzsolódnak le"],
+            ["Értékelési hatás", "+100 000–240 000 € (engagement mélység = megtartás = LTV szorzó)"]
           ],
-          "regen": "Adj hozzá e-mail értesítési rendszert a PanelLakóhoz Resend-del. Telepítsd a resend-et. Hozd létre a lib/email.ts-t e-mail sablonokkal."
+          "regen": "Senior Next.js 14 + mobil UX fejlesztőként tervezd meg a PanelLakó lakói önkiszolgáló portálját (v0.9.23, /home/user/panellako). Meglévő: PWA manifest, `supabase/functions/send-push/`, `app/actions/tickets.ts`, `app/actions/meetings.ts`, `documents` bucket, `unit_ledger_view`. Tervezd meg: (1) `app/portal/[buildingId]/page.tsx` lakói főoldal, (2) hibabejelentési form kamera elfogással, (3) albetét egyenleg kártya, (4) dokumentumböngésző, (5) RSVP form, (6) manifest.json frissítés, (7) lakói push értesítési típusok, (8) kezelői meghívó gomb. Mobil-first, 44px érintési célpontok."
+        }
+      }
+    },
+    {
+      "value": "+€80k–€200k",
+      "translations": {
+        "en": {
+          "title": "PostHog Product Analytics — Conversion Funnel + Feature Usage Instrumentation",
+          "desc": [
+            "PanelLakó has PostHog installed (`next.config.mjs` CSP includes `eu.posthog.com`) but the instrumentation is likely minimal — basic pageviews rather than a structured event taxonomy covering the full product funnel. At the current growth stage (v0.9.23, early-growth phase with real billing), the highest-leverage analytical work is: (1) mapping the trial-to-paid conversion funnel with granular drop-off points, (2) identifying which features correlate most strongly with paid conversion and retention, (3) A/B testing onboarding flows, and (4) building a cohort retention chart to prove product-market fit to investors.",
+            "Data-driven product decisions are a valuation multiplier: VCs and strategic acquirers pay 20–40% more for SaaS businesses with demonstrable product-led growth metrics (user activation rate, feature adoption rate, cohort retention curves). Without this instrumentation, PanelLakó cannot prove its retention story even if the underlying metrics are strong. The SEO investment (v0.9.11–v0.9.23 sprint series) is generating organic traffic — PostHog funnels will show which content pieces convert to trials, enabling content investment optimization.",
+            "Technical approach: define a `PanelLakoEvent` TypeScript enum covering the full product journey (20–30 events). Group by funnel stage: (1) Acquisition: `page_viewed`, `trial_cta_clicked`, `trial_form_submitted`; (2) Activation: `first_building_created`, `first_ticket_submitted`, `first_document_uploaded`, `push_notifications_enabled`; (3) Revenue: `trial_converted`, `plan_upgraded`, `payment_failed`; (4) Retention: `weekly_active`, `assembly_protocol_generated`, `ai_triage_used`. Implement using PostHog's `posthog.capture()` from a typed `trackEvent` wrapper in `lib/analytics.ts`."
+          ],
+          "impl": [
+            "1. Create `lib/analytics.ts`: `import posthog from 'posthog-js'; export const trackEvent = (event: PanelLakoEvent, properties?: Record<string, unknown>) => { if (typeof window !== 'undefined') posthog.capture(event, properties); };`",
+            "2. Define `PanelLakoEvent` enum: acquisition events (`trial_cta_clicked`, `pricing_page_viewed`, `comparison_page_viewed`), activation events (`building_created`, `ticket_submitted`, `document_uploaded`, `push_enabled`, `assembly_created`), revenue events (`checkout_started`, `trial_converted`, `plan_upgraded`, `payment_failed`, `subscription_cancelled`), retention events (`portal_login`, `ai_triage_used`, `protocol_generated`, `financial_report_exported`).",
+            "3. Add `trackEvent('trial_cta_clicked', {source: 'hero'|'pricing'|'env_score'})` to all CTA buttons across public pages (`app/page.tsx`, `app/arak/page.tsx`, `app/ingyenes-proba/page.tsx`).",
+            "4. Add activation tracking in `app/actions/tickets.ts` `createTicket()`: `trackEvent('ticket_submitted', {building_id, ai_triage_enabled: !!aiTriage})`.",
+            "5. Add `trackEvent('trial_converted', {plan, unit_count, building_count})` in `app/api/stripe/webhook/route.ts` on `checkout.session.completed`.",
+            "6. Create PostHog Dashboard: 'Trial Funnel' (acquisition → activation → conversion), 'Feature Adoption Matrix' (% of paid customers using each core feature), 'Cohort Retention' (week 1/4/12/24 retention curves).",
+            "7. Add PostHog Feature Flags for A/B testing: `onboarding_flow_v2` flag to test a guided onboarding wizard vs. current self-serve.",
+            "8. Add `posthog.identify(user.id, {plan, building_count, unit_total, created_at})` in `app/w/[buildingId]/page.tsx` after auth check."
+          ],
+          "metrics": [
+            ["Investor readiness", "Cohort retention curves + activation funnel → Series A data room ready"],
+            ["Content-to-trial conversion visibility", "SEO organic → trial CTA source attribution"],
+            ["Product decisions", "Feature usage data → informed roadmap prioritization"],
+            ["Valuation impact", "+€80k–€200k (data-driven SaaS commands 20–40% valuation premium)"]
+          ],
+          "regen": "You are a senior product analytics engineer on PanelLakó (v0.9.23, /home/user/panellako). PostHog is installed (CSP includes eu.posthog.com). Implement a complete product analytics instrumentation layer: (1) `lib/analytics.ts` with typed `PanelLakoEvent` enum (30 events across acquisition/activation/revenue/retention), (2) `trackEvent` wrapper function, (3) CTA tracking on all public pages (`app/page.tsx`, `app/arak/page.tsx`, `app/ingyenes-proba/page.tsx`), (4) Server Action tracking in `app/actions/tickets.ts`, `app/actions/meetings.ts`, `app/actions/finance.ts`, (5) Stripe webhook tracking in `app/api/stripe/webhook/route.ts`, (6) PostHog identify call with user properties, (7) Feature Flag setup for A/B testing onboarding. Full TypeScript code. Value: +€80k–€200k."
+        },
+        "hu": {
+          "title": "PostHog termék-analitika — Konverziós tölcsér + funkció-használat instrumentálás",
+          "desc": [
+            "A PanelLakóban telepítve van a PostHog (`next.config.mjs` CSP tartalmazza az `eu.posthog.com`-ot), de az instrumentálás valószínűleg minimális — alap oldalmegtekintések inkább, mint strukturált esemény-taxonómia a teljes termék tölcsér lefedéséhez. A jelenlegi növekedési szakaszban (v0.9.23, valós számlázással) a legmagasabb leverage-sú analitikai munkák: a trial-to-paid konverziós tölcsér részletes kiesési pontokkal való feltérképezése, melyik funkciók korrelálnak legerősebben a konverzióval, és kohort megtartási görbe építése a befektetők számára.",
+            "Adatvezérelt termékdöntések értékelési szorzót jelentenek: a VC-k és stratégiai felvásárlók 20–40%-kal többet fizetnek SaaS vállalkozásokért bizonyítható termék-vezérelt növekedési mutatókkal (felhasználói aktiválási arány, funkció-adoptálási arány, kohort megtartási görbék). Az SEO beruházás (v0.9.11–v0.9.23 sprint sorozat) organikus forgalmat generál — a PostHog tölcsérek megmutatják, melyik tartalmak konvertálnak próbaidőszakra.",
+            "Technikai megközelítés: `PanelLakoEvent` TypeScript enum definiálása a teljes termékútra (20–30 esemény). Tölcsér szakaszok szerint csoportosítva: (1) Megszerzés; (2) Aktiválás; (3) Bevétel; (4) Megtartás. `lib/analytics.ts`-ben tipizált `trackEvent` wrapper-rel."
+          ],
+          "impl": [
+            "1. `lib/analytics.ts` létrehozása: `trackEvent(event: PanelLakoEvent, properties?)` wrapper PostHog `posthog.capture()`-ral.",
+            "2. `PanelLakoEvent` enum definiálása: megszerzési események, aktiválási események, bevételi események, megtartási események (összesen 30).",
+            "3. `trackEvent('trial_cta_clicked', {source: 'hero'|'pricing'|'env_score'})` hozzáadása az összes CTA gombhoz a nyilvános oldalakon.",
+            "4. Aktiválási követés: `createTicket()`-ben `trackEvent('ticket_submitted', {building_id, ai_triage_enabled})`.",
+            "5. `trackEvent('trial_converted', {plan, unit_count, building_count})` a Stripe webhook route-ban.",
+            "6. PostHog Dashboard létrehozása: 'Trial Tölcsér', 'Funkció Adoptálási Mátrix', 'Kohort Megtartás'.",
+            "7. PostHog Feature Flags A/B teszteléshez: `onboarding_flow_v2` flag.",
+            "8. `posthog.identify(user.id, {plan, building_count, unit_total})` az `app/w/[buildingId]/page.tsx`-ben."
+          ],
+          "metrics": [
+            ["Befektetői készség", "Kohort megtartási görbék → Series A adatszoba-kész"],
+            ["Tartalom-to-trial konverzió láthatóság", "SEO organikus → próba CTA forrás-attribúció"],
+            ["Termékdöntések", "Funkció-használati adatok → megalapozott roadmap prioritizálás"],
+            ["Értékelési hatás", "+80 000–200 000 € (adatvezérelt SaaS 20–40% értékelési prémiumot parancsol)"]
+          ],
+          "regen": "Senior termék-analitika fejlesztőként valósítsd meg a teljes PostHog instrumentálást a PanelLakóban (v0.9.23, /home/user/panellako). PostHog telepítve van (CSP: eu.posthog.com). Valósítsd meg: (1) `lib/analytics.ts` `PanelLakoEvent` enummal (30 esemény), (2) `trackEvent` wrapper, (3) CTA követés nyilvános oldalakon, (4) Server Action követés, (5) Stripe webhook követés, (6) PostHog identify felhasználói tulajdonságokkal, (7) Feature Flag A/B teszteléshez."
         }
       }
     }

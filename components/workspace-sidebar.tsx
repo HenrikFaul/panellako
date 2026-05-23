@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   Building2,
   Bus,
+  BellRing,
   CalendarDays,
   BookOpen,
   ShieldCheck,
@@ -59,6 +60,7 @@ export default function WorkspaceSidebar({
     { href: `${base}#meetings`,   label: 'Közgyűlések', icon: CalendarDays },
     { href: `${base}#knowledge`,  label: 'Tudásbázis',  icon: BookOpen },
     ...(isAdminLike ? [{ href: `${base}#audit`, label: 'Audit napló', icon: ShieldCheck }] : []),
+    ...(isManager ? [{ href: `${base}/ertesitesek`, label: 'Push értesítések', icon: BellRing }] : []),
   ];
 
   const envNav = [
