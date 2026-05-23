@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
 function createServiceClient() {
   const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').trim();
@@ -52,7 +53,7 @@ interface OverpassElement {
 
 async function fetchFromOverpass(lat: number, lon: number): Promise<PublicServicesResult> {
   const query = `
-[out:json][timeout:25];
+[out:json][timeout:15];
 (
   node["amenity"="townhall"](around:5000,${lat},${lon});
   way["amenity"="townhall"](around:5000,${lat},${lon});
@@ -67,29 +68,35 @@ async function fetchFromOverpass(lat: number, lon: number): Promise<PublicServic
   node["social_facility"](around:2000,${lat},${lon});
   way["social_facility"](around:2000,${lat},${lon});
 );
-out body center;
+out center qt;
   `.trim();
 
   const mirrors = [
-    'https://overpass-api.de/api/interpreter',
     'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.openstreetmap.fr/api/interpreter',
+    'https://lz4.overpass-api.de/api/interpreter',
   ];
 
   let elements: OverpassElement[] = [];
+  let fetched = false;
   for (const mirror of mirrors) {
     try {
       const res = await fetch(mirror, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `data=${encodeURIComponent(query)}`,
-        signal: AbortSignal.timeout(18_000),
+        signal: AbortSignal.timeout(9_000),
       });
       if (!res.ok) continue;
-      const data = await res.json() as { elements?: OverpassElement[] };
+      const data = await res.json() as { elements?: OverpassElement[]; remark?: string };
+      if (data.remark && /runtime error|timeout|Query timed out/i.test(data.remark)) continue;
       elements = data.elements ?? [];
+      fetched = true;
       break;
     } catch { continue; }
   }
+  if (!fetched) throw new Error('All Overpass mirrors failed');
 
   const HEALTHCARE_SUBTYPES: Record<string, string> = {
     hospital: 'Kórház', clinic: 'Klinika / rendelő', doctors: 'Orvosi rendelő',

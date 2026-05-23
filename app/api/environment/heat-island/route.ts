@@ -30,6 +30,7 @@ interface OElement {
 
 interface OverpassResponse {
   elements: OElement[];
+  remark?: string;
 }
 
 function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -76,7 +77,7 @@ async function overpassFetch(body: string): Promise<OElement[]> {
         method: 'POST',
         headers,
         body,
-        signal: AbortSignal.timeout(9_000),
+        signal: AbortSignal.timeout(22_000),
       });
       if (!res.ok) {
         lastErr = new Error(`HTTP ${res.status} @ ${url}`);
@@ -84,6 +85,11 @@ async function overpassFetch(body: string): Promise<OElement[]> {
         continue;
       }
       const json = (await res.json()) as OverpassResponse;
+      if (json.remark && /runtime error|timeout|Query timed out/i.test(json.remark)) {
+        lastErr = new Error(`Overpass server-side timeout @ ${url}: ${json.remark}`);
+        console.warn(`[environment/heat-island] ${url} server-side timeout:`, json.remark);
+        continue;
+      }
       return json.elements ?? [];
     } catch (err) {
       lastErr = err;
@@ -105,7 +111,7 @@ const BUDAPEST_FALLBACK_COOL_SPOTS: CoolSpot[] = [
 // ─── OSM data fetcher + UHI calculator ────────────────────────────────────────
 async function computeFromOverpass(lat: number, lon: number): Promise<UHIResult> {
   // Query for buildings, greenspace, water, and parks in 500m radius
-  const query = `[out:json][timeout:9];
+  const query = `[out:json][timeout:20];
 (
   way["building"](around:500,${lat},${lon});
   way["landuse"~"^(forest|park|grass|recreation_ground|meadow|village_green)$"](around:500,${lat},${lon});
@@ -122,6 +128,9 @@ async function computeFromOverpass(lat: number, lon: number): Promise<UHIResult>
 out geom qt;`;
 
   const els = await overpassFetch(`data=${encodeURIComponent(query)}`);
+  if (els.length === 0) {
+    throw new Error('Overpass returned no elements — likely server-side timeout');
+  }
 
   // Approximate 500m circle area for density calculations
   const circleAreaM2 = Math.PI * 500 * 500; // ~785,398 m²
@@ -284,7 +293,7 @@ export async function GET(req: NextRequest) {
   try {
     const result = await computeFromOverpass(lat, lon);
     cache.set(cacheKey, { data: result, expires: Date.now() + 24 * 60 * 60 * 1000 });
-    return NextResponse.json(result);
+    return NextResponse.json({ ...result, source: 'overpass' });
   } catch (err) {
     console.warn('[environment/heat-island] Overpass failed, using fallback:', err);
 
