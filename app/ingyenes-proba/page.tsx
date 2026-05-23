@@ -6,7 +6,6 @@ import {
   ArrowRight,
   Building2,
   Shield,
-  Clock,
   Users,
   Calculator,
   Vote,
