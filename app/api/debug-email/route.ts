@@ -21,7 +21,16 @@ async function brevoGet(path: string, apiKey: string) {
   return { status: res.status, ok: res.ok, body };
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const token      = request.nextUrl.searchParams.get('token');
+  const debugToken = process.env.DEBUG_EMAIL_TOKEN;
+  if (!debugToken || token !== debugToken) {
+    return NextResponse.json(
+      { error: 'Unauthorized. Set DEBUG_EMAIL_TOKEN env var and pass ?token=<value>.' },
+      { status: 401 }
+    );
+  }
+
   const apiKey    = process.env.BREVO_API_KEY;
   const recipient = process.env.CONTACT_RECIPIENT_EMAIL;
 

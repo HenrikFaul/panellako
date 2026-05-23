@@ -45,8 +45,11 @@ function parseFrom(from: string): { name: string; email: string } {
 
 export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
   if (!isEmailEnabled) {
+    const toMasked = Array.isArray(options.to)
+      ? options.to.map(e => `***@${e.split('@')[1] ?? '?'}`)
+      : `***@${String(options.to).split('@')[1] ?? '?'}`;
     console.log('[EMAIL STUB — no BREVO_API_KEY]', {
-      to: options.to,
+      to: toMasked,
       subject: options.subject,
       htmlLength: options.html.length,
     });
