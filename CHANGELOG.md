@@ -1,4 +1,17 @@
 
+## v0.9.17 — Fix: transit map vehicle route names (DB fallback for route resolution)
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Tömegközlekedés térkép — járatszámok javítása
+- **Gyökérok**: `ensureRouteInfoMap()` a BKK OBA API-tól függött a GTFS belső route ID-k (`BKK_3010`, `BKK_4750` stb.) → nyilvános rövid nevek (`30`, `47` stb.) feloldásához. Ha az API nem érhető el (nincs `BKKFUTAR_API_KEY`, rate limit, IP block), az útvonaltérkép üres maradt → a járatokon belső GTFS ID-k (`3010`, `4750`) jelentek meg.
+- **Fix**: Ha az OBA API fetch sikertelen, a `transit_routes` Supabase tábla (szinkron cron tölti fel) adja a route ID → short name mappet. Ez DB-alapú fallback, nincs szükség élő API hívásra.
+- **Érintett fájl**: `app/api/transit/vehicles/route.ts`
+  - `createDbClient()` segédfüggvény hozzáadva
+  - `ensureRouteInfoMap()` DB fallback: `transit_routes` tábla lekérdezése ha OBA API nem valid
+
+---
+
 ## v0.9.16 — Build fix: typedRoutes `string` → `Route` cast (13 fájl + 2 komponens)
 **Dátum:** 2026-05-23
 **Branch:** claude/fix-cron-null-values-uDCqd
