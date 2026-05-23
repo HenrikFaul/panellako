@@ -1,4 +1,23 @@
 
+## v0.9.20 — SEO: Technical fixes + structured data batch update (27 Article schemas)
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Technical SEO fixes
+- `robots.ts`: `/auth/` és `/monitoring` hozzáadva a disallow listához (TECH-002)
+- `layout.tsx`: `maximumScale: 1` eltávolítva — akadálymentességi és mobil UX javítás (TECH-004)
+- `layout.tsx`: globális canonical fallback eltávolítva — megelőzi a jövőbeli duplikált canonical-t (TECH-005)
+- `page.tsx`, `arak`, `gyik`: relatív canonical URL-ek → abszolút URL-re javítva (TECH-006)
+- `elemzes/budapest-kozlekedes`: hiányzó BreadcrumbList schema hozzáadva (TECH-011)
+
+### Strukturált adatok
+- `layout.tsx`: WebSite schema + SearchAction hozzáadva (SCHEMA-002) — sitelinks keresőmező + LLM entity
+- `layout.tsx`: `@id` property hozzáadva SoftwareApplication és Organization sémákhoz (LLM-001)
+- Mind a 27 Article schema kiegészítve: `datePublished`, `dateModified`, `author` (SCHEMA-001)
+- `kozgyules-osszehivasa`: HowTo schema hozzáadva a meglévő 8 lépéses CHECKLIST_STEPS adatokhoz (SCHEMA-004)
+
+---
+
 ## v0.9.19 — Fix: /zold-tarsashaz broken pillar article links + duplicate cluster section removed
 **Dátum:** 2026-05-23
 **Branch:** claude/fix-cron-null-values-uDCqd
