@@ -46,15 +46,13 @@ const PILLAR_ARTICLES = [
     title: 'Közgyűlési határozat megtámadása',
     summary:
       'A 30 napos keresetindítási határidő, a jogalap meghatározása, a bíróság hatásköre és a megtámadás várható eredménye.',
-    comingSoon: true,
   },
   {
-    href: '/tarsashazi-jog/szomszédjog-kerdesek',
+    href: '/tarsashazi-jog/szomszed-jog-tarsashazban',
     icon: Users,
     title: 'Szomszédjogi kérdések',
     summary:
       'Zajos szomszéd, dohányzás a lépcsőházban, albérleti viták, kutyatartás — az SZMSZ-ben szabályozható és a törvény által rendezett esetek.',
-    comingSoon: true,
   },
   {
     href: '/tarsashazi-jog/alapito-okirat-modositasa',
@@ -62,7 +60,6 @@ const PILLAR_ARTICLES = [
     title: 'Alapító okirat módosítása',
     summary:
       'Mikor és hogyan kell módosítani az alapító okiratot, ki jogosult kezdeményezni, és milyen eljárást kell lefolytatni a változtatáshoz.',
-    comingSoon: true,
   },
 ];
 
@@ -114,25 +111,20 @@ export default function TarsashaziJogPillarPage() {
             {PILLAR_ARTICLES.map((article) => {
               const Icon = article.icon;
               return (
-                <div
+                <Link
                   key={article.href}
-                  className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                  href={article.href}
+                  className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-brand-300 hover:shadow-md"
                 >
-                  <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
+                  <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 transition-colors group-hover:bg-brand-100">
                     <Icon size={20} className="text-brand-600" />
                   </div>
-                  <p className="mb-1.5 font-bold text-slate-900">{article.title}</p>
+                  <p className="mb-1.5 font-bold text-slate-900 group-hover:text-brand-700">{article.title}</p>
                   <p className="flex-1 text-sm leading-relaxed text-slate-500">{article.summary}</p>
-                  {article.comingSoon ? (
-                    <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-slate-400">
-                      Hamarosan
-                    </div>
-                  ) : (
-                    <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-brand-600">
-                      Olvasom <ArrowRight size={12} />
-                    </div>
-                  )}
-                </div>
+                  <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-brand-600">
+                    Olvasom <ArrowRight size={12} />
+                  </div>
+                </Link>
               );
             })}
           </div>

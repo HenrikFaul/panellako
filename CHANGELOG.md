@@ -1,4 +1,69 @@
 
+## v0.9.13 — SEO Sprint 3: Topikai autoritás — tartalom pillérek
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Tartalom-pillérek (hub oldalak)
+- `app/tarsashaz-kezeles/page.tsx` — Társasházkezelés pillar hub
+- `app/levegominoseg-budapest/page.tsx` — Levegőminőség Budapest hub (kibővítve)
+- `app/zajszennyezes-budapest/page.tsx` — Zajszennyezés Budapest hub
+- `app/klimakockazat-epuleteknel/page.tsx` — Klímakockázat épületeknél hub
+- `app/zold-tarsashaz/page.tsx` — Zöld Társasház hub
+- `app/tarsashazi-jog/page.tsx` — Magyar Társasházi Jog hub
+- `app/tomegkozlekedes-elemzes/page.tsx` — Tömegközlekedés Elemzés hub
+
+### Cluster cikkek — Társasházkezelés pillar
+- `kozos-kepviselo-feladatai` — 2003. évi CXXXIII. tv., adminisztratív/pénzügyi/jogi feladatok
+- `kozgyules-osszehivasa` — 2021. évi CXLIII. tv., 8 lépéses checklist, minősített többség
+- `szmsz-keszitese` — 10 kötelező elem, 5 tipikus hiba, 2/3 vs 4/5 szavazatarány
+- `kozos-koltseg-nyilvantartas` — tételek, éves elszámolás, Ptk. késedelmi kamat
+- `dijhatlarak-kezelese` — FMH, végrehajtás, jelzálogjog bejegyzés
+- `dokumentumkezeles-tarsashazban` — megőrzési idők táblázata, lakói betekintési jog
+- `felugyelobizottsag` — Ttv. 53-56. §, ellenőrzési jogkör
+- `kozos-kepviselo-valasztasa` — megbízási szerződés, 90 napos felmondás, átadás-átvétel
+
+### Cluster cikkek — Levegőminőség pillar
+- `pm25-pm10-mit-jelent` — WHO vs EU határértékek, egészségügyi hatások
+- `budapest-legszennyezettebb-keruletek` — OLM mérőállomások, kerületi összehasonlítás
+- `belteri-levegominoseg-tarsashazban` — VOC, HEPA, CO-érzékelő, páratartalom
+- `pollen-allergia-budapest` — pollenszezon táblázat, parlagfű, 340/2013. Korm. rendelet
+
+### Cluster cikkek — Zajszennyezés pillar
+- `tarsashazi-zaj-panasz` — 45/35 dB(A) határok, 5 lépéses jogorvoslat
+- `zajvedes-tarsashazban` — Rw/Lw értékek, ablakcsere, panelprogram
+
+### Cluster cikkek — Zöld Társasház pillar
+- `napelem-tarsashazban` — METÁR 2023, önfogyasztás, 2/3-os közgyűlés
+- `hoszigeteles-panelprogram` — EPBD 2024, EPC osztályok, felújítási kötelezettség 2033
+- `ev-tolto-tarsashazban` — 2021. évi CXLIII. tv. 8/A. §, load balancing
+
+### Cluster cikkek — Klímakockázat pillar
+- `hoszigetek-budapest` — UHI, OMSZ mérés, zöldtető, reflektív festés
+- `csapadek-es-arviz-budapest` — villámárvíz, pincebeázás, MABISZ
+- `energetikai-tanusitvany` — EPC osztályok, EU EPBD 2024/1275/EU, 30-40% értékkülönbség
+
+### Cluster cikkek — Társasházi Jog pillar
+- `kozgyulesi-hatarozat-megtamadasa` — 30 napos jogvesztő határidő (Ttv. 42. §)
+- `szomszed-jog-tarsashazban` — Ptk. 5:23. §, zajhatárok, albérlet, kisállat, dohányzás
+- `alapito-okirat-modositasa` — egyhangú szavazatarány, közjegyző, Inytv. 29/A. §
+
+### Egyéb új oldalak
+- `app/tomegkozlekedes-elemzes/gtfs-adatok-budapest/page.tsx` — BKK GTFS fájlstruktúra
+- `app/tomegkozlekedes-elemzes/villamos-metro-hev-elerheto-lakoneegyedek/page.tsx`
+- `app/15-perces-varos/page.tsx` — Budapest 2030 stratégia
+- `app/adatforrasok/page.tsx` — E-E-A-T Dataset JSON-LD, 6 adatkategória
+
+### Technikai módosítások
+- `app/sitemap.ts`: 50+ URL (minden tartalom-pillér + cluster cikk)
+- `public/manifest.json`: theme_color + leíró description
+- `app/page.tsx`: /elemzes link szekció (ACT-019)
+
+### Sprint 3 sikerkritériumok
+- [ ] 5+ tartalom-pillér oldal indexálva GSC-ben
+- [ ] /levegominoseg-budapest első benyomások megjelennek
+- [ ] BreadcrumbList Rich Results Test átmegy
+- [ ] 3+ külső visszamutató hivatkozás elnyerve
+
 ## v0.9.12 — SEO Sprint 2: Konverziós felületek és navigáció
 **Dátum:** 2026-05-23
 **Branch:** claude/fix-cron-null-values-uDCqd

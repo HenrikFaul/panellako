@@ -12,7 +12,6 @@ import {
   Building2,
   Leaf,
   Shield,
-  DollarSign,
   Vote,
   FileText,
 } from 'lucide-react';

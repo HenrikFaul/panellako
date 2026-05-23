@@ -78,11 +78,25 @@ const PILLAR_ARTICLES = [
       'Felszólítási folyamat, jogi lépések, közjegyző és végrehajtási eljárás — mit tehet a közös képviselő hátralék esetén.',
   },
   {
-    href: '/tarsashaz-kezeles/dokumentumkezeles-tarshazban',
+    href: '/tarsashaz-kezeles/dokumentumkezeles-tarsashazban',
     icon: FolderOpen,
     title: 'Kötelező iratok a társasházban',
     summary:
       'Milyen dokumentumokat köteles megőrizni és hozzáférhetővé tenni a közös képviselő, meddig és milyen formában.',
+  },
+  {
+    href: '/tarsashaz-kezeles/felugyelobizottsag',
+    icon: AlertTriangle,
+    title: 'Felügyelőbizottság a társasházban',
+    summary:
+      'A felügyelőbizottság szerepe, megválasztásának szabályai, hatásköre és a közös képviselővel való viszonya.',
+  },
+  {
+    href: '/tarsashaz-kezeles/kozos-kepviselo-valasztasa',
+    icon: Users,
+    title: 'Közös képviselő választása',
+    summary:
+      'Hogyan válasszunk közös képviselőt: jelölési folyamat, megbízási szerződés, díjazás és a visszahívás menete.',
   },
 ];
 
