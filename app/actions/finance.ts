@@ -25,10 +25,12 @@ export interface ArrearsUnit {
   unit_id: string;
   unit_label: string;
   owner_name: string;
-  total_charged: number;
-  total_paid: number;
-  computed_balance: number;
+  total_arrears: number;
+  arrears_0_30: number;
+  arrears_31_60: number;
+  arrears_over_60: number;
   latest_due_date: string | null;
+  unpaid_periods: number;
 }
 
 export interface ArrearsReport {
@@ -38,6 +40,13 @@ export interface ArrearsReport {
   total_arrears: number;
   units_in_arrears: number;
   units: ArrearsUnit[];
+}
+
+export interface FinancialSummary {
+  total_expected: number;
+  total_paid: number;
+  total_arrears: number;
+  collection_rate_pct: number;
 }
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -175,25 +184,129 @@ export async function getArrearsReport(buildingId: string): Promise<{ success: b
 
   const { data: arrears, error: arrearsError } = await supabase
     .from('building_arrears_view')
-    .select('*')
-    .eq('building_id', buildingId);
+    .select('unit_id, unit_label, owner_name, total_arrears, arrears_0_30, arrears_31_60, arrears_over_60, latest_due_date, unpaid_periods')
+    .eq('building_id', buildingId)
+    .gt('total_arrears', 0)
+    .order('total_arrears', { ascending: false });
 
   if (arrearsError) return { success: false, error: `Hátralék lekérdezése sikertelen: ${arrearsError.message}` };
 
   const units = (arrears ?? []) as ArrearsUnit[];
-  const totalArrears = units.reduce((acc, u) => acc + u.computed_balance, 0);
+  const totalArrears = units.reduce((acc, u) => acc + Number(u.total_arrears), 0);
 
   return {
     success: true,
     report: {
       building_id: buildingId,
-      building_name: building.name,
+      building_name: (building as { name: string }).name,
       generated_at: new Date().toISOString(),
       total_arrears: totalArrears,
       units_in_arrears: units.length,
       units,
     }
   };
+}
+
+// ─── 5. Financial summary for a building ─────────────────────────────────────
+
+export async function getFinancialSummary(buildingId: string): Promise<{ success: boolean; summary?: FinancialSummary; error?: string }> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, error: 'Nem vagy bejelentkezve' };
+
+  // Get all units for this building
+  const { data: units, error: unitsError } = await supabase
+    .from('units')
+    .select('id')
+    .eq('building_id', buildingId);
+
+  if (unitsError) return { success: false, error: `Albetétek lekérdezése sikertelen: ${unitsError.message}` };
+  if (!units?.length) return { success: true, summary: { total_expected: 0, total_paid: 0, total_arrears: 0, collection_rate_pct: 0 } };
+
+  const unitIds = units.map((u) => u.id);
+  const currentMonth = new Date().toISOString().substring(0, 7);
+
+  const { data: entries, error: entriesError } = await supabase
+    .from('finance_entries')
+    .select('entry_type, expected_amount, paid_amount')
+    .in('unit_id', unitIds)
+    .eq('period', currentMonth)
+    .eq('entry_type', 'charge');
+
+  if (entriesError) return { success: false, error: `Pénzügyi adatok lekérdezése sikertelen: ${entriesError.message}` };
+
+  const totalExpected = (entries ?? []).reduce((acc, e) => acc + Number(e.expected_amount), 0);
+  const totalPaid = (entries ?? []).reduce((acc, e) => acc + Number(e.paid_amount), 0);
+  const totalArrears = Math.max(0, totalExpected - totalPaid);
+  const collectionRatePct = totalExpected > 0 ? Math.round((totalPaid / totalExpected) * 100) : 0;
+
+  return {
+    success: true,
+    summary: {
+      total_expected: totalExpected,
+      total_paid: totalPaid,
+      total_arrears: totalArrears,
+      collection_rate_pct: collectionRatePct,
+    },
+  };
+}
+
+// ─── 6. Export finances to CSV ───────────────────────────────────────────────
+
+export async function exportFinancesToCSV(buildingId: string, period?: string): Promise<{ success: boolean; csv?: string; error?: string }> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, error: 'Nem vagy bejelentkezve' };
+
+  const { data: units, error: unitsError } = await supabase
+    .from('units')
+    .select('id, unit_label')
+    .eq('building_id', buildingId)
+    .order('unit_label');
+
+  if (unitsError) return { success: false, error: `Albetétek lekérdezése sikertelen: ${unitsError.message}` };
+  if (!units?.length) return { success: false, error: 'Nincs albetét ehhez az épülethez' };
+
+  const unitIds = units.map((u) => u.id);
+
+  let query = supabase
+    .from('finance_entries')
+    .select('unit_id, period, entry_type, expected_amount, paid_amount, due_date')
+    .in('unit_id', unitIds)
+    .order('period', { ascending: false })
+    .order('unit_id');
+
+  if (period) {
+    query = query.eq('period', period);
+  }
+
+  const { data: entries, error: entriesError } = await query;
+  if (entriesError) return { success: false, error: `Pénzügyi adatok lekérdezése sikertelen: ${entriesError.message}` };
+
+  const unitLabelMap: Record<string, string> = {};
+  for (const u of units) {
+    unitLabelMap[u.id] = u.unit_label;
+  }
+
+  const header = 'Albetét,Időszak,Típus,Várható,Befizetett,Hátralék,Esedékes';
+  const rows = (entries ?? []).map((e) => {
+    const arrears = Math.max(0, Number(e.expected_amount) - Number(e.paid_amount));
+    const label = unitLabelMap[e.unit_id] ?? e.unit_id;
+    return [
+      `"${label}"`,
+      e.period,
+      e.entry_type,
+      Number(e.expected_amount).toFixed(2),
+      Number(e.paid_amount).toFixed(2),
+      arrears.toFixed(2),
+      e.due_date ?? '',
+    ].join(',');
+  });
+
+  const csv = [header, ...rows].join('\n');
+  return { success: true, csv };
 }
 
 // ─── 4. Get finance entries for a unit ───────────────────────────────────────

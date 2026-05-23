@@ -73,6 +73,7 @@ import AnnouncementComposer from '@/components/announcement-composer';
 import DashboardHeroScene, { detectTimeOfDay as heroDetectTod, skyGradient as heroSkyGradient, type TimeOfDay as HeroTimeOfDay } from '@/components/dashboard-hero-scene';
 import HeroVehicle from '@/components/HeroVehicle';
 import WorkspaceSidebar from '@/components/workspace-sidebar';
+import BillingWarningBanner, { type SubscriptionStatus } from '@/components/billing-warning-banner';
 
 // v0.7.14 — Magyarország-szintű címkereső eredmény-shape
 // (api/location/autocomplete válasz egy eleme)
@@ -98,6 +99,8 @@ type DashboardData = {
   buildingAddress?: string;
   buildingLat?: number;
   buildingLon?: number;
+  subscriptionStatus?: string;
+  trialEnd?: string;
   currentUser: { full_name: string; role: Role };
   news: Array<{
     id: string;
@@ -1280,6 +1283,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           className="min-w-0 flex-1 overflow-x-hidden space-y-5 px-4 py-5 md:px-8 lg:px-10 transition-[padding] duration-200"
           style={{ paddingLeft: sidebarCollapsed ? 60 : 272 }}
         >
+          {/* ── Billing warning banner ────────────────────────────────────── */}
+          <BillingWarningBanner
+            buildingId={data.buildingId ?? ''}
+            subscriptionStatus={data.subscriptionStatus as SubscriptionStatus}
+            trialEnd={data.trialEnd}
+            isManager={isManager}
+          />
+
           {/* ── Premium header ──────────────────────────────────────────────── */}
           <header
             className="relative overflow-hidden rounded-[2rem] shadow-2xl shadow-slate-950/60"

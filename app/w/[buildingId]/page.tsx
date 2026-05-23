@@ -114,6 +114,21 @@ export default async function BuildingDashboardPage({ params }: PageProps) {
 
   const data = await getDashboardData(role, buildingId);
 
+  // Fetch subscription state for billing banners (manager roles only)
+  let subscriptionStatus: string | null = null;
+  let trialEnd: string | null = null;
+  if (role === 'kozos_kepviselo' || role === 'megbizott') {
+    const { data: sub } = await supabase
+      .from('subscriptions')
+      .select('status, trial_end')
+      .eq('building_id', buildingId)
+      .maybeSingle();
+    if (sub) {
+      subscriptionStatus = sub.status ?? null;
+      trialEnd = sub.trial_end ?? null;
+    }
+  }
+
   const enrichedData = {
     ...data,
     buildingId,
@@ -121,6 +136,8 @@ export default async function BuildingDashboardPage({ params }: PageProps) {
     buildingAddress: building.address,
     buildingLat:    buildingLat ?? undefined,
     buildingLon:    buildingLon ?? undefined,
+    subscriptionStatus: subscriptionStatus ?? undefined,
+    trialEnd:           trialEnd ?? undefined,
   };
 
   return <DashboardClient data={enrichedData} />;
