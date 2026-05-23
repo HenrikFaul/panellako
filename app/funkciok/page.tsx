@@ -21,7 +21,7 @@ import PublicFooter from '@/components/public-footer';
 export const metadata: Metadata = {
   title: 'Funkciók — PanelLakó Társasházkezelő Szoftver',
   description:
-    'Ismerje meg a PanelLakó összes funkcióját: hibabejelentés, dokumentumtár, közös költség, online közgyűlés és még sok más.',
+    'PanelLakó funkciók: hibabejelentés, dokumentumtár, közös költség nyilvántartás, online közgyűlés és szavazás, könyvelői export — közös képviselőknek és könyvelőknek.',
   alternates: { canonical: 'https://panellako.hu/funkciok' },
 };
 
@@ -191,6 +191,30 @@ export default function FunkciokhubPage() {
                 </div>
               );
             })}
+          </div>
+        </section>
+
+        {/* Tudástár belső linkek */}
+        <section className="rounded-2xl border border-slate-100 bg-slate-50 px-8 py-8">
+          <h2 className="mb-4 text-lg font-black text-slate-900">Tudjon meg többet a társasházkezelésről</h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              { href: '/tarsashaz-kezeles', label: 'Közös képviselő feladatai és kötelességei' },
+              { href: '/tarsashazi-jog', label: 'Társasházi jog — tulajdonosi jogok és kötelezettségek' },
+              { href: '/zold-tarsashaz', label: 'Zöld társasház — napelem, hőszigetelés, EV töltő' },
+              { href: '/levegominoseg-budapest', label: 'Levegőminőség Budapesten kerületenként' },
+              { href: '/zajszennyezes-budapest', label: 'Zajszennyezés és épületzaj Budapest' },
+              { href: '/klimakockazat-epuleteknel', label: 'Klímakockázat és épületfelújítás' },
+            ].map((link) => (
+              <Link
+                key={link.href}
+                href={link.href as Route}
+                className="flex items-center gap-2 text-sm font-medium text-brand-700 hover:underline"
+              >
+                <ArrowRight size={14} className="shrink-0 text-brand-400" />
+                {link.label}
+              </Link>
+            ))}
           </div>
         </section>
 
