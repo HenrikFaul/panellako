@@ -305,9 +305,9 @@ export default function AszfPage() {
             <h2 className="mb-3 text-xl font-bold text-slate-900">8. Felelősség korlátozása</h2>
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-5 space-y-4">
               <div>
-                <p className="text-sm font-bold text-slate-900">"As is" alapú szolgáltatás</p>
+                <p className="text-sm font-bold text-slate-900">&quot;As is&quot; alapú szolgáltatás</p>
                 <p className="mt-1 text-sm text-slate-600 leading-relaxed">
-                  A platform a "jelenlegi állapotában" (as is) kerül biztosításra. A Szolgáltató nem
+                  A platform a &quot;jelenlegi állapotában&quot; (as is) kerül biztosításra. A Szolgáltató nem
                   vállal szavatosságot arra, hogy a platform minden körülmények között hibamentesen,
                   megszakítás nélkül működik.
                 </p>

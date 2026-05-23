@@ -8,9 +8,6 @@ import {
   FileSpreadsheet,
   Bell,
   Gauge,
-  ArrowRight,
-  ReceiptText,
-  PiggyBank,
 } from 'lucide-react';
 import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';

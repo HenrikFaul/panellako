@@ -94,7 +94,7 @@ export default function AlapitoOkiratModositasaPage() {
             Alapító okirat módosítása — eljárás és feltételek
           </h1>
           <p className="mt-5 max-w-3xl text-lg leading-relaxed text-slate-500">
-            Az alapító okirat a társasház „alaptörvénye" — meghatározza az összes albetét adatait,
+            Az alapító okirat a társasház &quot;alaptörvénye&quot; — meghatározza az összes albetét adatait,
             a közös és kizárólagos tulajdoni részeket, és a tulajdoni arányokat. A módosítása összetett,
             közjegyző bevonásával járó eljárás, amelyhez főszabályként az összes tulajdonos egyhangú
             hozzájárulása szükséges. Az alábbiakban részletezzük a folyamatot a 2003. évi CXXXIII.

@@ -5,7 +5,6 @@ import {
   ChevronRight,
   Sun,
   Thermometer,
-  Droplets,
   Zap,
   Trash2,
   Vote,

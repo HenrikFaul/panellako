@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Building2, Menu, X } from 'lucide-react';
+import { Building2 } from 'lucide-react';
 
 const NAV_LINKS = [
   { href: '/funkciok',  label: 'Funkciók' },

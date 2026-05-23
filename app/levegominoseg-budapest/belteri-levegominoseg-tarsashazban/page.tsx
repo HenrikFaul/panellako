@@ -371,7 +371,7 @@ export default function BelteriLevegominosegTarsashazbanPage() {
             Légtisztítók és HEPA filterek — mire figyeljünk?
           </h2>
           <p className="mb-6 leading-relaxed text-slate-500">
-            A jó légtisztító valóban hatékony — de nem minden "levegőtisztítónak" nevezett termék
+            A jó légtisztító valóban hatékony — de nem minden &quot;levegőtisztítónak&quot; nevezett termék
             éri el az egészségvédelmileg releváns szűrési hatékonyságot. Az alábbiakban a legfontosabb
             szempontokat foglaljuk össze vásárlás előtt.
           </p>
@@ -401,7 +401,7 @@ export default function BelteriLevegominosegTarsashazbanPage() {
               </li>
               <li className="flex items-start gap-2">
                 <span className="mt-1 text-red-500">✗</span>
-                <span><strong>"HEPA-típusú" filterek:</strong> Nem tévesztendő össze a valódi H13/H14 HEPA osztályú szűrőkkel — szűrési hatásfokuk általában lényegesen rosszabb.</span>
+                <span><strong>&quot;HEPA-típusú&quot; filterek:</strong> Nem tévesztendő össze a valódi H13/H14 HEPA osztályú szűrőkkel — szűrési hatásfokuk általában lényegesen rosszabb.</span>
               </li>
             </ul>
           </div>

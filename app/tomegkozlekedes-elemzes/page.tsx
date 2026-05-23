@@ -4,7 +4,6 @@ import {
   Train,
   Bus,
   MapPin,
-  BarChart2,
   Navigation,
   ChevronRight,
   ArrowRight,
@@ -333,7 +332,7 @@ export default function TomegkozlekedesesElemzesPillarPage() {
           <h2 className="mb-3 text-2xl font-black text-slate-900">Megálló-sűrűség hőtérkép</h2>
           <p className="mb-5 leading-relaxed text-slate-500">
             A megálló-sűrűség hőtérképet <strong>kernel density estimation (KDE)</strong> módszerrel állítjuk elő.
-            Ez a technika minden megálló köré egy Gauss-eloszlású "dombot" rajzol, amelyek összege adja a
+            Ez a technika minden megálló köré egy Gauss-eloszlású &quot;dombot&quot; rajzol, amelyek összege adja a
             szuperponált sűrűségfelületet. A dombok sugara (bandwidth) szabályozható paraméter; a PanelLakó
             elemzőn 300 métert alkalmazunk, ami a gyalogos elérhetőségi zónával konzisztens.
           </p>
@@ -362,7 +361,7 @@ export default function TomegkozlekedesesElemzesPillarPage() {
           <p className="mb-5 leading-relaxed text-slate-500">
             Számos hazai és nemzetközi kutatás kimutatta, hogy a tömegközlekedési elérhetőség — különösen
             a kötöttpályás megállóktól való távolság — szignifikáns ingatlanár-prémiumot generál. A „transit
-            premium" hatás Budapesten is megfigyelhető: a metróállomástól 300 méteren belüli lakások négyzetméterre
+            premium&quot; hatás Budapesten is megfigyelhető: a metróállomástól 300 méteren belüli lakások négyzetméterre
             vetített átlagára jellemzően 8–15%-kal magasabb, mint az azonos kerületben, de 600 méternél
             távolabb lévő lakásoké, a többi tényező kontrollálása esetén.
           </p>

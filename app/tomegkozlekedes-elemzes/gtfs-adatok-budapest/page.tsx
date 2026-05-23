@@ -344,7 +344,7 @@ export default function GtfsAdatokBudapestPage() {
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle size={14} className="mt-0.5 shrink-0 text-brand-500" />
-                <span><strong>Kötelező jelölés:</strong> "Az adatok forrása: BKK Futár / BKK Zrt." szöveg megjelenítése</span>
+                <span><strong>Kötelező jelölés:</strong> &quot;Az adatok forrása: BKK Futár / BKK Zrt.&quot; szöveg megjelenítése</span>
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle size={14} className="mt-0.5 shrink-0 text-brand-500" />

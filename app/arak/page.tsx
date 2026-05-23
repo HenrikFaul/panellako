@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { CheckCircle, Star, Building2, Zap, Shield, Phone, Mail, ArrowRight, Users } from 'lucide-react';
+import { CheckCircle, Star, Building2, Zap, Shield, Mail, ArrowRight, Users } from 'lucide-react';
 import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 

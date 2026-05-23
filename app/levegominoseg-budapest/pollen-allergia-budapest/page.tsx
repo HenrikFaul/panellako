@@ -326,7 +326,7 @@ export default function PollenAllergiaBudapestPage() {
           <p className="mb-6 leading-relaxed text-slate-500">
             Magyarország az Európai Unió egyik legsúlyosabban érintett országa parlagfű
             (Ambrosia artemisiifolia) tekintetében. Budapest és körzete a parlagfű-koncentráció
-            európai "fővárosa" — a Kárpát-medence klímája és a rossz gyomirtási gyakorlatok
+            európai &quot;fővárosa&quot; — a Kárpát-medence klímája és a rossz gyomirtási gyakorlatok
             miatt a parlagfű évtizedek alatt terjedt el a külső kerületekben, utak mentén,
             parlagon hagyott területeken és üres telkeken. Egy parlagfűnövény napi szinten
             egymillió pollenszemet termelhet — és már néhány száz pollen/m³ fölött tünet

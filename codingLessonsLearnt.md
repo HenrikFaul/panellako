@@ -1,4 +1,17 @@
 
+### [LESSON-BUILD-003] Unused lucide-react imports + JSX unescaped entities — Vercel build blocker
+- **Dátum**: 2026-05-23
+- **Érintett fájlok**: 23 SEO-tartalom oldal
+- **Gyökérok**: Tartalom-oldalak generálásakor az import blokkba kerültek lucide-react ikonok (`Phone`, `ArrowRight`, `Users`, `UserCheck`, `ClipboardList`, `ReceiptText`, `PiggyBank`, `Building2`, `FileText`, `AlertTriangle`, `BarChart2`, `MapPin`, `CheckCircle`, `Droplets`, `Menu`, `X`) amelyek végül nem kerültek használatra a JSX-ben. Emellett JSX szöveg-tartalomban szerepeltek `"` (ASCII dupla idézőjel) karakterek amelyeket az ESLint `react/no-unescaped-entities` szabály tilt.
+- **Két hibatípus**:
+  1. `@typescript-eslint/no-unused-vars` — importált ikon / változó, amit soha nem használtunk
+  2. `react/no-unescaped-entities` — `"` karakter JSX szövegben (pl. `„szó"` → a záró `"` ASCII, amit `&quot;`-re kell cserélni)
+- **Megelőzés**:
+  - Tartalom-oldal generálás után MINDIG futtasd le: `npx next build 2>&1 | grep "Error:"` vagy `npx eslint app/UJ-OLDAL/page.tsx`
+  - Import blokkba csak TÉNYLEGESEN HASZNÁLT ikonokat írj — ha kész a JSX, ellenőrizd hogy minden import szerepel-e a return-ben
+  - JSX szövegben `"` helyett mindig `&quot;` (ASCII idézőjel), ill. a magyar tipografikus `„"` nyitó-pár nem flaggelt, csak a záró `"` (U+0022) ASCII karakter
+- **Fix**: importok eltávolítása az import sorból; `"` → `&quot;` csere JSX text content-ben
+
 ### [LESSON-DEAD-CODE-002] signalNav eltávolítása után maradó orphan változók — 3 lépéses cleanup
 - **Dátum**: 2026-05-22
 - **Fájl**: `components/dashboard-client.tsx`

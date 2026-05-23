@@ -5,7 +5,6 @@ import {
   Volume2,
   ChevronRight,
   AlertTriangle,
-  CheckCircle,
   Building2,
   ArrowRight,
   Shield,

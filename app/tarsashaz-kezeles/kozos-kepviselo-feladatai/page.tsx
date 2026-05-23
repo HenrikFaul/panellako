@@ -3,7 +3,6 @@ import Link from 'next/link';
 import {
   ChevronRight,
   Users,
-  FileText,
   Calculator,
   Scale,
   MessageSquare,
@@ -11,7 +10,6 @@ import {
   CheckCircle,
   ArrowRight,
   Building2,
-  AlertTriangle,
   FolderOpen,
 } from 'lucide-react';
 import PublicNav from '@/components/public-nav';

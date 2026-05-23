@@ -259,7 +259,7 @@ export default function KozgyulesOsszehivasaPage() {
               közgyűlés előtt előírja a meghívó kézbesítését, igazolható módon.
             </p>
             <p className="leading-relaxed">
-              Az „igazolható kézbesítés" lényege, hogy a képviselő bizonyítani tudja: a meghívó eljutott
+              Az „igazolható kézbesítés&quot; lényege, hogy a képviselő bizonyítani tudja: a meghívó eljutott
               a tulajdonoshoz. Tértivevényes postai ajánlott levél, személyes átadás aláírással, vagy —
               ha az SZMSZ és a tulajdonos hozzájárulása lehetővé teszi — elektronikus kézbesítés (e-mail
               visszaigazolással, digitális aláírással) egyaránt elfogadható.
