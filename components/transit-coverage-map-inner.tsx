@@ -114,6 +114,8 @@ export default function TransitCoverageMapInner({ buildingLat, buildingLon, stop
     }
 
     let destroyed = false;
+    // Snapshot stops at effect-start so changing the prop reference never triggers a re-run
+    const currentStops = stops;
 
     (async () => {
       const L = await import('leaflet');
@@ -163,6 +165,9 @@ export default function TransitCoverageMapInner({ buildingLat, buildingLon, stop
         // Overpass unavailable — continue without residential overlay
       }
       if (!destroyed) setLoadingPolys(false);
+      // Guard: if map was torn down while awaiting the residential-zones fetch, abort
+      // (calling .addTo() on a removed Leaflet map crashes with getPane() → undefined)
+      if (destroyed) return;
 
       // ── Layers 2 & 3: Stop coverage buffers ──────────────────────────────────
       // Thesis §4.4: "megállóhelyek köré generált 420 méteres bufferzónával
@@ -170,8 +175,8 @@ export default function TransitCoverageMapInner({ buildingLat, buildingLon, stop
       const BUFFER_RADIUS = radiusM;   // metres — configurable walk radius
 
       // Render daytime buffers first (below nighttime)
-      const dayStops   = stops.filter(s => !hasNightService(s.routeRefs ?? []));
-      const nightStops = stops.filter(s =>  hasNightService(s.routeRefs ?? []));
+      const dayStops   = currentStops.filter(s => !hasNightService(s.routeRefs ?? []));
+      const nightStops = currentStops.filter(s =>  hasNightService(s.routeRefs ?? []));
 
       // Layer 2 — Nappali járatok 420 m bufferzónája (solid amber)
       for (const stop of dayStops) {
@@ -202,7 +207,7 @@ export default function TransitCoverageMapInner({ buildingLat, buildingLon, stop
       }
 
       // ── Stop dot markers ──────────────────────────────────────────────────────
-      for (const stop of stops) {
+      for (const stop of currentStops) {
         if (stop.lat == null || stop.lon == null || isNaN(stop.lat) || isNaN(stop.lon)) continue;
         const refs  = stop.routeRefs ?? [];
         const night = hasNightService(refs);
@@ -278,7 +283,7 @@ export default function TransitCoverageMapInner({ buildingLat, buildingLon, stop
       setLoadingPolys(true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buildingLat, buildingLon, stops]);
+  }, [buildingLat, buildingLon]);
 
   return (
     <div
@@ -300,7 +305,7 @@ export default function TransitCoverageMapInner({ buildingLat, buildingLon, stop
           </span>
         </div>
       )}
-      {stops.length === 0 && mapReady && (
+      {stops.length === 0 && mapReady && !loadingPolys && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <p className="text-[11px] text-slate-600">Nincs megálló adat</p>
         </div>
