@@ -36,7 +36,17 @@ export async function loadStopsFromCache(
   );
   if (hasStale) return null;
 
-  return data.map((row: { stop_data: NearbyStop }) => row.stop_data as NearbyStop);
+  // Deduplicate by stop id and guard against null names from bad cron writes
+  const seenIds = new Set<string>();
+  const stops: NearbyStop[] = [];
+  for (const row of data as Array<{ stop_data: NearbyStop }>) {
+    const stop = row.stop_data as NearbyStop;
+    if (!stop?.id || !stop.name) continue;
+    if (seenIds.has(stop.id)) continue;
+    seenIds.add(stop.id);
+    stops.push(stop);
+  }
+  return stops.length > 0 ? stops : null;
 }
 
 /**

@@ -129,15 +129,18 @@ async function fetchObaBoard(stopId: string): Promise<DepartureBoard> {
     tripId?: string; stopHeadsign?: string;
     departureTime?: number; predictedDepartureTime?: number;
     arrivalTime?: number; predictedArrivalTime?: number;
+    routeId?: string;
   };
-  const stopTimes: ST[] = entry?.stopTimes ?? [];
+  // BKK OBA v3 uses `stopTimes`; standard OBA v2 uses `arrivalsAndDepartures`
+  const stopTimes: ST[] = entry?.stopTimes ?? entry?.arrivalsAndDepartures ?? [];
 
   const departures: Departure[] = stopTimes
     .map(st => {
       const depSec = st.predictedDepartureTime ?? st.departureTime
                   ?? st.predictedArrivalTime   ?? st.arrivalTime ?? 0;
       const tripId  = st.tripId ?? '';
-      const routeId = tripMap[tripId]?.routeId ?? '';
+      // routeId may be on the stop-time item directly (arrivalsAndDepartures) or via tripMap
+      const routeId = st.routeId ?? tripMap[tripId]?.routeId ?? '';
       const route   = routeMap[routeId];
       return {
         routeRef:    route?.shortName ?? (routeId.replace(/^BKK_/, '') || '?'),
