@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { AlertTriangle, FolderOpen, Calculator, Users, Vote, Bell } from 'lucide-react';
+import { AlertTriangle, FolderOpen, Calculator, Users, Vote, Bell, Building2, Scale, Wind, Leaf, ArrowRight } from 'lucide-react';
 import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
@@ -402,6 +402,73 @@ export default async function HomePage() {
                     ))}
                   </ul>
                 </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── TUDÁSTÁR ──────────────────────────────────────────────────────── */}
+        <section className="bg-white py-20 sm:py-24">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+            <div className="mb-12 text-center">
+              <h2 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                Szakértői tudástár
+              </h2>
+              <p className="mt-4 mx-auto max-w-2xl text-base leading-relaxed text-slate-500">
+                Ingyenes útmutatók közös képviselőknek és lakóknak
+              </p>
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              {[
+                {
+                  Icon: Building2,
+                  href: '/tarsashaz-kezeles',
+                  title: 'Társasházkezelési útmutató',
+                  description:
+                    'Közös képviselő feladatai, SZMSZ, közgyűlés, közös költség — teljes jogi útmutató',
+                },
+                {
+                  Icon: Scale,
+                  href: '/tarsashazi-jog',
+                  title: 'Magyar társasházi jog',
+                  description:
+                    '2003. évi CXXXIII. tv. értelmezése: szavazatarányok, viták, alapító okirat',
+                },
+                {
+                  Icon: Wind,
+                  href: '/levegominoseg-budapest',
+                  title: 'Levegőminőség Budapest',
+                  description:
+                    'PM2.5, PM10, pollen — melyik kerületben a legjobb a levegő?',
+                },
+                {
+                  Icon: Leaf,
+                  href: '/zold-tarsashaz',
+                  title: 'Zöld társasház',
+                  description:
+                    'Napelem, hőszigetelés, EV töltő — hogyan lesz fenntartható az épület?',
+                },
+              ].map(({ Icon, href, title, description }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="group flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-card transition-shadow hover:shadow-card-md"
+                >
+                  <div className="shrink-0 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600 ring-1 ring-brand-100 transition-colors group-hover:bg-brand-100">
+                    <Icon size={20} strokeWidth={2} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base font-bold text-slate-900 group-hover:text-brand-700 transition-colors">
+                      {title}
+                    </h3>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-500">{description}</p>
+                  </div>
+                  <ArrowRight
+                    size={16}
+                    className="shrink-0 mt-1 text-slate-300 transition-transform group-hover:translate-x-1 group-hover:text-brand-500"
+                  />
+                </Link>
               ))}
             </div>
           </div>

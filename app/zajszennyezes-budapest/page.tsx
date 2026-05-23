@@ -414,22 +414,38 @@ export default function ZajszennyezesBudapestPage() {
                 </p>
               </div>
             </Link>
-            <div className="flex items-start gap-4 rounded-2xl border border-slate-100 bg-slate-50 px-6 py-5">
-              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100">
-                <Scale size={18} className="text-slate-400" />
+            <Link
+              href="/zajszennyezes-budapest/tarsashazi-zaj-panasz"
+              className="group flex items-start gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm transition-all hover:border-brand-200 hover:shadow-md"
+            >
+              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50">
+                <Scale size={18} className="text-brand-600" />
               </div>
               <div>
-                <p className="mb-1 font-black text-slate-400">
-                  Társasházi zajpanasz — jogorvoslati útmutató
+                <p className="mb-1 font-black text-slate-900 group-hover:text-brand-700 transition-colors">
+                  Társasházi zajpanasz kezelése
                 </p>
-                <p className="text-sm text-slate-400">
-                  Hamarosan elérhető — részletes jogszabályi hivatkozásokkal.
+                <p className="text-sm text-slate-500">
+                  Lépésről lépésre: hogyan nyújtson be hatékony zajpanaszt — jogszabályi hivatkozásokkal.
                 </p>
-                <span className="mt-2 inline-block rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-bold text-slate-500">
-                  Hamarosan
-                </span>
               </div>
-            </div>
+            </Link>
+            <Link
+              href="/zajszennyezes-budapest/zajvedes-tarsashazban"
+              className="group flex items-start gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm transition-all hover:border-brand-200 hover:shadow-md"
+            >
+              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50">
+                <Building2 size={18} className="text-violet-600" />
+              </div>
+              <div>
+                <p className="mb-1 font-black text-slate-900 group-hover:text-brand-700 transition-colors">
+                  Zajvédelem és hangszigetelés
+                </p>
+                <p className="text-sm text-slate-500">
+                  Ablakcsere, hangszigetelési megoldások és közösségi intézkedések zajvédelemre társasházakban.
+                </p>
+              </div>
+            </Link>
           </div>
         </section>
 

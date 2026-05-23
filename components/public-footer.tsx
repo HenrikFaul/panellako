@@ -10,6 +10,7 @@ const FOOTER_COLS = [
       { href: '/funkciok/dokumentumtar',          label: 'Dokumentumtár' },
       { href: '/funkciok/kozos-koltseg',          label: 'Közös költség' },
       { href: '/funkciok/online-kozgyules',       label: 'Online közgyűlés' },
+      { href: '/osszehasonlitas',                 label: 'Összehasonlítás' },
       { href: '/arak',                            label: 'Árak' },
     ],
   },
@@ -17,10 +18,12 @@ const FOOTER_COLS = [
     heading: 'Tudástár',
     links: [
       { href: '/tarsashaz-kezeles',          label: 'Társasházkezelés' },
+      { href: '/tarsashazi-jog',             label: 'Társasházi jog' },
+      { href: '/zold-tarsashaz',             label: 'Zöld társasház' },
       { href: '/levegominoseg-budapest',     label: 'Levegőminőség Budapest' },
       { href: '/elemzes',                    label: 'Elemzések' },
+      { href: '/adatforrasok',               label: 'Adatforrások' },
       { href: '/gyik',                       label: 'GYIK' },
-      { href: '/osszehasonlitas',            label: 'Összehasonlítás' },
     ],
   },
   {

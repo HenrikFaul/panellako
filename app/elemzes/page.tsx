@@ -11,6 +11,7 @@ import {
   Users,
   TrendingUp,
   CheckCircle,
+  Building2,
 } from 'lucide-react';
 import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
@@ -150,7 +151,10 @@ export default function ElemzesekHubPage() {
             </Link>
 
             {/* Card 2 — coming soon */}
-            <div className="relative flex flex-col rounded-2xl border border-slate-200 bg-slate-50 p-6 opacity-70">
+            <Link
+              href="/levegominoseg-budapest"
+              className="group relative flex flex-col rounded-2xl border border-slate-200 bg-slate-50 p-6 opacity-70 transition-shadow hover:shadow-md hover:opacity-90"
+            >
               <div className="mb-4 flex items-start justify-between">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-200">
                   <Wind size={22} className="text-slate-400" />
@@ -165,10 +169,13 @@ export default function ElemzesekHubPage() {
               <p className="flex-1 text-sm leading-relaxed text-slate-400">
                 Budapest kerületeinek PM2.5 és PM10 szennyezettségi adatai, pollenkoncentráció és EU határértékek összehasonlítása.
               </p>
-            </div>
+            </Link>
 
             {/* Card 3 — coming soon */}
-            <div className="relative flex flex-col rounded-2xl border border-slate-200 bg-slate-50 p-6 opacity-70">
+            <Link
+              href="/klimakockazat-epuleteknel"
+              className="group relative flex flex-col rounded-2xl border border-slate-200 bg-slate-50 p-6 opacity-70 transition-shadow hover:shadow-md hover:opacity-90"
+            >
               <div className="mb-4 flex items-start justify-between">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-200">
                   <Thermometer size={22} className="text-slate-400" />
@@ -183,10 +190,13 @@ export default function ElemzesekHubPage() {
               <p className="flex-1 text-sm leading-relaxed text-slate-400">
                 Budapest urban heat island térképe, épület szintű klímakockázat-elemzés.
               </p>
-            </div>
+            </Link>
 
             {/* Card 4 — coming soon */}
-            <div className="relative flex flex-col rounded-2xl border border-slate-200 bg-slate-50 p-6 opacity-70">
+            <Link
+              href="/zajszennyezes-budapest"
+              className="group relative flex flex-col rounded-2xl border border-slate-200 bg-slate-50 p-6 opacity-70 transition-shadow hover:shadow-md hover:opacity-90"
+            >
               <div className="mb-4 flex items-start justify-between">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-200">
                   <Volume2 size={22} className="text-slate-400" />
@@ -201,7 +211,39 @@ export default function ElemzesekHubPage() {
               <p className="flex-1 text-sm leading-relaxed text-slate-400">
                 Budapest zajszennyezési térképe HungaroMet és NIF Zrt. adatok alapján.
               </p>
-            </div>
+            </Link>
+
+            {/* Card 5 — article link */}
+            <Link
+              href="/15-perces-varos"
+              className="group relative flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
+            >
+              <div className="mb-4 flex items-start justify-between">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50">
+                  <Building2 size={22} className="text-brand-600" />
+                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700">
+                  Cikk
+                </span>
+              </div>
+              <h3 className="mb-2 text-lg font-black text-slate-900">
+                15 perces város
+              </h3>
+              <p className="flex-1 text-sm leading-relaxed text-slate-500">
+                A 15 perces város koncepció Budapesten: melyik kerületekben elérhető minden napi szükséglet gyalog?
+              </p>
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {['Városfejlesztés', 'Budapest 2030'].map((tag) => (
+                  <span key={tag} className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-5 inline-flex items-center gap-1.5 text-sm font-bold text-brand-600 transition-colors hover:text-brand-700">
+                Megnyitom
+                <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
+              </div>
+            </Link>
 
           </div>
         </section>

@@ -450,6 +450,54 @@ export default function KlimakockazatEpuleteknelPage() {
                 </p>
               </div>
             </Link>
+            <Link
+              href="/klimakockazat-epuleteknel/hoszigetek-budapest"
+              className="group flex items-start gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm transition-all hover:border-brand-200 hover:shadow-md"
+            >
+              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50">
+                <Thermometer size={18} className="text-orange-600" />
+              </div>
+              <div>
+                <p className="mb-1 font-black text-slate-900 group-hover:text-brand-700 transition-colors">
+                  Hőszigetek Budapest
+                </p>
+                <p className="text-sm text-slate-500">
+                  Kerületi hőtérkép és UHI-adatok: melyik városrész mennyivel melegebb, és mit tehet ez ellen?
+                </p>
+              </div>
+            </Link>
+            <Link
+              href="/klimakockazat-epuleteknel/csapadek-es-arviz-budapest"
+              className="group flex items-start gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm transition-all hover:border-brand-200 hover:shadow-md"
+            >
+              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50">
+                <CloudRain size={18} className="text-blue-600" />
+              </div>
+              <div>
+                <p className="mb-1 font-black text-slate-900 group-hover:text-brand-700 transition-colors">
+                  Villámárvíz és csapadékszélsőségek
+                </p>
+                <p className="text-sm text-slate-500">
+                  Árvízkockázati zónák, pincetér-veszélyeztetettség és védekezési lehetőségek Budapesten.
+                </p>
+              </div>
+            </Link>
+            <Link
+              href="/klimakockazat-epuleteknel/energetikai-tanusitvany"
+              className="group flex items-start gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm transition-all hover:border-brand-200 hover:shadow-md"
+            >
+              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50">
+                <Shield size={18} className="text-emerald-600" />
+              </div>
+              <div>
+                <p className="mb-1 font-black text-slate-900 group-hover:text-brand-700 transition-colors">
+                  Energetikai tanúsítvány
+                </p>
+                <p className="text-sm text-slate-500">
+                  Mit jelent az energetikai osztálybesorolás, mikor kötelező a megújítás, és hogyan javítható?
+                </p>
+              </div>
+            </Link>
           </div>
         </section>
 

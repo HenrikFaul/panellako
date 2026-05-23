@@ -1,4 +1,37 @@
 
+## v0.9.14 — SEO Sprint 4: Mérés, befejezés és E-E-A-T
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Cluster cikkek befejezése — Tarsashazi Jog
+- `kozgyulesi-hatarozat-megtamadasa` — 30 napos jogvesztő határidő (Ttv. 42. §), piros alert box
+- `szomszed-jog-tarsashazban` — Ptk. 5:23. §, zajhatárok, albérlet, kisállat, dohányzás
+- `alapito-okirat-modositasa` — egyhangúság (100%), Inytv. 29/A. § 90 nap
+
+### Cluster cikkek befejezése — Klímakockázat
+- `hoszigetek-budapest` — UHI, OMSZ mérés, 5-8°C különbség, zöldtető/reflektív festés
+- `csapadek-es-arviz-budapest` — villámárvíz, pincebeázás, MABISZ biztosítás
+- `energetikai-tanusitvany` — EPC A++-G osztályok, EU EPBD 2024/1275/EU
+
+### Cluster cikkek befejezése — Társasházkezelés
+- `felugyelobizottsag` — Ttv. 53-56. §, ellenőrzési jogkör, digitális hozzáférés
+- `kozos-kepviselo-valasztasa` — Ttv. 27/33. §§, 90 napos felmondás, átadás-átvétel
+
+### Hub oldalak frissítése (belső linkek)
+- Minden pillar hub frissítve: valós cluster cikk linkek, "coming soon" eltávolítva
+- `/elemzes` hub: levegőminőség/klíma/zaj linkek frissítve valós oldalakra
+- `public-footer.tsx`: tarsashazi-jog, zöld-tarsashaz, adatforrasok hozzáadva
+
+### Technikai frissítések
+- `app/sitemap.ts`: 60+ URL (teljes tartalomtérkép)
+- `app/page.tsx`: "Szakértői tudástár" szekció (4 content pillar kártya)
+
+### Sprint 4 sikerkritériumok
+- [ ] 50+ oldal indexálva GSC Coverage-ben
+- [ ] 5+ BOFU keyword top 100-ban
+- [ ] Homepage organikus session vs. baseline mérhető
+- [ ] Trial signup konverzió tracking by landing page (PostHog)
+
 ## v0.9.13 — SEO Sprint 3: Topikai autoritás — tartalom pillérek
 **Dátum:** 2026-05-23
 **Branch:** claude/fix-cron-null-values-uDCqd
