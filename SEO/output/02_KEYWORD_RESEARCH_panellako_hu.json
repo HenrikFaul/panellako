@@ -1,0 +1,861 @@
+{
+  "agent_name": "Keyword Research Agent",
+  "scope": "Hungarian keyword opportunity mapping for panellako.hu — full-funnel, all 8 topic clusters",
+  "generated": "2026-05-23",
+  "domain": "panellako.hu",
+  "language": "hu",
+  "market": "Hungary (Budapest primary, vidék secondary)",
+
+  "summary": "Agent 02 completed full keyword opportunity mapping across 8 topic clusters and 3 funnel stages for panellako.hu. 28 cluster-level keyword groups identified. Hungarian-language SERPs for HOA management software remain remarkably under-developed: the primary conversion cluster ('társasházi kezelő szoftver') has a competition score of 2/10 and zero dedicated SaaS comparison pages in organic results. The TOFU environmental-data clusters (levegőminőség, hőszigetek, zajszennyezés, 15 perces város) have near-zero competition from any publisher — panellako.hu is uniquely positioned to own all of these as the only platform combining urban data with building management. Competitor landscape confirmed: eHÁZ (~13,000 buildings, zero blog/SEO), OnlineHáz (1-year free, SEO-light), WHM Cloud (minor blog), Netház (25+ years, desktop-first), tarsashaziszoftver.hu (aggregator directory). None of them target environmental or urban data keywords, none have English-comparable topical authority structures. Panellakás price acceleration (panellakás ár Budapest +36% YoY, peak ~80M HUF for renovated XIII kerület) is generating new urgent buyer/owner search intent that panellako.hu can capture via informational content about building management quality indicators tied to neighborhood data.\n\nKeyword gap analysis — top 5 missing topic areas:\n1. COMPETITOR COMPARISON PAGES: No page targets 'PanelLakó vs eHÁZ', 'PanelLakó vs OnlineHáz', or 'legjobb társasházi szoftver' directly. The /osszehasonlitas page exists but only compares vs Excel/WhatsApp — missing the software-vs-software angle that decision-makers search.\n2. PRICING INTENT KEYWORDS: The /arak page exists but targets no long-tail pricing queries like 'közös képviselő szoftver ár havi díj', 'ingyenes társasházi program', 'albetét ár szoftver'. These are high-conversion BOFU terms with minimal competition.\n3. LOCAL SEO / CITY-SPECIFIC LANDING PAGES: No city-specific pages exist (e.g., 'társasházi szoftver Debrecen', 'közös képviselő program Győr'). With 23 Budapest districts + major cities, this is a large untapped programmatic or pillar opportunity.\n4. ACCOUNTANT / KÖNYVELŐ PERSONA: Zero pages target the accountant decision-maker persona searching 'társasházi könyvelő szoftver', 'közös képviselő könyvelés digitalizálás', 'kettős könyvelés társasház program'. This persona is a multiplier — one accountant handles 10-50 buildings.\n5. LIFECYCLE / CASE STUDY CONTENT: No use-case, case study, or success-story content exists targeting 'hogyan kezeli a közös képviselő a hátralékot digitálisan', 'online közgyűlés tapasztalatok', 'társasházi szoftver bevezetése'. This is the MOFU bridge content that converts TOFU readers into trial signups.",
+
+  "findings": [
+    {
+      "id": "KW-001",
+      "title": "Cluster: Core Commercial — Társasházi Kezelő Szoftver (BOFU)",
+      "severity": "P0",
+      "impact": "Highest direct conversion cluster. Decision-makers (közös képviselők, ingatlankezelő cégek) searching for SaaS solutions. Low competition means top-10 ranking achievable within 60–90 days of publishing optimized content.",
+      "confidence": 0.95,
+      "evidence": [
+        "primary_keyword: társasházi kezelő szoftver",
+        "secondary: közös képviselő szoftver, társasházkezelő program, társasházkezelő alkalmazás, ingatlankezelő szoftver Magyarország, társasházi ügyviteli szoftver, felhőalapú társasházkezelés, digitális társasházkezelés, társasházi adminisztrációs szoftver",
+        "long_tail: legjobb társasházi kezelő szoftver 2026, ingyenes társasházi szoftver kipróbálás, közös képviselő szoftver ár albetét, melyik a legjobb közös képviselő program, eHÁZ alternatíva",
+        "questions: Milyen szoftvert használnak a közös képviselők? Mennyi a közös képviselő szoftver havi díja? Ingyenesen kipróbálható-e a társasházi szoftver?",
+        "intent: commercial/transactional",
+        "funnel: BOFU",
+        "competition: low (2/10) — confirmed: eHÁZ, OnlineHáz, WHM Cloud, Netház all have weak SEO; no page ranks specifically for 'társasházi kezelő szoftver összehasonlítás'",
+        "entities: közös képviselő, albetét, havi díj, ingyenes próba, SaaS, felhőalapú",
+        "opportunity_score: 10/10"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/",
+        "https://panellako.hu/funkciok",
+        "https://panellako.hu/arak",
+        "https://panellako.hu/osszehasonlitas"
+      ],
+      "recommendation": "Ensure homepage title and H1 contain 'társasházi kezelő szoftver'. Create a dedicated /funkciok hub with SoftwareApplication schema. Build comparison page at /osszehasonlitas that directly names eHÁZ, OnlineHáz, WHM Cloud — factual feature matrix. Add pricing page /arak with albetét-based pricing copy. These 4 pages together create a BOFU cluster that should rank for 15–25 commercial queries.",
+      "estimated_effort": "M",
+      "dependencies": ["Technical SEO foundation (robots.txt, sitemap, canonical)"],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-002",
+      "title": "Cluster: Free Trial / Conversion Intent — Ingyenes Próba (BOFU Transactional)",
+      "severity": "P0",
+      "impact": "Direct signup-intent cluster. Searchers for 'ingyenes társasházi szoftver' or 'társasházi szoftver próba' are within 1 click of registering. Competition score: 1/10.",
+      "confidence": 0.92,
+      "evidence": [
+        "primary_keyword: ingyenes társasházi szoftver",
+        "secondary: társasházi szoftver ingyenes próba, közös képviselő program ingyenes, társasházi szoftver tesztelés, társasházi alkalmazás regisztráció, közös képviselő digitális eszköz",
+        "long_tail: ingyenesen kipróbálható közös képviselő szoftver, 14 napos ingyenes próba társasházi szoftver, társasházi szoftver kártya nélkül regisztráció",
+        "questions: Van-e ingyenes közös képviselő szoftver? Kipróbálható-e a társasházi szoftver díjmentesen? Mikor kell fizetni a közös képviselő szoftverért?",
+        "intent: transactional",
+        "funnel: BOFU",
+        "competition: very low (1/10)",
+        "opportunity_score: 9/10"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/arak",
+        "https://panellako.hu/"
+      ],
+      "recommendation": "Add 'ingyenes próba' and '14 napos kockázatmentes kipróbálás' to homepage hero and /arak page H1/meta. Create a dedicated /ingyenes-proba landing page targeting transactional searchers with a conversion-only layout (no navigation distractions, CTA above fold). Include trust signals: no credit card, no contract, cancel anytime.",
+      "estimated_effort": "S",
+      "dependencies": ["KW-001"],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-003",
+      "title": "Cluster: Közös Képviselő Feladatai — Decision-Maker Education (MOFU)",
+      "severity": "P0",
+      "impact": "Highest-volume informational cluster in the HOA space. 'Közös képviselő feladatai' is confirmed heavily searched — multiple domain-authority sites (Wikipedia, ingatlan.com, legal firms, WHM Cloud) have content. Panellako.hu can compete with more comprehensive, up-to-date, structured content.",
+      "confidence": 0.90,
+      "evidence": [
+        "primary_keyword: közös képviselő feladatai",
+        "secondary: közös képviselő kötelezettségei, közös képviselő jogai és feladatai 2025, közös képviselő felelőssége, közös képviselő éves teendői, mire kell figyelni közös képviselőként, közös képviselő adminisztrációs kötelezettségek",
+        "long_tail: közös képviselő feladatai 2026, mik a közös képviselő törvényes kötelezettségei, közös képviselő pénzügyi feladatai, mikor felel a közös képviselő jogilag, közös képviselő éves elszámolás határideje",
+        "questions: Mi a közös képviselő feladata? Mire köteles a közös képviselő? Hogyan váltható le a közös képviselő? Kell-e végzettsége a közös képviselőnek?",
+        "intent: informational (primary persona: lakók checking if their képviselő is doing the job; secondary: aspiring közös képviselők)",
+        "funnel: MOFU",
+        "competition: medium (5/10) — legal firms and property portals have content; none have SaaS-contextualised deep-dives",
+        "opportunity_score: 9/10",
+        "existing_page: /tarsashaz-kezeles/kozos-kepviselo-feladatai already exists — needs optimization"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/tarsashaz-kezeles/kozos-kepviselo-feladatai",
+        "https://panellako.hu/tarsashaz-kezeles"
+      ],
+      "recommendation": "Upgrade existing /tarsashaz-kezeles/kozos-kepviselo-feladatai page to 1,500+ words with structured H2/H3 sections covering: legal obligations, financial duties, administrative tasks, annual calendar, liability exposure, and how digital tools reduce workload. Add FAQPage JSON-LD. Target the featured snippet for 'Mi a közös képviselő feladata?' with a concise definition paragraph under H1. Internal-link to /funkciok for each task mentioned.",
+      "estimated_effort": "S",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-004",
+      "title": "Cluster: Közgyűlés Összehívása — Process / How-To (MOFU/TOFU)",
+      "severity": "P1",
+      "impact": "High search intent around közgyűlés process. Confirmed competitor WHM Cloud has a dedicated article; ekozgyules.hu and honline.hu are incumbents for online voting. Opportunity for Panellakó to own the planning + digital execution angle.",
+      "confidence": 0.88,
+      "evidence": [
+        "primary_keyword: közgyűlés összehívása társasház",
+        "secondary: közgyűlési meghívó mintája, rendkívüli közgyűlés összehívása, közgyűlés határozatképesség, online közgyűlés jogszerű, írásbeli szavazás társasházban, közgyűlési napirend szerkesztése",
+        "long_tail: hogyan hívjuk össze a közgyűlést lépésről lépésre, közgyűlési meghívó kötelező tartalma 2026, mennyivel korábban kell kiküldeni a közgyűlési meghívót, rendkívüli közgyűlés mikor kötelező, online közgyűlés jogilag érvényes-e Magyarországon",
+        "questions: Mikor kell társasházi közgyűlést tartani? Mennyi nappal előre kell kiküldeni a meghívót? Hogyan szervezhető online közgyűlés? Mi kerülhet napirendre?",
+        "intent: informational",
+        "funnel: MOFU (közös képviselő already has one, researching best practice)",
+        "competition: medium (4/10)",
+        "opportunity_score: 8/10",
+        "existing_page: /tarsashaz-kezeles/kozgyules-osszehivasa exists"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/tarsashaz-kezeles/kozgyules-osszehivasa",
+        "https://panellako.hu/funkciok/online-kozgyules"
+      ],
+      "recommendation": "Upgrade /kozgyules-osszehivasa with step-by-step checklist format (captures Featured Snippet). Add a downloadable meghívó sablon as a lead capture mechanism. Bridge to /funkciok/online-kozgyules with a clear CTA: 'Szervezzük meg digitálisan — kipróbálom ingyen'.",
+      "estimated_effort": "S",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-005",
+      "title": "Cluster: Díjhátralék Kezelése — Pain-Point MOFU",
+      "severity": "P1",
+      "impact": "Confirmed high-urgency search topic. News articles, legal firm pages, and forum discussions all active (szon.hu, tht.hu). Díjhátralék is the #1 operational pain point for közös képviselők. Content here generates the highest-intent traffic.",
+      "confidence": 0.90,
+      "evidence": [
+        "primary_keyword: közös költség hátralék behajtás",
+        "secondary: közös költség nem fizetése jogi lépések, fizetési meghagyás társasház, díjhátralékos lakó kezelése, jelzálogjog közös költség, közös költség végrehajtás, hátralékos nyilvántartás társasház",
+        "long_tail: hogyan hajtható be a közös költség tartozás, mikor indítható fizetési meghagyás közös költségre, jelzálogjogot bejegyezhet-e a társasház, mit tehet a közös képviselő hátralékos lakóval, közös költség tartozás mennyi idő után hajtható be",
+        "questions: Hogyan lehet behajtani a közös költséget? Mikor lehet jelzálogjogot jegyeztetni? Mi a fizetési meghagyásos eljárás menete? Elévül-e a közös költség tartozás?",
+        "intent: informational + commercial (user researching both legal options AND tools to manage it)",
+        "funnel: MOFU",
+        "competition: medium (4/10) — legal firms rank; no SaaS product page addresses this",
+        "opportunity_score: 8/10",
+        "existing_page: /tarsashaz-kezeles/dijhatlarak-kezelese exists"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/tarsashaz-kezeles/dijhatlarak-kezelese",
+        "https://panellako.hu/funkciok/kozos-koltseg"
+      ],
+      "recommendation": "Upgrade /dijhatlarak-kezelese with a legal process timeline (infographic-friendly) covering: negyedéves egyenlegközlő → fizetési felszólítás → FMH → jelzálogjog → végrehajtás. Include a soft CTA: 'A PanelLakó automatikusan nyilvántartja a hátralékok mértékét és küld fizetési emlékeztetőket.' This is a high-conversion bridge from pain-point research to product awareness.",
+      "estimated_effort": "S",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-006",
+      "title": "Cluster: Közös Költség Nyilvántartás — Feature-Level MOFU",
+      "severity": "P1",
+      "impact": "Core feature keyword. Property managers searching for how to manage common costs digitally are ideal SaaS prospects. Cross-links to product feature pages.",
+      "confidence": 0.87,
+      "evidence": [
+        "primary_keyword: közös költség nyilvántartás",
+        "secondary: közös költség elszámolás, közös költség könyvelés, társasházi pénzügyi nyilvántartás, közös költség éves elszámolás, közös képviselő pénzügyei digitálisan, albetét közös költség számítás",
+        "long_tail: közös költség nyilvántartás excel sablon helyett, digitális közös költség nyilvántartó program, hogyan kell közös költség elszámolást készíteni, mikor kell elszámolni a közös költséget, közös költség emelés menete",
+        "questions: Hogyan kell közös költséget nyilvántartani? Mikor kell éves elszámolást készíteni? Kell-e könyvelő a közös képviselőnek? Milyen dokumentumokat kell megőrizni?",
+        "intent: informational + commercial",
+        "funnel: MOFU",
+        "competition: low-medium (3/10)",
+        "opportunity_score: 8/10",
+        "existing_page: /tarsashaz-kezeles/kozos-koltseg-nyilvantartas and /funkciok/kozos-koltseg"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/tarsashaz-kezeles/kozos-koltseg-nyilvantartas",
+        "https://panellako.hu/funkciok/kozos-koltseg"
+      ],
+      "recommendation": "Ensure /kozos-koltseg-nyilvantartas contains a practical Excel-vs-SaaS comparison table. Add the question 'Mit kell megőrizni a közös képviselőnek?' with a structured document retention list (legal requirement). Link from page to /funkciok/kozos-koltseg with anchor 'digitális közös költség nyilvántartó rendszer'.",
+      "estimated_effort": "S",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-007",
+      "title": "Cluster: SZMSZ Készítése — Legal How-To MOFU",
+      "severity": "P1",
+      "impact": "Every new or reforming társasház needs an SZMSZ. Unique long-tail opportunity with template/download angle. Legal firms rank here but offer no digital product.",
+      "confidence": 0.84,
+      "evidence": [
+        "primary_keyword: SZMSZ készítése társasház",
+        "secondary: szmsz minta társasházaknak, szervezeti és működési szabályzat társasház, SZMSZ módosítása hogyan, SZMSZ elfogadása közgyűlésen, SZMSZ minimális tartalma",
+        "long_tail: SZMSZ sablon ingyenes letöltés társasháznak, mi kötelező az SZMSZ-ben, hogyan módosítható a társasházi SZMSZ, SZMSZ elfogadásához hány szavazat kell, alapító okirat és szmsz különbsége",
+        "questions: Mit tartalmazzon a társasházi SZMSZ? Kötelező-e az SZMSZ? Hogyan fogadják el az SZMSZ-t? Mennyibe kerül SZMSZ készítése?",
+        "intent: informational",
+        "funnel: MOFU",
+        "competition: medium (4/10)",
+        "opportunity_score: 7/10",
+        "existing_page: /tarsashaz-kezeles/szmsz-keszitese"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/tarsashaz-kezeles/szmsz-keszitese"
+      ],
+      "recommendation": "Add a downloadable SZMSZ checklist (email gate or free download) to generate leads. Ensure page covers minimum content requirements per Act CXXXIII/2003. Bridge to /funkciok (SZMSZ stored in digitális dokumentumtár). Target featured snippet for 'Mit kell tartalmaznia az SZMSZ-nek?'",
+      "estimated_effort": "M",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-008",
+      "title": "Cluster: Közös Képviselő Választása / Visszahívása — TOFU/MOFU",
+      "severity": "P1",
+      "impact": "Lakó-side intent. Residents searching how to change a képviselő are frustrated — prime candidates for introducing PanelLakó as the platform that makes accountability visible. High emotional relevance.",
+      "confidence": 0.83,
+      "evidence": [
+        "primary_keyword: közös képviselő választása",
+        "secondary: közös képviselő visszahívása, közös képviselő leváltása, hogyan váltsuk le a közös képviselőt, közös képviselő megbízatás megszűnése, új közös képviselő kiválasztása, közös képviselő pályázat",
+        "long_tail: hogyan hívjuk vissza a közös képviselőt, közös képviselő visszahívásához hány szavazat kell, meddig tart a közös képviselő megbízatása, közös képviselő nélküli társasház mit tehet, közös képviselő lemondása utáni teendők",
+        "questions: Hogyan lehet leváltani a közös képviselőt? Hány szavazat kell a visszahíváshoz? Mi történik ha nincs közös képviselő? Hogyan lehet új képviselőt választani?",
+        "intent: informational",
+        "funnel: TOFU→MOFU",
+        "competition: low-medium (3/10)",
+        "opportunity_score: 7/10",
+        "existing_page: /tarsashaz-kezeles/kozos-kepviselo-valasztasa"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/tarsashaz-kezeles/kozos-kepviselo-valasztasa"
+      ],
+      "recommendation": "Frame content around the lakó persona, not the képviselő — 'Hogyan tudom ellenőrizni és szükség esetén leváltani a közös képviselőt?' Introduce PanelLakó as the transparency layer: 'A PanelLakó platform minden döntést, dokumentumot és pénzmozgást átláthatóvá tesz.' Include CTA for lakók, not just képviselők.",
+      "estimated_effort": "S",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-009",
+      "title": "Cluster: Levegőminőség Budapest — TOFU Awareness (Zero Competition)",
+      "severity": "P0",
+      "impact": "Confirmed zero-competition TOFU cluster in Hungarian SERPs. Only generic weather services (AccuWeather, aqicn.org), national monitoring sites, and a Budapest city portal appear — none are media/publisher competitors with topical authority. Panellako.hu is the only platform combining district-level air quality data with residential building context.",
+      "confidence": 0.95,
+      "evidence": [
+        "primary_keyword: levegőminőség Budapest kerületek",
+        "secondary: Budapest levegőminőség térkép, legszennyezettebb Budapest kerület, Budapest PM2.5 adatok, Budapest légszennyezés, melyik kerületben a legjobb a levegőminőség, levegőminőség és ingatlanárak, beltéri levegőminőség társasházban",
+        "long_tail: levegőminőség Budapest kerületek összehasonlítás, hogyan mérik a levegőminőséget Budapesten, PM2.5 PM10 különbség mit jelent, melyik Budapest kerületben legjobb levegő, levegőminőség hatása egészségre Budapest, mikor van szmogriadó Budapesten",
+        "questions: Melyik Budapest kerületben a legrosszabb a levegőminőség? Mit jelent a PM2.5? Mikor van szmogriadó? Hogyan befolyásolja a levegőminőség az ingatlanárat? Van-e beltéri levegőminőség mérés?",
+        "intent: informational",
+        "funnel: TOFU",
+        "competition: very low (1/10) — no Hungarian publisher has a dedicated kerület-level air quality content hub",
+        "opportunity_score: 9/10 (TOFU volume + zero competition + unique data moat)",
+        "existing_pages: /levegominoseg-budapest (pillar) + 4 cluster articles already published"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/levegominoseg-budapest",
+        "https://panellako.hu/levegominoseg-budapest/pm25-pm10-mit-jelent",
+        "https://panellako.hu/levegominoseg-budapest/budapest-legszennyezettebb-keruletek",
+        "https://panellako.hu/levegominoseg-budapest/belteri-levegominoseg-tarsashazban",
+        "https://panellako.hu/levegominoseg-budapest/pollen-allergia-budapest"
+      ],
+      "recommendation": "This cluster is already architecturally built — priority now shifts to content depth and schema. Add Dataset schema to /levegominoseg-budapest with data source attribution (OpenAQ, Copernicus, OMSZ). Ensure each cluster article has 800+ words, BreadcrumbList schema, and a soft CTA linking to the platform's environmental data feature. Add FAQ sections targeting 'people also ask' boxes. Pursue 2–3 backlinks from Hungarian environmental or property media (innoteka.hu, infostart.hu, atlo.team).",
+      "estimated_effort": "M",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-010",
+      "title": "Cluster: Zajszennyezés Budapest / Társasházi Zajpanasz — TOFU with MOFU Conversion",
+      "severity": "P1",
+      "impact": "Dual-intent cluster: informational for residents (what are my rights with noisy neighbours?) and commercial for building managers (how do I handle noise complaints digitally?). Two cluster articles already published. Competitors: none with dedicated hub.",
+      "confidence": 0.87,
+      "evidence": [
+        "primary_keyword: zajszennyezés Budapest térkép",
+        "secondary: társasházi zajpanasz kezelése, zajos szomszéd mit tehetek, zajvédelem társasházban, hangszigetelés tarsasházi lakásban, éjszakai zaj szabályok Magyarország, zajmérés Budapest kerületek",
+        "long_tail: mit tehetek ha zajos a szomszédom társasházban, hogyan kezeli a közös képviselő a zajpanaszt, zajpanasz bejelentés közös képviselőnek, jogi lépések zajos szomszéd ellen, hangszigetelés kötelező-e felújításnál",
+        "questions: Mit tehetek zajos szomszéd ellen társasházban? Melyik Budapest kerületben a legzajosabb? Mettől meddig szabad hangoskodni? Hogyan kell zajpanaszt bejelenteni?",
+        "intent: informational + commercial",
+        "funnel: TOFU→MOFU",
+        "competition: low (2/10)",
+        "opportunity_score: 8/10",
+        "existing_pages: /zajszennyezes-budapest + /zajszennyezes-budapest/tarsashazi-zaj-panasz + /zajszennyezes-budapest/zajvedes-tarsashazban"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/zajszennyezes-budapest",
+        "https://panellako.hu/zajszennyezes-budapest/tarsashazi-zaj-panasz",
+        "https://panellako.hu/zajszennyezes-budapest/zajvedes-tarsashazban"
+      ],
+      "recommendation": "Add kerület-level noise ranking data to the pillar page (even estimated from EEA noise maps). On /tarsashazi-zaj-panasz, add a 'hogyan rögzítsd a panaszt digitálisan' section with PanelLakó hibabejelentés feature CTA. Missing article: 'Éjszakai zaj szabályok és szankciók Magyarországon 2026' — publish as 4th cluster article.",
+      "estimated_effort": "S",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-011",
+      "title": "Cluster: Klímakockázat Ingatlanonál / Hőszigetek Budapest — TOFU Data Niche",
+      "severity": "P1",
+      "impact": "Urban heat island data confirmed with research from ELTE, OMSZ, and EU projects. Telex published a sponsored hőségtérkép article in 2024. Budapest city portal has data. No publisher has built a regularly updated, searchable, Budapest kerület-level UHI content hub. Panellako.hu is uniquely positioned.",
+      "confidence": 0.88,
+      "evidence": [
+        "primary_keyword: hőszigetek Budapest kerületek",
+        "secondary: városi hőszigat hatás Budapest, Budapest leghőbb kerületek nyáron, felszínhőmérséklet térkép Budapest, klímakockázat ingatlan Budapest, hőhullám kockázat kerületek, hőszigat csökkentés zöldterület",
+        "long_tail: melyik Budapest kerületben a legmelegebb nyáron, hőszigat hatás belvárosi lakásban, hogyan csökkenthetjük a hőszigat hatást társasházban, klímaváltozás hatása panellakásra, nyári hőség kockázat kerületek összehasonlítás",
+        "questions: Melyik kerületben a legmelegebb nyáron? Mit jelent a városi hőszigat? Hogyan csökkenthetjük a hőt a panellakásban? Melyik Budapest kerületek a leghűvösebbek?",
+        "intent: informational",
+        "funnel: TOFU",
+        "competition: very low (2/10)",
+        "opportunity_score: 8/10",
+        "existing_pages: /klimakockazat-epuleteknel + 3 cluster articles"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/klimakockazat-epuleteknel",
+        "https://panellako.hu/klimakockazat-epuleteknel/hoszigetek-budapest",
+        "https://panellako.hu/klimakockazat-epuleteknel/csapadek-es-arviz-budapest",
+        "https://panellako.hu/klimakockazat-epuleteknel/energetikai-tanusitvany"
+      ],
+      "recommendation": "Add an interactive data visualization or static table ranking Budapest 23 kerületek by UHI severity (use Copernicus LST data). This becomes a linkable asset for environmental journalists. Add 4th cluster article: 'Klímaváltozás és panellakás — mit tehet a közös képviselő?' directly bridging TOFU to product awareness.",
+      "estimated_effort": "M",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-012",
+      "title": "Cluster: Tömegközlekedés Elemzés Budapest / GTFS Adatok — TOFU Niche Data",
+      "severity": "P1",
+      "impact": "Budapest's transit analysis is of interest to urban planners, property buyers, and residents evaluating neighborhoods. The GTFS angle is unique — no Hungarian publisher has dedicated GTFS educational content. The existing /elemzes/budapest-kozlekedes is the strongest technical asset on the site.",
+      "confidence": 0.85,
+      "evidence": [
+        "primary_keyword: tömegközlekedés Budapest elemzés",
+        "secondary: GTFS adatok Budapest, BKK megállók lefedettség, villamos metró HÉV elérhetőség lakónegyedek, Budapest közlekedési térkép kerületek, 420 méteres gyalogos zóna megálló, legjobb közlekedésű Budapest kerület",
+        "long_tail: melyik Budapest kerületben a legjobb a tömegközlekedés, GTFS mit jelent Budapest közlekedés, BKK adatok nyílt forrás, mennyire elérhető a metró gyalog Budapest, közlekedési lefedettség lakótelep",
+        "questions: Melyik Budapest kerületben a legjobb a tömegközlekedés? Mit jelent a GTFS? Hogyan mérhető a tömegközlekedés elérhetősége? Melyik kerületek a legrosszabban ellátottak?",
+        "intent: informational",
+        "funnel: TOFU",
+        "competition: very low (1/10) — ATLO team has visualizations but no educational content hub",
+        "opportunity_score: 7/10",
+        "existing_pages: /tomegkozlekedes-elemzes + /gtfs-adatok-budapest + /villamos-metro-hev-elerheto-lakoneegyedek"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/tomegkozlekedes-elemzes",
+        "https://panellako.hu/tomegkozlekedes-elemzes/gtfs-adatok-budapest",
+        "https://panellako.hu/tomegkozlekedes-elemzes/villamos-metro-hev-elerheto-lakoneegyedek",
+        "https://panellako.hu/elemzes/budapest-kozlekedes"
+      ],
+      "recommendation": "Fix SSR on /elemzes/budapest-kozlekedes (currently ssr:false = invisible to Googlebot). Add 250-word static description block server-rendered above the map. Ensure /tomegkozlekedes-elemzes pillar links to the interactive map as 'Nézd meg az interaktív Budapest közlekedési elemzést'. Add Dataset schema. Target backlinks from Hungarian urban planning and open data communities.",
+      "estimated_effort": "M",
+      "dependencies": ["TECH: fix ssr:false on /elemzes/budapest-kozlekedes"],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-013",
+      "title": "Cluster: 15 Perces Város Budapest — Topical Trend TOFU",
+      "severity": "P2",
+      "impact": "Budapest published its own '15 perces utak térképe' in January 2025. The concept is gaining policy traction. The I., V., XII. districts rank best. This cluster attracts property buyers and urban planners and bridges to the platform's walkability/proximity data features.",
+      "confidence": 0.80,
+      "evidence": [
+        "primary_keyword: 15 perces város Budapest",
+        "secondary: Budapest kompakt város térkép, gyalogos elérhetőség Budapest kerületek, 15 perces séta szolgáltatások Budapest, élhető városrészek Budapest, közszolgáltatások elérhetősége gyalog, fenntartható városfejlesztés Budapest",
+        "long_tail: melyik Budapest kerület 15 perces város, gyalog elérhető-e minden szolgáltatás Budapesten, 15 perces város elvei Budapest, hogyan értékelik a gyalogos elérhetőséget, I. kerület vs XXI. kerület gyalogos elérhetőség",
+        "questions: Mi a 15 perces város? Melyik Budapest kerület a leginkább kompakt? Hogyan mérik a gyalogos elérhetőséget? Megvalósítható-e 15 perces várossá Budapest?",
+        "intent: informational",
+        "funnel: TOFU",
+        "competition: low (2/10) — budapest.hu published a map tool; no editorial publisher has a kerület ranking hub",
+        "opportunity_score: 7/10",
+        "existing_page: /15-perces-varos"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/15-perces-varos"
+      ],
+      "recommendation": "Upgrade /15-perces-varos with a kerület-by-kerület accessibility scorecard (using existing BKK/OSM data). Embed the city's own map tool with commentary. Link to /tomegkozlekedes-elemzes and /levegominoseg-budapest for authority cross-linking. This page has strong backlink potential from urban planning sites and Hungarian media.",
+      "estimated_effort": "M",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-014",
+      "title": "Cluster: Zöld Társasház — Napelem / Hőszigetelés / EV Töltő (TOFU/MOFU)",
+      "severity": "P1",
+      "impact": "Active grant market confirmed: OTP Bank has a 2026 társasházi pályázat; government Otthoni Energiatároló Program is live; napelem pályázatok heavily searched. The 'könnyebben telepíthetnek napelemet a társasházi lakóközösségek' government announcement creates fresh search demand. EV charging in condominiums is a growing pain point.",
+      "confidence": 0.89,
+      "evidence": [
+        "primary_keyword: napelem társasházi tetőre",
+        "secondary: társasházi napelem telepítés szavazás, napelem pályázat társasház 2026, hőszigetelés panelprogram 2026, EV töltő mélygarázs társasház, elektromos autó töltő társasházi parkoló, OTP társasházi pályázat 2026, zöld felújítás társasház pályázat",
+        "long_tail: hogyan kell szavazni napelem telepítésről társasházban, napelem pályázat 2026 társasházaknak, hány szavazat kell napelem telepítéséhez, METÁR pályázat közös épületre, elektromos töltő bevezetése mélygarázsban hogyan, hőszigetelési pályázat társasházi lakóközösségnek",
+        "questions: Hogyan telepíthetnek napelemet a társasházak? Hány szavazat kell a napelem telepítéséhez? Milyen pályázatok vannak társasházaknak 2026-ban? Legálisan telepíthető-e EV töltő a közös mélygarázsba?",
+        "intent: informational + commercial",
+        "funnel: TOFU→MOFU",
+        "competition: medium (4/10) — energy companies and aggregators rank; no dedicated SaaS-adjacent hub",
+        "opportunity_score: 8/10",
+        "existing_pages: /zold-tarsashaz + /napelem-tarsashazban + /hoszigeteles-panelprogram + /ev-tolto-tarsashazban"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/zold-tarsashaz",
+        "https://panellako.hu/zold-tarsashaz/napelem-tarsashazban",
+        "https://panellako.hu/zold-tarsashaz/hoszigeteles-panelprogram",
+        "https://panellako.hu/zold-tarsashaz/ev-tolto-tarsashazban"
+      ],
+      "recommendation": "Update all 2025 grant references to 2026 (OTP 2026 pályázat, Otthoni Energiatároló Program deadlines). Add a pályázati naptár (grant calendar) to /zold-tarsashaz pillar as a sticky asset users bookmark. On /napelem-tarsashazban, add the decision-tree: 'Milyen közgyűlési határozat kell?' — links to /kozgyules-osszehivasa and to PanelLakó online szavazás feature. Missing 4th article: 'Budapest 2026-os zöld épület fejlesztési lehetőségei'.",
+      "estimated_effort": "M",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-015",
+      "title": "Cluster: Társasházi Jog — Alapító Okirat / Szomszédjog / Határozat Megtámadása (TOFU Legal)",
+      "severity": "P2",
+      "impact": "Legal cluster attracts high-intent lakó and képviselő users. Legal firms dominate these SERPs but don't offer digital tools. Panellakó can rank with plain-language explanations + CTA for platform's document management and voting features.",
+      "confidence": 0.82,
+      "evidence": [
+        "primary_keyword: társasházi jog",
+        "secondary: alapító okirat módosítása társasház, közgyűlési határozat megtámadása, szomszédjog társasházban, társasházi törvény 2003 CXXXIII, albérlő jogai és kötelezettségei társasházban, közös tulajdon szabályok, társasházi vita rendezése",
+        "long_tail: hogyan támadható meg a közgyűlési határozat, alapító okirat módosítás hány szavazat, szomszédjog felújítás zajjal, albérlő fizet-e közös költséget, 30 napos határidő határozat megtámadása, társasházi peres eljárás",
+        "questions: Hogyan lehet megtámadni a közgyűlési határozatot? Módosítható-e az alapító okirat? Mik az albérlő jogai? Hogyan rendezhetők a szomszédi viták társasházban?",
+        "intent: informational",
+        "funnel: TOFU",
+        "competition: medium-high (5/10) — law firms and legal portals (jogiforum.hu, drkalota.hu, osztrovics.hu) rank here",
+        "opportunity_score: 6/10",
+        "existing_pages: /tarsashazi-jog + 3 cluster articles"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/tarsashazi-jog",
+        "https://panellako.hu/tarsashazi-jog/alapito-okirat-modositasa",
+        "https://panellako.hu/tarsashazi-jog/kozgyulesi-hatarozat-megtamadasa",
+        "https://panellako.hu/tarsashazi-jog/szomszed-jog-tarsashazban"
+      ],
+      "recommendation": "Differentiate from law firm content by combining legal explanation with practical digital workflow: 'Mi a 30 napos határidő — és hogyan dokumentáld a határozatot digitálisan?'. Add disclaimer: 'Ez tájékoztató jellegű — jogi tanácsért fordulj ügyvédhez.' Cross-link to /funkciok/online-kozgyules for the voting documentation use case. Missing 4th article: 'Bérlő és tulajdonos jogviszony társasházban — közös költség, szabályok, viták'.",
+      "estimated_effort": "S",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-016",
+      "title": "Cluster: Competitor Comparison — vs eHÁZ, OnlineHáz, WHM Cloud (BOFU)",
+      "severity": "P0",
+      "impact": "Software buyers explicitly search competitor comparisons before purchasing. 'Társasházkezelő Szoftver Összehasonlítás 2026' page exists on szoftver.tarsashazaink.hu (competitor). Panellakó has /osszehasonlitas but only vs Excel/WhatsApp — missing the software-vs-software angle. This is the highest conversion-intent gap.",
+      "confidence": 0.93,
+      "evidence": [
+        "primary_keyword: legjobb társasházi szoftver 2026",
+        "secondary: PanelLakó vs eHÁZ, PanelLakó vs OnlineHáz, társasházi szoftver összehasonlítás, eHÁZ alternatíva, OnlineHáz vélemény, WHM Cloud összehasonlítás, társasházi program teszt 2026",
+        "long_tail: melyik a legjobb közös képviselő szoftver Magyarországon, eHÁZ vagy OnlineHáz melyik jobb, ingyenes próba társasházi szoftverek, közös képviselő program összehasonlítás ár funkció, Netház alternatíva felhőalapú",
+        "questions: Melyik a legjobb társasházi szoftver? Mi a különbség az eHÁZ és az OnlineHáz között? Van-e ingyenes alternatíva az eHÁZhoz?",
+        "intent: commercial",
+        "funnel: BOFU",
+        "competition: low (2/10) — szoftver.tarsashazaink.hu has an /osszehasonlitas but it's self-serving; no independent comparison exists",
+        "opportunity_score: 10/10 (highest ROI gap)"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/osszehasonlitas"
+      ],
+      "recommendation": "Expand /osszehasonlitas to include a factual feature comparison matrix: PanelLakó vs eHÁZ vs OnlineHáz vs WHM Cloud vs Netház. Use public information only. Columns: ár/albetét, könyvelés, online szavazás, dokumentumtár, mobilapp, környezeti adatok, ingyenes próba. The environmental data column is Panellakó's unique differentiator — highlight it. Create separate landing pages: /osszehasonlitas/panellako-vs-ehaz and /osszehasonlitas/panellako-vs-onlinehaz for long-tail capture.",
+      "estimated_effort": "M",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-017",
+      "title": "Cluster: Könyvelő / Accountant Persona — B2B Multiplier (MOFU/BOFU)",
+      "severity": "P1",
+      "impact": "MISSING CLUSTER — no page targets accountant/könyvelő persona. One accountant handles 10–50 buildings. Winning this persona is a multiplier with potentially 10x customer acquisition efficiency. Confirmed: WHM Cloud explicitly targets 'kettős könyvelés'; szoftver.tarsashazaink.hu targets könyvelők.",
+      "confidence": 0.88,
+      "evidence": [
+        "primary_keyword: társasházi könyvelő szoftver",
+        "secondary: közös képviselő könyvelés digitalizálás, kettős könyvelés társasházaknak, egyszeres könyvelés társasházi program, könyvelő közös képviselőknek szoftver, társasházi könyvelő feladatai, Billingo integráció társasházi szoftver",
+        "long_tail: melyik szoftver a legjobb társasházi könyveléshez, hogyan könyvelik a közös képviselők a közös költséget, digitális könyvelés közös képviselőknek 2026, Billingo és társasházi szoftver integráció, egyszeres kettős könyvelés váltás társasháznál",
+        "questions: Kell-e könyvelő a közös képviselőnek? Milyen szoftvert használnak a társasházi könyvelők? Mi az egyszeres és kettős könyvelés különbsége?",
+        "intent: commercial",
+        "funnel: MOFU→BOFU",
+        "competition: low-medium (3/10)",
+        "opportunity_score: 9/10 (multiplier effect, no existing page = full gap)",
+        "existing_page: NONE — full gap"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/tarsashaz-kezeles/kozos-koltseg-nyilvantartas"
+      ],
+      "recommendation": "Create new page /funkciok/konyveloknek or /kozos-kepviseloknek/konyvelok targeting the accountant persona. Content: 'Hogyan kezeli a PanelLakó a társasházi könyvelést?' Include: Billingo integráció mention, egyszeres könyvelés support, CSV export, audit trail. Add the accountant to the persona section on the homepage. This single page could unlock B2B partnership conversations with könyvelő iroda chains.",
+      "estimated_effort": "M",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-018",
+      "title": "Cluster: Panellakás Ár Budapest / Ingatlanpiaci Kontextus — TOFU Property Buyer",
+      "severity": "P2",
+      "impact": "Panellakás prices surged +36% YoY in Budapest (confirmed: Index, Pénzcentrum, Haszon Magazin all covering in 2026). A panellakás buyer researching neighborhoods is a future resident and potential lakó-tier PanelLakó user. Content bridging 'kerület comparison' to 'building quality data' is a natural acquisition path.",
+      "confidence": 0.75,
+      "evidence": [
+        "primary_keyword: panellakás ár Budapest kerületek",
+        "secondary: panellakás vásárlás szempontok, legjobb kerület panellakáshoz, panellakás minőség értékelés, lakótelep levegőminőség zajszennyezés, ingatlan vásárlás döntés kerületek, panellakás felújítás ára, panel lakás előnyei hátrányai",
+        "long_tail: melyik kerületben érdemes panellakást venni 2026, panellakás ár vs tégla lakás Budapest, legjobb paneltelep Budapest lakhatás, mennyibe kerül egy panellakás Budapesten 2026, kerület minőség értékelés levegő zaj közlekedés",
+        "questions: Melyik Budapest kerületben a legjobb panellakást venni? Hogyan értékeljük egy kerület minőségét? Mire figyeljünk panellakás vásárlásnál?",
+        "intent: informational (TOFU — property buyer)",
+        "funnel: TOFU",
+        "competition: high (7/10) — ingatlan.com, duna.house, portfolio.hu dominate; niche possible in quality-indicators angle",
+        "opportunity_score: 6/10"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/15-perces-varos",
+        "https://panellako.hu/levegominoseg-budapest",
+        "https://panellako.hu/klimakockazat-epuleteknel"
+      ],
+      "recommendation": "Do not compete directly with ingatlan.com on price data. Instead, create a 'neighborhood quality checklist' content angle: 'Mire figyelj a kerület kiválasztásakor — levegőminőség, zaj, közlekedés, klímakockázat'. This is unique to panellako.hu's data stack. Target long-tail queries about neighborhood quality, not price tables. This article naturally links to all TOFU cluster pillars.",
+      "estimated_effort": "M",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-019",
+      "title": "Cluster: Felügyelőbizottság — Specialized Decision-Maker MOFU",
+      "severity": "P2",
+      "impact": "Niche but high-intent cluster. Felügyelőbizottság members are active participants in building governance. The cluster article exists; competition is low. Opportunity to become the definitive Hungarian-language resource.",
+      "confidence": 0.80,
+      "evidence": [
+        "primary_keyword: felügyelőbizottság társasházban",
+        "secondary: felügyelőbizottság feladatai, felügyelőbizottság választása hogyan, felügyelőbizottság és közös képviselő viszonya, felügyelőbizottság jogosítványai, kötelező-e felügyelőbizottság, felügyelőbizottsági tag díjazása",
+        "long_tail: mikor kötelező felügyelőbizottságot választani, mi a felügyelőbizottság feladata a közös képviselőhöz képest, hogyan választják a felügyelőbizottságot, felügyelőbizottság ellenőrzi-e a pénzügyeket, hány tagból áll a felügyelőbizottság",
+        "questions: Kötelező-e felügyelőbizottság? Mi a felügyelőbizottság feladata? Hogyan ellenőrzi a közös képviselőt?",
+        "intent: informational",
+        "funnel: MOFU",
+        "competition: low (2/10)",
+        "opportunity_score: 6/10",
+        "existing_page: /tarsashaz-kezeles/felugyelobizottsag"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/tarsashaz-kezeles/felugyelobizottsag"
+      ],
+      "recommendation": "Upgrade page with FAQ schema. Add the transparency angle: 'A PanelLakó dokumentumtára lehetővé teszi a felügyelőbizottság számára a valós idejű betekintést.' Target the question 'Hogyan ellenőrzi a felügyelőbizottság a közös képviselőt digitálisan?'.",
+      "estimated_effort": "XS",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-020",
+      "title": "Cluster: Dokumentumkezelés Társasházban — Feature Bridge MOFU",
+      "severity": "P2",
+      "impact": "Documentation management is a core platform feature. Organic content targeting this query bridges informational need to product trial. The kötelező dokumentumok lista angle is highly searchable and linkable.",
+      "confidence": 0.82,
+      "evidence": [
+        "primary_keyword: kötelező dokumentumok társasházban",
+        "secondary: társasházi iratok megőrzési ideje, társasházi dokumentumtár online, közgyűlési határozatkönyv megőrzési idő, GDPR társasházi dokumentumok, digitális dokumentumkezelés közös képviselő, papírmentes társasházi adminisztráció",
+        "long_tail: meddig kell megőrizni a közgyűlési jegyzőkönyvet, milyen dokumentumokat kell megőrizni a közös képviselőnek, digitális dokumentumtár jogilag érvényes-e, hol kell tárolni a társasházi iratokat, GDPR és társasházi adatkezelés",
+        "questions: Mik a kötelező társasházi dokumentumok? Meddig kell megőrizni a határozatokat? Jogilag érvényes-e a digitális aláírás?",
+        "intent: informational",
+        "funnel: MOFU",
+        "competition: low (2/10)",
+        "opportunity_score: 7/10",
+        "existing_page: /tarsashaz-kezeles/dokumentumkezeles-tarsashazban"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/tarsashaz-kezeles/dokumentumkezeles-tarsashazban",
+        "https://panellako.hu/funkciok/dokumentumtar"
+      ],
+      "recommendation": "Add a structured table: Dokumentum típus | Kötelező megőrzési idő | Hol tároljuk. This is an ideal featured snippet target. Add a section on 'Digitális dokumentumtár jogi érvényessége' — directly bridges to /funkciok/dokumentumtar.",
+      "estimated_effort": "S",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-021",
+      "title": "Cluster: Hibabejelentés Kezelése Társasházban — Feature-Specific MOFU",
+      "severity": "P2",
+      "impact": "A key product feature with a dedicated search cluster. Building defect reporting is a daily pain point. No competitor has SEO-optimized content targeting this exact workflow.",
+      "confidence": 0.80,
+      "evidence": [
+        "primary_keyword: hibabejelentés társasházban",
+        "secondary: közös terület hibája bejelentés, karbantartási igény társasház hogyan, épület hibabejelentő app, társasházi feladatkezelő rendszer, lift meghibásodás bejelentés, közös képviselő hibabejelentő",
+        "long_tail: hogyan jelentsük be a közös területi hibát, mi a teendő ha meghibásodik a lift a társasházban, közös képviselő nem foglalkozik a hibával mit tehetek, digitális hibabejelentő társasházi lakóknak",
+        "questions: Hogyan jelentsünk be hibát a társasházban? Mi a közös képviselő kötelessége a hiba esetén? Van-e digitális hibabejelentő rendszer?",
+        "intent: informational + commercial",
+        "funnel: MOFU",
+        "competition: very low (1/10)",
+        "opportunity_score: 7/10",
+        "existing_page: /funkciok/hibabejelentes-kezeles"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/funkciok/hibabejelentes-kezeles"
+      ],
+      "recommendation": "Create an educational article /tarsashaz-kezeles/hibabejelentes-folyamata that explains the process, then links to /funkciok/hibabejelentes-kezeles as the tool solution. Use Q&A format to capture PAA boxes.",
+      "estimated_effort": "S",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-022",
+      "title": "Cluster: Local SEO — Közös Képviselő / Társasházi Szoftver + Budapest / Városok",
+      "severity": "P2",
+      "impact": "City-level modifier queries have low competition and high conversion intent. Currently zero city-specific pages exist on panellako.hu. Even adding Budapest as a location modifier to existing pages would capture this segment.",
+      "confidence": 0.78,
+      "evidence": [
+        "primary_keyword: társasházi kezelő szoftver Budapest",
+        "secondary: közös képviselő szoftver Debrecen, társasházi program Miskolc, ingatlankezelő szoftver Győr, társasházi digitalizálás vidéki városok, közös képviselő platform fővárosi",
+        "long_tail: legjobb társasházi szoftver Budapest közös képviselőknek, digitális közös képviselet Pest megye, társasházi szoftver Pest kerületek",
+        "intent: commercial",
+        "funnel: BOFU",
+        "competition: very low (1/10) — no competitor has city-specific landing pages",
+        "opportunity_score: 7/10"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/"
+      ],
+      "recommendation": "Add 'Budapest és egész Magyarország' to homepage copy to capture local intent. Consider programmatic local landing pages for top 5 cities: Budapest, Debrecen, Miskolc, Pécs, Győr. Short-term: ensure homepage content mentions Budapest explicitly in H2 or trust bar. Long-term: /kozos-kepviseloknek/budapest landing page.",
+      "estimated_effort": "M",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-023",
+      "title": "Cluster: Online Közgyűlés / Digitális Szavazás — Feature MOFU",
+      "severity": "P1",
+      "impact": "Confirmed demand: ekozgyules.com, honline.hu, and WHM Cloud all target this query. Panellakó has the feature and a dedicated page. Key gap: /funkciok/online-kozgyules needs to rank for the how-to informational queries, not just the product page.",
+      "confidence": 0.86,
+      "evidence": [
+        "primary_keyword: online közgyűlés társasház",
+        "secondary: digitális szavazás társasházban, írásbeli szavazás online, e-szavazás közgyűlés, társasházi közgyűlés zoom teams, közgyűlési határozat online elfogadás, jogilag érvényes online közgyűlés",
+        "long_tail: hogyan szervezzük meg az online közgyűlést, jogilag érvényes-e az online szavazás társasházban, mit kell tartalmaznia az online közgyűlési meghívónak, online szavazás eredménye hogyan közlendő, platform ajánlás online társasházi közgyűléshez",
+        "questions: Jogilag érvényes-e az online közgyűlés? Hogyan kell megszervezni az online szavazást? Milyen platformot használjanak? Mit kell dokumentálni?",
+        "intent: informational + commercial",
+        "funnel: MOFU",
+        "competition: medium (4/10) — ekozgyules.com is first mover",
+        "opportunity_score: 8/10",
+        "existing_page: /funkciok/online-kozgyules"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/funkciok/online-kozgyules",
+        "https://panellako.hu/tarsashaz-kezeles/kozgyules-osszehivasa"
+      ],
+      "recommendation": "Create an educational article at /tarsashaz-kezeles/online-kozgyules-jogszabalyok covering the legal basis for online voting in Hungary (post-2020 amendments). This informational page links to /funkciok/online-kozgyules as the product solution. Differentiate from ekozgyules.com by emphasizing that PanelLakó integrates online voting WITH the full management platform (not a standalone voting tool).",
+      "estimated_effort": "M",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-024",
+      "title": "Cluster: Pollen és Allergia Budapest — Seasonal High-Volume TOFU",
+      "severity": "P2",
+      "impact": "Seasonal spike cluster. Spring pollen season drives very high search volumes for 'pollen Budapest' queries. Existing article at /pollen-allergia-budapest. Targets allergic residents making building and neighborhood decisions.",
+      "confidence": 0.79,
+      "evidence": [
+        "primary_keyword: pollen allergia Budapest kerületek",
+        "secondary: Budapest pollenkoncentráció, allergiás szezon Budapest 2026, melyik Budapest kerületben legkevesebb a pollen, fa pollen Budapest, parlagfű szezon Budapest, beltéri levegőminőség allergiások számára",
+        "long_tail: melyik Budapest kerületben legalacsonyabb a pollenkoncentráció, pollen előrejelzés Budapest kerületenként, allergiás lakos melyik kerületet válasszon, parlagfű pollen Budapest térkép, beltéri szűrő szükséges-e társasházi lakásban",
+        "intent: informational (seasonal)",
+        "funnel: TOFU",
+        "competition: low (2/10) — meteoblue, metnet have data; no publisher has kerület-ranking content",
+        "opportunity_score: 7/10 (seasonal traffic spike)",
+        "existing_page: /levegominoseg-budapest/pollen-allergia-budapest"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/levegominoseg-budapest/pollen-allergia-budapest"
+      ],
+      "recommendation": "Add seasonal freshness update each March/April. Include a 'pollen naptár' with Budapest-specific flowering calendar. Bridge to beltéri levegőminőség article and to the platform's environmental data feature (kerületed pollen szintje a PanelLakó dashboardon).",
+      "estimated_effort": "XS",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-025",
+      "title": "Cluster: Energetikai Tanúsítvány — Regulatory Compliance MOFU",
+      "severity": "P2",
+      "impact": "Energy performance certification is legally required for property transactions and increasingly required for grants. The cluster article exists. The 2026 pályázat season makes this timely.",
+      "confidence": 0.80,
+      "evidence": [
+        "primary_keyword: energetikai tanúsítvány társasházaknak",
+        "secondary: energetikai tanúsítvány ára, EPC tanúsítvány hogyan szerezzük meg, épület energetikai besorolás, energetikai felújítás pályázat, energetikai tanúsítvány érvényessége, BB CC energetikai osztály mit jelent",
+        "long_tail: energetikai tanúsítvány kötelező-e társasháznál, energetikai tanúsítvány ára 2026 Budapest, melyik energetikai osztályba tartozik a panellakásom, mikor érvénytelen az energetikai tanúsítvány, energetikai pályázat feltétel tanúsítvány",
+        "questions: Kötelező-e az energetikai tanúsítvány? Mennyibe kerül? Mire érvényes? Mit jelent a BB osztály?",
+        "intent: informational",
+        "funnel: MOFU",
+        "competition: medium (4/10)",
+        "opportunity_score: 6/10",
+        "existing_page: /klimakockazat-epuleteknel/energetikai-tanusitvany"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/klimakockazat-epuleteknel/energetikai-tanusitvany"
+      ],
+      "recommendation": "Update with 2026 pályázat requirements that mandate a minimum energy class. Add a price table and FAQ schema. Bridge to /zold-tarsashaz for the grant application path.",
+      "estimated_effort": "XS",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-026",
+      "title": "Cluster: GYIK / FAQ — Schema & LLM Extractability (All Funnel Stages)",
+      "severity": "P1",
+      "impact": "The /gyik page with FAQPage JSON-LD is the highest-ROI schema asset on the site. It is confirmed to exist. FAQPage schema generates SERP real estate expansion. Critically, structured Q&A content is what LLMs (ChatGPT, Perplexity, Google AI Overview) extract and cite.",
+      "confidence": 0.92,
+      "evidence": [
+        "primary_keyword: társasházi szoftver kérdések",
+        "secondary: PanelLakó hogyan működik, közös képviselő szoftver beállítás, PanelLakó ár, PanelLakó biztonság adatvédelem, társasházi szoftver GDPR, PanelLakó ingyenes próba feltételei",
+        "long_tail: kell-e telepíteni a PanelLakót, hány épületre használható a PanelLakó, Magyar jogi megfeleléssel rendelkezik-e a PanelLakó, mi történik a próbaidőszak után, hogyan migráljuk az adatainkat PanelLakóra",
+        "intent: informational (bottom-of-funnel research before signup)",
+        "funnel: All stages — primarily BOFU",
+        "competition: not applicable (branded queries)",
+        "opportunity_score: 9/10 (schema ROI + LLM extractability)",
+        "existing_page: /gyik with FAQPage JSON-LD confirmed"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/gyik"
+      ],
+      "recommendation": "Expand /gyik to 20+ Q&A pairs. Add section: 'Összehasonlítás' with questions like 'Mi a különbség a PanelLakó és az eHÁZ között?'. Ensure every FAQ answer ends with a navigational CTA (link to relevant feature page). This page is the primary target for AI Overview citations — answers must be self-contained, factual, and under 200 words each.",
+      "estimated_effort": "S",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-027",
+      "title": "Cluster: Csapadék és Árvíz Budapest — Climate Risk TOFU",
+      "severity": "P2",
+      "impact": "Flash flooding events in Budapest generate search spikes. The 'villámárvíz' and 'pince vízbeáramlás' queries are increasingly searched as extreme weather increases. Existing cluster article covers this.",
+      "confidence": 0.78,
+      "evidence": [
+        "primary_keyword: villámárvíz kockázat Budapest",
+        "secondary: csapadék Budapest kerületek, árvízkockázat ingatlan Budapest, pince elöntés megelőzés, beszivárgás aszfalt burkolt felszín, árvíz biztosítás Budapest, Duna áradás kockázat",
+        "long_tail: melyik Budapest kerületben legnagyobb az árvízkockázat, villámárvíz után mit kell tenni társasházban, pince vízbeáramlás megelőzés, zivatar károk társasházi biztosítás, csapadék-elvezetés problémák társasházban",
+        "questions: Melyik kerületekben a legnagyobb az árvízkockázat? Mit tehet a közös képviselő árvíz esetén? Fedezi a biztosítás a villámárvíz kárt?",
+        "intent: informational",
+        "funnel: TOFU",
+        "competition: low (2/10)",
+        "opportunity_score: 6/10",
+        "existing_page: /klimakockazat-epuleteknel/csapadek-es-arviz-budapest"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/klimakockazat-epuleteknel/csapadek-es-arviz-budapest"
+      ],
+      "recommendation": "Add a kerület-level flood risk classification table. Include a 'mit tehet a közös képviselő villámárvíz előtt / után' checklist. Pursue a backlink from Hungarian climate journalism (masfelfok.hu, g7.hu).",
+      "estimated_effort": "S",
+      "dependencies": [],
+      "owner_type": "Content"
+    },
+    {
+      "id": "KW-028",
+      "title": "Cluster: Összehasonlítás — Excel és WhatsApp vs Szoftver (BOFU Conversion)",
+      "severity": "P1",
+      "impact": "The primary digital competitor is Excel + WhatsApp, not another SaaS. Confirmed by the existing /osszehasonlitas page. This comparison captures the 'replacing manual tools with software' searcher — highest-intent BOFU persona.",
+      "confidence": 0.90,
+      "evidence": [
+        "primary_keyword: társasházi szoftver vs excel",
+        "secondary: közös képviselő WhatsApp problémák, papírmentes társasházkezelés, excel helyett szoftver közös képviselőknek, digitalizálás közös képviselet, társasházi csoportos üzenet problémák, mennyibe kerül a digitális váltás",
+        "long_tail: miért nem elég az Excel a közös képviselőnek, WhatsApp GDPR problémák társasházban, hogyan váltson szoftverre a közös képviselő, digitalizálás megtérülése társasházi adminisztrációban",
+        "questions: Miért nem elég a WhatsApp? Miért jobb a szoftver az Excelnél? Mennyi időt takarít meg a digitális megoldás?",
+        "intent: commercial",
+        "funnel: BOFU",
+        "competition: very low (1/10)",
+        "opportunity_score: 9/10",
+        "existing_page: /osszehasonlitas (Excel/WhatsApp angle exists)"
+      ],
+      "affected_urls": [
+        "https://panellako.hu/osszehasonlitas"
+      ],
+      "recommendation": "Strengthen /osszehasonlitas with specific time-saving data claims ('30 percet spórol hetente', 'automatikus emlékeztetők'). Add GDPR angle for WhatsApp ('A WhatsApp nem GDPR-kompatibilis a lakói adatkezelésre'). Add structured data Comparison table schema. This page should be linked from every tarsashaz-kezeles cluster article.",
+      "estimated_effort": "S",
+      "dependencies": [],
+      "owner_type": "Content"
+    }
+  ],
+
+  "quick_wins": [
+    "QW-01: Upgrade /gyik to 20+ FAQs with answers under 200 words each — highest LLM extractability ROI (effort: S, timeline: 3 days)",
+    "QW-02: Add 'Budapest és vidéki városok' to homepage copy — captures local SEO intent without new pages (effort: XS, timeline: 1 day)",
+    "QW-03: Ensure /tarsashaz-kezeles/kozos-kepviselo-feladatai targets the featured snippet for 'Mi a közös képviselő feladata?' with a concise 50-word definition under H1 (effort: XS, timeline: 1 day)",
+    "QW-04: Add FAQPage JSON-LD to /tarsashaz-kezeles/dijhatlarak-kezelese and /tarsashaz-kezeles/kozgyules-osszehivasa (effort: XS, timeline: 2 hours each)",
+    "QW-05: Create /tarsashaz-kezeles/online-kozgyules-jogszabalyok as a 1,000-word informational article on the legal basis for online voting — targets queries ekozgyules.com doesn't cover (effort: S, timeline: 3 days)",
+    "QW-06: Update all grant references on /zold-tarsashaz cluster to 2026 pályázatok (OTP pályázat, Otthoni Energiatároló Program deadlines) — freshness signal (effort: XS, timeline: 2 hours)",
+    "QW-07: Add a 'Közgyűlési meghívó mintája letöltés' CTA to /kozgyules-osszehivasa — lead capture + dwell time improvement (effort: S, timeline: 2 days)",
+    "QW-08: Add Dataset JSON-LD schema to /levegominoseg-budapest, /zajszennyezes-budapest, and /tomegkozlekedes-elemzes to signal data authority to search engines and LLMs (effort: S, timeline: 1 day engineering)",
+    "QW-09: Add the accountant/könyvelő persona section to homepage (3-4 sentences) + create /funkciok/konyveloknek stub page (effort: S, timeline: 3 days)",
+    "QW-10: Publish 'Éjszakai zaj szabályok Magyarországon 2026' as the missing 4th zajszennyezés cluster article — zero competition, answers PAA boxes (effort: S, timeline: 2 days)"
+  ],
+
+  "risks": [
+    "RISK-01: eHÁZ market dominance (~13,000 buildings) means brand recognition is already established — PanelLakó must win on content quality and environmental data differentiation, not brand volume",
+    "RISK-02: OnlineHáz offers 1-YEAR free trial vs PanelLakó's 14 days — if pricing page doesn't address this directly, visitors may choose OnlineHáz on trial length alone",
+    "RISK-03: WHM Cloud and szoftver.tarsashazaink.hu have started producing SEO blog content — the competitor SEO gap will narrow; first-mover content advantage has a 6-12 month window",
+    "RISK-04: Seasonal clusters (pollen, árvíz, hőhullám) require annual freshness updates or rankings will decay — requires editorial calendar discipline",
+    "RISK-05: Legal content (tarsashazi-jog, dijhatlarak-kezelese) carries liability risk if outdated — all legal articles must include 'ez tájékoztató jellegű' disclaimer and annual law-change review",
+    "RISK-06: The TOFU environmental clusters drive traffic but require a clear conversion path — if there is no CTA linking from levegominoseg/zajszennyezes content to the product trial, traffic will not convert",
+    "RISK-07: Panellakás price surge articles from major publishers (Index, Portfolio, Pénzcentrum) dominate ingatlanpiac queries — panellako.hu cannot compete on price journalism; must own the quality-metrics niche instead",
+    "RISK-08: City/district-specific programmatic pages require accurate data — incorrect kerület data would harm credibility and E-E-A-T signals"
+  ],
+
+  "metrics": [
+    "Target: Rank top 10 for 'közös képviselő szoftver' within 90 days of publishing complete BOFU cluster",
+    "Target: Rank top 5 for 'levegőminőség Budapest kerületek' within 60 days (zero competition — speed advantage)",
+    "Target: Rank top 3 for 'társasházi szoftver összehasonlítás' within 90 days of expanding /osszehasonlitas",
+    "Target: 3+ FAQ answers appear in Google AI Overview for PanelLakó-branded queries within 45 days of /gyik expansion",
+    "Target: 15+ content cluster pages indexed in Google Search Console within 30 days",
+    "Target: Organic monthly trial signups from content pages: 5+ in month 2, 20+ in month 3, 50+ in month 6",
+    "Target: Featured snippet capture for 'Mi a közös képviselő feladata?' within 60 days",
+    "Target: 5+ referring domains from Hungarian media or environmental sites within 90 days (linkable data assets)",
+    "Leading indicator: Impression share for 'társasházi szoftver' cluster keywords — should show measurable impressions within 2 weeks of sitemap submission",
+    "Secondary metric: Average session duration on content pages > 2 minutes (indicates content depth is meeting searcher intent)"
+  ],
+
+  "open_questions": [
+    "OQ-01: Does PanelLakó support egyszeres AND kettős könyvelés? This determines whether the könyvelő persona cluster (KW-017) can be addressed without product feature gaps.",
+    "OQ-02: Is there a Billingo or Számlázz.hu integration? If yes, this is a major keyword expansion opportunity ('Billingo integráció társasházi szoftver') and a competitive differentiator.",
+    "OQ-03: What is the actual monthly price per albetét? The /arak page exists but pricing confidence affects the 'közös képviselő szoftver ár' cluster strategy.",
+    "OQ-04: Does the platform have a mobile app (iOS/Android)? 'Társasházi mobilapp' and 'közös képviselő app' are commercially searched terms; if yes, App Store optimization and 'mobilapp' keywords should be added to cluster.",
+    "OQ-05: What is the data refresh cadence for environmental data (levegőminőség, zajszennyezés, GTFS)? Freshness and data source attribution affect E-E-A-T and Dataset schema validity.",
+    "OQ-06: Are there any customer testimonials or case studies available? These are required for 'hogyan vezette be a közös képviselő a PanelLakót' MOFU content and for E-E-A-T.",
+    "OQ-07: Is there a vidéki (non-Budapest) customer base? If yes, city-specific landing pages (KW-022) have immediate evidence; if Budapest-only, city pages risk thin content.",
+    "OQ-08: Has a Google Search Console property been verified? Without GSC data, keyword ranking validation must rely on third-party tools; with GSC, quick-win impact can be measured within weeks."
+  ],
+
+  "keyword_gap_analysis": {
+    "summary": "Five major topic areas are missing from panellako.hu's current content architecture. These gaps collectively represent the highest-conversion and lowest-competition opportunities available to the domain.",
+    "gaps": [
+      {
+        "rank": 1,
+        "gap": "Software-vs-Software Comparison Content",
+        "description": "The /osszehasonlitas page compares PanelLakó to Excel/WhatsApp. No page compares it to eHÁZ, OnlineHáz, WHM Cloud, or Netház — the actual alternatives a buyer evaluates. Search queries like 'PanelLakó vs eHÁZ' and 'legjobb társasházi szoftver 2026' are unaddressed.",
+        "recommended_pages": ["/osszehasonlitas/panellako-vs-ehaz", "/osszehasonlitas/panellako-vs-onlinehaz", "expanded /osszehasonlitas with full feature matrix"],
+        "estimated_effort": "M",
+        "opportunity_score": 10
+      },
+      {
+        "rank": 2,
+        "gap": "Könyvelő / Accountant Persona Landing",
+        "description": "Zero pages target the accountant who manages 10–50 buildings. This persona is the highest-leverage multiplier for B2B customer acquisition. Competitors (WHM Cloud, szoftver.tarsashazaink.hu) actively target this segment.",
+        "recommended_pages": ["/funkciok/konyveloknek", "/tarsashaz-kezeles/kozos-kepviselo-konyveles"],
+        "estimated_effort": "M",
+        "opportunity_score": 9
+      },
+      {
+        "rank": 3,
+        "gap": "Ingyenes Próba / Free Trial Transactional Landing",
+        "description": "No dedicated conversion-optimized landing page exists for the query 'ingyenes társasházi szoftver' or '14 napos próba'. These transactional queries are the lowest-funnel SEO opportunity on the site.",
+        "recommended_pages": ["/ingyenes-proba"],
+        "estimated_effort": "S",
+        "opportunity_score": 9
+      },
+      {
+        "rank": 4,
+        "gap": "Online Közgyűlés — Jogszabályi Háttér Educational Article",
+        "description": "The /funkciok/online-kozgyules is a product page. Missing is the informational article explaining the LEGAL BASIS for online voting in Hungary (post-2020 Civil Code amendments). ekozgyules.com is the incumbent here; a well-structured article would capture queries they don't address comprehensively.",
+        "recommended_pages": ["/tarsashaz-kezeles/online-kozgyules-jogszabalyok"],
+        "estimated_effort": "S",
+        "opportunity_score": 8
+      },
+      {
+        "rank": 5,
+        "gap": "Kerület Quality Comparison / Property Buyer Intent Content",
+        "description": "No article synthesizes panellako.hu's unique data stack (levegőminőség + zaj + közlekedés + hőszigetek + zöldterület) into a 'kerület összehasonlítás' or 'lakóhely választás szempontjai' guide. This would be a unique content asset with no direct competitor, high shareability, and backlink potential.",
+        "recommended_pages": ["/budapest-keruletek-eletminoseg-osszehasonlitas"],
+        "estimated_effort": "L",
+        "opportunity_score": 8
+      }
+    ]
+  },
+
+  "cluster_summary_table": [
+    {"id": "KW-001", "cluster": "Társasházi kezelő szoftver (core)", "funnel": "BOFU", "intent": "commercial", "competition": "2/10", "opportunity": "10/10", "severity": "P0", "existing_page": true},
+    {"id": "KW-002", "cluster": "Ingyenes próba / free trial", "funnel": "BOFU", "intent": "transactional", "competition": "1/10", "opportunity": "9/10", "severity": "P0", "existing_page": false},
+    {"id": "KW-003", "cluster": "Közös képviselő feladatai", "funnel": "MOFU", "intent": "informational", "competition": "5/10", "opportunity": "9/10", "severity": "P0", "existing_page": true},
+    {"id": "KW-004", "cluster": "Közgyűlés összehívása", "funnel": "MOFU", "intent": "informational", "competition": "4/10", "opportunity": "8/10", "severity": "P1", "existing_page": true},
+    {"id": "KW-005", "cluster": "Díjhátralék kezelése", "funnel": "MOFU", "intent": "informational+commercial", "competition": "4/10", "opportunity": "8/10", "severity": "P1", "existing_page": true},
+    {"id": "KW-006", "cluster": "Közös költség nyilvántartás", "funnel": "MOFU", "intent": "informational+commercial", "competition": "3/10", "opportunity": "8/10", "severity": "P1", "existing_page": true},
+    {"id": "KW-007", "cluster": "SZMSZ készítése", "funnel": "MOFU", "intent": "informational", "competition": "4/10", "opportunity": "7/10", "severity": "P1", "existing_page": true},
+    {"id": "KW-008", "cluster": "Közös képviselő választása/visszahívása", "funnel": "TOFU→MOFU", "intent": "informational", "competition": "3/10", "opportunity": "7/10", "severity": "P1", "existing_page": true},
+    {"id": "KW-009", "cluster": "Levegőminőség Budapest", "funnel": "TOFU", "intent": "informational", "competition": "1/10", "opportunity": "9/10", "severity": "P0", "existing_page": true},
+    {"id": "KW-010", "cluster": "Zajszennyezés / társasházi zajpanasz", "funnel": "TOFU→MOFU", "intent": "informational+commercial", "competition": "2/10", "opportunity": "8/10", "severity": "P1", "existing_page": true},
+    {"id": "KW-011", "cluster": "Hőszigetek Budapest", "funnel": "TOFU", "intent": "informational", "competition": "2/10", "opportunity": "8/10", "severity": "P1", "existing_page": true},
+    {"id": "KW-012", "cluster": "Tömegközlekedés elemzés / GTFS", "funnel": "TOFU", "intent": "informational", "competition": "1/10", "opportunity": "7/10", "severity": "P1", "existing_page": true},
+    {"id": "KW-013", "cluster": "15 perces város Budapest", "funnel": "TOFU", "intent": "informational", "competition": "2/10", "opportunity": "7/10", "severity": "P2", "existing_page": true},
+    {"id": "KW-014", "cluster": "Zöld társasház / napelem / hőszigetelés / EV töltő", "funnel": "TOFU→MOFU", "intent": "informational+commercial", "competition": "4/10", "opportunity": "8/10", "severity": "P1", "existing_page": true},
+    {"id": "KW-015", "cluster": "Társasházi jog", "funnel": "TOFU", "intent": "informational", "competition": "5/10", "opportunity": "6/10", "severity": "P2", "existing_page": true},
+    {"id": "KW-016", "cluster": "Competitor comparison vs eHÁZ/OnlineHáz/WHM", "funnel": "BOFU", "intent": "commercial", "competition": "2/10", "opportunity": "10/10", "severity": "P0", "existing_page": false},
+    {"id": "KW-017", "cluster": "Könyvelő / accountant persona", "funnel": "MOFU→BOFU", "intent": "commercial", "competition": "3/10", "opportunity": "9/10", "severity": "P1", "existing_page": false},
+    {"id": "KW-018", "cluster": "Panellakás ár Budapest / ingatlanpiaci kontextus", "funnel": "TOFU", "intent": "informational", "competition": "7/10", "opportunity": "6/10", "severity": "P2", "existing_page": false},
+    {"id": "KW-019", "cluster": "Felügyelőbizottság", "funnel": "MOFU", "intent": "informational", "competition": "2/10", "opportunity": "6/10", "severity": "P2", "existing_page": true},
+    {"id": "KW-020", "cluster": "Dokumentumkezelés társasházban", "funnel": "MOFU", "intent": "informational", "competition": "2/10", "opportunity": "7/10", "severity": "P2", "existing_page": true},
+    {"id": "KW-021", "cluster": "Hibabejelentés kezelése", "funnel": "MOFU", "intent": "informational+commercial", "competition": "1/10", "opportunity": "7/10", "severity": "P2", "existing_page": true},
+    {"id": "KW-022", "cluster": "Local SEO (Budapest + vidéki városok)", "funnel": "BOFU", "intent": "commercial", "competition": "1/10", "opportunity": "7/10", "severity": "P2", "existing_page": false},
+    {"id": "KW-023", "cluster": "Online közgyűlés / digitális szavazás", "funnel": "MOFU", "intent": "informational+commercial", "competition": "4/10", "opportunity": "8/10", "severity": "P1", "existing_page": true},
+    {"id": "KW-024", "cluster": "Pollen és allergia Budapest (seasonal)", "funnel": "TOFU", "intent": "informational", "competition": "2/10", "opportunity": "7/10", "severity": "P2", "existing_page": true},
+    {"id": "KW-025", "cluster": "Energetikai tanúsítvány", "funnel": "MOFU", "intent": "informational", "competition": "4/10", "opportunity": "6/10", "severity": "P2", "existing_page": true},
+    {"id": "KW-026", "cluster": "GYIK / FAQ LLM extractability", "funnel": "All/BOFU", "intent": "informational", "competition": "N/A", "opportunity": "9/10", "severity": "P1", "existing_page": true},
+    {"id": "KW-027", "cluster": "Csapadék és árvíz Budapest", "funnel": "TOFU", "intent": "informational", "competition": "2/10", "opportunity": "6/10", "severity": "P2", "existing_page": true},
+    {"id": "KW-028", "cluster": "Excel/WhatsApp vs szoftver (existing comparison)", "funnel": "BOFU", "intent": "commercial", "competition": "1/10", "opportunity": "9/10", "severity": "P1", "existing_page": true}
+  ]
+}
