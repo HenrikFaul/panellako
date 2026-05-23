@@ -1,37 +1,52 @@
 {
-  "scanned_at": "2026-05-16T08:46:16.440971",
+  "scanned_at": "2026-05-23T16:10:47.877911",
   "scan_root": "/home/user/panellako",
-  "total_files": 311,
-  "total_loc": 7819,
+  "total_files": 814,
+  "total_loc": 72499,
   "languages": [
     {
-      "language": "TypeScript",
-      "files": 28,
-      "loc": 3332
+      "language": "TypeScript (TSX)",
+      "files": 142,
+      "loc": 46459
     },
     {
-      "language": "TypeScript (TSX)",
-      "files": 13,
-      "loc": 2772
+      "language": "TypeScript",
+      "files": 110,
+      "loc": 19065
     },
     {
       "language": "SQL",
-      "files": 6,
-      "loc": 1659
+      "files": 44,
+      "loc": 4268
+    },
+    {
+      "language": "Python",
+      "files": 3,
+      "loc": 1936
     },
     {
       "language": "JavaScript",
-      "files": 6,
-      "loc": 56
+      "files": 8,
+      "loc": 771
     },
     {
       "language": "Markdown",
-      "files": 244,
+      "files": 454,
+      "loc": 0
+    },
+    {
+      "language": ".prompt",
+      "files": 22,
       "loc": 0
     },
     {
       "language": "JSON",
-      "files": 5,
+      "files": 9,
+      "loc": 0
+    },
+    {
+      "language": ".pdf",
+      "files": 6,
       "loc": 0
     },
     {
@@ -40,8 +55,18 @@
       "loc": 0
     },
     {
+      "language": ".png",
+      "files": 3,
+      "loc": 0
+    },
+    {
       "language": ".txt",
-      "files": 1,
+      "files": 2,
+      "loc": 0
+    },
+    {
+      "language": "CSS",
+      "files": 2,
       "loc": 0
     },
     {
@@ -50,12 +75,17 @@
       "loc": 0
     },
     {
-      "language": "CSS",
+      "language": ".svg",
       "files": 1,
       "loc": 0
     },
     {
-      "language": ".svg",
+      "language": "Shell",
+      "files": 1,
+      "loc": 0
+    },
+    {
+      "language": ".csv",
       "files": 1,
       "loc": 0
     }
@@ -63,10 +93,13 @@
   "detected_stack": [
     "Node.js/npm",
     "Tailwind CSS",
-    "TypeScript"
+    "TypeScript",
+    "Vercel"
   ],
   "detected_manifests": [
     "tailwind.config.js",
+    "tailwind.config.ts",
+    "vercel.json",
     "package.json",
     "tsconfig.json"
   ],
@@ -75,33 +108,39 @@
       "manifest": "package.json",
       "name": "panellako",
       "version": "0.1.0",
-      "dep_count": 15,
-      "dev_dep_count": 10,
+      "dep_count": 21,
+      "dev_dep_count": 16,
       "top_deps": [
         "@react-email/components",
         "@react-email/render",
         "@react-pdf/renderer",
+        "@sentry/nextjs",
         "@stripe/stripe-js",
         "@supabase/ssr",
         "@supabase/supabase-js",
+        "@types/leaflet",
         "clsx",
+        "fflate",
+        "leaflet",
         "lucide-react",
         "next",
         "next-pwa",
+        "posthog-js",
         "react",
         "react-dom",
         "resend",
+        "sharp",
         "stripe",
         "web-push"
       ]
     }
   ],
   "git": {
-    "first_commit": "2026-05-16T08:22:21+00:00",
-    "last_commit": "2026-05-16T08:22:21+00:00",
-    "commit_count": 62,
+    "first_commit": "2026-05-23T13:45:12+00:00",
+    "last_commit": "2026-05-23T13:45:12+00:00",
+    "commit_count": 420,
     "contributor_count": 0,
-    "branch": "claude/setup-project-structure-O56pg",
-    "remote_url": "http://local_proxy@127.0.0.1:33891/git/HenrikFaul/panellako"
+    "branch": "claude/fix-cron-null-values-uDCqd",
+    "remote_url": "http://local_proxy@127.0.0.1:45189/git/HenrikFaul/panellako"
   }
 }
