@@ -14,8 +14,6 @@ const TABS = [
   { id: 'profile',   label: 'Profil',   icon: UserRound },
 ] as const;
 
-type TabId = typeof TABS[number]['id'];
-
 export default function ResidentBottomNav({ activeSection }: ResidentBottomNavProps) {
   return (
     <nav
