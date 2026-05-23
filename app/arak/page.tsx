@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import type { Route } from 'next';
 import Link from 'next/link';
 import { CheckCircle, Star, Building2, Zap, Shield, Mail, ArrowRight, Users } from 'lucide-react';
 import PublicNav from '@/components/public-nav';
@@ -275,7 +276,7 @@ export default function ArakPage() {
 
                     {/* CTA */}
                     <Link
-                      href={tier.ctaHref}
+                      href={tier.ctaHref as Route}
                       className={`mt-auto flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-all ${
                         tier.highlighted
                           ? 'bg-white text-brand-700 hover:bg-brand-50 shadow-sm'

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseVehiclePositions, type ParsedVehicle } from '@/lib/gtfs-rt-parser';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 export const dynamic = 'force-dynamic';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -44,6 +45,17 @@ const GTFS_TYPE_MAP: Record<number, VehicleType> = {
 // ─── Global GTFS-RT cache (full feed, 15 s TTL) ───────────────────────────────
 interface GtfsCache { data: VehiclePosition[]; expires: number; }
 let _gtfsCache: GtfsCache | null = null;
+
+// ─── Supabase client (for DB-backed route map fallback) ──────────────────────
+function createDbClient() {
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').trim();
+  const key = (
+    process.env.SUPABASE_SERVICE_ROLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
+  ).trim();
+  if (!url || !key) return null;
+  return createSupabaseClient(url, key, { auth: { persistSession: false } });
+}
 
 // ─── Route info cache (route_id → {name, type}, 6 h TTL) ────────────────────
 // GTFS-RT VehiclePositions only carries internal route_ids (e.g. BKK_3030).
@@ -98,6 +110,41 @@ async function ensureRouteInfoMap(): Promise<Map<string, RouteInfo>> {
       }
     } catch (err) {
       console.warn('[transit/vehicles] route map fetch failed:', err);
+    }
+  }
+
+  // OBA API unavailable — fall back to transit_routes table in Supabase
+  const supabase = createDbClient();
+  if (supabase) {
+    try {
+      const { data } = await supabase
+        .from('transit_routes')
+        .select('route_id, short_name, type');
+      if (data && data.length > 0) {
+        const dbTypeMap: Record<string, VehicleType> = {
+          SUBWAY: 'SUBWAY', TRAM: 'TRAM', TROLLEYBUS: 'TROLLEYBUS',
+          BUS: 'BUS', RAIL: 'RAIL', FERRY: 'FERRY', CABLE_CAR: 'RAIL',
+        };
+        const map = new Map<string, RouteInfo>();
+        for (const r of data as Array<{ route_id: string; short_name: string; type: string }>) {
+          if (r.route_id && r.short_name) {
+            const info: RouteInfo = { name: r.short_name, type: dbTypeMap[r.type] ?? 'BUS' };
+            const idNoBkk = r.route_id.replace(/^BKK_/, '');
+            const idNorm  = idNoBkk.replace(/^0+(\d)/, '$1').trim() || idNoBkk;
+            map.set(r.route_id, info);
+            map.set(idNoBkk,    info);
+            if (idNorm !== idNoBkk) map.set(idNorm, info);
+          }
+        }
+        if (map.size > 0) {
+          _routeInfoMap        = map;
+          _routeInfoMapExpires = Date.now() + ROUTE_MAP_TTL;
+          console.log(`[transit/vehicles] route map: ${map.size} routes via transit_routes DB`);
+          return _routeInfoMap;
+        }
+      }
+    } catch (err) {
+      console.warn('[transit/vehicles] DB route map fallback failed:', err);
     }
   }
 

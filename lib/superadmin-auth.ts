@@ -5,14 +5,20 @@ const COOKIE_NAME = 'pl_superadmin_session';
 const SESSION_TTL_SEC = 60 * 60 * 8; // 8h
 
 function getSecret(): string {
-  return process.env.SUPERADMIN_SESSION_SECRET || process.env.CRON_SECRET || 'panellako-superadmin-fallback-secret';
+  const secret = process.env.SUPERADMIN_SESSION_SECRET || process.env.CRON_SECRET;
+  if (!secret) {
+    throw new Error('SUPERADMIN_SESSION_SECRET (or CRON_SECRET) env var must be set');
+  }
+  return secret;
 }
 
 export function getSuperadminCreds() {
-  return {
-    email: process.env.SUPERADMIN_EMAIL ?? 'superadmin@panellako.hu',
-    password: process.env.SUPERADMIN_PASSWORD ?? 'panellakosuperadmin11#',
-  };
+  const email    = process.env.SUPERADMIN_EMAIL;
+  const password = process.env.SUPERADMIN_PASSWORD;
+  if (!email || !password) {
+    throw new Error('SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD env vars must be set');
+  }
+  return { email, password };
 }
 
 function sign(payload: string): string {

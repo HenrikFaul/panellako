@@ -1,4 +1,41 @@
 
+## v0.9.17 — Fix: transit map vehicle route names (DB fallback for route resolution)
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Tömegközlekedés térkép — járatszámok javítása
+- **Gyökérok**: `ensureRouteInfoMap()` a BKK OBA API-tól függött a GTFS belső route ID-k (`BKK_3010`, `BKK_4750` stb.) → nyilvános rövid nevek (`30`, `47` stb.) feloldásához. Ha az API nem érhető el (nincs `BKKFUTAR_API_KEY`, rate limit, IP block), az útvonaltérkép üres maradt → a járatokon belső GTFS ID-k (`3010`, `4750`) jelentek meg.
+- **Fix**: Ha az OBA API fetch sikertelen, a `transit_routes` Supabase tábla (szinkron cron tölti fel) adja a route ID → short name mappet. Ez DB-alapú fallback, nincs szükség élő API hívásra.
+- **Érintett fájl**: `app/api/transit/vehicles/route.ts`
+  - `createDbClient()` segédfüggvény hozzáadva
+  - `ensureRouteInfoMap()` DB fallback: `transit_routes` tábla lekérdezése ha OBA API nem valid
+
+---
+
+## v0.9.16 — Build fix: typedRoutes `string` → `Route` cast (13 fájl + 2 komponens)
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### TypeScript TS2322 hibák javítása (Vercel deploy)
+- **Gyökérok**: `experimental.typedRoutes: true` megköveteli, hogy a `<Link href>` prop `RouteImpl<string>` típusú legyen, nem sima `string`. Object tömbök `href` mezőit TypeScript `string`-re szélesíti — ezek `as Route` cast nélkül Vercel build hibát okoznak.
+- **Fix**: `import type { Route } from 'next'` + `href={item.href as Route}` cast az összes érintett oldalon és komponensben.
+- **Érintett fájlok (13 oldal + 2 komponens)**:
+  - `app/arak/page.tsx` — `tier.ctaHref as Route`
+  - `app/funkciok/page.tsx` — `f.href as Route`
+  - `app/levegominoseg-budapest/page.tsx` — `article.href as Route`
+  - `app/page.tsx` — destructured `href as Route`
+  - `app/tarsashaz-kezeles/dijhatlarak-kezelese/page.tsx` — `link.href as Route`
+  - `app/tarsashaz-kezeles/dokumentumkezeles-tarsashazban/page.tsx` — `link.href as Route`
+  - `app/tarsashaz-kezeles/kozos-koltseg-nyilvantartas/page.tsx` — `link.href as Route`
+  - `app/tarsashaz-kezeles/page.tsx` — `article.href as Route`
+  - `app/tarsashazi-jog/page.tsx` — `article.href as Route`
+  - `app/tomegkozlekedes-elemzes/page.tsx` — `article.href as Route`
+  - `app/zold-tarsashaz/page.tsx` — `article.href as Route` (2× — PILLAR + CLUSTER)
+  - `components/public-footer.tsx` — destructured `href as Route`
+  - `components/public-nav.tsx` — destructured `href as Route`
+
+---
+
 ## v0.9.15 — Build fix: unused imports + unescaped entities
 **Dátum:** 2026-05-23
 **Branch:** claude/fix-cron-null-values-uDCqd

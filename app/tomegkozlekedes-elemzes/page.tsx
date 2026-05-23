@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import type { Route } from 'next';
 import Link from 'next/link';
 import {
   Train,
@@ -202,7 +203,7 @@ export default function TomegkozlekedesesElemzesPillarPage() {
               return (
                 <Link
                   key={article.href}
-                  href={article.href}
+                  href={article.href as Route}
                   className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-brand-300 hover:shadow-md"
                 >
                   <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 transition-colors group-hover:bg-brand-100">

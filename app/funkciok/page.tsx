@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import type { Route } from 'next';
 import Link from 'next/link';
 import {
   AlertTriangle,
@@ -155,7 +156,7 @@ export default function FunkciokhubPage() {
                   <h2 className="mb-2 text-lg font-black text-slate-900">{f.title}</h2>
                   <p className="flex-1 text-sm leading-relaxed text-slate-500">{f.description}</p>
                   <Link
-                    href={f.href}
+                    href={f.href as Route}
                     className="mt-5 inline-flex items-center gap-1.5 text-sm font-bold text-brand-600 transition-colors hover:text-brand-700"
                   >
                     Részletek

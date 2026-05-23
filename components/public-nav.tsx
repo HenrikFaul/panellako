@@ -1,3 +1,4 @@
+import type { Route } from 'next';
 import Link from 'next/link';
 import { Building2 } from 'lucide-react';
 
@@ -26,7 +27,7 @@ export default function PublicNav() {
           {NAV_LINKS.map(({ href, label }) => (
             <Link
               key={href}
-              href={href}
+              href={href as Route}
               className="rounded-xl px-3.5 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
             >
               {label}
