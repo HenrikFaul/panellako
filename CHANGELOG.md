@@ -1,4 +1,26 @@
 
+## v0.9.25 — feat: hero szöveg + /funkciok interaktív demo + Organization schema fix
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Hero szöveg frissítése
+- `app/page.tsx`: metadata title + OG title + H1 → "közös képviselőknek és lakóknak" (lakói célcsoport explicit megjelenítése)
+
+### /funkciok interaktív product demo (ACT-023 részleges)
+- Új `components/funkciok-demo.tsx` (client component): tab-alapú, 4 funkciót bemutató interaktív mockup
+- `app/funkciok/page.tsx`: demo szekció beillesztve a feature kártyák fölé
+- Böngésző-keret UI mockup, élő szavazási interakció, feature checklisták
+
+### Organization schema egységesítés (ACT-018 / ACT-057)
+- `app/layout.tsx`: globális schema `SoftwareApplication` → `Organization` (`@id: #organization`)
+- `app/rolunk/page.tsx`: Organization schema `@id` hozzáadva, `logo` ImageObject-re bővítve
+- Mindkét schema most azonos Knowledge Graph entitásra mutat
+
+### Duplikált FAQPage csökkentése (ACT-015)
+- `app/page.tsx`: főoldali FAQ 5 → 3 kérdés (konverzió-specifikus); a teljes FAQ a /gyik-en marad
+
+---
+
 ## v0.9.24 — fix: CSP Overpass blokkolt hívások + megálló-duplikáció + departure field
 **Dátum:** 2026-05-23
 **Branch:** claude/fix-cron-null-values-uDCqd

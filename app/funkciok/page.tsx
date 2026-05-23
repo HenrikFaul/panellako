@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
+import FunkcioDemo from '@/components/funkciok-demo';
 
 export const metadata: Metadata = {
   title: 'Funkciók — PanelLakó Társasházkezelő Szoftver',
@@ -139,6 +140,8 @@ export default function FunkciokhubPage() {
             Minden, amit a modern társasházkezeléshez tudnod kell — egy platformon, papír nélkül.
           </p>
         </div>
+
+        <FunkcioDemo />
 
         {/* Main feature cards */}
         <section aria-label="Főbb funkciók" className="mb-16">
