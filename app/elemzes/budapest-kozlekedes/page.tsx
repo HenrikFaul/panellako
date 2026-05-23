@@ -67,6 +67,14 @@ export default function BudapestTransitAnalysisPage() {
           <p className="mt-1 text-xs md:text-sm text-slate-500">
             GTFS-adatok alapján · ArcGIS-stílusú vizualizáció · interaktív rétegekkel
           </p>
+        
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+            <span className="font-medium text-slate-500">PanelLakó szerkesztőség</span>
+            <span aria-hidden="true">·</span>
+            <time dateTime="2024-01-15">2024. január 15.</time>
+            <span aria-hidden="true">·</span>
+            <span>Frissítve: 2026. május 23.</span>
+          </p>
         </header>
 
         {/* SSR-visible content block — Googlebot reads this; the Leaflet map below is client-only */}

@@ -159,6 +159,27 @@ const LEGAL_REFS = [
   },
 ];
 
+const collectionPageSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: 'Társasházkezelés — Teljes útmutató',
+  description:
+    'Teljes útmutató a modern társasházkezeléshez: közös képviselő feladatai, SZMSZ, közgyűlés, pénzügyek, dokumentumkezelés — digitálisan.',
+  url: 'https://panellako.hu/tarsashaz-kezeles',
+  inLanguage: 'hu',
+  publisher: { '@type': 'Organization', name: 'PanelLakó', url: 'https://panellako.hu' },
+  hasPart: [
+    { '@type': 'Article', name: 'A közös képviselő feladatai', url: 'https://panellako.hu/tarsashaz-kezeles/kozos-kepviselo-feladatai' },
+    { '@type': 'Article', name: 'Közgyűlés összehívása', url: 'https://panellako.hu/tarsashaz-kezeles/kozgyules-osszehivasa' },
+    { '@type': 'Article', name: 'SZMSZ készítése lépésről lépésre', url: 'https://panellako.hu/tarsashaz-kezeles/szmsz-keszitese' },
+    { '@type': 'Article', name: 'Közös költség nyilvántartás', url: 'https://panellako.hu/tarsashaz-kezeles/kozos-koltseg-nyilvantartas' },
+    { '@type': 'Article', name: 'Díjhátralékosok kezelése', url: 'https://panellako.hu/tarsashaz-kezeles/dijhatlarak-kezelese' },
+    { '@type': 'Article', name: 'Kötelező iratok a társasházban', url: 'https://panellako.hu/tarsashaz-kezeles/dokumentumkezeles-tarsashazban' },
+    { '@type': 'Article', name: 'Felügyelőbizottság a társasházban', url: 'https://panellako.hu/tarsashaz-kezeles/felugyelobizottsag' },
+    { '@type': 'Article', name: 'Közös képviselő választása', url: 'https://panellako.hu/tarsashaz-kezeles/kozos-kepviselo-valasztasa' },
+  ],
+};
+
 const faqSchema = {
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
@@ -204,6 +225,10 @@ export default function TarsashazKezelesPillarPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionPageSchema) }}
       />
       <script
         type="application/ld+json"

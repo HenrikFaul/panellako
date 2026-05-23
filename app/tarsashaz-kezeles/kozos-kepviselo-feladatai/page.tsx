@@ -117,6 +117,14 @@ export default function KozosKepviseloFeladataiPage() {
           <ChevronRight size={14} />
           <span className="font-medium text-slate-600">Közös képviselő feladatai</span>
         </nav>
+        {/* Author meta */}
+        <p className="mb-10 flex flex-wrap items-center gap-2 text-sm text-slate-400">
+          <span className="font-medium text-slate-600">PanelLakó szerkesztőség</span>
+          <span aria-hidden="true">·</span>
+          <time dateTime="2024-01-15">2024. január 15.</time>
+          <span aria-hidden="true">·</span>
+          <span>Frissítve: 2026. május 23.</span>
+        </p>
 
         {/* Hero */}
         <div className="mb-12">

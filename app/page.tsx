@@ -153,6 +153,10 @@ export default async function HomePage() {
                 </li>
               ))}
             </ul>
+            <p className="mt-3 text-center text-xs text-slate-400">
+              * Saját üzemeltetési adatok, 2025. május · Részletek:{' '}
+              <a href="/rolunk" className="underline hover:text-slate-600">Rólunk</a>
+            </p>
           </div>
         </section>
 
