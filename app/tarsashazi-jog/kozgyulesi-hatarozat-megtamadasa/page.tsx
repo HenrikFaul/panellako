@@ -228,7 +228,7 @@ export default function KozgyulesiHatarozatMegtamadasaPage() {
             napokat — vagy az egész határidőt — jelentheti.
           </p>
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-            <p className="mb-3 font-bold text-slate-900">Mi számít „közlésnek"?</p>
+            <p className="mb-3 font-bold text-slate-900">Mi számít &quot;közlésnek&quot;?</p>
             <ul className="space-y-2 text-sm text-slate-700">
               <li className="flex gap-2">
                 <span className="mt-0.5 font-bold text-amber-600">▶</span>
@@ -291,7 +291,7 @@ export default function KozgyulesiHatarozatMegtamadasaPage() {
               <span>
                 <strong className="text-slate-900">A jogsértés konkrét megjelölése:</strong> melyik
                 jogszabályba, okirat-rendelkezésbe vagy SZMSZ-szakaszba ütközik a határozat, és miért.
-                Általános „sérelmesnek tartom" megfogalmazás nem elegendő.
+                Általános &quot;sérelmesnek tartom&quot; megfogalmazás nem elegendő.
               </span>
             </li>
             <li className="flex gap-3 rounded-xl border border-slate-100 bg-slate-50 p-4">
@@ -469,7 +469,7 @@ export default function KozgyulesiHatarozatMegtamadasaPage() {
           <div className="rounded-2xl border border-brand-200 bg-brand-50 p-5">
             <p className="mb-2 font-bold text-slate-900">Tipp: Mire figyeljen az ügyvéd kiválasztásakor?</p>
             <p className="text-sm leading-relaxed text-slate-600">
-              Társasházi ügyekben jártas, ingatlanjoggal foglalkozó ügyvédet keressen. A „PK vélemény"
+              Társasházi ügyekben jártas, ingatlanjoggal foglalkozó ügyvédet keressen. A &quot;PK vélemény&quot;
               (a Legfelsőbb Bíróság polgári kollégiumi véleménye) a kulcs hivatkozási alap — ezt az
               ügyvédnek ismernie kell, és képesnek kell lennie arra, hogy az ön konkrét esetére
               alkalmazza.

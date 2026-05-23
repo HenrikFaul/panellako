@@ -8,9 +8,7 @@ import {
   Lock,
   CheckCircle,
   ChevronRight,
-  ArrowRight,
   History,
-  Users,
 } from 'lucide-react';
 import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';

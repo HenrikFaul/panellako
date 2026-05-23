@@ -6,9 +6,6 @@ import {
   CheckCircle,
   ChevronRight,
   Bell,
-  UserCheck,
-  ClipboardList,
-  ArrowRight,
   Wrench,
 } from 'lucide-react';
 import PublicNav from '@/components/public-nav';

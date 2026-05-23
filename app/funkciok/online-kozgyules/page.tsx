@@ -6,11 +6,9 @@ import {
   ChevronRight,
   Scale,
   Users,
-  ClipboardList,
   Bell,
   BookOpen,
   FileCheck,
-  ArrowRight,
   CalendarDays,
 } from 'lucide-react';
 import PublicNav from '@/components/public-nav';
