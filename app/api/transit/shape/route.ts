@@ -23,6 +23,7 @@ export interface TripShape {
   vehicleId?:    string;
   vehicleModel?: string;
   accessible?:   boolean;
+  directionId?:  number;   // 0 = primary direction, 1 = return
   stopTimes?:    TripStopTime[];
 }
 
@@ -62,6 +63,74 @@ function decodePolyline(encoded: string): ShapePoint[] {
   return points;
 }
 
+// ─── Haversine distance (metres) ─────────────────────────────────────────────
+function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6_371_000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ─── Project stops onto shape polyline ───────────────────────────────────────
+// Solves the "transit_stop_routes fallback" direction-mixing problem:
+//   - transit_stop_routes has ALL stops for a route (both directions merged, no ordering)
+//   - We project each stop onto the direction-specific shape polyline to get its
+//     along-track index (= sequencing key) and perpendicular distance (= which
+//     platform is actually on this direction's side of the road)
+//   - Stops with the same name within 500 m (= opposing platforms) are deduplicated
+//     by keeping the one with the smallest perpendicular distance to the shape
+//   - Stops > 2 km from the shape are dropped (not served by this trip variant)
+function projectStopsOntoShape(stops: TripStopTime[], shape: ShapePoint[]): TripStopTime[] {
+  if (shape.length === 0 || stops.length === 0) return stops;
+
+  type Projected = { st: TripStopTime; projIdx: number; perpDist: number };
+
+  // Step 1 — Project every stop onto its nearest shape point
+  const projected: Projected[] = stops
+    .filter(st => st.lat !== 0 && st.lon !== 0)   // skip stops with missing coords
+    .map(st => {
+      let bestIdx = 0, bestDist = Infinity;
+      for (let i = 0; i < shape.length; i++) {
+        const d = haversineM(st.lat, st.lon, shape[i].lat, shape[i].lon);
+        if (d < bestDist) { bestDist = d; bestIdx = i; }
+      }
+      return { st, projIdx: bestIdx, perpDist: bestDist };
+    })
+    .filter(p => p.perpDist < 2000);  // drop stops > 2 km from shape (wrong variant)
+
+  // Step 2 — Deduplicate opposing-direction platforms
+  // Two stops are "same-location duplicates" when their names match AND they are < 500 m apart.
+  // Keep the one closest to the shape (= correct-direction platform).
+  const keep: boolean[] = new Array(projected.length).fill(true);
+  for (let i = 0; i < projected.length; i++) {
+    if (!keep[i]) continue;
+    const a = projected[i];
+    const aKey = a.st.stopName.toLowerCase().trim().replace(/\s+/g, ' ');
+    for (let j = i + 1; j < projected.length; j++) {
+      if (!keep[j]) continue;
+      const b = projected[j];
+      const bKey = b.st.stopName.toLowerCase().trim().replace(/\s+/g, ' ');
+      if (aKey !== bKey) continue;
+      if (haversineM(a.st.lat, a.st.lon, b.st.lat, b.st.lon) >= 500) continue;
+      // Same-location duplicate: drop the one with larger perpendicular distance
+      if (a.perpDist <= b.perpDist) {
+        keep[j] = false;
+      } else {
+        keep[i] = false;
+        break;
+      }
+    }
+  }
+
+  // Step 3 — Sort survivors by along-track position
+  return projected
+    .filter((_, idx) => keep[idx])
+    .sort((a, b) => a.projIdx - b.projIdx)
+    .map(p => p.st);
+}
+
 // ─── Trip ID normalisation ────────────────────────────────────────────────────
 // GTFS-RT returns  "BKK_EF_B05579_20260523_0"
 // BKK OBA returns  "BKK_B05579_20260523_0"
@@ -96,14 +165,21 @@ async function fetchShapeFromDb(tripId: string): Promise<TripShape | null> {
   const supabase = createDbClient();
   if (!supabase) return null;
 
-  // Try every ID variant until one matches gtfs_trips
+  // Try every ID variant until one matches gtfs_trips.
+  // Also fetch direction_id — it is the authoritative signal for which direction
+  // this trip travels and is used downstream for stop-list deduplication.
   const variants = tripIdVariants(tripId);
-  type TripRow = { shape_id: string; route_id: string; trip_headsign: string | null; wheelchair_accessible: number | null };
+  type TripRow = {
+    shape_id: string; route_id: string;
+    trip_headsign: string | null;
+    wheelchair_accessible: number | null;
+    direction_id: number | null;
+  };
   let trip: TripRow | null = null;
   for (const tid of variants) {
     const { data } = await supabase
       .from('gtfs_trips')
-      .select('shape_id, route_id, trip_headsign, wheelchair_accessible')
+      .select('shape_id, route_id, trip_headsign, wheelchair_accessible, direction_id')
       .eq('trip_id', tid)
       .maybeSingle();
     if (data?.shape_id) { trip = data as unknown as TripRow; break; }
@@ -126,11 +202,14 @@ async function fetchShapeFromDb(tripId: string): Promise<TripShape | null> {
 
   if (!pts || pts.length === 0) return null;
 
+  const shapePoints: ShapePoint[] = pts.map(p => ({ lat: p.lat as number, lon: p.lon as number }));
   const routeType = route?.type ?? 'BUS';
   const color     = route?.color ?? ROUTE_COLORS[routeType] ?? '#38bdf8';
-  const routeRef  = route?.short_name || trip.route_id.replace(/^BKK_/, '') || '?';
+  const routeRef  = route?.short_name || trip.route_id.replace(/^BKK_/, '') || '';
 
-  // ── Stop list: try gtfs_stop_times (may be empty), then transit_stop_routes ──
+  // ── Stop list: try gtfs_stop_times first (authoritative per-trip ordering) ──
+  // gtfs_stop_times is per-trip so it is inherently direction-correct — no
+  // deduplication needed when it is populated.
   let stopTimes: TripStopTime[] | undefined;
 
   const nowHHMM = new Date().toLocaleTimeString('hu-HU', {
@@ -138,64 +217,81 @@ async function fetchShapeFromDb(tripId: string): Promise<TripShape | null> {
     timeZone: 'Europe/Budapest',
   });
 
-  // Try per-trip stop schedule (gtfs_stop_times is only populated when the
-  // admin imports the optional stop_times step)
-  try {
-    const { data: stRows } = await supabase
-      .from('gtfs_stop_times')
-      .select('stop_id, departure_time, stop_sequence, gtfs_stops(stop_name, stop_lat, stop_lon)')
-      .eq('trip_id', variants[0])   // bare ID is most likely to match if present
-      .order('stop_sequence')
-      .limit(120);
+  // Try every ID variant — the table may store a different prefix than gtfs_trips
+  for (const tid of variants) {
+    try {
+      const { data: stRows } = await supabase
+        .from('gtfs_stop_times')
+        .select('stop_id, departure_time, stop_sequence, gtfs_stops(stop_name, stop_lat, stop_lon)')
+        .eq('trip_id', tid)
+        .order('stop_sequence')
+        .limit(120);
 
-    if (stRows && stRows.length > 0) {
-      type StRow = { stop_id: string; departure_time: string; stop_sequence: number; gtfs_stops: { stop_name: string; stop_lat: number; stop_lon: number } | null };
-      stopTimes = (stRows as unknown as StRow[]).map(row => {
-        const depStr  = row.departure_time ?? '';
-        const timeStr = depStr.length >= 5 ? depStr.slice(0, 5) : depStr;
-        const s       = row.gtfs_stops;
-        return {
-          stopId:   row.stop_id,
-          stopName: s?.stop_name ?? row.stop_id,
-          lat:      s?.stop_lat  ?? 0,
-          lon:      s?.stop_lon  ?? 0,
-          timeStr,
-          isPast:   depStr.length > 0 && depStr <= nowHHMM,
+      if (stRows && stRows.length > 0) {
+        type StRow = {
+          stop_id: string; departure_time: string; stop_sequence: number;
+          gtfs_stops: { stop_name: string; stop_lat: number; stop_lon: number } | null;
         };
-      });
-    }
-  } catch { /* gtfs_stop_times not populated — continue */ }
+        stopTimes = (stRows as unknown as StRow[]).map(row => {
+          const depStr  = row.departure_time ?? '';
+          const timeStr = depStr.length >= 5 ? depStr.slice(0, 5) : depStr;
+          const s       = row.gtfs_stops;
+          return {
+            stopId:   row.stop_id,
+            stopName: s?.stop_name ?? row.stop_id,
+            lat:      s?.stop_lat  ?? 0,
+            lon:      s?.stop_lon  ?? 0,
+            timeStr,
+            isPast:   depStr.length > 0 && depStr <= nowHHMM,
+          };
+        });
+        break;   // found — stop trying variants
+      }
+    } catch { /* gtfs_stop_times not populated — continue */ }
+  }
 
-  // Fallback stop list: derive from transit_stop_routes (no times, no ordering)
+  // ── Fallback: transit_stop_routes (has ALL stops for the route, both dirs) ──
+  // Problem: this returns opposing-direction platform stops too, causing
+  // duplicate stop names and wrong ordering in the panel.
+  // Fix: project onto the direction-specific shape polyline →
+  //   • auto-sorts stops by along-track position (= correct direction order)
+  //   • drops stops > 2 km from shape (wrong variant / terminus-only stops)
+  //   • deduplicates same-name stops within 500 m (opposing platforms)
   if (!stopTimes || stopTimes.length === 0) {
     try {
+      // Fetch more rows (200) because both directions are merged here; after
+      // projection + deduplication we expect ~half to survive.
       const { data: srRows } = await supabase
         .from('transit_stop_routes')
         .select('stop_id, transit_stops(stop_id, name, lat, lon)')
         .eq('route_id', trip.route_id)
-        .limit(80);
+        .limit(200);
 
       if (srRows && srRows.length > 0) {
         type SRRow = { stop_id: string; transit_stops: { stop_id: string; name: string; lat: number; lon: number } | null };
-        stopTimes = (srRows as unknown as SRRow[])
+        const rawStops = (srRows as unknown as SRRow[])
           .map(r => {
             const s = Array.isArray(r.transit_stops) ? r.transit_stops[0] : r.transit_stops;
             if (!s?.name || !s.lat || !s.lon) return null;
             return { stopId: s.stop_id, stopName: s.name, lat: s.lat, lon: s.lon, timeStr: '', isPast: false };
           })
           .filter((x): x is TripStopTime => x !== null);
+
+        // Geometric projection: sort by along-track position + remove duplicates
+        stopTimes = projectStopsOntoShape(rawStops, shapePoints);
       }
     } catch { /* transit_stop_routes query failed */ }
   }
 
   return {
-    points:     pts.map(p => ({ lat: p.lat as number, lon: p.lon as number })),
+    points:      shapePoints,
     routeRef,
     color,
-    source:     'db',
-    headsign:   trip.trip_headsign ?? undefined,
-    accessible: trip.wheelchair_accessible === 1,
-    stopTimes:  stopTimes?.length ? stopTimes : undefined,
+    source:      'db',
+    headsign:    trip.trip_headsign ?? undefined,
+    accessible:  trip.wheelchair_accessible === 1,
+    directionId: trip.direction_id ?? undefined,
+    stopTimes:   stopTimes?.length ? stopTimes : undefined,
   };
 }
 
