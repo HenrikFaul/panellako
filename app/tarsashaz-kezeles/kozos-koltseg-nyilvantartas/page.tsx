@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import type { Route } from 'next';
 import Link from 'next/link';
 import {
   Calculator,
@@ -447,7 +448,7 @@ export default function KozosKoltsegNyilvantartasPage() {
             ].map((link) => (
               <Link
                 key={link.href}
-                href={link.href}
+                href={link.href as Route}
                 className="group flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-brand-300 hover:shadow-md"
               >
                 <div>

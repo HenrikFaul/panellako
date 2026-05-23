@@ -1,3 +1,4 @@
+import type { Route } from 'next';
 import Link from 'next/link';
 import { Building2 } from 'lucide-react';
 
@@ -67,7 +68,7 @@ export default function PublicFooter() {
               <ul className="space-y-2">
                 {col.links.map(({ href, label }) => (
                   <li key={href}>
-                    <Link href={href} className="text-xs text-slate-500 transition-colors hover:text-slate-900">
+                    <Link href={href as Route} className="text-xs text-slate-500 transition-colors hover:text-slate-900">
                       {label}
                     </Link>
                   </li>

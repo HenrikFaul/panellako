@@ -1,4 +1,28 @@
 
+## v0.9.16 — Build fix: typedRoutes `string` → `Route` cast (13 fájl + 2 komponens)
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### TypeScript TS2322 hibák javítása (Vercel deploy)
+- **Gyökérok**: `experimental.typedRoutes: true` megköveteli, hogy a `<Link href>` prop `RouteImpl<string>` típusú legyen, nem sima `string`. Object tömbök `href` mezőit TypeScript `string`-re szélesíti — ezek `as Route` cast nélkül Vercel build hibát okoznak.
+- **Fix**: `import type { Route } from 'next'` + `href={item.href as Route}` cast az összes érintett oldalon és komponensben.
+- **Érintett fájlok (13 oldal + 2 komponens)**:
+  - `app/arak/page.tsx` — `tier.ctaHref as Route`
+  - `app/funkciok/page.tsx` — `f.href as Route`
+  - `app/levegominoseg-budapest/page.tsx` — `article.href as Route`
+  - `app/page.tsx` — destructured `href as Route`
+  - `app/tarsashaz-kezeles/dijhatlarak-kezelese/page.tsx` — `link.href as Route`
+  - `app/tarsashaz-kezeles/dokumentumkezeles-tarsashazban/page.tsx` — `link.href as Route`
+  - `app/tarsashaz-kezeles/kozos-koltseg-nyilvantartas/page.tsx` — `link.href as Route`
+  - `app/tarsashaz-kezeles/page.tsx` — `article.href as Route`
+  - `app/tarsashazi-jog/page.tsx` — `article.href as Route`
+  - `app/tomegkozlekedes-elemzes/page.tsx` — `article.href as Route`
+  - `app/zold-tarsashaz/page.tsx` — `article.href as Route` (2× — PILLAR + CLUSTER)
+  - `components/public-footer.tsx` — destructured `href as Route`
+  - `components/public-nav.tsx` — destructured `href as Route`
+
+---
+
 ## v0.9.15 — Build fix: unused imports + unescaped entities
 **Dátum:** 2026-05-23
 **Branch:** claude/fix-cron-null-values-uDCqd

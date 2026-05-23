@@ -1,4 +1,13 @@
 
+### [LESSON-BUILD-004] typedRoutes: true — widened `string` type breaks `<Link href>` — cast required
+- **Dátum**: 2026-05-23
+- **Érintett fájlok**: 13 oldal + 2 komponens (`app/arak`, `app/funkciok`, `app/page`, `app/levegominoseg-budapest`, `app/tarsashaz-kezeles/*`, `app/tarsashazi-jog`, `app/tomegkozlekedes-elemzes`, `app/zold-tarsashaz`, `components/public-footer`, `components/public-nav`)
+- **Gyökérok**: `next.config.js`-ben `experimental.typedRoutes: true` van bekapcsolva. Ez generál egy `RouteImpl<string>` union típust az összes érvényes route-ból. A `<Link href>` prop ennek megfelelően `RouteImpl<string>` típust vár — **nem** sima `string`-et. Amikor egy object tömb `href` mezőjét TypeScript `string`-re szélesíti (type widening), a `<Link href={item.href}>` pattern TS2322 hibát dob.
+- **Hiba**: `Type 'string' is not assignable to type 'UrlObject | RouteImpl<string>'`
+- **Eltérés**: Hardkódolt string literálok (pl. `href="/kapcsolat"`) a Vercel buildben NEM okoznak hibát — TypeScript ezeket a generált route-listában keresi. Csak a `string`-re szélesített objektum-mezők hibásak.
+- **Fix**: `import type { Route } from 'next'` hozzáadása a fájl elejéhez, majd `href={item.href as Route}` cast az összes érintett `<Link>` propnál.
+- **Megelőzés**: Minden új oldalon ahol dinamikus `href` kerül `<Link>`-be (objektum tömbből), azonnal add hozzá az `as Route` castot ÉS az importot. Lokálisan ne futtasd csak `tsc --noEmit`-et build nélkül — a `.next/types` hiánya hamis pozitív hibákat ad.
+
 ### [LESSON-BUILD-003] Unused lucide-react imports + JSX unescaped entities — Vercel build blocker
 - **Dátum**: 2026-05-23
 - **Érintett fájlok**: 23 SEO-tartalom oldal

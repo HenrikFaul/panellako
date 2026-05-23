@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import type { Route } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
@@ -452,7 +453,7 @@ export default async function HomePage() {
               ].map(({ Icon, href, title, description }) => (
                 <Link
                   key={href}
-                  href={href}
+                  href={href as Route}
                   className="group flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-card transition-shadow hover:shadow-card-md"
                 >
                   <div className="shrink-0 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600 ring-1 ring-brand-100 transition-colors group-hover:bg-brand-100">
