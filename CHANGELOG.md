@@ -1,4 +1,17 @@
 
+## v0.9.15 — Build fix: unused imports + unescaped entities
+**Dátum:** 2026-05-23
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### ESLint hibák javítása (Vercel deploy)
+- **Unused imports eltávolítva** (13 fájlból): `Phone`, `ArrowRight`, `Users`, `UserCheck`, `ClipboardList`, `ReceiptText`, `PiggyBank`, `Building2`, `FileText`, `AlertTriangle`, `BarChart2`, `MapPin`, `CheckCircle`, `Droplets`, `Menu`, `X`
+- **Unescaped entities javítva** (`react/no-unescaped-entities`): minden `"` → `&quot;` JSX szöveg-tartalomban: `app/aszf`, `app/klimakockazat-epuleteknel`, `app/levegominoseg-budapest/belteri-*`, `app/levegominoseg-budapest/pollen-*`, `app/tarsashaz-kezeles/kozgyules-*`, `app/tarsashaz-kezeles/szmsz-*`, `app/tarsashazi-jog/*`, `app/tomegkozlekedes-elemzes/*`
+
+### Érintett fájlok (összesen 23)
+`app/arak`, `app/aszf`, `app/funkciok/dokumentumtar`, `app/funkciok/hibabejelentes-kezeles`, `app/funkciok/kozos-koltseg`, `app/funkciok/online-kozgyules`, `app/klimakockazat-epuleteknel/page`, `app/klimakockazat-epuleteknel/csapadek-es-arviz-budapest`, `app/levegominoseg-budapest/belteri-levegominoseg-tarsashazban`, `app/levegominoseg-budapest/pollen-allergia-budapest`, `app/tarsashaz-kezeles/page`, `app/tarsashaz-kezeles/kozgyules-osszehivasa`, `app/tarsashaz-kezeles/kozos-kepviselo-feladatai`, `app/tarsashaz-kezeles/szmsz-keszitese`, `app/tarsashazi-jog/alapito-okirat-modositasa`, `app/tarsashazi-jog/kozgyulesi-hatarozat-megtamadasa`, `app/tarsashazi-jog/szomszed-jog-tarsashazban`, `app/tomegkozlekedes-elemzes/page`, `app/tomegkozlekedes-elemzes/gtfs-adatok-budapest`, `app/tomegkozlekedes-elemzes/villamos-metro-hev-elerheto-lakoneegyedek`, `app/zajszennyezes-budapest/zajvedes-tarsashazban`, `app/zold-tarsashaz`, `components/public-nav`
+
+---
+
 ## v0.9.14 — SEO Sprint 4: Mérés, befejezés és E-E-A-T
 **Dátum:** 2026-05-23
 **Branch:** claude/fix-cron-null-values-uDCqd
