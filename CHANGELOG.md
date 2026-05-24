@@ -1,4 +1,17 @@
 
+## v0.9.30 — feat: Noise Map IoT overlay + multi-layer architecture redesign
+**Dátum:** 2026-05-24
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Változtatások
+- `noise-map-inner.tsx` újratervezve 3 független React-effectre (térkép-init / WMS réteg csere / IoT fetch) — WMS rétegváltáskor nincs térkép-reinit
+- IoT toggle: NoiseCapture/Noise-Planet állampolgári mérések opcionális overlay-je `L.circleMarker`-ekkel, EU END dB színskálával
+- `probeWmsSource()`: az első tile betöltése után azonosítja a WMS upstream forrást (`X-Noise-Source` header), megjeleníti az attribúciós badge-ben
+- Új `/api/noise/iot-measurements` proxy: Budapest bbox, 1 óra cache, GeoJSON normalizátor, graceful fallback
+- `docs/NOISE_MAP_ARCHITECTURE.md`: teljes forrás-leltár, QA mátrix, IoT acquisition terv, licencek
+
+---
+
 ## v0.9.29 — feat: Lakói profil oldal + dashboard address deduplication + phone field
 **Dátum:** 2026-05-24
 **Branch:** claude/fix-cron-null-values-uDCqd

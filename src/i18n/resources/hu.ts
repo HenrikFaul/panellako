@@ -1,0 +1,25 @@
+// Hungarian (hu) locale strings
+// Placeholder file — full i18n integration pending.
+// Pre-commit hook requires this file to be present alongside component changes.
+
+export const hu = {
+  noiseMap: {
+    loading:              'Zajtérkép betöltése…',
+    layerLoading:         'Zajréteg betöltése (HungaroMet → NIF → EEA)…',
+    iotToggle:            'IoT mérések (NoiseCapture)',
+    iotLoading:           'IoT mérések lekérése…',
+    iotUnavailable:       'NoiseCapture adatok jelenleg nem elérhetők',
+    iotMeasurements:      'mérés',
+    sourceBadge:          'Stratégiai zajtérkép',
+    noisecaptureBadge:    'NoiseCapture',
+    buildingTooltip:      'Az épület',
+    unknownTime:          'ismeretlen időpont',
+    noisecaptureLabel:    'NoiseCapture mérés',
+    errorTitle:           'Zajadatok jelenleg nem elérhetők',
+    errorBody:            'A HungaroMet, NIF és EEA WMS szerverek egyike sem válaszolt. Próbálj meg közvetlenül a forrásra navigálni:',
+    legendTitle:          'Zajterhelés (dB)',
+    legendFootnote:       'EU END 2002/49/EK irányelv',
+  },
+} as const;
+
+export type HuMessages = typeof hu;
