@@ -16,7 +16,7 @@ import PublicNav from '@/components/public-nav';
 import PublicFooter from '@/components/public-footer';
 
 export const metadata: Metadata = {
-  title: 'Rólunk — PanelLakó csapata és küldetése',
+  title: 'Rólunk — PanelLakó küldetése és értékei',
   description:
     'A PanelLakó mögötti csapat: magyar fejlesztők, akik a társasházi ügyintézést digitalizálják. Megismerjük a közös képviselők és lakók mindennapi kihívásait.',
   alternates: { canonical: 'https://panellako.hu/rolunk' },
@@ -123,23 +123,6 @@ const STATS = [
   { value: '98%', label: 'Elégedettség', note: 'NPS alapú elégedettségi arány' },
 ];
 
-const TEAM = [
-  {
-    name: 'Faul Henrik',
-    role: 'Alapító & Termékfejlesztés',
-    bio: 'Szoftvermérnök, aki közel állt a társasházi ügyintézéshez és megunta a szétszórt WhatsApp-csoportokat. A PanelLakót azért hozta létre, hogy a közös képviselők végre egy helyen kezelhessék az összes feladatot.',
-  },
-];
-
-const personSchemas = TEAM.map((member) => ({
-  '@context': 'https://schema.org',
-  '@type': 'Person',
-  name: member.name,
-  jobTitle: member.role,
-  worksFor: { '@type': 'Organization', name: 'PanelLakó', url: 'https://panellako.hu' },
-  url: 'https://panellako.hu/rolunk',
-}));
-
 export default function RolunkPage() {
   return (
     <div className="min-h-screen bg-white">
@@ -147,13 +130,6 @@ export default function RolunkPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
       />
-      {personSchemas.map((ps) => (
-        <script
-          key={ps.name}
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(ps) }}
-        />
-      ))}
 
       <PublicNav />
 
@@ -165,11 +141,11 @@ export default function RolunkPage() {
             <Building2 size={26} className="text-white" />
           </div>
           <h1 className="text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">
-            Rólunk — a PanelLakó csapata
+            Rólunk — PanelLakó
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-slate-500">
-            Magyar fejlesztők, UX tervezők és ingatlankezelési szakértők, akik hisznek abban, hogy
-            a társasházi ügyintézés nem kell, hogy fájdalmas legyen.
+            Magyar platform, amely mögött közvetlen tapasztalat áll a társasházi ügyintézésből — és
+            amely hisz abban, hogy ez nem kell, hogy fájdalmas legyen.
           </p>
         </div>
 
@@ -296,33 +272,6 @@ export default function RolunkPage() {
           </ul>
         </section>
 
-        {/* ── Team ───────────────────────────────────────────────────────── */}
-        <section aria-labelledby="team-heading" className="mb-16">
-          <h2 id="team-heading" className="mb-2 text-2xl font-black text-slate-900">
-            Csapat
-          </h2>
-          <p className="mb-6 text-slate-500">
-            Kis, elkötelezett csapat — mögötte közvetlen tapasztalat a társasházi ügyintézésből.
-          </p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {TEAM.map((member) => (
-              <div key={member.name} className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-card">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-md shadow-brand-100">
-                  <Users size={20} className="text-white" />
-                </div>
-                <div>
-                  <p className="text-base font-black text-slate-900">{member.name}</p>
-                  <p className="mb-2 text-sm font-medium text-brand-600">{member.role}</p>
-                  <p className="text-sm leading-relaxed text-slate-600">{member.bio}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="mt-6 text-sm leading-relaxed text-slate-500">
-            Munkánkat a folyamatos visszajelzés vezérli: rendszeresen konzultálunk aktív közös
-            képviselőkkel és lakókkal.
-          </p>
-        </section>
 
         {/* ── Stats ──────────────────────────────────────────────────────── */}
         <section aria-label="Megbíznak bennünk" className="mb-16">
