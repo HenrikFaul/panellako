@@ -126,6 +126,7 @@ export interface MeetingItem {
 export interface UnitItem {
   id: string;
   unit_label: string;
+  floor?: string | null;
   owner_name: string;
   unit_type: 'Lakas' | 'Tarolo' | 'Garazs' | 'Uzlethelyiseg' | string;
   area_m2: number;

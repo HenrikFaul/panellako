@@ -124,11 +124,11 @@ export default function ProfilPageClient({
               <Home size={13} className="shrink-0 text-slate-600" />
               <div>
                 <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600">Regisztrált albetét</p>
-                <p className="text-sm font-semibold text-slate-300">{unit.unit_label}</p>
-                {(unit.floor || unit.area_m2) && (
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    {[unit.floor && `${unit.floor}. emelet`, unit.area_m2 && `${unit.area_m2} m²`].filter(Boolean).join(' · ')}
-                  </p>
+                <p className="text-sm font-semibold text-slate-300">
+                  {[unit.floor, unit.unit_label].filter(Boolean).join(' / ')}
+                </p>
+                {unit.area_m2 && (
+                  <p className="text-[10px] text-slate-500 mt-0.5">{unit.area_m2} m²</p>
                 )}
               </div>
             </div>
