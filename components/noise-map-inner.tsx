@@ -78,6 +78,14 @@ export default function NoiseMapInner({ buildingLat, buildingLon, className }: P
   // Deep-link to the active source viewer centered on the building
   const zajLink = `${activeSource.link}#15/${buildingLat.toFixed(5)}/${buildingLon.toFixed(5)}`;
 
+  // Auto-switch from HungaroMet to NIF when tiles fail
+  useEffect(() => {
+    if (wmsOk === false && wmsSourceId === 'met') {
+      const timer = setTimeout(() => setWmsSourceId('nif'), 1800);
+      return () => clearTimeout(timer);
+    }
+  }, [wmsOk, wmsSourceId]);
+
   useEffect(() => {
     if (!document.getElementById('noise-map-css')) {
       const s = document.createElement('style');
@@ -150,8 +158,9 @@ export default function NoiseMapInner({ buildingLat, buildingLon, className }: P
       setMapReady(false);
       setWmsOk(null);
     };
+  // wmsSourceId triggers map remount via cleanup+reinit; activeLayer does not (setParams below)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buildingLat, buildingLon, theme.id]);
+  }, [buildingLat, buildingLon, theme.id, wmsSourceId]);
 
   // Switch WMS layer when activeLayer changes (without full map remount)
   useEffect(() => {
@@ -159,19 +168,6 @@ export default function NoiseMapInner({ buildingLat, buildingLon, className }: P
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (wmsRef.current as any).setParams({ layers: NOISE_LAYER_CFG[activeLayer].wmsLayer }, false);
   }, [activeLayer]);
-
-  // Switch WMS source — requires map remount (handled by wmsSourceId in dep array above)
-  // We trigger a remount by destroying + recreating the map
-  useEffect(() => {
-    if (!mapRef.current) return;
-    // Destroy map so the init effect re-runs with the new source
-    mapRef.current.remove();
-    mapRef.current = null;
-    wmsRef.current = null;
-    setMapReady(false);
-    setWmsOk(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wmsSourceId]);
 
   return (
     <div className={`relative overflow-hidden ${className ?? ''}`}

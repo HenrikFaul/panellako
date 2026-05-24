@@ -1,4 +1,23 @@
 
+## v0.9.28 — fix: Zajtérkép auto-switch + közszolgáltatások kliens-oldali Overpass fallback
+**Dátum:** 2026-05-24
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Probléma
+1. **Zajtérkép**: HungaroMet (OMSZ) WMS szerver nem elérhető → a térkép üresen maradt, a felhasználónak manuálisan kellett NIF-re váltani. A forrásváltó mechanizmus is hibás volt (`wmsSourceId` hiányzott az init-effect dep array-ből → forrásváltás után nem recreálódott a térkép).
+2. **Közszolgáltatások**: A szerver-oldali Overpass lekérdezés sikertelen (minden mirror timeout/blocked) → `source:'mock'` üres adat → "Nem találtunk intézményt" üzenet, holott valójában adat van.
+
+### Javítás — `components/noise-map-inner.tsx`
+- Új `useEffect([wmsOk, wmsSourceId])`: ha HungaroMet WMS hibásan tölt be, 1,8 mp után **automatikusan** NIF Zrt. forrásra vált
+- `wmsSourceId` hozzáadva az init-effect dep array-hez → forrásváltáskor a térkép helyesen újraépül
+- Redundáns második effect (source-switch) eltávolítva — a cleanup + reinit mechanism kezeli
+
+### Javítás — `components/services-page-client.tsx`
+- Új `fetchOverpassFromBrowser()` — kliens-oldali (böngészőből) Overpass lekérdezés, 4 mirror + 20 s timeout
+- `fetchServices()` async-ra refaktorálva: ha a szerver `source:'mock'`-ot ad vissza (sikertelen Overpass), automatikusan kliens-oldali lekérdezést indít
+
+---
+
 ## v0.9.27 — fix: Transit shape polyline gap-split (deadhead egyenes eltávolítása)
 **Dátum:** 2026-05-23
 **Branch:** claude/fix-cron-null-values-uDCqd

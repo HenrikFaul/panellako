@@ -9,6 +9,125 @@ import type { PublicService, PublicServicesResult } from '@/app/api/environment/
 
 const PublicServicesMap = dynamic(() => import('@/components/public-services-map-inner'), { ssr: false });
 
+// ── Client-side Overpass fallback (used when server-side fetch fails) ─────────
+interface OverpassEl {
+  type: string; id: number;
+  lat?: number; lon?: number;
+  center?: { lat: number; lon: number };
+  tags?: Record<string, string>;
+}
+
+function distM(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+}
+
+async function fetchOverpassFromBrowser(lat: number, lon: number): Promise<PublicServicesResult> {
+  const query = `
+[out:json][timeout:25];
+(
+  node["amenity"="townhall"](around:5000,${lat},${lon});
+  way["amenity"="townhall"](around:5000,${lat},${lon});
+  node["amenity"~"^(school|college|university)$"](around:3000,${lat},${lon});
+  way["amenity"~"^(school|college|university)$"](around:3000,${lat},${lon});
+  node["amenity"="kindergarten"](around:2500,${lat},${lon});
+  way["amenity"="kindergarten"](around:2500,${lat},${lon});
+  node["amenity"~"^(hospital|clinic|doctors|dentist|pharmacy|optician|physiotherapist|blood_bank|health_post|nursing_home|veterinary)$"](around:3000,${lat},${lon});
+  way["amenity"~"^(hospital|clinic|doctors|dentist|pharmacy|optician|physiotherapist|blood_bank|health_post|nursing_home|veterinary)$"](around:3000,${lat},${lon});
+  node["healthcare"](around:3000,${lat},${lon});
+  way["healthcare"](around:3000,${lat},${lon});
+  node["social_facility"](around:2000,${lat},${lon});
+  way["social_facility"](around:2000,${lat},${lon});
+);
+out center qt;
+`.trim();
+
+  const mirrors = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://lz4.overpass-api.de/api/interpreter',
+    'https://overpass.openstreetmap.fr/api/interpreter',
+  ];
+
+  let elements: OverpassEl[] = [];
+  let fetched = false;
+  for (const mirror of mirrors) {
+    try {
+      const res = await fetch(mirror, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `data=${encodeURIComponent(query)}`,
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (!res.ok) continue;
+      const data = await res.json() as { elements?: OverpassEl[]; remark?: string };
+      if (data.remark && /runtime error|timeout|Query timed out/i.test(data.remark)) continue;
+      elements = data.elements ?? [];
+      fetched = true;
+      break;
+    } catch { continue; }
+  }
+  if (!fetched) throw new Error('All Overpass mirrors failed');
+
+  const HEALTHCARE_LABELS: Record<string, string> = {
+    hospital: 'Kórház', clinic: 'Klinika / rendelő', doctors: 'Orvosi rendelő',
+    dentist: 'Fogorvos', pharmacy: 'Gyógyszertár', optician: 'Szemészet',
+    physiotherapist: 'Gyógytornász / fizioterapeuta', blood_bank: 'Véradó',
+    health_post: 'Egészségügyi állomás', nursing_home: 'Ápolási otthon',
+    veterinary: 'Állatorvos', social_facility: 'Szociális intézmény',
+  };
+  const SCHOOL_LABELS: Record<string, string> = { school: 'Általános / középiskola', college: 'Főiskola', university: 'Egyetem' };
+
+  const toSvc = (el: OverpassEl, cat: PublicService['category']): PublicService | null => {
+    const elLat = el.lat ?? el.center?.lat;
+    const elLon = el.lon ?? el.center?.lon;
+    if (!elLat || !elLon) return null;
+    const tags = el.tags ?? {};
+    const amenity = tags['amenity'] ?? '';
+    const healthcare = tags['healthcare'] ?? '';
+    const name = tags['name'] || tags['name:hu'] || tags['operator'] || amenity || cat;
+    const subcategory = SCHOOL_LABELS[amenity] ?? HEALTHCARE_LABELS[amenity] ?? HEALTHCARE_LABELS[healthcare]
+      ?? (healthcare ? 'Egészségügyi intézmény' : amenity === 'townhall' ? 'Polgármesteri hivatal' : undefined);
+    return {
+      id: `${el.type}/${el.id}`, name, category: cat, subcategory,
+      address: [tags['addr:street'], tags['addr:housenumber']].filter(Boolean).join(' ') || undefined,
+      phone: tags['phone'] || tags['contact:phone'] || undefined,
+      website: tags['website'] || tags['contact:website'] || undefined,
+      lat: elLat, lon: elLon, distanceM: distM(lat, lon, elLat, elLon),
+    };
+  };
+
+  const townhalls: PublicService[] = [];
+  const schools: PublicService[] = [];
+  const kindergartens: PublicService[] = [];
+  const healthcare: PublicService[] = [];
+
+  for (const el of elements) {
+    const amenity = el.tags?.['amenity'] ?? '';
+    const hc = el.tags?.['healthcare'] ?? '';
+    const sf = el.tags?.['social_facility'] ?? '';
+    if (amenity === 'townhall') { const s = toSvc(el, 'townhall'); if (s) townhalls.push(s); }
+    else if (['school','college','university'].includes(amenity)) { const s = toSvc(el, 'school'); if (s) schools.push(s); }
+    else if (amenity === 'kindergarten') { const s = toSvc(el, 'kindergarten'); if (s) kindergartens.push(s); }
+    else if (['hospital','clinic','doctors','dentist','pharmacy','optician','physiotherapist','blood_bank','health_post','nursing_home','veterinary'].includes(amenity) || hc || sf) {
+      const s = toSvc(el, 'healthcare'); if (s) healthcare.push(s);
+    }
+  }
+
+  const byDist = (a: PublicService, b: PublicService) => a.distanceM - b.distanceM;
+  return {
+    townhalls:    townhalls.sort(byDist).slice(0, 10),
+    schools:      schools.sort(byDist).slice(0, 20),
+    kindergartens:kindergartens.sort(byDist).slice(0, 20),
+    healthcare:   healthcare.sort(byDist).slice(0, 40),
+    fetchedAt:    new Date().toISOString(),
+    source:       'overpass',
+  };
+}
+
 interface Props {
   buildingId:      string;
   buildingName:    string;
@@ -100,14 +219,28 @@ export default function ServicesPageClient({ buildingId, buildingName, buildingA
   const svcRef    = useRef<HTMLDivElement>(null);
   const svcLoaded = useRef(false);
 
-  const fetchServices = useCallback((force = false) => {
+  const fetchServices = useCallback(async (force = false) => {
     setLoadingSvc(true); setErrorSvc(false);
-    const qs = `/api/environment/public-services?buildingId=${buildingId}&lat=${lat}&lon=${lon}${force ? '&force=1' : ''}`;
-    fetch(qs)
-      .then(r => r.json() as Promise<PublicServicesResult>)
-      .then(d => setServices(d))
-      .catch(() => setErrorSvc(true))
-      .finally(() => setLoadingSvc(false));
+    try {
+      const qs = `/api/environment/public-services?buildingId=${buildingId}&lat=${lat}&lon=${lon}${force ? '&force=1' : ''}`;
+      const r = await fetch(qs);
+      const d = await r.json() as PublicServicesResult;
+      if (d.source === 'mock') {
+        // Server-side Overpass unreachable — try directly from browser
+        try {
+          const direct = await fetchOverpassFromBrowser(lat, lon);
+          setServices(direct);
+        } catch {
+          setServices(d);
+        }
+      } else {
+        setServices(d);
+      }
+    } catch {
+      setErrorSvc(true);
+    } finally {
+      setLoadingSvc(false);
+    }
   }, [buildingId, lat, lon]);
 
   useEffect(() => {
