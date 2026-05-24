@@ -83,8 +83,17 @@ export default async function ProfilPage({ params }: PageProps) {
 }
 
 export async function generateMetadata({ params }: PageProps) {
+  const supabase = createClient();
+  const { data: building } = await supabase
+    .from('buildings')
+    .select('name, address')
+    .eq('id', params.buildingId)
+    .maybeSingle();
+  const buildingName = building
+    ? ((building as { name?: string | null }).name ?? building.address)
+    : null;
   return {
-    title: 'Lakói profil — PanelLakó',
+    title: buildingName ? `Lakói profil · ${buildingName} — PanelLakó` : 'Lakói profil — PanelLakó',
     description: 'Személyes adatok, elérhetőségek és értesítési beállítások szerkesztése.',
   };
 }
