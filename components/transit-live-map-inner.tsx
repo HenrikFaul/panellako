@@ -122,6 +122,37 @@ function buildingSvg() {
 }
 
 
+// ─── Polyline gap detection + split ───────────────────────────────────────────
+// Shape data sometimes contains a "deadhead" or positioning move segment where
+// the vehicle drives from the last stop to a depot, or from a depot to the first
+// stop. This creates a long straight-line artifact on the map that visually
+// "closes" the route into a loop.
+// Fix: split the polyline into separate segments wherever consecutive points are
+// more than maxGapM metres apart, and render each segment independently.
+function shapeGapDistM(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
+  const dLat = (a.lat - b.lat) * 111_320;
+  const dLon = (a.lon - b.lon) * 111_320 * Math.cos(a.lat * Math.PI / 180);
+  return Math.sqrt(dLat * dLat + dLon * dLon);
+}
+
+function splitShapeAtGaps(
+  points: { lat: number; lon: number }[],
+  maxGapM = 1_000,
+): { lat: number; lon: number }[][] {
+  if (points.length < 2) return points.length === 1 ? [[points[0]]] : [];
+  const segs: { lat: number; lon: number }[][] = [];
+  let cur: { lat: number; lon: number }[] = [points[0]];
+  for (let i = 1; i < points.length; i++) {
+    if (shapeGapDistM(points[i - 1], points[i]) > maxGapM) {
+      if (cur.length >= 2) segs.push(cur);
+      cur = [];
+    }
+    cur.push(points[i]);
+  }
+  if (cur.length >= 2) segs.push(cur);
+  return segs;
+}
+
 // ─── HTML escape helper (prevents XSS in popup innerHTML) ────────────────────
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -298,12 +329,21 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
         const sd = await sr.json() as TripShape;
 
         if (sd.points?.length > 0) {
-          const latlngs = sd.points.map((p: { lat: number; lon: number }) => [p.lat, p.lon] as [number, number]);
-          L.polyline(latlngs, {
-            color: sd.color ?? color,
-            weight: 5, opacity: 0.9,
-          }).addTo(sl);
-          map.fitBounds(L.polyline(latlngs).getBounds(), { padding: [40, 40] });
+          // Split at gaps > 1 km — removes deadhead / depot positioning moves
+          // that create a long straight line "closing" the route on the map.
+          const segments = splitShapeAtGaps(sd.points);
+          const allRendered: [number, number][] = [];
+          for (const seg of segments) {
+            const latlngs = seg.map((p): [number, number] => [p.lat, p.lon]);
+            L.polyline(latlngs, {
+              color: sd.color ?? color,
+              weight: 5, opacity: 0.9,
+            }).addTo(sl);
+            allRendered.push(...latlngs);
+          }
+          if (allRendered.length > 0) {
+            map.fitBounds(L.polyline(allRendered).getBounds(), { padding: [40, 40] });
+          }
         }
 
         const routeColor = sd.color || color;
