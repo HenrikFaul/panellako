@@ -100,6 +100,7 @@ type DashboardData = {
   buildingAddress?: string;
   buildingLat?: number;
   buildingLon?: number;
+  unitId?: string;
   subscriptionStatus?: string;
   trialEnd?: string;
   currentUser: { full_name: string; role: Role };
@@ -947,6 +948,16 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const totalArea = data.units.reduce((acc, item) => acc + numberOrZero(item.area_m2), 0);
   const totalOwnershipShare = data.units.reduce((acc, item) => acc + numberOrZero(item.ownership_share), 0);
 
+  // Resident's own unit — matched by unitId prop; fall back to sole unit if unambiguous
+  const myUnit = data.unitId
+    ? (data.units.find(u => u.id === data.unitId) ?? null)
+    : (data.units.length === 1 ? data.units[0] : null);
+
+  const ROLE_LABEL: Record<string, string> = {
+    lako: 'Lakó', tulajdonos: 'Tulajdonos', kozos_kepviselo: 'Közös képviselő',
+    megbizott: 'Megbízott', bizottsag: 'Bizottsági tag', konyvelo: 'Könyvelő',
+  };
+
 
   const handleOpenMeeting = async (meeting: MeetingItem) => {
     setSelectedMeeting(meeting);
@@ -1450,32 +1461,47 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
           <section id="overview" className="overflow-hidden rounded-[2rem] bg-slate-950 text-white shadow-2xl shadow-slate-900/25">
             <div className="grid gap-0 md:grid-cols-[1fr_auto]">
-              {/* Left: hero text + CTAs */}
+              {/* Left: resident identity block — building address shown once in the header above */}
               <div className="p-6 md:p-8">
-                {data.buildingName ? (
-                  <>
-                    
-                    <h2 className="max-w-xl text-3xl font-black leading-tight tracking-tight text-white md:text-4xl">
-                      {data.buildingName}
-                    </h2>
-                    {data.buildingAddress && (
-                      <p className="mt-1.5 flex items-center gap-1.5 text-sm text-slate-400">
-                        <MapPin size={13} className="shrink-0 text-slate-500" />
-                        {data.buildingAddress}
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    
-                    <h2 className="max-w-2xl text-4xl font-black leading-tight tracking-tight md:text-5xl">
-                      PanelLakó,<br/>a társasházi app.
-                    </h2>
-                  </>
-                )}
-                <div className="mt-5 flex flex-wrap gap-3">
+                {/* Who is logged in */}
+                <div className="mb-4 flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.12] bg-white/[0.07]">
+                    <UserRound size={18} className="text-slate-300" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="mb-0.5 text-[9px] font-bold uppercase tracking-widest text-slate-500">Bejelentkezett lakó</p>
+                    <p className="truncate text-lg font-black leading-tight text-white">
+                      {data.currentUser.full_name || 'Ismeretlen'}
+                    </p>
+                  </div>
+                  <span className="mt-0.5 shrink-0 rounded-lg border border-brand-500/25 bg-brand-500/15 px-2.5 py-1 text-[10px] font-bold text-brand-300">
+                    {ROLE_LABEL[data.currentUser.role] ?? data.currentUser.role}
+                  </span>
+                </div>
+
+                {/* Linked unit */}
+                {myUnit ? (
+                  <div className="mb-5 flex items-start gap-3 rounded-xl border border-white/[0.08] bg-white/[0.05] px-3.5 py-3">
+                    <Building2 size={14} className="mt-0.5 shrink-0 text-slate-500" />
+                    <div className="min-w-0">
+                      <p className="mb-0.5 text-[9px] font-bold uppercase tracking-widest text-slate-600">Regisztrált albetét</p>
+                      <p className="text-sm font-bold text-white">{myUnit.unit_label}</p>
+                      {myUnit.area_m2 ? (
+                        <p className="mt-0.5 text-[10px] text-slate-500">{myUnit.area_m2} m²</p>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : isManager ? (
+                  <div className="mb-5 flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.05] px-3.5 py-3">
+                    <Layers3 size={14} className="shrink-0 text-slate-500" />
+                    <p className="text-sm text-slate-400">{data.units.length} albetét ebben az épületben</p>
+                  </div>
+                ) : null}
+
+                <div className="flex flex-wrap gap-3">
                   <a href="#tickets" className="rounded-2xl bg-brand-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-950/30 transition-all hover:bg-brand-400 hover:-translate-y-px">Új bejelentés</a>
-                  <a href="#units" className="rounded-2xl bg-white/10 px-5 py-2.5 text-sm font-bold text-white ring-1 ring-white/15 transition-all hover:bg-white/15">Albetétek nézete</a>
+                  <a href="#units" className="rounded-2xl bg-white/10 px-5 py-2.5 text-sm font-bold text-white ring-1 ring-white/15 transition-all hover:bg-white/15">Albetétek</a>
+                  <a href={`/w/${data.buildingId}/profil`} className="rounded-2xl bg-white/10 px-5 py-2.5 text-sm font-bold text-white ring-1 ring-white/15 transition-all hover:bg-white/15 flex items-center gap-1.5"><UserCog size={13} />Profil</a>
                 </div>
               </div>
 
@@ -1512,7 +1538,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </section>
 
           <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-            <SectionCard id="profile" title="Profil adatok és címkereső" icon={<UserRound size={18} />}>
+            <SectionCard id="profile" title="Lakói profil" icon={<UserRound size={18} />} action={<a href={`/w/${data.buildingId}/profil`} className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-[10px] font-bold text-slate-500 hover:bg-slate-50 hover:text-slate-700"><UserCog size={11} />Teljes profil szerkesztése</a>}>
               <form
                 className="space-y-4"
                 onSubmit={async (event) => {

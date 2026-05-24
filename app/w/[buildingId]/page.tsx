@@ -84,6 +84,7 @@ export default async function BuildingDashboardPage({ params }: PageProps) {
   const role = allowedRoles.includes(membership.role as Role)
     ? (membership.role as Role)
     : 'lako';
+  const unitId = membership.unit_id ?? null;
 
   const { data: building } = await supabase
     .from('buildings')
@@ -136,6 +137,7 @@ export default async function BuildingDashboardPage({ params }: PageProps) {
     buildingAddress: building.address,
     buildingLat:    buildingLat ?? undefined,
     buildingLon:    buildingLon ?? undefined,
+    unitId:         unitId ?? undefined,
     subscriptionStatus: subscriptionStatus ?? undefined,
     trialEnd:           trialEnd ?? undefined,
   };

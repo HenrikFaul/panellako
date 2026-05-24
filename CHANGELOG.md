@@ -1,4 +1,41 @@
 
+## v0.9.29 — feat: Lakói profil oldal + dashboard address deduplication + phone field
+**Dátum:** 2026-05-24
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Probléma
+Az épület neve/cím kb. 4–6x jelent meg a dashboardon (header + overview h2 + sidebar kártya + mobillink). A lakói profil szerkesztés szétszórva volt a főoldalon, dedikált profil oldal nem létezett. Telefonszám nem volt tárolható.
+
+### Változtatások
+
+**Address deduplication — `components/dashboard-client.tsx`**
+- Az `#overview` szekció bal paneljéből eltávolítva a dupla `buildingName` h2 + `buildingAddress` bekezdés
+- Helyette: **Lakói azonossági blokk** — bejelentkezett felhasználó neve, szerepkör badge, regisztrált albetét (unit_label, m²)
+- Egyetlen kanonikus előfordulás marad: a premium header (h1 + address)
+- Új gyors link a Profil oldalra az overview CTA-k között
+
+**Profil aloldal — `app/w/[buildingId]/(subpages)/profil/`**
+- Új `page.tsx` + `profil-client.tsx` kliens komponens
+- Tartalom: teljes név szerkesztés, e-mail (csak olvasható), telefonszám szerkesztés, szerepkör + jogosultság leírása, épület-kártya (cím egyszer), regisztrált albetét, fiókműveletek
+- WorkspaceShell (sidebar) a layout.tsx-ből öröklődik
+
+**Sidebar — `components/workspace-sidebar.tsx`**
+- Új "Lakói profil" (UserCog ikon) link a mainNav tetején → `/w/[buildingId]/profil`
+- Active state kiemelés a profil oldalon
+- `UserCog` ikon importálva
+
+**API — `app/api/user/profile/route.ts`**
+- Új `GET` endpoint: visszaadja `full_name`, `email`, `phone` adatokat
+- `PATCH` kiterjesztve: `phone` mező is frissíthető (service role key-vel)
+
+**DB migration — `supabase/migrations/20260524_profiles_phone.sql`**
+- `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone text;`
+
+**Page.tsx — `app/w/[buildingId]/page.tsx`**
+- `unitId` átadva az `enrichedData`-ba → dashboard tudja melyik albetéthez tartozik a lakó
+
+---
+
 ## v0.9.28 — fix: Zajtérkép auto-switch + közszolgáltatások kliens-oldali Overpass fallback
 **Dátum:** 2026-05-24
 **Branch:** claude/fix-cron-null-values-uDCqd
