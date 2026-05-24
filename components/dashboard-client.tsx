@@ -179,6 +179,16 @@ function previewText(text: string) {
   return sentences.endsWith('.') ? sentences : `${sentences}.`;
 }
 
+function addressCityLine(fullAddress: string, streetName: string): string {
+  const stripped = fullAddress.replace(streetName, '').replace(/,\s*$/, '').replace(/^\s*,\s*/, '').trim();
+  const postcodeMatch = fullAddress.match(/\b(\d{4})\b/);
+  const cleanCity = stripped.replace(/,\s*$/, '').trim();
+  if (postcodeMatch && cleanCity && !cleanCity.includes(postcodeMatch[1])) {
+    return `${cleanCity} ${postcodeMatch[1]}`;
+  }
+  return cleanCity || fullAddress;
+}
+
 // ─── Activity Calendar ────────────────────────────────────────────────────────
 const HU_MONTHS = ['jan.','feb.','már.','ápr.','máj.','jún.','júl.','aug.','szept.','okt.','nov.','dec.'];
 
@@ -866,7 +876,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [unitSearch, setUnitSearch] = useState('');
 
   const [name, setName] = useState(data.currentUser.full_name);
-  const [unit, setUnit] = useState('');
   const [address, setAddress] = useState('');
   const [addressQuery, setAddressQuery] = useState('');
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
@@ -877,6 +886,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [floor, setFloor] = useState('');
   const [door, setDoor] = useState('');
   const [profileSaveError, setProfileSaveError] = useState('');
+  const [addressEditMode, setAddressEditMode] = useState(false);
 
   const [ticketTitle, setTicketTitle] = useState('');
   const [ticketDescription, setTicketDescription] = useState('');
@@ -1079,7 +1089,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       .then(r => r.ok ? r.json() : null)
       .then((data: { address?: { display_name: string; lat: number; lon: number; street?: string | null; house_number?: string | null; city?: string | null; district?: string | null; postcode?: string | null; floor?: string | null; door?: string | null; source?: string } | null } | null) => {
         const addr = data?.address;
-        if (!addr) return;
+        if (!addr) {
+          setAddressEditMode(true);
+          return;
+        }
         const opt: AddressOption = {
           id: `saved:${addr.display_name}`,
           label: addr.display_name,
@@ -1093,16 +1106,16 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           source: (addr.source === 'supabase' ? 'supabase' : 'nominatim') as 'supabase' | 'nominatim',
         };
         setSelectedAddress(opt);
-        setAddressQuery(addr.display_name);
         setAddress(addr.display_name);
         if (addr.floor) setFloor(addr.floor);
         if (addr.door) setDoor(addr.door);
+        // addressEditMode stays false → compact locked state
       })
-      .catch(() => undefined);
+      .catch(() => setAddressEditMode(true));
   }, []);
 
   useEffect(() => {
-    if (!addressQuery || addressQuery.length < 3) {
+    if (!addressEditMode || !addressQuery || addressQuery.length < 3) {
       setAddressOptions([]);
       setAddressSource(null);
       setAddressError('');
@@ -1154,7 +1167,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [addressQuery]);
+  }, [addressQuery, addressEditMode]);
 
   const visibleTickets = useMemo(() => {
     if (ticketFilter === 'osszes') {
@@ -1206,7 +1219,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       location: ticketLocation,
       due_date: null,
       submitted_by: name,
-      unit_label: unit || undefined,
+      unit_label: myUnit?.unit_label || undefined,
       created_at: now,
       updated_at: now
     };
@@ -1218,7 +1231,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       location: ticketLocation,
       priority: ticketPriority,
       submitted_by: name,
-      unit_label: unit || undefined
+      unit_label: myUnit?.unit_label || undefined
     });
 
     if (result.success) {
@@ -1336,7 +1349,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     >
                       {data.buildingName}
                     </h1>
-                    <p className="mt-1 text-xs" style={{ color: '#c0d0e8', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>{data.buildingAddress}</p>
+                    <p className="mt-1 text-xs" style={{ color: '#c0d0e8', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+                      {addressCityLine(data.buildingAddress ?? '', data.buildingName ?? '')}
+                    </p>
+                    {myUnit && (myUnit.floor || myUnit.unit_label) && (
+                      <p className="mt-0.5 text-[11px] font-semibold" style={{ color: '#8ba3c7', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+                        {[myUnit.floor, myUnit.unit_label].filter(Boolean).join(' / ')}
+                      </p>
+                    )}
                   </>
                 ) : (
                   <>
@@ -1485,7 +1505,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     <Building2 size={14} className="mt-0.5 shrink-0 text-slate-500" />
                     <div className="min-w-0">
                       <p className="mb-0.5 text-[9px] font-bold uppercase tracking-widest text-slate-600">Regisztrált albetét</p>
-                      <p className="text-sm font-bold text-white">{myUnit.unit_label}</p>
+                      <p className="text-sm font-bold text-white">
+                        {[myUnit.floor, myUnit.unit_label].filter(Boolean).join(' / ')}
+                      </p>
                       {myUnit.area_m2 ? (
                         <p className="mt-0.5 text-[10px] text-slate-500">{myUnit.area_m2} m²</p>
                       ) : null}
@@ -1523,7 +1545,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
                 {/* Ticket activity heatmap */}
                 <div className="p-4 w-[340px] max-w-full">
-                  <ActivityCalendar tickets={tickets} meetings={meetings} currentUnit={unit || undefined} />
+                  <ActivityCalendar tickets={tickets} meetings={meetings} currentUnit={myUnit?.unit_label || undefined} />
                 </div>
 
               </div>
@@ -1607,64 +1629,84 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   }
                 }}
               >
-                <div className="grid gap-3 md:grid-cols-2">
-                  <input required className="input-base" placeholder="Teljes név" value={name} onChange={(e) => setName(e.target.value)} />
-                  <input className="input-base" placeholder="Lakás (pl. A/12)" value={unit} onChange={(e) => setUnit(e.target.value)} />
-                </div>
+                <input required className="input-base" placeholder="Teljes név" value={name} onChange={(e) => setName(e.target.value)} />
 
                 <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4">
-                  <label className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-700"><MapPin size={16} className="text-brand-600" /> Címkeresés (Magyarország)</label>
-                  <input
-                    className="input-base"
-                    placeholder="Kezdj el címet írni (pl. Budapest Gidófalvy Lajos utca 9)"
-                    value={addressQuery}
-                    onChange={(e) => {
-                      setAddressQuery(e.target.value);
-                      setAddress(e.target.value);
-                      setSelectedAddress(null);
-                    }}
-                  />
-                  {isAddressLoading ? <p className="mt-2 text-xs text-slate-500">Címek keresése...</p> : null}
-                  {addressError ? <p className="mt-2 rounded-2xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">{addressError}</p> : null}
-                  {addressOptions.length > 0 ? (
-                    <ul className="mt-3 space-y-1 rounded-2xl border border-slate-100 bg-white p-2 shadow-sm">
-                      {addressOptions.map((option) => (
-                        <li key={option.id}>
-                          <button
-                            className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm hover:bg-brand-50 hover:text-brand-800"
-                            type="button"
-                            onClick={() => {
-                              setAddress(option.label);
-                              setAddressQuery(option.label);
-                              setSelectedAddress(option);
-                              setAddressOptions([]);
-                            }}
-                          >
-                            <span className="truncate">{option.label}</span>
-                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${option.source === 'supabase' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>
-                              {option.source === 'supabase' ? 'GeoData' : 'OSM'}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                  {addressSource ? (
-                    <p className="mt-2 text-[10px] uppercase tracking-wider text-slate-400">
-                      Forrás: {addressSource === 'supabase' ? 'PanelLakó GeoData' : 'OpenStreetMap (Nominatim)'}
-                    </p>
-                  ) : null}
-                  {selectedAddress ? (
-                    <div className="mt-3 space-y-2">
-                      <p className="text-xs text-slate-600">Kiválasztott cím: <span className="font-semibold">{selectedAddress.label}</span></p>
-                      <div className="grid gap-2 md:grid-cols-2">
-                        <input className="input-base" placeholder="Emelet (opcionális)" value={floor} onChange={(e) => setFloor(e.target.value)} />
-                        <input className="input-base" placeholder="Ajtó (opcionális)" value={door} onChange={(e) => setDoor(e.target.value)} />
+                  <label className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-700"><MapPin size={16} className="text-brand-600" /> Otthoni cím (Magyarország)</label>
+                  {selectedAddress && !addressEditMode ? (
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-slate-700 leading-snug">{selectedAddress.label}</p>
+                        {(floor || door) && (
+                          <p className="mt-0.5 text-[10px] text-slate-500">
+                            {[floor && `${floor}. emelet`, door && `${door}. ajtó`].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => { setAddressEditMode(true); setAddressQuery(selectedAddress.label); }}
+                        className="ml-3 shrink-0 rounded-lg border border-slate-200 px-2.5 py-1 text-[10px] font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                      >
+                        Módosítás
+                      </button>
                     </div>
-                  ) : address ? (
-                    <p className="mt-2 text-xs text-slate-600">Kiválasztott cím: {address}</p>
-                  ) : null}
+                  ) : (
+                    <>
+                      <input
+                        className="input-base"
+                        placeholder="Kezdj el címet írni (pl. Budapest Gidófalvy Lajos utca 9)"
+                        value={addressQuery}
+                        onChange={(e) => {
+                          setAddressQuery(e.target.value);
+                          setAddress(e.target.value);
+                          setSelectedAddress(null);
+                        }}
+                      />
+                      {isAddressLoading ? <p className="mt-2 text-xs text-slate-500">Címek keresése...</p> : null}
+                      {addressError ? <p className="mt-2 rounded-2xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">{addressError}</p> : null}
+                      {addressOptions.length > 0 ? (
+                        <ul className="mt-3 space-y-1 rounded-2xl border border-slate-100 bg-white p-2 shadow-sm">
+                          {addressOptions.map((option) => (
+                            <li key={option.id}>
+                              <button
+                                className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm hover:bg-brand-50 hover:text-brand-800"
+                                type="button"
+                                onClick={() => {
+                                  setAddress(option.label);
+                                  setAddressQuery(option.label);
+                                  setSelectedAddress(option);
+                                  setAddressOptions([]);
+                                  setAddressEditMode(false);
+                                }}
+                              >
+                                <span className="truncate">{option.label}</span>
+                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${option.source === 'supabase' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>
+                                  {option.source === 'supabase' ? 'GeoData' : 'OSM'}
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      {addressSource ? (
+                        <p className="mt-2 text-[10px] uppercase tracking-wider text-slate-400">
+                          Forrás: {addressSource === 'supabase' ? 'PanelLakó GeoData' : 'OpenStreetMap (Nominatim)'}
+                        </p>
+                      ) : null}
+                      {selectedAddress ? (
+                        <div className="mt-3 space-y-2">
+                          <p className="text-xs text-slate-600">Kiválasztott cím: <span className="font-semibold">{selectedAddress.label}</span></p>
+                          <div className="grid gap-2 md:grid-cols-2">
+                            <input className="input-base" placeholder="Emelet (opcionális)" value={floor} onChange={(e) => setFloor(e.target.value)} />
+                            <input className="input-base" placeholder="Ajtó (opcionális)" value={door} onChange={(e) => setDoor(e.target.value)} />
+                          </div>
+                        </div>
+                      ) : address ? (
+                        <p className="mt-2 text-xs text-slate-600">Kiválasztott cím: {address}</p>
+                      ) : null}
+                    </>
+                  )}
                 </div>
 
                 <button className="btn-primary">Profil mentése</button>
@@ -2233,7 +2275,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 readings={data.meterReadings}
                 saved={meterSaved}
                 onSubmit={async (type, value, date) => {
-                  await submitMeterReadingAction({ meter_type: type, value, reading_date: date, unit_label: unit || undefined });
+                  await submitMeterReadingAction({ meter_type: type, value, reading_date: date, unit_label: myUnit?.unit_label || undefined });
                   setMeterSaved(true);
                   setTimeout(() => setMeterSaved(false), 3000);
                 }}
