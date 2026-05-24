@@ -7,45 +7,23 @@ import { useMapTheme } from '@/hooks/use-map-theme';
 // ─── Noise layer config ───────────────────────────────────────────────────────
 type NoiseLayer = 'kozut_lden' | 'kozut_lnight' | 'vasut_lden' | 'ipari_lden';
 
-const NOISE_LAYER_CFG: Record<NoiseLayer, { label: string; wmsLayer: string; color: string }> = {
-  kozut_lden:   { label: 'Közút L_den',    wmsLayer: 'KOZUT_LDEN',   color: '#f97316' },
-  kozut_lnight: { label: 'Közút L_night',  wmsLayer: 'KOZUT_LNIGHT', color: '#8b5cf6' },
-  vasut_lden:   { label: 'Vasút L_den',    wmsLayer: 'VASUT_LDEN',   color: '#3b82f6' },
-  ipari_lden:   { label: 'Ipari L_den',    wmsLayer: 'IPARI_LDEN',   color: '#ec4899' },
+const NOISE_LAYER_CFG: Record<NoiseLayer, { label: string; wmsLayer: string }> = {
+  kozut_lden:   { label: 'Közút L_den',   wmsLayer: 'KOZUT_LDEN'   },
+  kozut_lnight: { label: 'Közút L_night', wmsLayer: 'KOZUT_LNIGHT' },
+  vasut_lden:   { label: 'Vasút L_den',   wmsLayer: 'VASUT_LDEN'   },
+  ipari_lden:   { label: 'Ipari L_den',   wmsLayer: 'IPARI_LDEN'   },
 };
-
-// WMS source configs — HungaroMet (met.hu) is the authoritative Hungarian strategic noise map
-// since 2023. NIF zajterkepek.hu is the legacy source kept as fallback.
-const WMS_SOURCES = [
-  {
-    id: 'met',
-    label: 'HungaroMet (OMSZ)',
-    url: 'https://geoportal.met.hu/geoserver/zajterkep/wms',
-    link: 'https://zajterkep.met.hu',
-    attribution: '<a href="https://zajterkep.met.hu" target="_blank">zajterkep.met.hu · HungaroMet / OMSZ</a>',
-  },
-  {
-    id: 'nif',
-    label: 'NIF Zrt.',
-    url: 'https://zajterkepek.hu/geoserver/zajterkep/wms',
-    link: 'https://zajterkepek.hu',
-    attribution: '<a href="https://zajterkepek.hu" target="_blank">zajterkepek.hu · NIF Zrt.</a>',
-  },
-] as const;
-
-type WmsSourceId = typeof WMS_SOURCES[number]['id'];
 
 // dB color scale (EU END Directive standard)
 const DB_LEGEND = [
-  { label: '< 55 dB', color: '#22c55e' },
+  { label: '< 55 dB',  color: '#22c55e' },
   { label: '55–60 dB', color: '#a3e635' },
   { label: '60–65 dB', color: '#facc15' },
   { label: '65–70 dB', color: '#f97316' },
   { label: '70–75 dB', color: '#ef4444' },
-  { label: '> 75 dB', color: '#7f1d1d' },
+  { label: '> 75 dB',  color: '#7f1d1d' },
 ];
 
-// ─── Building dot SVG ─────────────────────────────────────────────────────────
 function buildingSvg(color: string): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">
     <circle cx="14" cy="14" r="12" fill="${color}" fill-opacity="0.2" stroke="${color}" stroke-width="1.5"/>
@@ -55,7 +33,9 @@ function buildingSvg(color: string): string {
 
 const NOISE_MAP_CSS = `.noise-bldg-pin{background:none!important;border:none!important}`;
 
-// ─── Props ────────────────────────────────────────────────────────────────────
+// ─── Source status (inferred from tile events) ───────────────────────────────
+type TileStatus = 'loading' | 'ok' | 'error';
+
 interface Props {
   buildingLat: number;
   buildingLon: number;
@@ -69,23 +49,11 @@ export default function NoiseMapInner({ buildingLat, buildingLon, className }: P
   const mapRef       = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const wmsRef       = useRef<any>(null);
-  const [mapReady, setMapReady] = useState(false);
-  const [wmsOk, setWmsOk]       = useState<boolean | null>(null);
+  const [mapReady,   setMapReady]   = useState(false);
+  const [tileStatus, setTileStatus] = useState<TileStatus>('loading');
   const [activeLayer, setActiveLayer] = useState<NoiseLayer>('kozut_lden');
-  const [wmsSourceId, setWmsSourceId] = useState<WmsSourceId>('met');
 
-  const activeSource = WMS_SOURCES.find(s => s.id === wmsSourceId) ?? WMS_SOURCES[0];
-  // Deep-link to the active source viewer centered on the building
-  const zajLink = `${activeSource.link}#15/${buildingLat.toFixed(5)}/${buildingLon.toFixed(5)}`;
-
-  // Auto-switch from HungaroMet to NIF when tiles fail
-  useEffect(() => {
-    if (wmsOk === false && wmsSourceId === 'met') {
-      const timer = setTimeout(() => setWmsSourceId('nif'), 1800);
-      return () => clearTimeout(timer);
-    }
-  }, [wmsOk, wmsSourceId]);
-
+  // ─── Map init / re-init when layer changes ──────────────────────────────────
   useEffect(() => {
     if (!document.getElementById('noise-map-css')) {
       const s = document.createElement('style');
@@ -111,25 +79,42 @@ export default function NoiseMapInner({ buildingLat, buildingLon, className }: P
         opacity: 0.6,
       }).addTo(map);
 
-      // ── Strategic noise WMS — HungaroMet (OMSZ) primary, NIF legacy fallback ──
-      const src = WMS_SOURCES.find(s => s.id === wmsSourceId) ?? WMS_SOURCES[0];
-      const wmsLayer = L.tileLayer.wms(src.url, {
+      // ── Strategic noise WMS via server-side proxy ───────────────────────────
+      // The proxy at /api/noise/wms-tile tries:
+      //   1. HungaroMet (OMSZ) geoportal.met.hu
+      //   2. NIF Zrt. zajterkepek.hu
+      //   3. EEA noise.discomap.eea.europa.eu
+      // and caches successful tiles for 30 minutes.
+      const wmsLayer = L.tileLayer.wms('/api/noise/wms-tile', {
         layers:      NOISE_LAYER_CFG[activeLayer].wmsLayer,
         format:      'image/png',
         transparent: true,
         version:     '1.1.1',
         opacity:     0.8,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        attribution: src.attribution as any,
+        attribution: '<a href="https://zajterkep.met.hu" target="_blank">Stratégiai zajtérkép · HungaroMet / NIF / EEA</a>' as any,
       });
 
-      // Test WMS availability by listening to tile events
-      let firstTileReceived = false;
-      wmsLayer.on('tileerror', () => {
-        if (!firstTileReceived && !destroyed) setWmsOk(false);
-      });
+      let firstEventFired = false;
+      let okCount = 0;
       wmsLayer.on('tileload', () => {
-        if (!firstTileReceived && !destroyed) { firstTileReceived = true; setWmsOk(true); }
+        okCount++;
+        if (!firstEventFired && !destroyed) {
+          firstEventFired = true;
+          setTileStatus('ok');
+        }
+      });
+      wmsLayer.on('tileerror', () => {
+        // Only switch to error if we never received a good tile
+        if (!firstEventFired && !destroyed) {
+          // Give a moment for other tiles to arrive
+          setTimeout(() => {
+            if (!destroyed && okCount === 0) {
+              firstEventFired = true;
+              setTileStatus('error');
+            }
+          }, 4000);
+        }
       });
 
       wmsLayer.addTo(map);
@@ -138,8 +123,8 @@ export default function NoiseMapInner({ buildingLat, buildingLon, className }: P
       // Building marker
       L.marker([buildingLat, buildingLon], {
         icon: L.divIcon({
-          html: buildingSvg('#38bdf8'),
-          className: 'noise-bldg-pin',
+          html:       buildingSvg('#38bdf8'),
+          className:  'noise-bldg-pin',
           iconSize:   [28, 28],
           iconAnchor: [14, 14],
         }),
@@ -156,23 +141,16 @@ export default function NoiseMapInner({ buildingLat, buildingLon, className }: P
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
       wmsRef.current = null;
       setMapReady(false);
-      setWmsOk(null);
+      setTileStatus('loading');
     };
-  // wmsSourceId triggers map remount via cleanup+reinit; activeLayer does not (setParams below)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buildingLat, buildingLon, theme.id, wmsSourceId]);
-
-  // Switch WMS layer when activeLayer changes (without full map remount)
-  useEffect(() => {
-    if (!mapRef.current || !wmsRef.current) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (wmsRef.current as any).setParams({ layers: NOISE_LAYER_CFG[activeLayer].wmsLayer }, false);
-  }, [activeLayer]);
+  }, [buildingLat, buildingLon, theme.id, activeLayer]);
 
   return (
-    <div className={`relative overflow-hidden ${className ?? ''}`}
-      style={{ background: '#060c18', minHeight: 360 }}>
-
+    <div
+      className={`relative overflow-hidden ${className ?? ''}`}
+      style={{ background: '#060c18', minHeight: 360 }}
+    >
       {/* Map container */}
       <div ref={containerRef} className="absolute inset-0" />
 
@@ -183,27 +161,18 @@ export default function NoiseMapInner({ buildingLat, buildingLon, className }: P
         </div>
       )}
 
-      {/* Source + layer switcher */}
+      {/* Layer selector */}
       {mapReady && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[400] flex flex-col items-center gap-1">
-          {/* WMS source selector */}
-          <div className="flex gap-1 bg-black/80 rounded-xl px-2 py-1 backdrop-blur-sm">
-            {WMS_SOURCES.map(src => (
-              <button key={src.id} onClick={() => setWmsSourceId(src.id)}
-                className={`rounded-lg px-2.5 py-1 text-[9px] font-bold transition-colors ${
-                  wmsSourceId === src.id ? 'bg-cyan-500/30 text-cyan-300' : 'text-white/50 hover:text-white/80'
-                }`}>
-                {src.label}
-              </button>
-            ))}
-          </div>
-          {/* Layer selector */}
           <div className="flex gap-1 bg-black/75 rounded-xl px-2 py-1.5 backdrop-blur-sm">
             {(Object.entries(NOISE_LAYER_CFG) as [NoiseLayer, typeof NOISE_LAYER_CFG[NoiseLayer]][]).map(([key, cfg]) => (
-              <button key={key} onClick={() => setActiveLayer(key)}
+              <button
+                key={key}
+                onClick={() => setActiveLayer(key)}
                 className={`rounded-lg px-2.5 py-1 text-[10px] font-bold transition-colors ${
                   activeLayer === key ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white/80'
-                }`}>
+                }`}
+              >
                 {cfg.label}
               </button>
             ))}
@@ -211,22 +180,44 @@ export default function NoiseMapInner({ buildingLat, buildingLon, className }: P
         </div>
       )}
 
-      {/* WMS unavailable notice */}
-      {mapReady && wmsOk === false && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[400] bg-amber-950/90 border border-amber-700/50 rounded-xl px-4 py-2.5 text-center max-w-xs backdrop-blur-sm">
-          <p className="text-[10px] text-amber-300 font-medium">
-            A {activeSource.label} WMS szerver nem elérhető
+      {/* Tile loading indicator */}
+      {mapReady && tileStatus === 'loading' && (
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[400] flex items-center gap-2 bg-black/70 rounded-xl px-3 py-1.5 backdrop-blur-sm">
+          <span className="inline-block h-2 w-2 rounded-full bg-sky-400 animate-pulse" />
+          <p className="text-[10px] text-slate-300">Zajréteg betöltése (HungaroMet → NIF → EEA)…</p>
+        </div>
+      )}
+
+      {/* All sources failed notice */}
+      {mapReady && tileStatus === 'error' && (
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[400] bg-amber-950/90 border border-amber-700/50 rounded-xl px-4 py-3 text-center max-w-xs backdrop-blur-sm">
+          <p className="text-[11px] font-semibold text-amber-300 mb-1.5">
+            Zajadatok jelenleg nem elérhetők
           </p>
-          <div className="mt-1.5 flex flex-col gap-1">
-            {wmsSourceId === 'met' && (
-              <button onClick={() => setWmsSourceId('nif')}
-                className="text-[10px] font-bold text-sky-400 hover:text-sky-300">
-                ← Váltás NIF zajterkepek.hu-ra
-              </button>
-            )}
-            <a href={zajLink} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-1 text-[10px] font-bold text-amber-400 hover:text-amber-300 underline">
-              Megnyitás {activeSource.label} weboldalán →
+          <p className="text-[10px] text-amber-500 mb-2">
+            A HungaroMet, NIF és EEA WMS szerverek egyike sem válaszolt. Próbálj meg közvetlenül a forrásra navigálni:
+          </p>
+          <div className="flex flex-col gap-1">
+            <a
+              href={`https://zajterkep.met.hu#15/${buildingLat.toFixed(5)}/${buildingLon.toFixed(5)}`}
+              target="_blank" rel="noopener noreferrer"
+              className="text-[10px] font-bold text-sky-400 hover:text-sky-300 underline"
+            >
+              zajterkep.met.hu (HungaroMet) ↗
+            </a>
+            <a
+              href="https://zajterkepek.hu"
+              target="_blank" rel="noopener noreferrer"
+              className="text-[10px] font-bold text-sky-400 hover:text-sky-300 underline"
+            >
+              zajterkepek.hu (NIF Zrt.) ↗
+            </a>
+            <a
+              href="https://noise.eea.europa.eu/"
+              target="_blank" rel="noopener noreferrer"
+              className="text-[10px] font-bold text-sky-400 hover:text-sky-300 underline"
+            >
+              noise.eea.europa.eu (EU / EEA) ↗
             </a>
           </div>
         </div>
@@ -246,13 +237,12 @@ export default function NoiseMapInner({ buildingLat, buildingLon, className }: P
         </div>
       )}
 
-      {/* Source deep-link */}
-      {mapReady && (
-        <a href={zajLink} target="_blank" rel="noopener noreferrer"
-          className="absolute bottom-6 right-2 z-[400] flex items-center gap-1.5 bg-black/75 hover:bg-black/90 rounded-lg px-3 py-2 backdrop-blur-sm transition-colors">
-          <span className="text-[9px] font-bold text-slate-300">{activeSource.label}</span>
-          <span className="text-[9px] text-slate-500">↗</span>
-        </a>
+      {/* Source attribution */}
+      {mapReady && tileStatus === 'ok' && (
+        <div className="absolute bottom-6 right-2 z-[400] flex items-center gap-1.5 bg-black/75 rounded-lg px-3 py-2 backdrop-blur-sm">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <span className="text-[9px] font-bold text-slate-300">Stratégiai zajtérkép</span>
+        </div>
       )}
     </div>
   );
