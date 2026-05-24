@@ -21,6 +21,7 @@ import {
   ChevronRight,
   UserRound,
   MapPin,
+  UserCog,
 } from 'lucide-react';
 
 interface WorkspaceSidebarProps {
@@ -57,8 +58,9 @@ export default function WorkspaceSidebar({
   const base = `/w/${buildingId}`;
 
   const mainNav = [
-    { href: `${base}#meetings`,   label: 'Közgyűlések', icon: CalendarDays },
-    { href: `${base}#knowledge`,  label: 'Tudásbázis',  icon: BookOpen },
+    { href: `${base}/profil`,      label: 'Lakói profil',    icon: UserCog },
+    { href: `${base}#meetings`,    label: 'Közgyűlések',     icon: CalendarDays },
+    { href: `${base}#knowledge`,   label: 'Tudásbázis',      icon: BookOpen },
     ...(isAdminLike ? [{ href: `${base}#audit`, label: 'Audit napló', icon: ShieldCheck }] : []),
     ...(isManager ? [{ href: `${base}/ertesitesek`, label: 'Push értesítések', icon: BellRing }] : []),
   ];
@@ -192,14 +194,17 @@ export default function WorkspaceSidebar({
         <nav className="sidebar-scroll flex-1 space-y-px overflow-y-auto" aria-label="Navigáció">
           {mainNav.map((item) => {
             const Icon = item.icon;
+            const active = isActive(item.href);
             return (
               <a
                 key={item.href}
                 href={item.href}
-                className="group flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition-all hover:bg-white/[0.07] hover:text-white"
+                className={`group flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all hover:bg-white/[0.07] hover:text-white ${
+                  active ? 'bg-white/[0.07] text-brand-400' : 'text-slate-600'
+                }`}
               >
-                <Icon size={15} className="shrink-0 transition-colors group-hover:text-current" />
-                <span className="transition-colors group-hover:text-white">{item.label}</span>
+                <Icon size={15} className={`shrink-0 transition-colors ${active ? 'text-brand-400' : ''} group-hover:text-current`} />
+                <span className={`transition-colors ${active ? 'text-brand-400' : ''} group-hover:text-white`}>{item.label}</span>
               </a>
             );
           })}
