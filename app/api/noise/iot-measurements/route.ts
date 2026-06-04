@@ -48,9 +48,12 @@ interface IotResponse {
 }
 
 // ─── Route handler ─────────────────────────────────────────────────────────
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
+  // ?nocache=1 bypasses the in-memory cache (useful for debugging / admin refresh)
+  const nocache = req.nextUrl.searchParams.get('nocache') === '1';
+
   // Cache hit
-  if (cache && Date.now() - cache.ts < CACHE_TTL) {
+  if (!nocache && cache && Date.now() - cache.ts < CACHE_TTL) {
     return Response.json({ ...cache.payload, cached: true });
   }
 
