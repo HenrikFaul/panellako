@@ -12,18 +12,27 @@ function serviceClient() {
   );
 }
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   if (!(await isSuperadminAuthenticated())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const search = req.nextUrl.searchParams.get('search') ?? '';
+  const limit  = Math.min(500, Math.max(1, parseInt(req.nextUrl.searchParams.get('limit') ?? '500') || 500));
+
   const supabase = serviceClient();
 
-  const { data: profiles, error } = await supabase
+  let query = supabase
     .from('profiles')
     .select('id, full_name, email, created_at, free_trial_start, free_trial_days, free_trial_never_expires')
     .order('created_at', { ascending: false })
-    .limit(500);
+    .limit(limit);
+
+  if (search) {
+    query = query.or(`email.ilike.%${search}%,full_name.ilike.%${search}%`);
+  }
+
+  const { data: profiles, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
