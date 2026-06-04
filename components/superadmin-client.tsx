@@ -4,8 +4,17 @@ import React, { useCallback, useEffect, useState } from 'react';
 import SuperadminGtfsImport from '@/components/superadmin-gtfs-import';
 import SuperadminDiagnostics from '@/components/superadmin-diagnostics';
 import SuperadminOsmImport from '@/components/superadmin-osm-import';
+import SuperadminUsersTab from '@/components/superadmin-users-tab';
+import SuperadminFeaturesTab from '@/components/superadmin-features-tab';
 import { MAP_THEMES, MAP_THEME_IDS, DEFAULT_THEME_ID, type MapThemeId } from '@/lib/map-theme';
 import { invalidateMapThemeCache } from '@/hooks/use-map-theme';
+
+type TabId = 'overview' | 'users' | 'features';
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'overview',  label: 'Áttekintés' },
+  { id: 'users',     label: 'Felhasználók' },
+  { id: 'features',  label: 'Funkció & Tier' },
+];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -202,6 +211,8 @@ const STATUS_PILL: Record<string, string> = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function SuperadminClient() {
+  const [activeTab, setActiveTab] = useState<TabId>('overview');
+
   // Job runners
   const [running, setRunning]   = useState<string | null>(null);
   const [results, setResults]   = useState<Record<string, unknown>>({});
@@ -366,6 +377,40 @@ export default function SuperadminClient() {
           </div>
           <button onClick={logout} className="btn-secondary px-4 py-2">Kijelentkezés</button>
         </div>
+
+        {/* Tab nav */}
+        <div className="flex gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold transition-colors ${
+                activeTab === tab.id
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Felhasználók tab */}
+        {activeTab === 'users' && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <SuperadminUsersTab />
+          </section>
+        )}
+
+        {/* Funkció & Tier tab */}
+        {activeTab === 'features' && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <SuperadminFeaturesTab />
+          </section>
+        )}
+
+        {/* Áttekintés tab — existing content below */}
+        {activeTab === 'overview' && (<>
 
         {/* Integration status cards */}
         <section className="grid gap-4 md:grid-cols-3">
@@ -771,6 +816,8 @@ export default function SuperadminClient() {
 
         {/* ── External-API diagnostics (custom curl runner) ───────────── */}
         <SuperadminDiagnostics />
+
+        </>)} {/* end overview tab */}
 
       </div>
     </main>
