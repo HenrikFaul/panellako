@@ -5,10 +5,30 @@ import { NextResponse, type NextRequest } from 'next/server';
 const PROTECTED_PREFIXES = ['/w/', '/app'];
 const AUTH_ROUTES = ['/login'];
 
-function hasSubscriptionAccess(subscription: {
-  status: string;
+interface Subscription {
+  status:    string;
   trial_end: string | null;
-} | null): boolean {
+}
+
+interface ProfileTrial {
+  free_trial_never_expires: boolean;
+  free_trial_start:         string | null;
+  free_trial_days:          number;
+  created_at:               string;
+}
+
+// Returns true if the superadmin-managed profile trial grants access.
+function hasProfileTrialAccess(profile: ProfileTrial | null): boolean {
+  if (!profile) return false;
+  if (profile.free_trial_never_expires) return true;
+  // Use free_trial_start if set, otherwise fall back to profile created_at
+  const start = profile.free_trial_start ?? profile.created_at;
+  if (!start) return false;
+  const end = new Date(new Date(start).getTime() + profile.free_trial_days * 86_400_000);
+  return end > new Date();
+}
+
+function hasSubscriptionAccess(subscription: Subscription | null): boolean {
   if (!subscription) return true; // no record = new building, allow + prompt
   if (subscription.status === 'active') return true;
   if (subscription.status === 'trialing') {
@@ -74,13 +94,26 @@ export async function middleware(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    const { data: subscription } = await adminClient
-      .from('subscriptions')
-      .select('status, trial_end')
-      .eq('building_id', buildingId)
-      .maybeSingle();
+    // Fetch subscription and user profile trial settings in parallel
+    const [{ data: subscription }, { data: profile }] = await Promise.all([
+      adminClient
+        .from('subscriptions')
+        .select('status, trial_end')
+        .eq('building_id', buildingId)
+        .maybeSingle(),
+      adminClient
+        .from('profiles')
+        .select('free_trial_never_expires, free_trial_start, free_trial_days, created_at')
+        .eq('id', user.id)
+        .maybeSingle(),
+    ]);
 
-    if (!hasSubscriptionAccess(subscription)) {
+    // Allow if either the subscription is valid OR the superadmin-managed trial grants access
+    const allowed =
+      hasSubscriptionAccess(subscription as Subscription | null) ||
+      hasProfileTrialAccess(profile as ProfileTrial | null);
+
+    if (!allowed) {
       const billingUrl = request.nextUrl.clone();
       billingUrl.pathname = '/billing';
       billingUrl.searchParams.set('building', buildingId);
