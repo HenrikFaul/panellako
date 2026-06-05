@@ -12,7 +12,7 @@ import { useMapTheme } from '@/hooks/use-map-theme';
 // what the user already sees.
 type CatGroup = 'food'|'health'|'education'|'dining'|'culture'|'sport'|'services'|'safety';
 
-const GROUP_CFG: Record<CatGroup, { label: string; color: string; emoji: string }> = {
+const GROUP_CFG = {
   food:      { label: 'Élelmiszer',  color: '#fb923c', emoji: '🛒' },
   health:    { label: 'Egészségügy', color: '#60a5fa', emoji: '💊' },
   education: { label: 'Oktatás',     color: '#a78bfa', emoji: '🏫' },
@@ -21,7 +21,7 @@ const GROUP_CFG: Record<CatGroup, { label: string; color: string; emoji: string 
   sport:     { label: 'Sport',       color: '#22c55e', emoji: '⚽' },
   services:  { label: 'Szolgáltatás',color: '#94a3b8', emoji: '🏦' },
   safety:    { label: 'Biztonság',   color: '#eab308', emoji: '🛡️' },
-};
+} satisfies Record<CatGroup, { label: string; color: string; emoji: string }>;
 
 const ALL_GROUPS: CatGroup[] = [
   'food','health','education','dining','culture','sport','services','safety',

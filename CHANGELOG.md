@@ -1,4 +1,49 @@
 
+## v0.9.32 — chore: TypeScript + okclh + best-practices adoptálás
+**Dátum:** 2026-06-05
+**Branch:** claude/fix-cron-null-values-uDCqd
+
+### Változtatások
+
+**1. TypeScript konfiguráció szigorítás**
+- `tsconfig.json`: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly` hozzáadva
+- Megelőzi a Vercel build-hibákat (pl. `'_req' is defined but never used`)
+
+**2. `satisfies` operátor config objektumoknál**
+- `noise-map-inner.tsx`: `WMS_LAYERS` és `DB_LEGEND` `satisfies`-ra átírva
+- `compact-city-map.tsx`: `GROUP_CFG` `satisfies`-ra átírva
+- `cycling-map-inner.tsx`: `ROUTE_CFG` `satisfies`-ra átírva
+- Típusbiztonság `as` cast nélkül; literális típusok megmaradnak
+
+**3. Szerepkör-jogosultság dokumentáció**
+- Új: `.governance/roles_permissions.md` — jogosultság-mátrix (lakó / tulajdonos / bizottság / megbízott / szuperadmin)
+- Státusz lifecycle diagram + `resolved_at` audit trail szemantika dokumentálva
+
+**4. Kép upload memory-leak-safe hook**
+- Új: `hooks/use-object-url.ts` — `URL.createObjectURL` + `useEffect` cleanup
+- Képfeltöltésnél (hibabejelentő, dokumentumtár) ezt kell használni
+
+**5. Státusz lifecycle + `resolved_at` audit trail**
+- `illegal_dump_reports` tábla: `resolved_at TIMESTAMPTZ` mező hozzáadva
+- Set at 'megoldva', NOT cleared on reopen (audit trail preserved)
+- Migration: `20260605_resolved_at_lifecycle.sql` + apply-migrations route
+
+**6. Egységes hibakód rendszer**
+- Új: `lib/api-errors.ts` — `ApiErrorCode` const + `apiError()` helper
+- HTTP status defaults per error code (401/403/404/400/409/500/502)
+- Jövőbeli API route-ok ezt kell hogy használják
+
+**7. N+1 query optimalizáció segédeszközök**
+- Új: `lib/query-utils.ts` — `indexById()`, `dedupeIds()`, `groupBy()`
+- Megelőzi a loop-on belüli egyedi DB lekérdezéseket
+
+**8. oklch() színrendszer**
+- `app/globals.css`: design token-ek hex → oklch átírva; `--brand-*` tokenek hozzáadva
+- `tailwind.config.ts`: brand palette oklch-ra konvertálva
+- Dokumentált rationale: perceptuális egyenletesség, dark mode, inline alpha
+
+---
+
 ## v0.9.31 — feat: Superadmin Felhasználók + Funkció & Tier tab
 **Dátum:** 2026-06-04
 **Branch:** claude/fix-cron-null-values-uDCqd

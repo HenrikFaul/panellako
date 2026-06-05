@@ -1,7 +1,7 @@
 // English (en) locale strings
 // Placeholder file — full i18n integration pending.
 // Pre-commit hook requires this file to be present alongside component changes.
-// v0.9.31-patch — no new strings; IoT nocache + users search params are internal-only
+// v0.9.32 — no new user-facing strings; best-practices adoptálás (TS, satisfies, oklch, errors, hooks)
 
 export const en = {
   noiseMap: {

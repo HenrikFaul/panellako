@@ -170,6 +170,13 @@ CREATE INDEX IF NOT EXISTS features_tier_idx   ON public.features (tier);
     `.trim(),
   },
   {
+    name: 'resolved_at_lifecycle',
+    sql: `
+ALTER TABLE public.illegal_dump_reports
+  ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
+    `.trim(),
+  },
+  {
     name: 'features_seed',
     sql: `
 INSERT INTO public.features (feature_key, name, description, module, route_path, menu_path, tier, sort_order) VALUES
@@ -240,6 +247,10 @@ async function isMigrationApplied(supabase: SupabaseClient, name: string): Promi
   if (name === 'features_seed') {
     const { data } = await supabase.from('features').select('id').limit(1);
     return (data?.length ?? 0) > 0;
+  }
+  if (name === 'resolved_at_lifecycle') {
+    const { error } = await supabase.from('illegal_dump_reports').select('resolved_at').limit(0);
+    return !error;
   }
   return false;
 }
