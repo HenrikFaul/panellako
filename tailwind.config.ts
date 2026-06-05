@@ -10,18 +10,20 @@ module.exports = {
         sans: ['var(--font-inter)', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
       },
       colors: {
+        // oklch teal palette — perceptually uniform, dark-mode ready.
+        // Change only the L channel in a dark-mode override to shift all tints at once.
         brand: {
-          50:  '#f0fdfa',
-          100: '#ccfbf1',
-          200: '#99f6e4',
-          300: '#5eead4',
-          400: '#2dd4bf',
-          500: '#14b8a6',
-          600: '#0d9488',
-          700: '#0f766e',
-          800: '#115e59',
-          900: '#134e4a',
-          950: '#042f2e',
+          50:  'oklch(0.984 0.014 181)',
+          100: 'oklch(0.963 0.037 182)',
+          200: 'oklch(0.935 0.077 181)',
+          300: 'oklch(0.894 0.122 180)',
+          400: 'oklch(0.833 0.145 180)',
+          500: 'oklch(0.714 0.145 181)',
+          600: 'oklch(0.607 0.126 182)',
+          700: 'oklch(0.511 0.096 186)',
+          800: 'oklch(0.437 0.078 188)',
+          900: 'oklch(0.374 0.056 185)',
+          950: 'oklch(0.237 0.034 184)',
         },
       },
       boxShadow: {

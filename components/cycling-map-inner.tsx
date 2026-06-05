@@ -7,15 +7,16 @@ import type { MapTheme } from '@/lib/map-theme';
 import { useMapTheme } from '@/hooks/use-map-theme';
 
 // ─── Route type config ────────────────────────────────────────────────────────
-type RouteType = CyclingFeature['type'];
+type RouteType   = CyclingFeature['type'];
+type RouteConfig = { label: string; color: string; weight: number; dashArray?: string };
 
-const ROUTE_CFG: Record<RouteType, { label: string; color: string; weight: number; dashArray?: string }> = {
+const ROUTE_CFG = {
   cycleway: { label: 'Dedikált kerékpárút', color: '#22c55e', weight: 3 },
   track:    { label: 'Védett sáv',          color: '#a78bfa', weight: 3 },
   lane:     { label: 'Jelölt sáv',          color: '#60a5fa', weight: 2.5 },
   shared:   { label: 'Vegyes forgalmú',     color: '#f97316', weight: 2, dashArray: '6 4' },
   other:    { label: 'Kerékpárral enged.',  color: '#94a3b8', weight: 1.5, dashArray: '4 6' },
-};
+} satisfies Record<RouteType, { label: string; color: string; weight: number; dashArray?: string }>;
 
 const ALL_TYPES: RouteType[] = ['cycleway', 'track', 'lane', 'shared', 'other'];
 
@@ -117,7 +118,7 @@ export default function CyclingMapInner({ buildingLat, buildingLon, routes, them
       const group = layerRefs.current[type];
       if (!group) continue;
       group.clearLayers();
-      const cfg = ROUTE_CFG[type];
+      const cfg: RouteConfig = ROUTE_CFG[type];
       for (const route of grouped[type]) {
         const latlngs = route.coords.map(([lon, lat]) => [lat, lon] as [number, number]);
         L.polyline(latlngs, {
@@ -163,7 +164,7 @@ export default function CyclingMapInner({ buildingLat, buildingLon, routes, them
       <div className="flex flex-wrap items-center gap-2 px-1 pb-3">
         <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mr-1">Rétegek:</span>
         {ALL_TYPES.map(type => {
-          const cfg    = ROUTE_CFG[type];
+          const cfg: RouteConfig = ROUTE_CFG[type];
           const active = activeTypes.has(type);
           const count  = routes.filter(r => r.type === type).length;
           if (count === 0) return null;

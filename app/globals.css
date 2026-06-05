@@ -3,22 +3,51 @@
 @tailwind utilities;
 
 /* ─── Design tokens ───────────────────────────────────────────────────── */
+/*
+ * oklch() color system (CSS Color Level 4)
+ * Format: oklch(lightness chroma hue)
+ *
+ * Why oklch:
+ *   - Perceptually uniform — equal chroma/lightness steps look equal to the eye
+ *   - Inline alpha:  oklch(0.71 0.13 185 / 50%)  (no rgb() wrapper needed)
+ *   - Dark mode:     change only L channel, C and H stay constant
+ *   - Brand hue:     H≈183 (teal); surfaces H≈247 (cool slate)
+ */
 :root {
   color-scheme: light;
 
-  --surface-0:      #ffffff;
-  --surface-1:      #f8fafc;
-  --surface-2:      #f1f5f9;
-  --border-subtle:  rgb(15 23 42 / 0.07);
-  --border-default: rgb(15 23 42 / 0.11);
+  /* Surfaces — cool slate hue (H≈247) */
+  --surface-0:      oklch(1 0 0);
+  --surface-1:      oklch(0.984 0.003 247);
+  --surface-2:      oklch(0.961 0.007 247);
+
+  /* Borders — slate-900 (oklch 0.13 0.028 264) with alpha */
+  --border-subtle:  oklch(0.13 0.028 264 / 7%);
+  --border-default: oklch(0.13 0.028 264 / 11%);
+
+  /* Shadows — unchanged (box-shadow doesn't benefit from oklch) */
   --shadow-card:    0 1px 3px rgb(15 23 42 / 0.06), 0 4px 16px -2px rgb(15 23 42 / 0.06);
   --shadow-float:   0 18px 60px -8px rgb(15 23 42 / 0.12), 0 4px 16px -4px rgb(15 23 42 / 0.08);
+
   --radius-card:    1.5rem;
   --radius-section: 1.75rem;
 
+  /* Brand color tokens (teal, H≈183) */
+  --brand-50:  oklch(0.984 0.014 181);
+  --brand-100: oklch(0.963 0.037 182);
+  --brand-200: oklch(0.935 0.077 181);
+  --brand-300: oklch(0.894 0.122 180);
+  --brand-400: oklch(0.833 0.145 180);
+  --brand-500: oklch(0.714 0.145 181);
+  --brand-600: oklch(0.607 0.126 182);
+  --brand-700: oklch(0.511 0.096 186);
+  --brand-800: oklch(0.437 0.078 188);
+  --brand-900: oklch(0.374 0.056 185);
+  --brand-950: oklch(0.237 0.034 184);
+
   /* Typography rhythm */
-  --text-xs:  0.6875rem; /* 11px */
-  --text-sm:  0.8125rem; /* 13px */
+  --text-xs:   0.6875rem; /* 11px */
+  --text-sm:   0.8125rem; /* 13px */
   --text-base: 0.9375rem; /* 15px */
 }
 
@@ -61,15 +90,17 @@ body {
   background: transparent;
 }
 .sidebar-scroll::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, #0d9488, #0ea5e9);
+  /* brand-600 → sky-500 gradient */
+  background: linear-gradient(to bottom, oklch(0.607 0.126 182), oklch(0.671 0.161 229));
   border-radius: 2px;
 }
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(to bottom, #14b8a6, #38bdf8);
+  /* brand-500 → sky-400 gradient */
+  background: linear-gradient(to bottom, oklch(0.714 0.145 181), oklch(0.762 0.117 229));
 }
 .sidebar-scroll {
   scrollbar-width: thin;
-  scrollbar-color: #0d9488 transparent;
+  scrollbar-color: oklch(0.607 0.126 182) transparent;
 }
 
 /* ─── Thin scrollbar for widgets ─────────────────────────────────────── */

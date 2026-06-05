@@ -7,12 +7,12 @@ import { useMapTheme } from '@/hooks/use-map-theme';
 // ─── WMS layer config ─────────────────────────────────────────────────────────
 type WmsLayerKey = 'kozut_lden' | 'kozut_lnight' | 'vasut_lden' | 'ipari_lden';
 
-const WMS_LAYERS: Record<WmsLayerKey, { label: string; wmsLayer: string }> = {
+const WMS_LAYERS = {
   kozut_lden:   { label: 'Közút L_den',   wmsLayer: 'KOZUT_LDEN'   },
   kozut_lnight: { label: 'Közút L_night', wmsLayer: 'KOZUT_LNIGHT' },
   vasut_lden:   { label: 'Vasút L_den',   wmsLayer: 'VASUT_LDEN'   },
   ipari_lden:   { label: 'Ipari L_den',   wmsLayer: 'IPARI_LDEN'   },
-};
+} satisfies Record<WmsLayerKey, { label: string; wmsLayer: string }>;
 
 // EU END Directive 2002/49/EC dB color scale
 const DB_LEGEND = [
@@ -22,7 +22,7 @@ const DB_LEGEND = [
   { label: '65–70 dB', color: '#f97316' },
   { label: '70–75 dB', color: '#ef4444' },
   { label: '> 75 dB',  color: '#7f1d1d' },
-];
+] satisfies { label: string; color: string }[];
 
 function dbToColor(laeq: number): string {
   if (laeq < 55) return '#22c55e';
