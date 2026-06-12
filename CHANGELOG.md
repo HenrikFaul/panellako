@@ -56,6 +56,9 @@ az árnyékok és az animációk soha nem generálódtak le.
 - Térkép-markerek emoji-jai (Leaflet) és a ♿ akadálymentességi szimbólum szándékosan
   megtartva (funkcionális kartográfia); tipográfiai ✓/✗/⚠ jelek a státusz-szövegekben maradnak
 - red-* → rose-* paletta-konzisztencia a zaj/hulladék bejelentő űrlapokon
+- Mobil alsó navigáció (ResidentBottomNav): scroll-spy aktív állapot — az `activeSection`
+  prop soha nem volt bekötve, így a kiemelés sosem jelent meg; mostantól
+  IntersectionObserver követi a látható szekciót (a prop továbbra is felülbírálhat)
 
 ### Acceptance criteria
 - [x] `npx tsc --noEmit` 0 hiba; `npx next build` sikeres (67 oldal)
