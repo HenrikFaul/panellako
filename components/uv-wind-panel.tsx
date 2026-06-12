@@ -1,5 +1,7 @@
 'use client';
 
+import { Thermometer, CloudRain } from 'lucide-react';
+
 interface Props {
   uvIndex:            number;
   uvLabel:            string;
@@ -77,8 +79,8 @@ export default function UvWindPanel({
         </svg>
         <p className="mt-2 text-center text-[10px] text-slate-400">{UV_ADVICE[uvLabel] ?? '—'}</p>
         <div className="mt-2 flex items-center justify-center gap-3 text-[9px] text-slate-500">
-          <span>🌡️ {temperature}°C</span>
-          <span>🌧️ {precipProb}%</span>
+          <span className="flex items-center gap-1"><Thermometer size={11} className="shrink-0 text-rose-300" />{temperature}°C</span>
+          <span className="flex items-center gap-1"><CloudRain size={11} className="shrink-0 text-sky-300" />{precipProb}%</span>
         </div>
       </div>
 
@@ -106,9 +108,9 @@ export default function UvWindPanel({
           </div>
         </div>
         <p className={`mt-2 rounded-xl px-3 py-1.5 text-[9px] ${
-          windSpeed < 5 ? 'bg-red-500/10 text-red-400' : windSpeed < 15 ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'
+          windSpeed < 5 ? 'bg-rose-500/10 text-rose-400' : windSpeed < 15 ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'
         }`}>
-          {windSpeed < 5 ? '⚠️' : windSpeed < 15 ? '↗️' : '✓'} {windAqiImpact}
+          {windSpeed < 5 ? '⚠' : windSpeed < 15 ? '↗' : '✓'} {windAqiImpact}
         </p>
       </div>
     </div>

@@ -87,7 +87,7 @@ export default function IllegalDumpReporter({ workspaceId }: Props) {
         </div>
       )}
       {status === 'error' && (
-        <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <div className="mb-4 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
           Hiba: {errorMsg}
         </div>
       )}

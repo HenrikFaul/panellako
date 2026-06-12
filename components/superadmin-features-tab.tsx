@@ -18,9 +18,9 @@ interface Feature {
 type ViewMode = 'tree' | 'flat';
 
 const TIER_COLORS: Record<string, string> = {
-  trial: 'bg-slate-100 text-slate-600',
-  alap:  'bg-sky-100 text-sky-700',
-  pro:   'bg-violet-100 text-violet-700',
+  trial: 'bg-white/[0.06] text-slate-300 ring-1 ring-white/10',
+  alap:  'bg-sky-500/10 text-sky-300 ring-1 ring-sky-500/25',
+  pro:   'bg-violet-500/10 text-violet-300 ring-1 ring-violet-500/25',
 };
 
 const TIER_LABELS: Record<string, string> = {
@@ -165,69 +165,69 @@ export default function SuperadminFeaturesTab() {
     if (!state) return null;
     const msg = saveMsg[f.id];
     return (
-      <div className="border-t border-slate-100 bg-slate-50 px-4 pb-4 pt-3">
+      <div className="border-t border-white/[0.06] bg-white/[0.02] px-4 pb-4 pt-3">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Megnevezés</label>
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Megnevezés</label>
             <input value={state.name} onChange={e => patchEdit(f.id, 'name', e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              className="input-base" />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Modul</label>
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Modul</label>
             <input value={state.module} onChange={e => patchEdit(f.id, 'module', e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              className="input-base" />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tier</label>
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Tier</label>
             <select value={state.tier} onChange={e => patchEdit(f.id, 'tier', e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+              className="input-base">
               {VALID_TIERS.map(t => <option key={t} value={t}>{TIER_LABELS[t]}</option>)}
             </select>
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Útvonal (route_path)</label>
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Útvonal (route_path)</label>
             <input value={state.route_path} onChange={e => patchEdit(f.id, 'route_path', e.target.value)}
               placeholder="/w/:id/..."
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              className="input-base font-mono" />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Menü elhelyezkedés</label>
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Menü elhelyezkedés</label>
             <input value={state.menu_path} onChange={e => patchEdit(f.id, 'menu_path', e.target.value)}
               placeholder="Szekció > Alszekció"
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              className="input-base" />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Leírás</label>
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Leírás</label>
             <input value={state.description} onChange={e => patchEdit(f.id, 'description', e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              className="input-base" />
           </div>
         </div>
         <div className="mt-3 flex items-center gap-3">
           <button
             onClick={() => save(f.id)}
             disabled={saving === f.id}
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="rounded-[0.625rem] bg-brand-500 px-4 py-2 text-sm font-semibold text-ink-base hover:bg-brand-400 disabled:opacity-50"
           >
             {saving === f.id ? 'Mentés…' : 'Mentés'}
           </button>
           <button
             onClick={() => setExpanded(null)}
-            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100"
+            className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-white/[0.08]"
           >
             Mégse
           </button>
           {/* Enabled toggle */}
           <button
             onClick={() => patchEdit(f.id, 'enabled', !state.enabled)}
-            className={`ml-auto flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${
-              state.enabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'
+            className={`ml-auto flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
+              state.enabled ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-white/10 bg-white/[0.04] text-slate-400'
             }`}
           >
-            <span className={`inline-block h-2 w-2 rounded-full ${state.enabled ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+            <span className={`inline-block h-2 w-2 rounded-full ${state.enabled ? 'bg-emerald-500' : 'bg-slate-600'}`} />
             {state.enabled ? 'Aktív' : 'Kikapcsolt'}
           </button>
           {msg && (
-            <span className={`text-sm font-bold ${msg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{msg}</span>
+            <span className={`text-sm font-semibold ${msg.startsWith('✓') ? 'text-emerald-400' : 'text-rose-400'}`}>{msg}</span>
           )}
         </div>
       </div>
@@ -239,22 +239,22 @@ export default function SuperadminFeaturesTab() {
     return (
       <div key={f.id}>
         <div
-          className={`flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-slate-50 ${!f.enabled ? 'opacity-50' : ''}`}
+          className={`flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-white/[0.03] ${!f.enabled ? 'opacity-50' : ''}`}
           onClick={() => (isOpen ? setExpanded(null) : openEdit(f))}
         >
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-semibold text-slate-900">{f.name}</span>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${TIER_COLORS[f.tier] ?? 'bg-slate-100 text-slate-600'}`}>
+              <span className="text-sm font-semibold text-slate-100">{f.name}</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${TIER_COLORS[f.tier] ?? 'bg-white/[0.06] text-slate-300 ring-1 ring-white/10'}`}>
                 {TIER_LABELS[f.tier] ?? f.tier}
               </span>
-              {!f.enabled && <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600">Kikapcsolt</span>}
+              {!f.enabled && <span className="rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-300 ring-1 ring-rose-500/25">Kikapcsolt</span>}
             </div>
             {f.route_path && (
-              <p className="mt-0.5 font-mono text-[11px] text-slate-400">{f.route_path}</p>
+              <p className="mt-0.5 font-mono text-[11px] text-slate-500">{f.route_path}</p>
             )}
           </div>
-          <span className="shrink-0 text-[11px] text-slate-300">{isOpen ? '▲' : '▼'}</span>
+          <span className="shrink-0 text-[11px] text-slate-600">{isOpen ? '▲' : '▼'}</span>
         </div>
         {isOpen && renderEditPanel(f)}
       </div>
@@ -266,13 +266,13 @@ export default function SuperadminFeaturesTab() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Funkció & Tier</h2>
+          <h2 className="text-lg font-semibold text-slate-100">Funkció & Tier</h2>
           <p className="text-xs text-slate-500">{features.length} funkció · 3 tier (Trial / Alap / Pro)</p>
         </div>
         <button
           onClick={load}
           disabled={loading}
-          className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/[0.08] disabled:opacity-50"
         >
           {loading ? 'Töltés…' : '↻ Frissítés'}
         </button>
@@ -280,13 +280,13 @@ export default function SuperadminFeaturesTab() {
 
       {/* Routing audit warnings */}
       {duplicates.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <p className="mb-2 flex items-center gap-2 text-sm font-bold text-amber-800">
+        <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4">
+          <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-300">
             <span>⚠</span> Routing audit — {duplicates.length} duplikált route_path + menu_path
           </p>
           <div className="space-y-1">
             {duplicates.map(d => (
-              <p key={d} className="rounded-lg bg-amber-100 px-3 py-1.5 font-mono text-[11px] text-amber-700">{d}</p>
+              <p key={d} className="rounded-lg bg-amber-500/10 px-3 py-1.5 font-mono text-[11px] text-amber-300">{d}</p>
             ))}
           </div>
         </div>
@@ -299,9 +299,9 @@ export default function SuperadminFeaturesTab() {
           { label: 'Funkciók',  value: String(features.length) },
           { label: 'Modulok',   value: String(modules.length) },
         ].map(s => (
-          <div key={s.label} className="rounded-xl border border-slate-200 bg-white p-3 text-center shadow-sm">
+          <div key={s.label} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-center">
             <p className="text-xs font-semibold text-slate-500">{s.label}</p>
-            <p className="text-2xl font-semibold text-slate-900">{s.value}</p>
+            <p className="text-2xl font-semibold tabular-nums text-slate-100">{s.value}</p>
           </div>
         ))}
       </div>
@@ -313,23 +313,23 @@ export default function SuperadminFeaturesTab() {
           placeholder="Szabad szöveges keresés (funkció / kulcs / útvonal)…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="flex-1 rounded-xl border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="input-base flex-1"
           style={{ minWidth: 220 }}
         />
         <select
           value={modFilter}
           onChange={e => setModFilter(e.target.value)}
-          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="input-base w-auto"
         >
           <option value="">Összes modul</option>
           {modules.map(m => <option key={m} value={m}>{m}</option>)}
         </select>
-        <div className="flex overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="inline-flex gap-0.5 rounded-xl border border-white/[0.08] bg-white/[0.03] p-1">
           {(['tree', 'flat'] as ViewMode[]).map(v => (
             <button
               key={v}
               onClick={() => setViewMode(v)}
-              className={`px-4 py-2 text-sm font-bold transition-colors ${viewMode === v ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+              className={`rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors ${viewMode === v ? 'bg-white/[0.08] text-white' : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'}`}
             >
               {v === 'tree' ? 'Fa nézet' : 'Lapos útvonal'}
             </button>
@@ -339,19 +339,19 @@ export default function SuperadminFeaturesTab() {
 
       {/* Content */}
       {loading && features.length === 0 ? (
-        <div className="space-y-2">{[...Array(8)].map((_, i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-slate-100" />)}</div>
+        <div className="space-y-2">{[...Array(8)].map((_, i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-white/[0.04]" />)}</div>
       ) : filtered.length === 0 ? (
-        <p className="py-8 text-center text-sm text-slate-400">Nincs találat</p>
+        <p className="py-8 text-center text-sm text-slate-500">Nincs találat</p>
       ) : viewMode === 'tree' ? (
         // Tree view — grouped by module
         <div className="space-y-3">
           {Object.entries(moduleTree).sort(([a], [b]) => a.localeCompare(b)).map(([mod, feats]) => (
-            <div key={mod} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-2">
-                <span className="text-sm font-semibold text-slate-700">{mod}</span>
-                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">{feats.length}</span>
+            <div key={mod} className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03]">
+              <div className="flex items-center justify-between border-b border-white/[0.06] bg-white/[0.03] px-4 py-2">
+                <span className="text-sm font-semibold text-slate-300">{mod}</span>
+                <span className="rounded-full bg-white/[0.08] px-2 py-0.5 text-[10px] font-semibold text-slate-300">{feats.length}</span>
               </div>
-              <div className="divide-y divide-slate-50">
+              <div className="divide-y divide-white/[0.06]">
                 {feats.map(f => <FeatureRow key={f.id} f={f} />)}
               </div>
             </div>
@@ -364,22 +364,22 @@ export default function SuperadminFeaturesTab() {
             const feats = tierGroups[tier] ?? [];
             if (feats.length === 0) return null;
             return (
-              <div key={tier} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50 px-4 py-2">
+              <div key={tier} className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03]">
+                <div className="flex items-center gap-3 border-b border-white/[0.06] bg-white/[0.03] px-4 py-2">
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${TIER_COLORS[tier]}`}>
                     {TIER_LABELS[tier]}
                   </span>
                   <span className="text-sm font-semibold text-slate-500">{feats.length} funkció</span>
                 </div>
-                <div className="divide-y divide-slate-50">
+                <div className="divide-y divide-white/[0.06]">
                   {feats.map(f => (
                     <div key={f.id} className={`flex items-center gap-3 px-4 py-2.5 ${!f.enabled ? 'opacity-50' : ''}`}>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-baseline gap-2">
-                          <span className="text-sm font-semibold text-slate-900">{f.name}</span>
-                          <span className="font-mono text-[10px] text-slate-400">{f.feature_key}</span>
+                          <span className="text-sm font-semibold text-slate-100">{f.name}</span>
+                          <span className="font-mono text-[10px] text-slate-500">{f.feature_key}</span>
                         </div>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+                        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
                           {f.route_path && <span className="font-mono">{f.route_path}</span>}
                           {f.route_path && f.menu_path && <span>→</span>}
                           {f.menu_path && <span>{f.menu_path}</span>}
@@ -387,7 +387,7 @@ export default function SuperadminFeaturesTab() {
                       </div>
                       <button
                         onClick={() => openEdit(f)}
-                        className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-500 hover:bg-slate-50"
+                        className="shrink-0 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:bg-white/[0.08]"
                       >
                         Szerkesztés
                       </button>
@@ -396,7 +396,7 @@ export default function SuperadminFeaturesTab() {
                 </div>
                 {/* Inline edit panel if expanded feature is in this tier */}
                 {feats.map(f => expanded === f.id ? (
-                  <div key={`edit-${f.id}`} className="border-t border-slate-200">
+                  <div key={`edit-${f.id}`} className="border-t border-white/10">
                     {renderEditPanel(f)}
                   </div>
                 ) : null)}

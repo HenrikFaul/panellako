@@ -22,7 +22,7 @@ type Level = 'low' | 'moderate' | 'high' | 'unknown';
 const LEVEL_STYLE: Record<Level, { bg: string; text: string; label: string }> = {
   low:     { bg: 'bg-emerald-500/10', text: 'text-emerald-400', label: 'Alacsony' },
   moderate:{ bg: 'bg-amber-500/10',   text: 'text-amber-400',   label: 'Mérsékelt' },
-  high:    { bg: 'bg-red-500/10',     text: 'text-red-400',     label: 'Magas' },
+  high:    { bg: 'bg-rose-500/10',    text: 'text-rose-400',    label: 'Magas' },
   unknown: { bg: 'bg-slate-500/10',   text: 'text-slate-500',   label: '—' },
 };
 
@@ -44,9 +44,9 @@ export default function PollenPanel({ current, daily }: Props) {
   const ragweedSeason = month >= 8 && month <= 10;
 
   const types = [
-    { key: 'grass', label: 'Fű pollen',  icon: '🌾', value: current.grassPollen, lo: 10, hi: 50, max: 100 },
-    { key: 'birch', label: 'Nyír pollen',icon: '🌳', value: current.birchPollen, lo: 10, hi: 80, max: 120 },
-    { key: 'alder', label: 'Éger pollen',icon: '🍃', value: current.alderPollen, lo: 5,  hi: 30, max: 50  },
+    { key: 'grass', label: 'Fű pollen',  value: current.grassPollen, lo: 10, hi: 50, max: 100 },
+    { key: 'birch', label: 'Nyír pollen',value: current.birchPollen, lo: 10, hi: 80, max: 120 },
+    { key: 'alder', label: 'Éger pollen',value: current.alderPollen, lo: 5,  hi: 30, max: 50  },
   ] as const;
 
   const highLevel = types.some(t => pollenLevel(t.value, t.lo, t.hi) === 'high');
@@ -60,7 +60,6 @@ export default function PollenPanel({ current, daily }: Props) {
         const pct   = t.value !== null ? Math.min((t.value / t.max) * 100, 100) : 0;
         return (
           <div key={t.key} className="flex items-center gap-2.5">
-            <span className="text-sm">{t.icon}</span>
             <div className="min-w-[4.5rem]">
               <p className="text-[10px] font-bold text-slate-300">{t.label}</p>
             </div>
@@ -81,7 +80,7 @@ export default function PollenPanel({ current, daily }: Props) {
       {/* Ragweed season warning */}
       {ragweedSeason && (
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
-          <p className="text-[10px] text-amber-400 font-semibold">⚠️ Parlagfű szezon aktív</p>
+          <p className="text-[10px] text-amber-400 font-semibold">⚠ Parlagfű szezon aktív</p>
           <p className="mt-0.5 text-[9px] text-slate-500">
             Budapest tipikusan magas parlagfű-terheléssel rendelkezik aug–okt között.
             Allergiásoknak fokozott óvatosság ajánlott.
@@ -91,8 +90,8 @@ export default function PollenPanel({ current, daily }: Props) {
 
       {/* High pollen alert */}
       {highLevel && !ragweedSeason && (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3">
-          <p className="text-[10px] text-red-400">⚠️ Ma magas pollenterhelés — allergiásoknak gyógyszer ajánlott</p>
+        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3">
+          <p className="text-[10px] text-rose-400">⚠ Ma magas pollenterhelés — allergiásoknak gyógyszer ajánlott</p>
         </div>
       )}
 
@@ -108,7 +107,7 @@ export default function PollenPanel({ current, daily }: Props) {
               return (
                 <div key={d.date} className="flex flex-col items-center gap-1">
                   <span className="text-[9px] text-slate-600">{dayLabel(d.date)}</span>
-                  <div className={`h-2 w-2 rounded-full ${lv === 'high' ? 'bg-red-400' : lv === 'moderate' ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+                  <div className={`h-2 w-2 rounded-full ${lv === 'high' ? 'bg-rose-400' : lv === 'moderate' ? 'bg-amber-400' : 'bg-emerald-400'}`} />
                   <span className={`text-[8px] font-bold ${style.text}`}>{maxPollen.toFixed(0)}</span>
                 </div>
               );

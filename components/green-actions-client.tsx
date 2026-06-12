@@ -379,7 +379,7 @@ export default function GreenActionsClient({ buildingName }: Props) {
                         : 'border border-white/[0.08] bg-white/[0.04] text-slate-300 hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-300'
                     }`}
                   >
-                    {hasVoted ? '✓ Szavazatod leadva' : 'Szavazok rá!'}
+                    {hasVoted ? 'Szavazatod leadva' : 'Szavazok rá!'}
                   </button>
                 </div>
               );

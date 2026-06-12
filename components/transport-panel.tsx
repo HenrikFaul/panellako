@@ -236,13 +236,13 @@ function DepartureBoardPanel({ stopId, stopName, refreshKey }: {
       <div className="mb-1.5 flex items-center justify-between">
         <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500 truncate pr-2">{board.stopName || stopName}</p>
         {isMock && (
-          <span className="rounded-full bg-amber-900/20 px-1.5 py-0.5 text-[7px] font-bold text-amber-500 italic">
+          <span className="rounded-full bg-amber-900/20 px-1.5 py-0.5 text-[7px] font-bold text-amber-300 italic">
             API nem elérhető
           </span>
         )}
       </div>
       {isMock && mockError && (
-        <p className="mb-1.5 rounded-lg bg-amber-900/10 px-2 py-1 text-[8px] text-amber-600 break-words leading-snug">
+        <p className="mb-1.5 rounded-lg bg-amber-900/10 px-2 py-1 text-[8px] text-amber-400 break-words leading-snug">
           {mockError}
         </p>
       )}
@@ -321,11 +321,11 @@ function BubiCard({ station }: { station: TransitNearbyResult['bubi'][number] })
 }
 
 // ─── CO₂ calculator ───────────────────────────────────────────────────────────
-const CO2_PER_KM: Record<string, { label: string; gCo2: number; color: string; icon: string }> = {
-  car:     { label: 'Autó',         gCo2: 171, color: '#f87171', icon: '🚗' },
-  transit: { label: 'Tömegközlek.', gCo2: 28,  color: '#38bdf8', icon: '🚌' },
-  ebike:   { label: 'E-bike/Bubi',  gCo2: 8,   color: '#34d399', icon: '🚲' },
-  walk:    { label: 'Gyalog',       gCo2: 0,   color: '#a78bfa', icon: '🚶' },
+const CO2_PER_KM: Record<string, { label: string; gCo2: number; color: string }> = {
+  car:     { label: 'Autó',         gCo2: 171, color: '#f87171' },
+  transit: { label: 'Tömegközlek.', gCo2: 28,  color: '#38bdf8' },
+  ebike:   { label: 'E-bike/Bubi',  gCo2: 8,   color: '#34d399' },
+  walk:    { label: 'Gyalog',       gCo2: 0,   color: '#a78bfa' },
 };
 function Co2Calculator() {
   const [km, setKm] = useState(5);
@@ -350,7 +350,7 @@ function Co2Calculator() {
           const frac = maxCo2 > 0 ? total / maxCo2 : 0;
           return (
             <div key={key} className="flex items-center gap-2">
-              <span className="w-4 text-center text-[10px]">{cfg.icon}</span>
+              <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: cfg.color }} />
               <span className="w-20 text-[9px] text-slate-400 truncate">{cfg.label}</span>
               <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
                 <div className="h-full rounded-full transition-all duration-700"
@@ -633,7 +633,7 @@ export default function TransportPanel({ lat, lon, buildingAddress, buildingId }
               alerts.alerts.map(alert => <AlertCard key={alert.id} alert={alert} />)
             )}
             {alerts?.stale && (
-              <p className="text-center text-[8px] text-amber-500">⚠ Riasztások adatai elavultak</p>
+              <p className="text-center text-[8px] text-amber-300">⚠ Riasztások adatai elavultak</p>
             )}
           </div>
         )}
@@ -643,18 +643,26 @@ export default function TransportPanel({ lat, lon, buildingAddress, buildingId }
 
         {/* Data source */}
         <div className="mt-auto flex items-center justify-between border-t border-white/[0.05] pt-2">
-          <p className="text-[8px] text-slate-700">
+          <p className="flex items-center gap-1.5 text-[8px] text-slate-700">
+            <span className={`inline-block h-1.5 w-1.5 rounded-full shrink-0 ${
+              data.source === 'futar'
+                ? 'bg-emerald-400'
+                : data.source === 'overpass'
+                  ? 'bg-amber-400'
+                  : data.source === 'db'
+                    ? 'bg-sky-400'
+                    : 'bg-rose-400'}`} />
             {data.source === 'futar'
-              ? '🟢 BKK Futár valósidejű'
+              ? 'BKK Futár valósidejű'
               : data.source === 'overpass'
-                ? '🟡 OpenStreetMap'
+                ? 'OpenStreetMap'
                 : data.source === 'db'
-                  ? '🔵 DB cache aktív'
-                  : '🔴 BKK API nem elérhető'}
+                  ? 'DB cache aktív'
+                  : 'BKK API nem elérhető'}
           </p>
           <p className="text-[8px] text-slate-700">
-            {coordsReady && lat !== undefined ? '📍 Valós helyszín'
-              : buildingAddress ? '🗺 Geocódolt cím'
+            {coordsReady && lat !== undefined ? 'Valós helyszín'
+              : buildingAddress ? 'Geocódolt cím'
               : '⚠ Budapest középpont'}
           </p>
         </div>

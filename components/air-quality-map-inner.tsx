@@ -325,8 +325,8 @@ function ValidationReportPanel({ stations }: { stations: AQIStation[] }) {
                       {CHECK_KEYS.map(key => (
                         <td key={key} className="text-center py-1.5 px-1">
                           {v[key]
-                            ? <span className="text-emerald-500">✓</span>
-                            : <span className="text-red-500">✗</span>
+                            ? <span className="text-emerald-400">✓</span>
+                            : <span className="text-rose-400">✗</span>
                           }
                         </td>
                       ))}

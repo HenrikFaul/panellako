@@ -42,11 +42,11 @@ const FILE_CONFIGS: FileConfig[] = [
 
 const STATUS_COLOR: Record<Status, string> = {
   idle:       'text-slate-400',
-  reading:    'text-blue-500',
-  processing: 'text-amber-500',
-  uploading:  'text-indigo-500',
-  done:       'text-emerald-600',
-  error:      'text-red-600',
+  reading:    'text-sky-300',
+  processing: 'text-amber-300',
+  uploading:  'text-violet-300',
+  done:       'text-emerald-300',
+  error:      'text-rose-300',
 };
 
 // ─── CSV helpers ──────────────────────────────────────────────────────────────
@@ -482,21 +482,21 @@ export default function SuperadminGtfsImport() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="mb-1 text-lg font-semibold text-slate-900">GTFS Adatbetöltés</h2>
+    <section className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
+      <h2 className="mb-1 text-lg font-semibold text-slate-100">GTFS Adatbetöltés</h2>
       <p className="mb-3 text-xs text-slate-500">
         Csomagold ki a BKK GTFS zip-et, majd töltsd fel a fájlokat egyenként. A megálló–járat kapcsolatokhoz
-        először a <code className="rounded bg-slate-100 px-1">trips.txt</code>, majd a{' '}
-        <code className="rounded bg-slate-100 px-1">stop_times.txt</code> szükséges. Az import után automatikusan
+        először a <code className="rounded bg-white/[0.06] px-1 text-slate-300">trips.txt</code>, majd a{' '}
+        <code className="rounded bg-white/[0.06] px-1 text-slate-300">stop_times.txt</code> szükséges. Az import után automatikusan
         lefut a járatrefs-levezetés és az épület–megálló párok számítása.
       </p>
 
       {/* ZIP import card */}
-      <div className="mb-4 flex flex-col gap-3 rounded-xl border-2 border-emerald-200 bg-emerald-50/60 p-4">
+      <div className="mb-4 flex flex-col gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-slate-800">📦 GTFS ZIP import</p>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-sm font-semibold text-slate-100">GTFS ZIP import</p>
+            <p className="text-[11px] text-slate-400">
               Töltsd fel az egész BKK GTFS zip-et — a böngésző kicsomagolja és automatikusan importálja az összes fájlt.
             </p>
           </div>
@@ -515,22 +515,22 @@ export default function SuperadminGtfsImport() {
             <button
               onClick={() => zipFileRef.current?.click()}
               disabled={zipStatus === 'extracting' || zipStatus === 'importing'}
-              className={`rounded-lg px-4 py-2 text-xs font-bold transition-colors disabled:opacity-50 ${
+              className={`rounded-lg px-4 py-2 text-xs font-semibold transition-colors disabled:opacity-50 ${
                 zipStatus === 'done'
-                  ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                  : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  ? 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/25 hover:bg-emerald-500/20'
+                  : 'bg-brand-500 text-ink-base hover:bg-brand-400'
               }`}
             >
               {zipStatus === 'extracting' ? 'Kibontás…'
                 : zipStatus === 'importing' ? 'Importálás…'
                 : zipStatus === 'done' ? '↻ ZIP újra'
-                : '📂 ZIP fájl választása'}
+                : 'ZIP fájl választása'}
             </button>
           </div>
         </div>
 
         {zipMessage && (
-          <p className={`text-[11px] font-semibold ${zipStatus === 'error' ? 'text-red-600' : zipStatus === 'done' ? 'text-emerald-700' : 'text-slate-700'}`}>
+          <p className={`text-[11px] font-semibold ${zipStatus === 'error' ? 'text-rose-300' : zipStatus === 'done' ? 'text-emerald-300' : 'text-slate-300'}`}>
             {zipMessage}
           </p>
         )}
@@ -538,16 +538,16 @@ export default function SuperadminGtfsImport() {
         {Object.keys(zipFileProgress).length > 0 && (
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">
             {Object.entries(zipFileProgress).map(([fname, info]) => (
-              <div key={fname} className="rounded-lg border border-slate-200 bg-white p-2">
-                <p className="truncate text-[10px] font-bold text-slate-700">{info.label}</p>
-                <p className="truncate font-mono text-[9px] text-slate-400">{fname}</p>
-                <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-slate-100">
+              <div key={fname} className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-2">
+                <p className="truncate text-[10px] font-semibold text-slate-300">{info.label}</p>
+                <p className="truncate font-mono text-[9px] text-slate-500">{fname}</p>
+                <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-white/10">
                   <div
-                    className={`h-full rounded-full transition-all duration-300 ${info.err ? 'bg-red-400' : info.done ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                    className={`h-full rounded-full transition-all duration-300 ${info.err ? 'bg-rose-400' : info.done ? 'bg-emerald-500' : 'bg-violet-500'}`}
                     style={{ width: `${info.err ? 100 : info.pct}%` }}
                   />
                 </div>
-                <p className={`mt-0.5 text-[9px] font-medium ${info.err ? 'text-red-500' : info.done ? 'text-emerald-600' : 'text-slate-500'}`}>
+                <p className={`mt-0.5 text-[9px] font-medium ${info.err ? 'text-rose-300' : info.done ? 'text-emerald-300' : 'text-slate-500'}`}>
                   {info.err ? '✗ hiba' : info.done ? '✓ kész' : `${info.pct}%`}
                 </p>
               </div>
@@ -557,10 +557,10 @@ export default function SuperadminGtfsImport() {
       </div>
 
       {/* Auto-chain status / Finish-from-DB button */}
-      <div className="mb-5 flex flex-col gap-2 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3">
+      <div className="mb-5 flex flex-col gap-2 rounded-xl border border-violet-500/25 bg-violet-500/[0.06] p-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-bold text-slate-700">Automatikus lezárás (ha az adatok már fenn vannak)</p>
+            <p className="text-xs font-semibold text-slate-200">Automatikus lezárás (ha az adatok már fenn vannak)</p>
             <p className="text-[10px] text-slate-500">
               Ha trips.txt + stop_times.txt már importálva volt egy korábbi session során, kattints ide —
               lefuttatja a megálló-járatrefs levezetést és az épület–megálló számítást.
@@ -569,13 +569,13 @@ export default function SuperadminGtfsImport() {
           <button
             onClick={runPostImportChain}
             disabled={chainRunning}
-            className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="shrink-0 rounded-lg bg-brand-500 px-4 py-2 text-xs font-semibold text-ink-base hover:bg-brand-400 disabled:opacity-50"
           >
-            {chainRunning ? 'Fut…' : '▶ Automatikus befejezés'}
+            {chainRunning ? 'Fut…' : 'Automatikus befejezés'}
           </button>
         </div>
         {chainStatus && (
-          <p className={`text-[11px] font-medium ${chainStatus.startsWith('✅') ? 'text-emerald-700' : chainStatus.startsWith('✗') ? 'text-red-600' : 'text-indigo-700'}`}>
+          <p className={`text-[11px] font-medium ${chainStatus.startsWith('✅') ? 'text-emerald-300' : chainStatus.startsWith('✗') ? 'text-rose-300' : 'text-violet-300'}`}>
             {chainStatus}
           </p>
         )}
@@ -585,27 +585,27 @@ export default function SuperadminGtfsImport() {
         {FILE_CONFIGS.filter(c => c.id !== 'stop_routes').map(cfg => {
           const st = states[cfg.id] ?? INIT;
           return (
-            <div key={cfg.id} className="flex flex-col gap-2 rounded-xl border border-slate-200 p-3">
+            <div key={cfg.id} className="flex flex-col gap-2 rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
               <div>
-                <p className="text-xs font-bold text-slate-800">{cfg.description}</p>
-                <p className="font-mono text-[10px] text-slate-400">{cfg.filename}</p>
-                <p className="text-[10px] text-slate-400">→ {cfg.table}</p>
-                {cfg.hint && <p className="mt-0.5 text-[10px] text-amber-500">{cfg.hint}</p>}
+                <p className="text-xs font-semibold text-slate-200">{cfg.description}</p>
+                <p className="font-mono text-[10px] text-slate-500">{cfg.filename}</p>
+                <p className="text-[10px] text-slate-500">→ {cfg.table}</p>
+                {cfg.hint && <p className="mt-0.5 text-[10px] text-amber-300">{cfg.hint}</p>}
               </div>
 
               {st.status !== 'idle' && (
                 <>
                   {st.status !== 'done' && st.status !== 'error' && (
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                       <div
-                        className="h-full rounded-full bg-indigo-500 transition-all duration-300"
+                        className="h-full rounded-full bg-violet-500 transition-all duration-300"
                         style={{ width: `${st.progress}%` }}
                       />
                     </div>
                   )}
                   <p className={`text-[11px] font-medium ${STATUS_COLOR[st.status]}`}>{st.message}</p>
                   {st.total > 0 && st.status === 'uploading' && (
-                    <p className="text-[10px] text-slate-400">{st.sent.toLocaleString('hu-HU')} / {st.total.toLocaleString('hu-HU')} sor</p>
+                    <p className="text-[10px] text-slate-500">{st.sent.toLocaleString('hu-HU')} / {st.total.toLocaleString('hu-HU')} sor</p>
                   )}
                 </>
               )}
@@ -624,10 +624,10 @@ export default function SuperadminGtfsImport() {
               <button
                 onClick={() => fileRefs.current[cfg.id]?.click()}
                 disabled={st.status === 'uploading' || st.status === 'reading' || st.status === 'processing'}
-                className={`mt-auto rounded-lg px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-40 ${
+                className={`mt-auto rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40 ${
                   st.status === 'done'
-                    ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    ? 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/25 hover:bg-emerald-500/20'
+                    : 'bg-brand-500 text-ink-base hover:bg-brand-400'
                 }`}
               >
                 {st.status === 'done' ? '↻ Újra' : st.status === 'idle' ? 'Fájl választása' : 'Folyamatban…'}
@@ -640,12 +640,12 @@ export default function SuperadminGtfsImport() {
         {(() => {
           const st = states['stop_routes'] ?? INIT;
           return (
-            <div className="flex flex-col gap-2 rounded-xl border-2 border-indigo-200 bg-indigo-50/50 p-3 sm:col-span-2">
+            <div className="flex flex-col gap-2 rounded-xl border border-violet-500/25 bg-violet-500/[0.06] p-3 sm:col-span-2">
               <div>
-                <p className="text-xs font-bold text-slate-800">Megálló–járat kapcsolatok</p>
-                <p className="font-mono text-[10px] text-slate-400">trips.txt + stop_times.txt</p>
-                <p className="text-[10px] text-slate-400">→ transit_stop_routes</p>
-                <p className="mt-0.5 text-[10px] text-amber-500">2 lépéses folyamat — stop_times.txt streamelve</p>
+                <p className="text-xs font-semibold text-slate-200">Megálló–járat kapcsolatok</p>
+                <p className="font-mono text-[10px] text-slate-500">trips.txt + stop_times.txt</p>
+                <p className="text-[10px] text-slate-500">→ transit_stop_routes</p>
+                <p className="mt-0.5 text-[10px] text-amber-300">2 lépéses folyamat — stop_times.txt streamelve</p>
               </div>
 
               {/* Step 1: trips */}
@@ -661,24 +661,24 @@ export default function SuperadminGtfsImport() {
                 />
                 <button
                   onClick={() => fileRefs.current['trips']?.click()}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                     tripsMap
-                      ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                      : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                      ? 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/25 hover:bg-emerald-500/20'
+                      : 'border border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]'
                   }`}
                 >
                   1. trips.txt
                 </button>
-                {tripsMsg && <p className="text-[10px] text-slate-600">{tripsMsg}</p>}
+                {tripsMsg && <p className="text-[10px] text-slate-400">{tripsMsg}</p>}
               </div>
 
               {/* Step 2: stop_times */}
               {st.status !== 'idle' && (
                 <>
                   {(st.status === 'processing' || st.status === 'uploading') && (
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                       <div
-                        className="h-full rounded-full bg-indigo-500 transition-all duration-300"
+                        className="h-full rounded-full bg-violet-500 transition-all duration-300"
                         style={{ width: `${st.progress}%` }}
                       />
                     </div>
@@ -699,10 +699,10 @@ export default function SuperadminGtfsImport() {
               <button
                 onClick={() => fileRefs.current['stop_times']?.click()}
                 disabled={!tripsMap || st.status === 'processing' || st.status === 'uploading'}
-                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-40 ${
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40 ${
                   st.status === 'done'
-                    ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    ? 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/25 hover:bg-emerald-500/20'
+                    : 'bg-brand-500 text-ink-base hover:bg-brand-400'
                 }`}
               >
                 {!tripsMap

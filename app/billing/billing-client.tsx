@@ -147,14 +147,14 @@ export default function BillingPageClient({
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#ccfbf1_0,#f8fafc_30%,#eef2ff_100%)] px-4 py-12">
+    <div className="app-surface min-h-screen px-4 py-12">
       <div className="mx-auto max-w-5xl">
 
         {/* Back link */}
         {buildingId && (
           <Link
             href={`/w/${buildingId}`}
-            className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800"
+            className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 hover:text-slate-200"
           >
             <Layers3 size={14} />
             Vissza az épület dashboardra
@@ -163,17 +163,17 @@ export default function BillingPageClient({
 
         {/* Header */}
         <div className="mb-10 text-center">
-          <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-teal-500 to-sky-500 text-white shadow-lg">
+          <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-brand-500/10 text-brand-300 ring-1 ring-brand-500/25">
             <CreditCard size={24} />
           </div>
-          <h1 className="text-3xl font-semibold text-slate-950">Előfizetési csomagok</h1>
-          <p className="mt-2 text-slate-500">
+          <h1 className="text-3xl font-semibold text-slate-100">Előfizetési csomagok</h1>
+          <p className="mt-2 text-slate-400">
             14 napos ingyenes próbaidőszak · Kártyaadatok nem szükségesek a próbához
           </p>
         </div>
 
         {successFromCheckout && (
-          <div className="mb-6 flex items-center gap-3 rounded-3xl bg-emerald-50 border border-emerald-200 p-4 text-emerald-700">
+          <div className="mb-6 flex items-center gap-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 p-4 text-emerald-300">
             <CheckCircle2 size={20} className="shrink-0" />
             <div>
               <p className="font-semibold">Sikeres előfizetés!</p>
@@ -183,40 +183,40 @@ export default function BillingPageClient({
         )}
 
         {cancelledFromCheckout && (
-          <div className="mb-6 flex items-center gap-3 rounded-3xl bg-amber-50 border border-amber-200 p-4 text-amber-700">
+          <div className="mb-6 flex items-center gap-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 p-4 text-amber-300">
             <AlertTriangle size={20} className="shrink-0" />
             <p className="text-sm font-semibold">A fizetési folyamat megszakadt. Bármikor folytathatja.</p>
           </div>
         )}
 
         {building && (
-          <div className="mb-6 rounded-3xl border border-white/70 bg-white/90 p-4 shadow-sm">
+          <div className="mb-6 rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4">
             <div className="flex items-center gap-3">
-              <Building2 size={18} className="text-teal-500" />
+              <Building2 size={18} className="text-brand-300" />
               <div>
-                <p className="font-semibold text-slate-950">{building.name}</p>
-                <p className="text-sm text-slate-500">{building.address} · {unitCount} albetét</p>
+                <p className="font-semibold text-slate-100">{building.name}</p>
+                <p className="text-sm text-slate-400">{building.address} · {unitCount} albetét</p>
               </div>
             </div>
           </div>
         )}
 
         {subscription && (
-          <div className={`mb-6 rounded-3xl p-4 border ${
-            isActive   ? 'bg-emerald-50 border-emerald-200' :
-            isTrialing ? 'bg-sky-50 border-sky-200' :
-            isPastDue  ? 'bg-rose-50 border-rose-200' :
-            'bg-slate-50 border-slate-200'
+          <div className={`mb-6 rounded-2xl p-4 border ${
+            isActive   ? 'bg-emerald-500/10 border-emerald-500/25' :
+            isTrialing ? 'bg-sky-500/10 border-sky-500/25' :
+            isPastDue  ? 'bg-rose-500/10 border-rose-500/25' :
+            'bg-white/[0.04] border-white/10'
           }`}>
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
-                <p className="font-semibold">
+                <p className="font-semibold text-slate-100">
                   {isActive    && '✓ Aktív előfizetés'}
                   {isTrialing  && `Próbaidőszak — ${trialDaysRemaining} nap hátra`}
-                  {isPastDue   && '⚠ Fizetés sikertelen'}
+                  {isPastDue   && 'Fizetés sikertelen'}
                   {subscription.status === 'cancelled' && 'Előfizetés lemondva'}
                 </p>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-slate-400">
                   Csomag: {subscription.plan.toUpperCase()}
                   {subscription.current_period_end && ` · Következő számlázás: ${formatDate(subscription.current_period_end)}`}
                 </p>
@@ -225,7 +225,7 @@ export default function BillingPageClient({
                 <button
                   onClick={handleManageBilling}
                   disabled={loading === 'portal'}
-                  className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-white/[0.08] disabled:opacity-50"
                 >
                   <ExternalLink size={14} />
                   {loading === 'portal' ? 'Betöltés...' : 'Számlázás kezelése'}
@@ -234,7 +234,7 @@ export default function BillingPageClient({
             </div>
 
             {isTrialing && trialDaysRemaining <= 3 && (
-              <div className="mt-3 rounded-2xl bg-amber-100 p-3 text-sm text-amber-800">
+              <div className="mt-3 rounded-xl bg-amber-500/10 ring-1 ring-amber-500/25 p-3 text-sm text-amber-300">
                 <strong>Figyelem:</strong> A próbaidőszak {trialDaysRemaining} napon belül lejár.
                 Aktiválja az előfizetést a folyamatos hozzáférés biztosításához.
               </div>
@@ -243,7 +243,7 @@ export default function BillingPageClient({
         )}
 
         {error && (
-          <div className="mb-6 flex items-start gap-2 rounded-3xl bg-rose-50 border border-rose-200 p-4 text-sm font-semibold text-rose-700">
+          <div className="mb-6 flex items-start gap-2 rounded-2xl bg-rose-500/10 border border-rose-500/25 p-4 text-sm font-semibold text-rose-300">
             <AlertTriangle size={16} className="mt-0.5 shrink-0" />
             <span>{error}</span>
           </div>
@@ -258,30 +258,30 @@ export default function BillingPageClient({
             return (
               <div
                 key={plan.key}
-                className={`relative rounded-[1.75rem] border p-6 ${
+                className={`relative rounded-2xl border p-6 ${
                   plan.highlight
-                    ? 'border-teal-300 bg-gradient-to-br from-teal-50 to-white shadow-lg shadow-teal-100'
-                    : 'border-white/70 bg-white/90 shadow-sm'
+                    ? 'border-brand-500/40 bg-brand-500/[0.06]'
+                    : 'border-white/[0.08] bg-white/[0.04]'
                 }`}
               >
                 {plan.badge && (
-                  <span className="absolute -top-3 left-6 rounded-full bg-teal-500 px-3 py-1 text-xs font-semibold text-white shadow">
+                  <span className="absolute -top-3 left-6 rounded-full bg-brand-500/10 px-3 py-1 text-xs font-semibold text-brand-300 ring-1 ring-brand-500/25 backdrop-blur">
                     {plan.badge}
                   </span>
                 )}
 
                 <div className="mb-4">
-                  <p className="text-lg font-semibold text-slate-950">{plan.name}</p>
-                  <p className="mt-1 text-sm text-slate-500">{plan.description}</p>
+                  <p className="text-lg font-semibold text-slate-100">{plan.name}</p>
+                  <p className="mt-1 text-sm text-slate-400">{plan.description}</p>
                 </div>
 
                 <div className="mb-6">
                   <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-semibold text-slate-950">{plan.currency}{plan.pricePerUnit.toFixed(2)}</span>
-                    <span className="text-sm text-slate-500">{plan.period}</span>
+                    <span className="text-4xl font-semibold tabular-nums text-slate-100">{plan.currency}{plan.pricePerUnit.toFixed(2)}</span>
+                    <span className="text-sm text-slate-400">{plan.period}</span>
                   </div>
                   {unitCount > 0 && (
-                    <p className="mt-1 text-sm font-bold text-teal-600">
+                    <p className="mt-1 text-sm font-semibold tabular-nums text-brand-300">
                       = {plan.currency}{monthlyTotal}/hó ({unitCount} albetét)
                     </p>
                   )}
@@ -289,25 +289,25 @@ export default function BillingPageClient({
 
                 <ul className="mb-6 space-y-2">
                   {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2 text-sm text-slate-700">
-                      <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-500" />
+                    <li key={feature} className="flex items-start gap-2 text-sm text-slate-300">
+                      <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-400" />
                       <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
 
                 {isCurrentPlan ? (
-                  <div className="rounded-2xl bg-emerald-100 px-4 py-3 text-center text-sm font-semibold text-emerald-700">
+                  <div className="rounded-xl bg-emerald-500/10 px-4 py-3 text-center text-sm font-semibold text-emerald-300 ring-1 ring-emerald-500/25">
                     Jelenlegi csomag
                   </div>
                 ) : (
                   <button
                     onClick={() => handleSubscribe(plan.key)}
                     disabled={loading !== null}
-                    className={`flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                    className={`flex w-full items-center justify-center gap-2 rounded-[0.625rem] py-3 text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
                       plan.highlight
-                        ? 'bg-teal-600 text-white hover:bg-teal-700 shadow-md shadow-teal-200'
-                        : 'bg-slate-950 text-white hover:bg-slate-800'
+                        ? 'bg-brand-500 text-ink-base hover:bg-brand-400'
+                        : 'border border-white/10 bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]'
                     }`}
                   >
                     <Zap size={14} />
@@ -327,15 +327,15 @@ export default function BillingPageClient({
         {/* Trust signals */}
         <div className="mt-10 grid grid-cols-3 gap-4 text-center text-sm text-slate-500">
           <div>
-            <p className="font-bold text-slate-700">Biztonságos fizetés</p>
+            <p className="font-semibold text-slate-300">Biztonságos fizetés</p>
             <p>Stripe. Adatait titkosítva kezeljük.</p>
           </div>
           <div>
-            <p className="font-bold text-slate-700">Bármikor lemondható</p>
+            <p className="font-semibold text-slate-300">Bármikor lemondható</p>
             <p>Nincs hosszú távú kötelezettség.</p>
           </div>
           <div>
-            <p className="font-bold text-slate-700">GDPR-megfelelő</p>
+            <p className="font-semibold text-slate-300">GDPR-megfelelő</p>
             <p>Adatkezelés az EU jogszabályai szerint.</p>
           </div>
         </div>

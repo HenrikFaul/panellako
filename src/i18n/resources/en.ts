@@ -2,6 +2,7 @@
 // Placeholder file — full i18n integration pending.
 // Pre-commit hook requires this file to be present alongside component changes.
 // v0.9.33 — enterprise redesign: shared UI primitive strings + new error/status copy
+// v0.9.33 round 2 — no new user-facing strings; superadmin/billing dark conversion + emoji-chrome sweep
 
 export const en = {
   ui: {

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { Car, CircleCheck, TriangleAlert, Droplets, Recycle } from 'lucide-react';
 
 // ─── CO2 emission factors (kg CO2/km) ────────────────────────────────────────
 const CAR_CO2_PER_KM     = 0.171;  // average petrol car kg CO2/km
@@ -53,13 +54,13 @@ interface ResultRowProps {
   value: string;
   subtext?: string;
   colorClass: string;
-  icon: string;
+  icon: ReactNode;
 }
 
 function ResultRow({ label, value, subtext, colorClass, icon }: ResultRowProps) {
   return (
     <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-slate-800/60 p-3">
-      <span className="text-xl">{icon}</span>
+      <span className="shrink-0">{icon}</span>
       <div className="flex-1">
         <p className="text-[11px] text-slate-400">{label}</p>
         {subtext && <p className="text-[10px] text-slate-600">{subtext}</p>}
@@ -117,7 +118,7 @@ export default function PersonalImpactCalculator() {
           <SliderRow
             label="Személyautó napi km"
             value={carKm} min={0} max={80}
-            unit="km" colorClass="text-red-400"
+            unit="km" colorClass="text-rose-400"
             onChange={setCarKm}
           />
           <SliderRow
@@ -151,22 +152,22 @@ export default function PersonalImpactCalculator() {
           <h3 className="text-sm font-semibold text-white">A te hatásod</h3>
 
           <ResultRow
-            icon="🚗"
+            icon={<Car size={16} className="text-slate-300" />}
             label="CO₂ kibocsátás (közlekedés)"
             value={`${(dailyCO2Total * 365 / 1000).toFixed(2)} t CO₂/év`}
             subtext={`Budapest átlag: ${(avgDailyCO2 * 365 / 1000).toFixed(2)} t CO₂/év`}
-            colorClass={dailyCO2Total <= avgDailyCO2 ? 'text-emerald-400' : 'text-red-400'}
+            colorClass={dailyCO2Total <= avgDailyCO2 ? 'text-emerald-400' : 'text-rose-400'}
           />
 
           <ResultRow
-            icon={co2SavedVsAvg >= 0 ? '✅' : '⚠️'}
+            icon={co2SavedVsAvg >= 0 ? <CircleCheck size={16} className="text-emerald-400" /> : <TriangleAlert size={16} className="text-amber-400" />}
             label="CO₂ megtakarítás vs. budapesti átlag"
             value={co2SavedVsAvg >= 0 ? `−${co2SavedVsAvg.toFixed(0)} kg/év` : `+${Math.abs(co2SavedVsAvg).toFixed(0)} kg/év`}
-            colorClass={co2SavedVsAvg >= 0 ? 'text-emerald-400' : 'text-red-400'}
+            colorClass={co2SavedVsAvg >= 0 ? 'text-emerald-400' : 'text-rose-400'}
           />
 
           <ResultRow
-            icon="💧"
+            icon={<Droplets size={16} className="text-sky-400" />}
             label="Víz vs. budapesti átlag"
             value={waterDiff >= 0 ? `−${Math.abs(waterSavedYearly).toFixed(0)} L/év` : `+${Math.abs(waterSavedYearly).toFixed(0)} L/év`}
             subtext={`Budapest átlag: ${BUDAPEST_AVG_WATER_L} L/nap`}
@@ -174,7 +175,7 @@ export default function PersonalImpactCalculator() {
           />
 
           <ResultRow
-            icon="♻️"
+            icon={<Recycle size={16} className="text-amber-400" />}
             label="Újrahasznosított hulladék"
             value={`${recycledKgYear.toFixed(0)} kg/év`}
             subtext={`Budapest átlag: ${Math.round((BUDAPEST_AVG_RECYCLING / 100) * wastePerDay * 365)} kg/év`}

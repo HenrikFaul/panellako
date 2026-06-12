@@ -44,6 +44,19 @@ az árnyékok és az animációk soha nem generálódtak le.
 **6. Lokalizáció**
 - Új stringek `src/i18n/resources/hu.ts` + `en.ts` `ui.*` namespace alá
 
+**7. Második kör — superadmin, billing, emoji-chrome sweep (2026-06-13)**
+- Superadmin teljes felülete (login, áttekintés, Felhasználók tab, Funkció & Tier tab,
+  diagnosztika, GTFS/OSM import) sötét enterprise konverzió — a v0.9.33 első köre után
+  ezek világos felületeken használták a sötétre stilizált közös osztályokat
+- Billing oldal: terv-kártyák, státusz-bannerek, Stripe-gombok egységesítve
+- Emoji-piktogramok eltávolítva a UI chrome-ból: weather-widget (lucide ikonok),
+  environment szekció-navigáció, transport-panel módok (színes pöttyök),
+  personal-impact-calculator, cool-spots-list, pollen-panel, uv-wind-panel,
+  budapest-transit-analysis, satellite-ndvi-panel, transit élő jármű-számláló
+- Térkép-markerek emoji-jai (Leaflet) és a ♿ akadálymentességi szimbólum szándékosan
+  megtartva (funkcionális kartográfia); tipográfiai ✓/✗/⚠ jelek a státusz-szövegekben maradnak
+- red-* → rose-* paletta-konzisztencia a zaj/hulladék bejelentő űrlapokon
+
 ### Acceptance criteria
 - [x] `npx tsc --noEmit` 0 hiba; `npx next build` sikeres (67 oldal)
 - [x] Minden funkció, route, handler, API-kontraktus változatlan (csak className + emoji csere)

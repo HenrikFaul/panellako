@@ -6,14 +6,6 @@ interface Props {
   spots: CoolSpot[];
 }
 
-const TYPE_ICON: Record<string, string> = {
-  park:              '🌳',
-  konyvtar:          '📚',
-  bevasarlokozpont:  '🏬',
-  szokokut:          '⛲',
-  melygarazs:        '🚗',
-};
-
 const TYPE_LABEL: Record<string, string> = {
   park:              'Park / Zöldterület',
   konyvtar:          'Könyvtár',
@@ -49,9 +41,7 @@ export default function CoolSpotsList({ spots }: Props) {
               key={idx}
               className="flex items-center gap-3 rounded-xl bg-slate-800/50 border border-white/5 px-4 py-3"
             >
-              <span className="text-xl flex-shrink-0 w-8 text-center" aria-hidden>
-                {TYPE_ICON[spot.type] ?? '📍'}
-              </span>
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 shrink-0" aria-hidden />
               <div className="flex-1 min-w-0">
                 <p className="text-white text-sm font-medium truncate">{spot.name}</p>
                 <p className="text-slate-500 text-xs mt-0.5">
@@ -69,7 +59,7 @@ export default function CoolSpotsList({ spots }: Props) {
         </ul>
       )}
 
-      <p className="mt-4 text-xs text-slate-600">
+      <p className="mt-4 text-xs text-slate-500">
         Forrás: OpenStreetMap · Távolság légvonalban számítva
       </p>
     </div>

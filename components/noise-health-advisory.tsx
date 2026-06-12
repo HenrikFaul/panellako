@@ -35,8 +35,8 @@ export default function NoiseHealthAdvisory() {
       rangeText: '> 65 dB',
       label: 'Súlyos egészségügyi veszély',
       detail: 'WHO: magas halálozási és betegségi kockázat, különösen gyerekeknél és idős korban.',
-      color: 'border-red-500/30 bg-red-500/10 text-red-300',
-      badge: 'bg-red-500/20 text-red-300',
+      color: 'border-rose-500/30 bg-rose-500/10 text-rose-300',
+      badge: 'bg-rose-500/20 text-rose-300',
       icon: '✕',
     },
   ];

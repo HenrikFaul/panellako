@@ -138,7 +138,7 @@ export default function WasteTrackerPanel({ workspaceId }: Props) {
                     value={values[cat.key] || ''}
                     onChange={(e) => handleValueChange(cat.key, e.target.value)}
                     placeholder="0"
-                    className="w-24 rounded-xl border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white placeholder-white/20 focus:border-amber-400/50 focus:outline-none"
+                    className="input-base w-24"
                   />
                   <input
                     type="range"
@@ -169,7 +169,7 @@ export default function WasteTrackerPanel({ workspaceId }: Props) {
               value={households || ''}
               onChange={(e) => setHouseholds(parseInt(e.target.value) || 0)}
               placeholder="pl. 24"
-              className="w-full rounded-xl border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white placeholder-white/20 focus:border-amber-400/50 focus:outline-none"
+              className="input-base w-full"
             />
           </div>
 
@@ -183,7 +183,7 @@ export default function WasteTrackerPanel({ workspaceId }: Props) {
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               placeholder="Havi megjegyzés, különleges hulladék..."
-              className="w-full rounded-xl border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white placeholder-white/20 focus:border-amber-400/50 focus:outline-none resize-none"
+              className="input-base w-full resize-none"
             />
           </div>
 

@@ -166,10 +166,10 @@ function fmtBytes(n: number): string {
 }
 
 function statusBadgeClass(status: number | null, ok: boolean): string {
-  if (status === null) return 'bg-rose-100 text-rose-700 border-rose-200';
-  if (ok) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-  if (status >= 400 && status < 500) return 'bg-amber-100 text-amber-700 border-amber-200';
-  return 'bg-rose-100 text-rose-700 border-rose-200';
+  if (status === null) return 'bg-rose-500/10 text-rose-300 ring-1 ring-rose-500/25';
+  if (ok) return 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/25';
+  if (status >= 400 && status < 500) return 'bg-amber-500/10 text-amber-300 ring-1 ring-amber-500/25';
+  return 'bg-rose-500/10 text-rose-300 ring-1 ring-rose-500/25';
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -259,10 +259,10 @@ export default function SuperadminDiagnostics() {
   }, [runSpec]);
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-6">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">🛠 Diagnosztika — külső API curl</h2>
+          <h2 className="text-lg font-semibold text-slate-100">Diagnosztika — külső API curl</h2>
           <p className="mt-1 text-xs text-slate-500">
             Vercel serverless környezetből futtat tetszőleges HTTP kérést. SSRF-védelem aktív (privát IP-tartományok blokkolva), válasz 512 KB-ra cap-elve, megjelenítve 32 KB-ig.
           </p>
@@ -271,20 +271,20 @@ export default function SuperadminDiagnostics() {
           type="button"
           onClick={runOverpassBatch}
           disabled={batchRunning}
-          className="shrink-0 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+          className="shrink-0 rounded-[0.625rem] bg-brand-500 px-4 py-2 text-xs font-semibold text-ink-base hover:bg-brand-400 disabled:opacity-50"
         >
-          {batchRunning ? 'Tesztelés...' : '⚡ Overpass health check (4 mirror)'}
+          {batchRunning ? 'Tesztelés...' : 'Overpass health check (4 mirror)'}
         </button>
       </div>
 
       {/* Batch results */}
       {batchResults.length > 0 && (
-        <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-          <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-emerald-700">Overpass mirror health</p>
+        <div className="mb-6 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-emerald-300">Overpass mirror health</p>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
-              <thead>
-                <tr className="text-left text-slate-500">
+              <thead className="border-b border-white/10 text-xs uppercase tracking-wider text-slate-500">
+                <tr className="text-left">
                   <th className="pb-2 pr-3">Mirror</th>
                   <th className="pb-2 pr-3">Status</th>
                   <th className="pb-2 pr-3 text-right">Latency</th>
@@ -294,16 +294,16 @@ export default function SuperadminDiagnostics() {
               </thead>
               <tbody>
                 {batchResults.map(({ preset, resp: r }) => (
-                  <tr key={preset.id} className="border-t border-emerald-100">
-                    <td className="py-2 pr-3 font-mono text-slate-800">{new URL(preset.spec.url).hostname}</td>
+                  <tr key={preset.id} className="border-t border-white/[0.06]">
+                    <td className="py-2 pr-3 font-mono text-slate-200">{new URL(preset.spec.url).hostname}</td>
                     <td className="py-2 pr-3">
-                      <span className={`inline-block rounded-md border px-2 py-0.5 text-[10px] font-bold ${statusBadgeClass(r.status, r.ok)}`}>
+                      <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold ${statusBadgeClass(r.status, r.ok)}`}>
                         {r.status ?? 'ERR'} {r.statusText ?? ''}
                       </span>
                     </td>
-                    <td className="py-2 pr-3 text-right tabular-nums text-slate-700">{r.elapsedMs} ms</td>
-                    <td className="py-2 pr-3 text-right tabular-nums text-slate-700">{fmtBytes(r.bodyBytes)}</td>
-                    <td className="py-2 text-slate-600">{r.error ?? (r.ok ? 'OK' : r.bodyText.slice(0, 80))}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-slate-300">{r.elapsedMs} ms</td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-slate-300">{fmtBytes(r.bodyBytes)}</td>
+                    <td className="py-2 text-slate-400">{r.error ?? (r.ok ? 'OK' : r.bodyText.slice(0, 80))}</td>
                   </tr>
                 ))}
               </tbody>
@@ -314,7 +314,7 @@ export default function SuperadminDiagnostics() {
 
       {/* Preset buttons */}
       <div className="mb-5">
-        <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">Gyors-akció előbeállítások</p>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Gyors-akció előbeállítások</p>
         <div className="flex flex-wrap gap-2">
           {PRESETS.map(p => (
             <button
@@ -322,7 +322,7 @@ export default function SuperadminDiagnostics() {
               type="button"
               onClick={() => applyPreset(p)}
               title={p.description}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:border-slate-300"
+              className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/[0.08]"
             >
               {p.label}
             </button>
@@ -333,27 +333,27 @@ export default function SuperadminDiagnostics() {
       {/* Request form */}
       <div className="grid gap-3 md:grid-cols-12">
         <div className="md:col-span-2">
-          <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500">Method</label>
+          <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500">Method</label>
           <select
             value={method}
             onChange={e => setMethod(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+            className="input-base mt-1 w-full"
           >
             {['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'].map(m => <option key={m} value={m}>{m}</option>)}
           </select>
         </div>
         <div className="md:col-span-8">
-          <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500">URL</label>
+          <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500">URL</label>
           <input
             type="text"
             value={url}
             onChange={e => setUrl(e.target.value)}
             placeholder="https://overpass.kumi.systems/api/interpreter"
-            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+            className="input-base mt-1 w-full font-mono text-xs"
           />
         </div>
         <div className="md:col-span-2">
-          <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500">Timeout (ms)</label>
+          <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500">Timeout (ms)</label>
           <input
             type="number"
             min={500}
@@ -361,29 +361,29 @@ export default function SuperadminDiagnostics() {
             step={500}
             value={timeoutMs}
             onChange={e => setTimeoutMs(parseInt(e.target.value, 10) || 10000)}
-            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+            className="input-base mt-1 w-full"
           />
         </div>
 
         <div className="md:col-span-6">
-          <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500">Headers (JSON)</label>
+          <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500">Headers (JSON)</label>
           <textarea
             value={headersStr}
             onChange={e => setHeadersStr(e.target.value)}
             rows={6}
-            className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-[11px] text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+            className="input-base mt-1 w-full font-mono text-[11px]"
             placeholder='{ "Content-Type": "application/json" }'
           />
-          {headersErr && <p className="mt-1 text-xs font-medium text-rose-600">{headersErr}</p>}
+          {headersErr && <p className="mt-1 text-xs font-medium text-rose-300">{headersErr}</p>}
         </div>
         <div className="md:col-span-6">
-          <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500">Body (csak POST/PUT/PATCH/DELETE)</label>
+          <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500">Body (csak POST/PUT/PATCH/DELETE)</label>
           <textarea
             value={body}
             onChange={e => setBody(e.target.value)}
             rows={6}
             disabled={method === 'GET' || method === 'HEAD'}
-            className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-[11px] text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 disabled:bg-slate-100 disabled:text-slate-400"
+            className="input-base mt-1 w-full font-mono text-[11px] disabled:opacity-50"
             placeholder='data=...'
           />
         </div>
@@ -394,47 +394,47 @@ export default function SuperadminDiagnostics() {
           type="button"
           onClick={run}
           disabled={running}
-          className="rounded-xl bg-sky-600 px-5 py-2 text-xs font-bold text-white hover:bg-sky-700 disabled:opacity-50"
+          className="rounded-[0.625rem] bg-brand-500 px-5 py-2 text-xs font-semibold text-ink-base hover:bg-brand-400 disabled:opacity-50"
         >
           {running ? 'Futtatás...' : 'Futtatás'}
         </button>
         {resp && (
           <span className="text-xs text-slate-500">
-            {resp.redirected && <>redirect → <span className="font-mono text-slate-700">{resp.finalUrl}</span> · </>}
-            content-type: <span className="font-mono text-slate-700">{resp.contentType ?? '?'}</span>
+            {resp.redirected && <>redirect → <span className="font-mono text-slate-300">{resp.finalUrl}</span> · </>}
+            content-type: <span className="font-mono text-slate-300">{resp.contentType ?? '?'}</span>
           </span>
         )}
       </div>
 
       {/* Response */}
       {resp && (
-        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <div className="mt-5 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
           <div className="mb-3 flex flex-wrap items-center gap-3">
-            <span className={`inline-block rounded-md border px-2 py-1 text-xs font-bold ${statusBadgeClass(resp.status, resp.ok)}`}>
+            <span className={`inline-block rounded-md px-2 py-1 text-xs font-semibold ${statusBadgeClass(resp.status, resp.ok)}`}>
               {resp.status ?? 'ERR'} {resp.statusText ?? ''}
             </span>
-            <span className="text-xs tabular-nums text-slate-600">{resp.elapsedMs} ms</span>
-            <span className="text-xs tabular-nums text-slate-600">{fmtBytes(resp.bodyBytes)}</span>
-            {resp.bodyTruncated && <span className="text-xs font-medium text-amber-600">(truncated)</span>}
+            <span className="text-xs tabular-nums text-slate-400">{resp.elapsedMs} ms</span>
+            <span className="text-xs tabular-nums text-slate-400">{fmtBytes(resp.bodyBytes)}</span>
+            {resp.bodyTruncated && <span className="text-xs font-medium text-amber-300">(truncated)</span>}
           </div>
 
           {resp.error && (
-            <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-rose-700">Error</p>
-              <p className="mt-1 font-mono text-xs text-rose-800">{resp.error}</p>
+            <div className="mb-3 rounded-lg border border-rose-500/25 bg-rose-500/10 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-rose-300">Error</p>
+              <p className="mt-1 font-mono text-xs text-rose-200">{resp.error}</p>
             </div>
           )}
 
           <details className="mb-3" open={!resp.error}>
-            <summary className="cursor-pointer text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-800">Response headers ({Object.keys(resp.responseHeaders).length})</summary>
-            <pre className="mt-2 max-h-40 overflow-auto rounded-lg bg-slate-900 p-3 font-mono text-[11px] text-slate-100">
+            <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-200">Response headers ({Object.keys(resp.responseHeaders).length})</summary>
+            <pre className="mt-2 max-h-40 overflow-auto rounded-lg border border-white/[0.06] bg-black/30 p-3 font-mono text-xs text-slate-300">
               {Object.entries(resp.responseHeaders).map(([k, v]) => `${k}: ${v}`).join('\n')}
             </pre>
           </details>
 
           <details open={!resp.error}>
-            <summary className="cursor-pointer text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-800">Body ({fmtBytes(resp.bodyBytes)}{resp.bodyTruncated ? ', truncated' : ''})</summary>
-            <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-slate-900 p-3 font-mono text-[11px] text-slate-100">
+            <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-200">Body ({fmtBytes(resp.bodyBytes)}{resp.bodyTruncated ? ', truncated' : ''})</summary>
+            <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-white/[0.06] bg-black/30 p-3 font-mono text-xs text-slate-300">
               {resp.bodyText || '(empty)'}
             </pre>
           </details>

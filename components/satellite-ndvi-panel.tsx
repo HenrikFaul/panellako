@@ -113,7 +113,7 @@ export default function SatelliteNdviPanel({ data, loading }: Props) {
             : 'text-slate-400 hover:text-slate-200'
         }`}
       >
-        🏠 Épület közeli NDVI
+        Épület közeli NDVI
       </button>
       <button
         type="button"
@@ -124,7 +124,7 @@ export default function SatelliteNdviPanel({ data, loading }: Props) {
             : 'text-slate-400 hover:text-slate-200'
         }`}
       >
-        🇭🇺 Magyarország NDVI
+        Magyarország NDVI
       </button>
     </div>
   );
@@ -158,7 +158,7 @@ export default function SatelliteNdviPanel({ data, loading }: Props) {
               <p className="mt-1.5 text-[10px] font-bold" style={{ color: data.ndviColor }}>{data.ndviLabel}</p>
             </>
           ) : (
-            <p className="text-[11px] text-slate-600 mt-2">Nem elérhető</p>
+            <p className="text-[11px] text-slate-400 mt-2">Nem elérhető</p>
           )}
         </div>
 
@@ -242,7 +242,7 @@ export default function SatelliteNdviPanel({ data, loading }: Props) {
             </>
           )}
         </svg>
-        <p className="mt-1 text-[8px] text-slate-700">Copernicus Sentinel-2 MSI · ESA STAC · titiler.xyz · Copernicus Land Service</p>
+        <p className="mt-1 text-[8px] text-slate-500">Copernicus Sentinel-2 MSI · ESA STAC · titiler.xyz · Copernicus Land Service</p>
       </div>
 
       {/* What NDVI means */}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Wind, ArrowLeft, Leaf, Flower2, Sun, Zap, ChevronDown, AlertCircle, Database, Satellite, Star } from 'lucide-react';
+import { Wind, ArrowLeft, Leaf, Flower2, Sun, Zap, ChevronDown, AlertCircle, Database, Satellite, Star, Trophy, MapPin, Trees, Baby, Volleyball } from 'lucide-react';
 import LandUseMap from '@/components/land-use-map';
 import AirQualityMap from '@/components/air-quality-map';
 import type { AirQualityMapHandle } from '@/components/air-quality-map';
@@ -315,13 +315,13 @@ export default function EnvironmentPageClient({
   const forecastMax = aq?.daily?.length ? Math.max(30, ...aq.daily.map(d => d.avgPm25)) : 30;
 
   const NAV = [
-    { id: 'sec-score',     icon: '🏆', label: 'Pontszám' },
-    { id: 'sec-air',       icon: '💨', label: 'Levegő' },
-    { id: 'sec-pollen',    icon: '🌿', label: 'Pollen & UV' },
-    { id: 'sec-green',     icon: '🌳', label: 'Zöld' },
-    { id: 'sec-solar',     icon: '☀️',  label: 'Napenergia' },
-    { id: 'sec-satellite', icon: '🛰️', label: 'Műhold' },
-    { id: 'sec-liveable',  icon: '⭐', label: 'Élhetőség' },
+    { id: 'sec-score',     Icon: Trophy,    label: 'Pontszám' },
+    { id: 'sec-air',       Icon: Wind,      label: 'Levegő' },
+    { id: 'sec-pollen',    Icon: Flower2,   label: 'Pollen & UV' },
+    { id: 'sec-green',     Icon: Leaf,      label: 'Zöld' },
+    { id: 'sec-solar',     Icon: Sun,       label: 'Napenergia' },
+    { id: 'sec-satellite', Icon: Satellite, label: 'Műhold' },
+    { id: 'sec-liveable',  Icon: Star,      label: 'Élhetőség' },
   ];
 
   return (
@@ -346,7 +346,7 @@ export default function EnvironmentPageClient({
           {NAV.map(n => (
             <a key={n.id} href={`#${n.id}`}
               className="flex shrink-0 items-center gap-1.5 px-3 pb-3 pt-1 text-[10px] font-bold text-slate-500 hover:text-slate-300 transition-colors">
-              <span>{n.icon}</span>
+              <n.Icon size={13} className="shrink-0" />
               <span className="hidden sm:inline">{n.label}</span>
             </a>
           ))}
@@ -358,7 +358,7 @@ export default function EnvironmentPageClient({
         {/* v0.7.14 — Reference-address banner: ha a user mentett saját referencia-címet, jelezzük. */}
         {usedReferenceAddress ? (
           <div className="flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-3">
-            <span className="text-base leading-none">📍</span>
+            <MapPin size={16} className="mt-0.5 shrink-0 text-emerald-300" />
             <p className="text-[11px] leading-relaxed text-emerald-200">
               Az alábbi adatok az Ön <span className="font-bold">referencia-címe</span> alapján számítódnak:
               {' '}<span className="font-bold">{buildingAddress}</span>
@@ -369,7 +369,7 @@ export default function EnvironmentPageClient({
 
         {/* 1. KörnyezetScore */}
         <Section id="sec-score">
-          <SectionHeader icon={<span className="text-base">🏆</span>} title="KörnyezetScore™" badge={buildingAddress} source="Open-Meteo · OSM" />
+          <SectionHeader icon={<Trophy size={18} className="text-amber-400" />} title="KörnyezetScore™" badge={buildingAddress} source="Open-Meteo · OSM" />
           <div className="p-6"><EnvScoreHero score={score} loading={loadingScore} /></div>
         </Section>
 
@@ -511,7 +511,7 @@ export default function EnvironmentPageClient({
                     <span className="text-xs font-semibold text-slate-200">Pollenterhelés</span>
                     {(() => {
                       const m = new Date().getMonth() + 1;
-                      const s = m>=2&&m<=4 ? 'Nyír-éger' : m>=5&&m<=7 ? 'Fűpollen' : m>=8&&m<=10 ? '⚠️ Parlagfű' : null;
+                      const s = m>=2&&m<=4 ? 'Nyír-éger' : m>=5&&m<=7 ? 'Fűpollen' : m>=8&&m<=10 ? '⚠ Parlagfű' : null;
                       return s ? <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[9px] font-bold text-purple-400">{s} szezon</span> : null;
                     })()}
                   </div>
@@ -629,14 +629,14 @@ export default function EnvironmentPageClient({
                       <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-slate-500">Természet 200–500m</p>
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-2">
-                          <span>🌳</span>
+                          <Trees size={13} className="shrink-0 text-emerald-400" />
                           <span className="text-[10px] text-slate-300">
                             {bpTrees ? `${bpTrees.treeCount200m} fa (200m)` : `${green.treeCount} fa (200m)`}
                             {bpTrees && <span className="ml-1 text-[8px] text-emerald-600">· official</span>}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2"><span>🛝</span><span className="text-[10px] text-slate-300">{green.playgroundCount} játszótér (300m)</span></div>
-                        <div className="flex items-center gap-2"><span>⚽</span><span className="text-[10px] text-slate-300">{green.sportsCount} sporttér (500m)</span></div>
+                        <div className="flex items-center gap-2"><Baby size={13} className="shrink-0 text-sky-400" /><span className="text-[10px] text-slate-300">{green.playgroundCount} játszótér (300m)</span></div>
+                        <div className="flex items-center gap-2"><Volleyball size={13} className="shrink-0 text-amber-400" /><span className="text-[10px] text-slate-300">{green.sportsCount} sporttér (500m)</span></div>
                       </div>
                     </div>
                   </div>
@@ -668,7 +668,7 @@ export default function EnvironmentPageClient({
                     {/* Satellite / NDVI card */}
                     <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
                       <div className="mb-2 flex items-center gap-2">
-                        <span className="rounded-md bg-sky-900/40 px-1.5 py-0.5 text-[9px] font-bold text-sky-400">🛰</span>
+                        <span className="rounded-md bg-sky-900/40 px-1.5 py-0.5 text-[9px] font-bold text-sky-400"><Satellite size={11} /></span>
                         <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Sentinel-2 · Területi NDVI</p>
                       </div>
                       {loadingUrbanAtlas && !satellite ? (
@@ -698,7 +698,7 @@ export default function EnvironmentPageClient({
                     {/* EU Urban Atlas card */}
                     <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
                       <div className="mb-2 flex items-center gap-2">
-                        <span className="rounded-md bg-blue-900/40 px-1.5 py-0.5 text-[9px] font-bold text-blue-400">🇪🇺</span>
+                        <span className="rounded-md bg-blue-900/40 px-1.5 py-0.5 text-[9px] font-bold text-blue-400">EU</span>
                         <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Copernicus Urban Atlas 2018</p>
                       </div>
                       {loadingUrbanAtlas ? (
@@ -729,7 +729,7 @@ export default function EnvironmentPageClient({
                     {/* Budapest Open Data card */}
                     <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
                       <div className="mb-2 flex items-center gap-2">
-                        <span className="rounded-md bg-orange-900/40 px-1.5 py-0.5 text-[9px] font-bold text-orange-400">🏙</span>
+                        <span className="rounded-md bg-orange-900/40 px-1.5 py-0.5 text-[9px] font-bold text-orange-400">BP</span>
                         <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Budapest Nyílt Adat · Fa-leltár</p>
                       </div>
                       {loadingBpTrees ? (
@@ -771,8 +771,8 @@ export default function EnvironmentPageClient({
                       <span className="text-[9px] text-slate-600 shrink-0">Csendes</span>
                     </div>
                     <div className="mt-2 space-y-1">
-                      {green.mainRoadDistM !== null && <p className="text-[9px] text-amber-400">⚠️ Főút {Math.round(green.mainRoadDistM)}m-re — megnövelt zajterhelés</p>}
-                      {green.railDistM     !== null && <p className="text-[9px] text-amber-400">🚂 Vasút {Math.round(green.railDistM)}m-re</p>}
+                      {green.mainRoadDistM !== null && <p className="text-[9px] text-amber-400">⚠ Főút {Math.round(green.mainRoadDistM)}m-re — megnövelt zajterhelés</p>}
+                      {green.railDistM     !== null && <p className="text-[9px] text-amber-400">⚠ Vasút {Math.round(green.railDistM)}m-re</p>}
                       {green.mainRoadDistM === null && green.railDistM === null && <p className="text-[9px] text-emerald-400">✓ Nincs jelentős zajforrás a közelben</p>}
                     </div>
                     <p className="mt-2 text-[8px] text-slate-700">
