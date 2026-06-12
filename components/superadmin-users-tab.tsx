@@ -118,7 +118,7 @@ export default function SuperadminUsersTab() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-black text-slate-900">Felhasználók</h2>
+          <h2 className="text-lg font-semibold text-slate-900">Felhasználók</h2>
           <p className="text-xs text-slate-500">{users.length} regisztrált felhasználó</p>
         </div>
         <button
@@ -163,7 +163,7 @@ export default function SuperadminUsersTab() {
                   onClick={() => (isOpen ? setExpanded(null) : openEdit(user))}
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-black text-indigo-700">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">
                       {(user.full_name ?? user.email).slice(0, 1).toUpperCase()}
                     </div>
                     <div className="min-w-0">
@@ -248,7 +248,7 @@ export default function SuperadminUsersTab() {
                           }`}
                         >
                           <span className={`inline-block h-4 w-4 rounded border-2 transition-colors ${state.free_trial_never_expires ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300'}`}>
-                            {state.free_trial_never_expires && <span className="flex h-full w-full items-center justify-center text-[9px] font-black text-white">✓</span>}
+                            {state.free_trial_never_expires && <span className="flex h-full w-full items-center justify-center text-[9px] font-semibold text-white">✓</span>}
                           </span>
                           Örökös hozzáférés
                         </button>

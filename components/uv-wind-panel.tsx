@@ -101,7 +101,7 @@ export default function UvWindPanel({
             <circle cx="40" cy="40" r="3" fill="#ef4444" />
           </svg>
           <div>
-            <p className="text-xl font-black text-slate-200">{windSpeed} <span className="text-xs text-slate-500">km/h</span></p>
+            <p className="text-xl font-semibold text-slate-200">{windSpeed} <span className="text-xs text-slate-500">km/h</span></p>
             <p className="text-[10px] text-slate-400">{windDirectionLabel} · {windLabel}</p>
           </div>
         </div>

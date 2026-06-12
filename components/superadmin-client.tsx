@@ -372,7 +372,7 @@ export default function SuperadminClient() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-black text-slate-900">Platform Vezérlőpult</h1>
+            <h1 className="text-3xl font-semibold text-slate-900">Platform Vezérlőpult</h1>
             <p className="text-sm text-slate-500">Integrációk állapota és manuális job indítások</p>
           </div>
           <button onClick={logout} className="btn-secondary px-4 py-2">Kijelentkezés</button>
@@ -421,7 +421,7 @@ export default function SuperadminClient() {
           ].map(({ name, key, note }) => (
             <div key={name} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <h3 className="text-sm font-bold text-slate-700">{name}</h3>
-              <p className="mt-2 text-lg font-black text-emerald-600">Aktív (env kulcs alapján)</p>
+              <p className="mt-2 text-lg font-semibold text-emerald-600">Aktív (env kulcs alapján)</p>
               <p className="mt-1 text-xs text-slate-500">Kulcs: {key}</p>
               {note && <p className="mt-2 text-[11px] text-amber-600">{note}</p>}
             </div>
@@ -431,7 +431,7 @@ export default function SuperadminClient() {
         {/* Env / connectivity health */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-black text-slate-900">Környezeti változók és kapcsolat</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Környezeti változók és kapcsolat</h2>
             <button
               onClick={loadHealth}
               disabled={healthLoading}
@@ -507,7 +507,7 @@ export default function SuperadminClient() {
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-black text-slate-900">Adatbázis állapot</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Adatbázis állapot</h2>
               {statsFetchedAt && (
                 <p className="text-xs text-slate-400">Lekérve: {fmt(statsFetchedAt)}</p>
               )}
@@ -571,7 +571,7 @@ export default function SuperadminClient() {
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-black text-slate-900">Adatbázis migrációk</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Adatbázis migrációk</h2>
               <p className="text-xs text-slate-500">Hiányzó táblák és alapértelmezett adatok létrehozása a Panellako Supabase projektben.</p>
             </div>
             <button
@@ -609,7 +609,7 @@ export default function SuperadminClient() {
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-black text-slate-900">Térképstílus</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Térképstílus</h2>
               <p className="text-xs text-slate-500">A kiválasztott stílus minden felhasználói térképnézeten érvényes — oldalfrissítés után életbe lép.</p>
             </div>
             {themeSaveMsg && (
@@ -639,7 +639,7 @@ export default function SuperadminClient() {
                       <span key={i} className="h-4 w-4 rounded-full border border-white/20 shadow-sm" style={{ background: c }} />
                     ))}
                   </div>
-                  <p className={`text-xs font-black ${active ? 'text-indigo-700' : 'text-slate-800'}`}>{t.labelHu}</p>
+                  <p className={`text-xs font-semibold ${active ? 'text-indigo-700' : 'text-slate-800'}`}>{t.labelHu}</p>
                   <p className="mt-0.5 text-[10px] leading-tight text-slate-500 line-clamp-2">{t.description.split(' — ')[0]}</p>
                   {active && (
                     <span className="mt-2 inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">✓ Aktív</span>
@@ -652,7 +652,7 @@ export default function SuperadminClient() {
 
         {/* BKK Rate Limit Settings */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-1 text-lg font-black text-slate-900">BKK API rate-limit beállítások</h2>
+          <h2 className="mb-1 text-lg font-semibold text-slate-900">BKK API rate-limit beállítások</h2>
           <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 space-y-1">
             <p className="font-bold">ℹ️ BKK Futár API rate limit — amit tudunk</p>
             <p>A BKK nem publikálja pontosan a limiteket, de a következők érvényesek a tapasztalatok alapján:</p>
@@ -719,7 +719,7 @@ export default function SuperadminClient() {
 
         {/* Job runner */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 text-lg font-black text-slate-900">Ütemezett feladatok / Manuális indítás</h2>
+          <h2 className="mb-4 text-lg font-semibold text-slate-900">Ütemezett feladatok / Manuális indítás</h2>
           <div className="space-y-3">
             {JOBS.map(j => (
               <div key={j.id} className="rounded-xl border border-slate-200 p-3">
@@ -770,7 +770,7 @@ export default function SuperadminClient() {
         {/* Job run logs */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-black text-slate-900">Job futási napló</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Job futási napló</h2>
             <button
               onClick={loadLogs}
               disabled={logsLoading}

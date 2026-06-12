@@ -6,6 +6,8 @@ import UHIRiskCard from '@/components/uhi-risk-card';
 import UHIMonthlyChart from '@/components/uhi-monthly-chart';
 import CoolSpotsList from '@/components/cool-spots-list';
 import ClimateActionPlan from '@/components/climate-action-plan';
+import { SkeletonGroup } from '@/components/ui/skeleton';
+import ErrorState from '@/components/ui/error-state';
 
 interface Props {
   lat: number;
@@ -13,26 +15,13 @@ interface Props {
   buildingId: string;
 }
 
-function Skeleton({ className }: { className?: string }) {
-  return (
-    <div className={`animate-pulse bg-slate-800/60 rounded-xl ${className ?? ''}`} />
-  );
-}
-
-function LoadingSkeleton() {
-  return (
-    <div className="space-y-4">
-      <Skeleton className="h-56 w-full rounded-2xl" />
-      <Skeleton className="h-48 w-full rounded-2xl" />
-      <Skeleton className="h-40 w-full rounded-2xl" />
-    </div>
-  );
-}
-
 export default function HeatIslandDashboardClient({ lat, lon, buildingId }: Props) {
   const [data, setData] = useState<UHIResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Bug fix (v0.9.33): retry previously only reset state without re-running the
+  // effect (deps never changed), leaving the page on the skeleton forever.
+  const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,21 +50,17 @@ export default function HeatIslandDashboardClient({ lat, lon, buildingId }: Prop
       });
 
     return () => { cancelled = true; };
-  }, [lat, lon, buildingId]);
+  }, [lat, lon, buildingId, retryToken]);
 
-  if (loading) return <LoadingSkeleton />;
+  if (loading) return <SkeletonGroup rows={3} />;
 
   if (error || !data) {
     return (
-      <div className="rounded-2xl bg-slate-900 border border-red-900/40 p-6 text-center">
-        <p className="text-red-400 text-sm">{error ?? 'Ismeretlen hiba történt.'}</p>
-        <button
-          onClick={() => { setLoading(true); setError(null); }}
-          className="mt-3 text-xs text-slate-400 hover:text-white underline underline-offset-2"
-        >
-          Újrapróbálás
-        </button>
-      </div>
+      <ErrorState
+        title="Hősziget-adatok jelenleg nem elérhetők"
+        message={error ?? 'Ismeretlen hiba történt.'}
+        onRetry={() => setRetryToken((t) => t + 1)}
+      />
     );
   }
 

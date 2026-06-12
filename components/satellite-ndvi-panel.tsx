@@ -148,7 +148,7 @@ export default function SatelliteNdviPanel({ data, loading }: Props) {
           <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-2">Vegetációs index (NDVI)</p>
           {data?.ndvi !== null && data?.ndvi !== undefined ? (
             <>
-              <p className="text-4xl font-black tabular-nums" style={{ color: data.ndviColor, textShadow: `0 0 20px ${data.ndviColor}60` }}>
+              <p className="text-4xl font-semibold tabular-nums" style={{ color: data.ndviColor, textShadow: `0 0 20px ${data.ndviColor}60` }}>
                 {data.ndvi.toFixed(3)}
               </p>
               <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">

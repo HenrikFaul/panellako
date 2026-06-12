@@ -1356,3 +1356,34 @@ if (!rows || rows.length === 0) return jsonRes({ error: 'Already locked' }, 409)
 - **Javítás**: Szekvenciális futtatás + rate-limit detektálás + retry/backoff + részleges futás 207 státusszal.
 - **Megelőzés**: Külső feedeknél az operátori "run all" mindig vegye figyelembe API limitet és függőségi sorrendet.
 
+
+## ➕ APPEND — 2026-06-12 Enterprise redesign tanulságok
+
+### [LESSON-TAILWIND-084]: Duplikált Tailwind config — a .js árnyékolja a .ts-t
+**Context**: A repóban egyszerre létezett `tailwind.config.js` és `tailwind.config.ts`.
+**Problem**: A Tailwind feloldási sorrendjében a `.js` nyer, így a `.ts`-ben definiált fontFamily (Inter!), boxShadow, animáció és oklch paletta SOHA nem generálódott le — élesben a rendszer-betűtípus és árnyék nélküli kártyák futottak, és senki nem vette észre, mert a két config brand-palettája vizuálisan közel azonos teal volt.
+**Fix**: Egyetlen kanonikus config (`tailwind.config.ts`), a `.js` törölve. Configmódosítás után MINDIG ellenőrizd computed style-lal (DevTools/preview_inspect), hogy a token tényleg él-e — ne csak abból következtess, hogy a build lefut.
+
+### [LESSON-TAILWIND-085]: oklch() szín alpha-módosítóhoz `<alpha-value>` placeholder kell
+**Context**: Tailwind v3 + oklch() string színek a configban (`'oklch(0.714 0.145 181)'`).
+**Problem**: A Tailwind v3 szín-parsere nem tudja az oklch stringbe injektálni az opacity-módosítót, ezért a `brand-500/10` osztályok markupban csendben NEM generálódnak, `@apply`-ban pedig hard build-hibát dobnak („class does not exist").
+**Fix**: Minden oklch színt `'oklch(L C H / <alpha-value>)'` formában kell definiálni.
+**Pattern**:
+```ts
+brand: { 500: 'oklch(0.714 0.145 181 / <alpha-value>)' }
+```
+
+### [LESSON-HYDRATION-086]: Render-időben futó randomness = hydration mismatch
+**Context**: `DashboardHeroScene` (megosztott mutálódó seedelt PRNG több useMemo között) és `HeroVehicle` (`useState(() => pickRandom())`).
+**Problem**: A szerver-render és a kliens-render eltérő véletlen értékeket produkál (StrictMode dupla-invokáció a megosztott generátort tovább fogyasztja), → „Prop did not match" + a TELJES dokumentum kliens-oldali újrarenderelése minden betöltésnél.
+**Fix**: (1) Minden useMemo kapjon SAJÁT, determinisztikusan újra-seedelt generátort (`mulberry32(seed)` a memo-n belül létrehozva). (2) Random kezdő-state helyett determinisztikus kezdőérték + mount utáni `useEffect`-ben sorsolás.
+
+### [LESSON-UI-087]: Retry gomb, ami csak state-et resetel, nem próbálkozik újra
+**Context**: `heat-island-dashboard-client.tsx` hibaállapota.
+**Problem**: Az "Újrapróbálás" gomb `setLoading(true); setError(null)`-t hívott, de a fetch-elő `useEffect` dependency-jei (`lat, lon, buildingId`) nem változtak → az effect nem futott újra, az oldal örökre a skeletonon ragadt.
+**Fix**: `retryToken` számláló state, ami benne van az effect dep-listájában; a retry `setRetryToken(t => t + 1)`-et hív.
+
+### [LESSON-LOGIC-088]: Default érték a hiány-ellenőrzés ELŐTT = elérhetetlen ág
+**Context**: Épület-geokódolás 5 aloldalon (`kozlekedes`, `lakokornyzet-szolgaltatasok`, `zaj`, `kornyezet`, `klimakockazat`).
+**Problem**: `let lat = building.lat ?? 47.5278845;` után az `if (!lat) { geocode... }` ág SOHA nem fut le (a default truthy), így a koordináta nélküli épületek némán Budapest-középpont adatait kapták.
+**Fix**: A default fallbackot csak a geokódolási kísérlet UTÁN szabad alkalmazni; DB-író ágon `.is('lat', null)` guard a konkurens felülírás ellen.

@@ -85,7 +85,7 @@ export default function NoiseReportForm({ workspaceId }: Props) {
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-      <h2 className="mb-1 text-lg font-black text-white">Zajbejelentés</h2>
+      <h2 className="mb-1 text-lg font-semibold text-white">Zajbejelentés</h2>
       <p className="mb-5 text-sm text-white/50">
         Rögzítse az észlelt zajszennyezést — adatai segítik a közösség érdekérvényesítését.
       </p>

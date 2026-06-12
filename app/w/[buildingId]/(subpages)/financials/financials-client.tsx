@@ -34,28 +34,24 @@ function SummaryCards({ summary }: SummaryCardsProps) {
       label: 'Összes várható bevétel',
       value: summary ? fmt(summary.total_expected) : '—',
       sub: 'aktuális hónap',
-      color: 'from-blue-900/50 to-blue-950/50 border-blue-800/40',
-      textColor: 'text-blue-300',
+      textColor: 'text-sky-300',
     },
     {
       label: 'Befolyt összeg',
       value: summary ? fmt(summary.total_paid) : '—',
       sub: 'aktuális hónap',
-      color: 'from-emerald-900/50 to-emerald-950/50 border-emerald-800/40',
       textColor: 'text-emerald-300',
     },
     {
       label: 'Fennmaradó hátralék',
       value: summary ? fmt(summary.total_arrears) : '—',
       sub: 'összes nyitott tétel',
-      color: 'from-red-900/50 to-red-950/50 border-red-800/40',
-      textColor: 'text-red-300',
+      textColor: 'text-rose-300',
     },
     {
       label: 'Befizetési arány',
       value: summary ? `${summary.collection_rate_pct}%` : '—',
       sub: 'aktuális hónap',
-      color: 'from-violet-900/50 to-violet-950/50 border-violet-800/40',
       textColor: 'text-violet-300',
     },
   ];
@@ -65,11 +61,11 @@ function SummaryCards({ summary }: SummaryCardsProps) {
       {cards.map((card) => (
         <div
           key={card.label}
-          className={`rounded-xl border bg-gradient-to-br px-4 py-3 ${card.color}`}
+          className="rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 py-3"
         >
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{card.label}</p>
-          <p className={`mt-1 text-xl font-black ${card.textColor}`}>{card.value}</p>
-          <p className="mt-0.5 text-[10px] text-slate-600">{card.sub}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{card.label}</p>
+          <p className={`mt-1 text-lg font-semibold tracking-tight tabular-nums ${card.textColor}`}>{card.value}</p>
+          <p className="mt-0.5 text-xs text-slate-500">{card.sub}</p>
         </div>
       ))}
     </div>
@@ -85,7 +81,7 @@ interface AgingTableProps {
 function AgingTable({ units }: AgingTableProps) {
   if (units.length === 0) {
     return (
-      <div className="rounded-xl border border-emerald-800/40 bg-emerald-950/20 px-4 py-6 text-center">
+      <div className="rounded-xl bg-emerald-500/10 px-4 py-6 text-center ring-1 ring-emerald-500/25">
         <p className="text-sm font-semibold text-emerald-400">Nincs nyitott hátralék — minden rendben!</p>
       </div>
     );
@@ -94,33 +90,33 @@ function AgingTable({ units }: AgingTableProps) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-slate-800/60">
-            <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500">Albetét</th>
-            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-slate-500">Hátralék</th>
-            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-slate-500">0–30 nap</th>
-            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-slate-500">31–60 nap</th>
-            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-slate-500">60+ nap</th>
-            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-slate-500">Utolsó esedékes</th>
+        <thead className="border-b border-white/10 text-xs uppercase tracking-wider text-slate-500">
+          <tr>
+            <th className="px-3 py-2 text-left font-semibold">Albetét</th>
+            <th className="px-3 py-2 text-right font-semibold">Hátralék</th>
+            <th className="px-3 py-2 text-right font-semibold">0–30 nap</th>
+            <th className="px-3 py-2 text-right font-semibold">31–60 nap</th>
+            <th className="px-3 py-2 text-right font-semibold">60+ nap</th>
+            <th className="px-3 py-2 text-right font-semibold">Utolsó esedékes</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-white/[0.06]">
           {units.map((u) => {
             const rowColor =
               u.arrears_over_60 > 0
-                ? 'bg-red-950/30 hover:bg-red-950/50'
+                ? 'bg-rose-500/10 hover:bg-rose-500/20'
                 : u.arrears_31_60 > 0
-                ? 'bg-amber-950/30 hover:bg-amber-950/50'
+                ? 'bg-amber-500/10 hover:bg-amber-500/20'
                 : 'hover:bg-white/[0.03]';
 
             return (
-              <tr key={u.unit_id} className={`border-b border-slate-800/30 transition-colors ${rowColor}`}>
+              <tr key={u.unit_id} className={`transition-colors ${rowColor}`}>
                 <td className="px-3 py-2.5 font-semibold text-slate-200">{u.unit_label}</td>
-                <td className="px-3 py-2.5 text-right font-bold text-red-400">{fmt(Number(u.total_arrears))}</td>
-                <td className="px-3 py-2.5 text-right text-slate-300">{fmt(Number(u.arrears_0_30))}</td>
-                <td className="px-3 py-2.5 text-right text-amber-400">{fmt(Number(u.arrears_31_60))}</td>
-                <td className="px-3 py-2.5 text-right text-red-400">{fmt(Number(u.arrears_over_60))}</td>
-                <td className="px-3 py-2.5 text-right text-slate-500">{u.latest_due_date ?? '—'}</td>
+                <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-rose-400">{fmt(Number(u.total_arrears))}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">{fmt(Number(u.arrears_0_30))}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums text-amber-300">{fmt(Number(u.arrears_31_60))}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums text-rose-400">{fmt(Number(u.arrears_over_60))}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums text-slate-500">{u.latest_due_date ?? '—'}</td>
               </tr>
             );
           })}
@@ -181,7 +177,7 @@ function ChargeForm({ buildingId, onSuccess }: ChargeFormProps) {
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-500">
+          <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             Időszak
           </label>
           <input
@@ -189,11 +185,11 @@ function ChargeForm({ buildingId, onSuccess }: ChargeFormProps) {
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
             required
-            className="w-full rounded-lg border border-slate-700/60 bg-slate-900/60 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-brand-500 focus:outline-none"
+            className="input-base"
           />
         </div>
         <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-500">
+          <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             Összeg / albetét (Ft)
           </label>
           <input
@@ -205,11 +201,11 @@ function ChargeForm({ buildingId, onSuccess }: ChargeFormProps) {
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             required
-            className="w-full rounded-lg border border-slate-700/60 bg-slate-900/60 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-brand-500 focus:outline-none"
+            className="input-base"
           />
         </div>
         <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-500">
+          <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             Esedékesség
           </label>
           <input
@@ -217,11 +213,11 @@ function ChargeForm({ buildingId, onSuccess }: ChargeFormProps) {
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
             required
-            className="w-full rounded-lg border border-slate-700/60 bg-slate-900/60 px-3 py-2 text-sm text-slate-200 focus:border-brand-500 focus:outline-none"
+            className="input-base"
           />
         </div>
         <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-500">
+          <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             Megjegyzés (opcionális)
           </label>
           <input
@@ -229,22 +225,22 @@ function ChargeForm({ buildingId, onSuccess }: ChargeFormProps) {
             placeholder="pl. rendkívüli befizetés"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full rounded-lg border border-slate-700/60 bg-slate-900/60 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-brand-500 focus:outline-none"
+            className="input-base"
           />
         </div>
       </div>
 
       {error && (
-        <p className="rounded-lg border border-red-800/40 bg-red-950/30 px-3 py-2 text-sm text-red-400">{error}</p>
+        <p className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-400 ring-1 ring-rose-500/25">{error}</p>
       )}
       {success && (
-        <p className="rounded-lg border border-emerald-800/40 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-400">{success}</p>
+        <p className="rounded-lg bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400 ring-1 ring-emerald-500/25">{success}</p>
       )}
 
       <button
         type="submit"
         disabled={isPending}
-        className="rounded-lg bg-brand-600 px-5 py-2 text-sm font-bold text-white transition-colors hover:bg-brand-500 disabled:opacity-50"
+        className="rounded-[0.625rem] bg-brand-500 px-4 py-2.5 text-sm font-semibold text-ink-base transition-colors hover:bg-brand-400 disabled:opacity-50"
       >
         {isPending ? 'Feldolgozás…' : 'Terhelés létrehozása minden albetétre'}
       </button>
@@ -287,11 +283,11 @@ function ResidentView({ unitId }: ResidentViewProps) {
 
   if (entries === null && !loading) {
     return (
-      <div className="rounded-xl border border-slate-800/50 bg-white/[0.03] px-4 py-6 text-center">
+      <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-6 text-center">
         <p className="mb-3 text-sm text-slate-400">Az albetéthez tartozó pénzügyi előzmények megtekintéséhez kattints az alábbi gombra.</p>
         <button
           onClick={load}
-          className="rounded-lg bg-brand-600 px-5 py-2 text-sm font-bold text-white transition-colors hover:bg-brand-500"
+          className="rounded-[0.625rem] bg-brand-500 px-4 py-2.5 text-sm font-semibold text-ink-base transition-colors hover:bg-brand-400"
         >
           Előzmények betöltése
         </button>
@@ -309,13 +305,13 @@ function ResidentView({ unitId }: ResidentViewProps) {
 
   if (error) {
     return (
-      <p className="rounded-lg border border-red-800/40 bg-red-950/30 px-3 py-2 text-sm text-red-400">{error}</p>
+      <p className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-400 ring-1 ring-rose-500/25">{error}</p>
     );
   }
 
   if (!entries || entries.length === 0) {
     return (
-      <p className="rounded-xl border border-slate-800/50 bg-white/[0.03] px-4 py-6 text-center text-sm text-slate-500">
+      <p className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-6 text-center text-sm text-slate-500">
         Nincs pénzügyi bejegyzés ehhez az albetéthez.
       </p>
     );
@@ -324,29 +320,29 @@ function ResidentView({ unitId }: ResidentViewProps) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-slate-800/60">
-            <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500">Időszak</th>
-            <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500">Típus</th>
-            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-slate-500">Várható</th>
-            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-slate-500">Befizetett</th>
-            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-slate-500">Hátralék</th>
-            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-slate-500">Esedékes</th>
+        <thead className="border-b border-white/10 text-xs uppercase tracking-wider text-slate-500">
+          <tr>
+            <th className="px-3 py-2 text-left font-semibold">Időszak</th>
+            <th className="px-3 py-2 text-left font-semibold">Típus</th>
+            <th className="px-3 py-2 text-right font-semibold">Várható</th>
+            <th className="px-3 py-2 text-right font-semibold">Befizetett</th>
+            <th className="px-3 py-2 text-right font-semibold">Hátralék</th>
+            <th className="px-3 py-2 text-right font-semibold">Esedékes</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-white/[0.06]">
           {entries.map((e) => {
             const arrears = Math.max(0, Number(e.expected_amount) - Number(e.paid_amount));
             return (
-              <tr key={e.id} className="border-b border-slate-800/30 transition-colors hover:bg-white/[0.03]">
+              <tr key={e.id} className="transition-colors hover:bg-white/[0.03]">
                 <td className="px-3 py-2.5 font-medium text-slate-200">{e.period}</td>
                 <td className="px-3 py-2.5 text-slate-400">{e.entry_type}</td>
-                <td className="px-3 py-2.5 text-right text-slate-300">{fmt(Number(e.expected_amount))}</td>
-                <td className="px-3 py-2.5 text-right text-emerald-400">{fmt(Number(e.paid_amount))}</td>
-                <td className={`px-3 py-2.5 text-right font-semibold ${arrears > 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">{fmt(Number(e.expected_amount))}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums text-emerald-400">{fmt(Number(e.paid_amount))}</td>
+                <td className={`px-3 py-2.5 text-right font-semibold tabular-nums ${arrears > 0 ? 'text-rose-400' : 'text-slate-500'}`}>
                   {arrears > 0 ? fmt(arrears) : '—'}
                 </td>
-                <td className="px-3 py-2.5 text-right text-slate-500">{e.due_date ?? '—'}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums text-slate-500">{e.due_date ?? '—'}</td>
               </tr>
             );
           })}
@@ -415,21 +411,21 @@ export default function FinancialsClient({
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-8 sm:px-6">
+    <div className="min-h-screen px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-5xl">
 
         {/* Header */}
         <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Pénzügyek</p>
-            <h1 className="text-2xl font-black tracking-tight text-white">{buildingName}</h1>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Pénzügyek</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-100">{buildingName}</h1>
             <p className="mt-0.5 text-sm text-slate-500">Közös költség nyilvántartás és hátralékok</p>
           </div>
           {canExport && (
             <button
               onClick={handleExport}
               disabled={exportLoading}
-              className="mt-2 self-start rounded-lg border border-violet-800/50 bg-violet-950/30 px-4 py-2 text-xs font-bold text-violet-300 transition-colors hover:border-violet-500/50 hover:bg-violet-500/10 disabled:opacity-50 sm:mt-0"
+              className="mt-2 self-start rounded-lg bg-violet-500/10 px-4 py-2 text-xs font-semibold text-violet-300 ring-1 ring-violet-500/25 transition-colors hover:bg-violet-500/20 disabled:opacity-50 sm:mt-0"
             >
               {exportLoading ? 'Exportálás…' : 'Könyvelői export letöltése'}
             </button>
@@ -450,7 +446,7 @@ export default function FinancialsClient({
                 onClick={() => setActiveTab(tab.id)}
                 className={`shrink-0 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                   activeTab === tab.id
-                    ? 'bg-brand-600 text-white'
+                    ? 'bg-brand-500 text-ink-base'
                     : 'text-slate-500 hover:bg-white/[0.06] hover:text-slate-300'
                 }`}
               >
@@ -461,20 +457,20 @@ export default function FinancialsClient({
         )}
 
         {/* Tab Panels */}
-        <div className="rounded-xl border border-slate-800/50 bg-white/[0.03] p-4 sm:p-5">
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4 sm:p-5">
 
           {activeTab === 'overview' && (
             <div>
-              <h2 className="mb-4 text-base font-bold text-slate-200">Pénzügyi összefoglaló</h2>
+              <h2 className="mb-4 text-base font-semibold text-slate-100">Pénzügyi összefoglaló</h2>
               {summary ? (
                 <div className="space-y-2 text-sm text-slate-400">
-                  <p>Aktuális hónap teljesítési aránya: <span className="font-bold text-white">{summary.collection_rate_pct}%</span></p>
-                  <p>Nyitott hátralék: <span className="font-bold text-red-400">{fmt(summary.total_arrears)}</span></p>
+                  <p>Aktuális hónap teljesítési aránya: <span className="font-semibold tabular-nums text-slate-100">{summary.collection_rate_pct}%</span></p>
+                  <p>Nyitott hátralék: <span className="font-semibold tabular-nums text-rose-400">{fmt(summary.total_arrears)}</span></p>
                   {(isManager || isAccountant) && arrearsUnits !== null && (
-                    <p>Hátralékon lévő albetétek száma: <span className="font-bold text-white">{arrearsUnits.length}</span></p>
+                    <p>Hátralékon lévő albetétek száma: <span className="font-semibold tabular-nums text-slate-100">{arrearsUnits.length}</span></p>
                   )}
                   {isResident && (
-                    <p className="mt-3 rounded-lg border border-slate-800/50 bg-white/[0.03] px-3 py-2 text-slate-500">
+                    <p className="mt-3 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-slate-500">
                       Saját albetétjének részletes előzményeit a &quot;Saját albetét&quot; fülön találja.
                     </p>
                   )}
@@ -487,13 +483,13 @@ export default function FinancialsClient({
 
           {activeTab === 'arrears' && (isManager || isAccountant) && arrearsUnits !== null && (
             <div>
-              <h2 className="mb-4 text-base font-bold text-slate-200">
+              <h2 className="mb-4 text-base font-semibold text-slate-100">
                 Hátralék tábla{' '}
-                <span className="ml-1 rounded-full bg-red-900/40 px-2 py-0.5 text-xs font-bold text-red-400">
+                <span className="ml-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-xs font-semibold text-rose-300 ring-1 ring-rose-500/25">
                   {arrearsUnits.length} albetét
                 </span>
               </h2>
-              <p className="mb-3 text-xs text-slate-600">
+              <p className="mb-3 text-xs text-slate-500">
                 Piros sor: 60+ napos hátralék · Sárga sor: 31–60 napos hátralék
               </p>
               <AgingTable units={arrearsUnits} />
@@ -502,8 +498,8 @@ export default function FinancialsClient({
 
           {activeTab === 'charge' && isManager && (
             <div>
-              <h2 className="mb-1 text-base font-bold text-slate-200">Terhelés rögzítése</h2>
-              <p className="mb-4 text-xs text-slate-600">Az összeget minden aktív albetétre egységesen rögzíti a rendszer.</p>
+              <h2 className="mb-1 text-base font-semibold text-slate-100">Terhelés rögzítése</h2>
+              <p className="mb-4 text-xs text-slate-500">Az összeget minden aktív albetétre egységesen rögzíti a rendszer.</p>
               <ChargeForm
                 key={refreshKey}
                 buildingId={buildingId}
@@ -514,7 +510,7 @@ export default function FinancialsClient({
 
           {activeTab === 'myunit' && isResident && (
             <div>
-              <h2 className="mb-4 text-base font-bold text-slate-200">Saját albetét egyenlege</h2>
+              <h2 className="mb-4 text-base font-semibold text-slate-100">Saját albetét egyenlege</h2>
               {unitId ? (
                 <ResidentView unitId={unitId} />
               ) : (

@@ -135,7 +135,7 @@ export default function SuperadminOsmImport() {
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-black text-slate-900">OSM Cím-adatbázis import</h2>
+          <h2 className="text-lg font-semibold text-slate-900">OSM Cím-adatbázis import</h2>
           <p className="text-xs text-slate-500">
             Magyar OSM cím-adatok importálása a Panellako Supabase projektbe (<code className="text-[10px]">public.osm_addresses</code>).
             Az autocomplete ebből az adatból dolgozik.

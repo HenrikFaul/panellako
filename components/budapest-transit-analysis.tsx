@@ -406,7 +406,7 @@ export default function BudapestTransitAnalysis() {
 
       {/* Layer panel (top-left) */}
       <div className="absolute left-3 top-3 z-[1000] w-64 max-w-[80vw] rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur">
-        <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Rétegek</p>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Rétegek</p>
 
         <div className="flex flex-col gap-1.5">
           {modeLayers.map(l => (
@@ -449,7 +449,7 @@ export default function BudapestTransitAnalysis() {
       <button
         type="button"
         onClick={() => setShowInfo(v => !v)}
-        className="absolute right-3 top-3 z-[1000] grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white/95 text-base font-black text-slate-700 shadow-lg hover:bg-white"
+        className="absolute right-3 top-3 z-[1000] grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white/95 text-base font-semibold text-slate-700 shadow-lg hover:bg-white"
         aria-label="Módszertan"
       >
         ℹ
@@ -459,7 +459,7 @@ export default function BudapestTransitAnalysis() {
       {showInfo && (
         <div className="absolute right-3 top-16 z-[1001] w-80 max-w-[80vw] rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-700 shadow-2xl">
           <div className="mb-2 flex items-start justify-between gap-2">
-            <p className="text-sm font-black text-slate-900">Módszertan</p>
+            <p className="text-sm font-semibold text-slate-900">Módszertan</p>
             <button
               type="button"
               onClick={() => setShowInfo(false)}

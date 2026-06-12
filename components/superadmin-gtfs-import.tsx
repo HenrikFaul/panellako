@@ -483,7 +483,7 @@ export default function SuperadminGtfsImport() {
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="mb-1 text-lg font-black text-slate-900">GTFS Adatbetöltés</h2>
+      <h2 className="mb-1 text-lg font-semibold text-slate-900">GTFS Adatbetöltés</h2>
       <p className="mb-3 text-xs text-slate-500">
         Csomagold ki a BKK GTFS zip-et, majd töltsd fel a fájlokat egyenként. A megálló–járat kapcsolatokhoz
         először a <code className="rounded bg-slate-100 px-1">trips.txt</code>, majd a{' '}
@@ -495,7 +495,7 @@ export default function SuperadminGtfsImport() {
       <div className="mb-4 flex flex-col gap-3 rounded-xl border-2 border-emerald-200 bg-emerald-50/60 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm font-black text-slate-800">📦 GTFS ZIP import</p>
+            <p className="text-sm font-semibold text-slate-800">📦 GTFS ZIP import</p>
             <p className="text-[11px] text-slate-500">
               Töltsd fel az egész BKK GTFS zip-et — a böngésző kicsomagolja és automatikusan importálja az összes fájlt.
             </p>

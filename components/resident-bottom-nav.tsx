@@ -21,7 +21,7 @@ export default function ResidentBottomNav({ activeSection }: ResidentBottomNavPr
       aria-label="Lakói gyorsnavigáció"
     >
       {/* Safe-area padding for iPhone home bar */}
-      <div className="border-t border-slate-200 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.10)]">
+      <div className="glass border-t border-white/[0.08]">
         <div className="flex items-stretch" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           {TABS.map((tab) => {
             const Icon = tab.icon;
@@ -30,19 +30,19 @@ export default function ResidentBottomNav({ activeSection }: ResidentBottomNavPr
               <a
                 key={tab.id}
                 href={`#${tab.id}`}
-                className={`flex flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2.5 text-center transition-colors active:bg-slate-50 ${
+                className={`flex flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2.5 text-center transition-colors active:bg-white/[0.04] ${
                   isActive
-                    ? 'text-brand-600'
-                    : 'text-slate-500 hover:text-slate-700'
+                    ? 'text-brand-400'
+                    : 'text-slate-500 hover:text-slate-300'
                 }`}
                 aria-current={isActive ? 'page' : undefined}
               >
                 <Icon
                   size={20}
                   strokeWidth={isActive ? 2.2 : 1.8}
-                  className={isActive ? 'text-brand-600' : 'text-slate-500'}
+                  className={isActive ? 'text-brand-400' : 'text-slate-500'}
                 />
-                <span className={`text-[10px] font-semibold leading-none ${isActive ? 'text-brand-600' : ''}`}>
+                <span className={`text-[10px] font-semibold leading-none ${isActive ? 'text-brand-400' : ''}`}>
                   {tab.label}
                 </span>
               </a>

@@ -241,7 +241,7 @@ export default function AirQualityWidget() {
       </div>
 
       {/* Category label */}
-      <p className="mt-0.5 text-[11px] font-black leading-tight text-center"
+      <p className="mt-0.5 text-[11px] font-semibold leading-tight text-center"
         style={{ color: aq.color, textShadow: `0 0 8px ${aq.color}60` }}
       >
         {aq.aqiLabel}

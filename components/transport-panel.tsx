@@ -123,7 +123,7 @@ function CoverageRing({ total, label, color }: { total: number; label: string; c
           style={{ fontFamily: 'inherit' }}>/ 100</text>
       </svg>
       <div className="absolute bottom-0 left-0 right-0 text-center">
-        <span className="text-[9px] font-black" style={{ color, textShadow: `0 0 8px ${color}60` }}>
+        <span className="text-[9px] font-semibold" style={{ color, textShadow: `0 0 8px ${color}60` }}>
           {label}
         </span>
       </div>
@@ -148,7 +148,7 @@ function ScoreBar({ label, value, max, color }: { label: string; value: number; 
 function RouteBadge({ routeRef, type }: { routeRef: string; type: RouteType }) {
   const s = ROUTE_STYLE[type] ?? ROUTE_STYLE.BUS;
   return (
-    <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-black border ${s.bg} ${s.text} ${s.border}`}>
+    <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold border ${s.bg} ${s.text} ${s.border}`}>
       {routeRef}
     </span>
   );
@@ -165,7 +165,7 @@ function StopRow({ stop, selected, onClick }: {
         selected ? 'bg-white/[0.10] ring-1 ring-white/20' : 'hover:bg-white/[0.05]'
       }`}
     >
-      <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[7px] font-black ${s.bg} ${s.text}`}>
+      <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[7px] font-semibold ${s.bg} ${s.text}`}>
         {s.label}
       </span>
       <div className="min-w-0 flex-1">
@@ -186,12 +186,12 @@ function StopRow({ stop, selected, onClick }: {
 // ─── Departure countdown ──────────────────────────────────────────────────────
 function DepartureTime({ minutes, realtime }: { minutes: number; realtime: boolean }) {
   if (minutes <= 0) return (
-    <span className="text-[9px] font-black text-emerald-400"
+    <span className="text-[9px] font-semibold text-emerald-400"
       style={{ animation: 'tp-blink 1.4s ease-in-out infinite' }}>◆ Indul</span>
   );
   return (
     <span className="flex items-baseline gap-0.5">
-      <span className="text-[13px] font-black tabular-nums leading-none"
+      <span className="text-[13px] font-semibold tabular-nums leading-none"
         style={{ color: realtime ? '#34d399' : '#94a3b8' }}>{minutes}</span>
       <span className="text-[8px] text-slate-500">p</span>
       {realtime && <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />}
@@ -234,7 +234,7 @@ function DepartureBoardPanel({ stopId, stopName, refreshKey }: {
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between">
-        <p className="text-[9px] font-black uppercase tracking-wider text-slate-500 truncate pr-2">{board.stopName || stopName}</p>
+        <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500 truncate pr-2">{board.stopName || stopName}</p>
         {isMock && (
           <span className="rounded-full bg-amber-900/20 px-1.5 py-0.5 text-[7px] font-bold text-amber-500 italic">
             API nem elérhető
@@ -253,7 +253,7 @@ function DepartureBoardPanel({ stopId, stopName, refreshKey }: {
             style={{ animation: `tp-slide-up 0.3s ease-out ${i * 0.06}s both`, background: 'rgba(255,255,255,0.04)' }}
           >
             <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: VEHICLE_COLOR[dep.vehicle] ?? '#94a3b8' }} />
-            <span className="w-8 text-[11px] font-black tabular-nums leading-none"
+            <span className="w-8 text-[11px] font-semibold tabular-nums leading-none"
               style={{ color: VEHICLE_COLOR[dep.vehicle] ?? '#94a3b8' }}>{dep.routeRef}</span>
             <span className="min-w-0 flex-1 truncate text-[9px] text-slate-400">{dep.headsign ?? ''}</span>
             <DepartureTime minutes={dep.minutesAway} realtime={dep.realtime} />
@@ -280,7 +280,7 @@ function AlertCard({ alert }: { alert: TransitAlert }) {
           <div className="flex items-center gap-1.5">
             <p className="text-[10px] font-bold leading-tight" style={{ color }}>{alert.headerText}</p>
             {level === 'high' && (
-              <span className="shrink-0 rounded-full px-1 py-0.5 text-[7px] font-black"
+              <span className="shrink-0 rounded-full px-1 py-0.5 text-[7px] font-semibold"
                 style={{ background: `${color}30`, color }}>
                 ●
               </span>
@@ -311,7 +311,7 @@ function BubiCard({ station }: { station: TransitNearbyResult['bubi'][number] })
       </div>
       <div className="flex shrink-0 flex-col items-end">
         <div className="flex items-baseline gap-0.5">
-          <span className="text-[13px] font-black tabular-nums leading-none" style={{ color }}>{station.bikesAvail}</span>
+          <span className="text-[13px] font-semibold tabular-nums leading-none" style={{ color }}>{station.bikesAvail}</span>
           <span className="text-[8px] text-slate-500">/{station.totalDocks}</span>
         </div>
         <p className="text-[8px] text-slate-600">kerékpár</p>
@@ -335,7 +335,7 @@ function Co2Calculator() {
       <div className="mb-2.5 flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <Leaf size={12} className="text-emerald-400" />
-          <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">CO₂ összehasonlító</p>
+          <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">CO₂ összehasonlító</p>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="text-[9px] text-slate-500">{km} km</span>
@@ -554,7 +554,7 @@ export default function TransportPanel({ lat, lon, buildingAddress, buildingId }
         <div className="flex items-center gap-4">
           <CoverageRing total={coverage.total} label={coverage.label} color={color} />
           <div className="flex-1 space-y-1.5">
-            <p className="text-[9px] font-black uppercase tracking-wider text-slate-500 mb-2">Tömegközl. lefedettség</p>
+            <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Tömegközl. lefedettség</p>
             <ScoreBar label="Megállók"  value={coverage.stopScore}    max={40} color="#38bdf8" />
             <ScoreBar label="Minőség"   value={coverage.qualityScore} max={40} color="#a78bfa" />
             <ScoreBar label="Útvonalak" value={coverage.accessScore}  max={20} color="#34d399" />
@@ -573,7 +573,7 @@ export default function TransportPanel({ lat, lon, buildingAddress, buildingId }
             ['co2',    <Leaf size={10} key="l" />,         'CO₂'],
           ] as const).map(([id, icon, label]) => (
             <button key={id} onClick={() => setTab(id)}
-              className={`relative flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[9px] font-black transition-all ${
+              className={`relative flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[9px] font-semibold transition-all ${
                 tab === id ? 'bg-white/[0.12] text-white' : 'text-slate-500 hover:text-slate-400'
               }`}
             >
@@ -663,7 +663,7 @@ export default function TransportPanel({ lat, lon, buildingAddress, buildingId }
       {/* ── Right: always-on live map + coverage map ───────────────────── */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
-          <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">Élő járattérkép</p>
+          <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">Élő járattérkép</p>
           <TransitLiveMap ref={mapRef} lat={realLat} lon={realLon} stops={stops}
             alertRoutes={alerts?.alerts.flatMap(a => a.routes)} />
           <p className="text-[8px] text-slate-700">
@@ -672,7 +672,7 @@ export default function TransportPanel({ lat, lon, buildingAddress, buildingId }
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">
+          <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">
             Tömegközlekedési lefedettség — {walkRadiusM} m ({Math.round(walkRadiusM / 84)} p sétálva)
           </p>
           <div className="flex items-center gap-2 mb-1">

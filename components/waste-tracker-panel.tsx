@@ -94,7 +94,7 @@ export default function WasteTrackerPanel({ workspaceId }: Props) {
       {totalKg > 0 && (
         <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5">
           <p className="text-sm text-emerald-300/60">Becsült CO₂-megtakarítás</p>
-          <p className="text-3xl font-black text-emerald-300">{co2Savings.toFixed(1)} kg CO₂</p>
+          <p className="text-3xl font-semibold text-emerald-300">{co2Savings.toFixed(1)} kg CO₂</p>
           <p className="mt-1 text-xs text-emerald-300/50">
             {totalKg.toFixed(1)} kg szelektív hulladék alapján (EEA tényezők)
           </p>
@@ -102,7 +102,7 @@ export default function WasteTrackerPanel({ workspaceId }: Props) {
       )}
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-        <h2 className="mb-1 text-lg font-black text-white">Havi hulladékjelentés</h2>
+        <h2 className="mb-1 text-lg font-semibold text-white">Havi hulladékjelentés</h2>
         <p className="mb-5 text-sm text-white/50">
           Rögzítse az épület aktuális havi szelektív hulladékmennyiségét.
         </p>

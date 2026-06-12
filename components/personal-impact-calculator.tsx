@@ -27,7 +27,7 @@ function SliderRow({ label, value, min, max, step = 1, unit, colorClass, onChang
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
         <label className="text-[12px] font-semibold text-slate-300">{label}</label>
-        <span className={`text-[13px] font-black tabular-nums ${colorClass}`}>
+        <span className={`text-[13px] font-semibold tabular-nums ${colorClass}`}>
           {value} <span className="text-[10px] font-normal text-slate-500">{unit}</span>
         </span>
       </div>
@@ -64,7 +64,7 @@ function ResultRow({ label, value, subtext, colorClass, icon }: ResultRowProps) 
         <p className="text-[11px] text-slate-400">{label}</p>
         {subtext && <p className="text-[10px] text-slate-600">{subtext}</p>}
       </div>
-      <p className={`text-right text-sm font-black ${colorClass}`}>{value}</p>
+      <p className={`text-right text-sm font-semibold ${colorClass}`}>{value}</p>
     </div>
   );
 }
@@ -103,7 +103,7 @@ export default function PersonalImpactCalculator() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h2 className="text-xl font-black text-white">Személyes Hatás Kalkulátor</h2>
+        <h2 className="text-xl font-semibold text-white">Személyes Hatás Kalkulátor</h2>
         <p className="text-sm text-slate-400">
           Állítsd be a napi szokásaidat és nézd meg, mekkora hatással vagy Budapest 2030 céljaira.
         </p>
@@ -112,7 +112,7 @@ export default function PersonalImpactCalculator() {
       <div className="grid gap-6 md:grid-cols-2">
         {/* Inputs */}
         <div className="rounded-xl border border-white/10 bg-slate-900/60 p-5 space-y-5">
-          <h3 className="text-sm font-black text-white">Napi szokások</h3>
+          <h3 className="text-sm font-semibold text-white">Napi szokások</h3>
 
           <SliderRow
             label="Személyautó napi km"
@@ -148,7 +148,7 @@ export default function PersonalImpactCalculator() {
 
         {/* Results */}
         <div className="space-y-3">
-          <h3 className="text-sm font-black text-white">A te hatásod</h3>
+          <h3 className="text-sm font-semibold text-white">A te hatásod</h3>
 
           <ResultRow
             icon="🚗"
@@ -187,7 +187,7 @@ export default function PersonalImpactCalculator() {
               <p className="text-[11px] font-semibold text-indigo-300 mb-1">
                 Ha mind a 1,7M budapesti lakó így élne...
               </p>
-              <p className="text-2xl font-black text-white">
+              <p className="text-2xl font-semibold text-white">
                 −{citywideCO2kton.toLocaleString('hu-HU')}
                 <span className="ml-1 text-sm font-normal text-slate-400">kt CO₂/év</span>
               </p>

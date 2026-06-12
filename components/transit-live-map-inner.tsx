@@ -685,7 +685,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
           <div className="absolute right-2 top-2 z-[1000] flex flex-col gap-1">
             <button
               onClick={toggleStops}
-              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-slate-900/90 px-2.5 py-1 text-[9px] font-black backdrop-blur-sm transition-all hover:bg-slate-800/90"
+              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-slate-900/90 px-2.5 py-1 text-[9px] font-semibold backdrop-blur-sm transition-all hover:bg-slate-800/90"
               style={{ color: showStops ? '#38bdf8' : '#64748b' }}
             >
               <span className="h-2 w-2 shrink-0 rounded-full transition-colors"
@@ -694,7 +694,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
             </button>
             <button
               onClick={toggleVehicles}
-              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-slate-900/90 px-2.5 py-1 text-[9px] font-black backdrop-blur-sm transition-all hover:bg-slate-800/90"
+              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-slate-900/90 px-2.5 py-1 text-[9px] font-semibold backdrop-blur-sm transition-all hover:bg-slate-800/90"
               style={{ color: showVehicles ? '#34d399' : '#64748b' }}
             >
               <span className="h-2 w-2 shrink-0 rounded-full transition-colors"
@@ -703,7 +703,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
             </button>
             {isPanned && (
               <button
-                className="flex items-center gap-1 rounded-lg border border-white/10 bg-slate-900/90 px-2.5 py-1 text-[9px] font-black text-indigo-400 backdrop-blur-sm transition-all hover:bg-slate-800/90"
+                className="flex items-center gap-1 rounded-lg border border-white/10 bg-slate-900/90 px-2.5 py-1 text-[9px] font-semibold text-indigo-400 backdrop-blur-sm transition-all hover:bg-slate-800/90"
                 onClick={() => {
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   const map = mapRef.current as any;
@@ -744,7 +744,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
                 style={{ borderBottom: `2px solid ${tripInfo.color}` }}
               >
                 <span
-                  className="flex h-6 min-w-[32px] items-center justify-center rounded px-1.5 text-[11px] font-black shrink-0"
+                  className="flex h-6 min-w-[32px] items-center justify-center rounded px-1.5 text-[11px] font-semibold shrink-0"
                   style={{ background: tripInfo.color, color: tripInfo.color === '#fbbf24' ? '#78350f' : '#fff' }}
                 >
                   {tripInfo.routeRef}
@@ -752,7 +752,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
                 {/* Direction arrow — 0 = outbound →, 1 = return ← */}
                 {tripInfo.directionId !== undefined && (
                   <span
-                    className="shrink-0 text-[10px] font-black"
+                    className="shrink-0 text-[10px] font-semibold"
                     style={{ color: tripInfo.color }}
                     title={tripInfo.directionId === 0 ? 'Főirány' : 'Visszairány'}
                   >
@@ -869,7 +869,7 @@ const TransitLiveMapInner = forwardRef<TransitLiveMapHandle, Props>(
                 {type === 'BLD'
                   ? <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} />
                   : <span
-                      className="flex shrink-0 items-center justify-center rounded text-[7px] font-black leading-none"
+                      className="flex shrink-0 items-center justify-center rounded text-[7px] font-semibold leading-none"
                       style={{ background: color, color: color === '#fbbf24' ? '#1a0a00' : '#fff', width: 13, height: 13, borderRadius: type === 'SUBWAY' ? '50%' : 3 }}
                     >
                       {{ BUS:'B', TRAM:'V', TROLLEYBUS:'T', SUBWAY:'M', RAIL:'H' }[type] ?? 'B'}

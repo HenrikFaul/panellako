@@ -88,7 +88,7 @@ function SolarCalculator({ solar }: { solar: SolarData }) {
         </div>
       </div>
       <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 space-y-3">
-        <p className="text-[10px] font-black text-slate-300">Napelem kalkulátor</p>
+        <p className="text-[10px] font-semibold text-slate-300">Napelem kalkulátor</p>
         <div className="flex items-center gap-3">
           <span className="text-[10px] text-slate-500 shrink-0 w-28">Kapacitás: {kwp} kWp</span>
           <input type="range" min={1} max={50} step={1} value={kwp}
@@ -98,11 +98,11 @@ function SolarCalculator({ solar }: { solar: SolarData }) {
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-xl bg-white/[0.04] p-3">
             <p className="text-[9px] text-slate-500">Éves termelés</p>
-            <p className="text-base font-black text-amber-400">{annual.toLocaleString('hu-HU')} kWh</p>
+            <p className="text-base font-semibold text-amber-400">{annual.toLocaleString('hu-HU')} kWh</p>
           </div>
           <div className="rounded-xl bg-white/[0.04] p-3">
             <p className="text-[9px] text-slate-500">CO₂ megtakarítás</p>
-            <p className="text-base font-black text-emerald-400">{co2.toLocaleString('hu-HU')} kg/év</p>
+            <p className="text-base font-semibold text-emerald-400">{co2.toLocaleString('hu-HU')} kg/év</p>
           </div>
         </div>
         <p className="text-[9px] text-slate-700 text-center">
@@ -127,7 +127,7 @@ function SectionHeader({ icon, title, badge, source }: {
 }) {
   return (
     <div className="flex items-center justify-between border-b border-white/[0.06] px-6 py-4">
-      <div className="flex items-center gap-2">{icon}<span className="text-sm font-black tracking-tight">{title}</span></div>
+      <div className="flex items-center gap-2">{icon}<span className="text-sm font-semibold tracking-tight">{title}</span></div>
       <div className="flex items-center gap-2">
         {badge  && <span className="rounded-full bg-sky-500/10 px-3 py-0.5 text-[10px] font-bold text-sky-400">{badge}</span>}
         {source && <span className="rounded-full border border-white/[0.07] px-2.5 py-0.5 text-[9px] text-slate-500">{source}</span>}
@@ -325,7 +325,7 @@ export default function EnvironmentPageClient({
   ];
 
   return (
-    <div className="min-h-screen bg-[#070d1a]">
+    <div className="min-h-screen">
 
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#070d1a]/90 backdrop-blur-xl">
@@ -336,7 +336,7 @@ export default function EnvironmentPageClient({
           </a>
           <div className="h-4 w-px bg-white/[0.10]" />
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-[11px] font-black text-slate-200 leading-tight">{buildingName}</span>
+            <span className="truncate text-[11px] font-semibold text-slate-200 leading-tight">{buildingName}</span>
             <span className="truncate text-[9px] text-slate-500">{buildingAddress}</span>
           </div>
           <span className="hidden rounded-full border border-white/[0.08] px-3 py-0.5 text-[9px] font-bold text-slate-500 sm:inline">Környezet</span>
@@ -379,7 +379,7 @@ export default function EnvironmentPageClient({
             className="flex w-full items-center justify-between border-b border-white/[0.06] px-6 py-4 text-left hover:bg-white/[0.02] transition-colors">
             <div className="flex items-center gap-2">
               <Wind size={18} className="text-sky-400" />
-              <span className="text-sm font-black tracking-tight">Levegőminőség</span>
+              <span className="text-sm font-semibold tracking-tight">Levegőminőség</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-sky-500/10 px-3 py-0.5 text-[10px] font-bold text-sky-400">{buildingAddress}</span>
@@ -403,11 +403,11 @@ export default function EnvironmentPageClient({
                   ) : aq ? (
                     <>
                       <div className="flex flex-col items-center gap-1">
-                        <span className="text-8xl font-black leading-none tabular-nums"
+                        <span className="text-8xl font-semibold leading-none tabular-nums"
                           style={{ color: aq.current.aqiColor, textShadow: `0 0 30px ${aq.current.aqiColor}60` }}>
                           {aq.current.aqi}
                         </span>
-                        <span className="mt-1 text-sm font-black" style={{ color: aq.current.aqiColor }}>{aq.current.aqiLabel}</span>
+                        <span className="mt-1 text-sm font-semibold" style={{ color: aq.current.aqiColor }}>{aq.current.aqiLabel}</span>
                         <span className="text-center text-[10px] leading-tight text-slate-400">{ADVICE[aq.current.aqiCategory]}</span>
                       </div>
                       <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] p-4 space-y-2">
@@ -464,7 +464,7 @@ export default function EnvironmentPageClient({
               <div className="border-t border-white/[0.06] px-6 py-5">
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-                    <div className="mb-2 flex items-center gap-2"><Database size={13} className="shrink-0 text-sky-500" /><span className="text-[10px] font-black text-slate-300">Adatforrások</span></div>
+                    <div className="mb-2 flex items-center gap-2"><Database size={13} className="shrink-0 text-sky-500" /><span className="text-[10px] font-semibold text-slate-300">Adatforrások</span></div>
                     <ul className="space-y-1 text-[9px] leading-relaxed text-slate-500">
                       <li>Copernicus CAMS légköri modell (11 km)</li>
                       <li>Open-Meteo ingyenes API, kulcs nélkül</li>
@@ -472,7 +472,7 @@ export default function EnvironmentPageClient({
                     </ul>
                   </div>
                   <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-                    <div className="mb-2 flex items-center gap-2"><Wind size={13} className="shrink-0 text-sky-500" /><span className="text-[10px] font-black text-slate-300">Befolyásoló tényezők</span></div>
+                    <div className="mb-2 flex items-center gap-2"><Wind size={13} className="shrink-0 text-sky-500" /><span className="text-[10px] font-semibold text-slate-300">Befolyásoló tényezők</span></div>
                     <ul className="space-y-1 text-[9px] leading-relaxed text-slate-500">
                       <li><span className="text-slate-400 font-semibold">Közlekedés:</span> városi PM2.5 ~60%-a</li>
                       <li><span className="text-slate-400 font-semibold">Szél 5+ m/s:</span> 40–60% csökkentés</li>
@@ -480,7 +480,7 @@ export default function EnvironmentPageClient({
                     </ul>
                   </div>
                   <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-                    <div className="mb-2 flex items-center gap-2"><AlertCircle size={13} className="shrink-0 text-sky-500" /><span className="text-[10px] font-black text-slate-300">Egészségügyi küszöbök</span></div>
+                    <div className="mb-2 flex items-center gap-2"><AlertCircle size={13} className="shrink-0 text-sky-500" /><span className="text-[10px] font-semibold text-slate-300">Egészségügyi küszöbök</span></div>
                     <div className="space-y-1 text-[9px]">
                       {[{ c:'#22c55e',t:'< 12 µg/m³ — Jó'},{c:'#eab308',t:'12–35 — Mérsékelt'},{c:'#f97316',t:'35–55 — Érzékenyek'},{c:'#ef4444',t:'> 55 — Egészségtelen'}].map(r=>(
                         <div key={r.t} className="flex items-center gap-2">
@@ -508,7 +508,7 @@ export default function EnvironmentPageClient({
                 <div>
                   <div className="mb-4 flex items-center gap-2">
                     <Flower2 size={15} className="text-purple-400" />
-                    <span className="text-xs font-black text-slate-200">Pollenterhelés</span>
+                    <span className="text-xs font-semibold text-slate-200">Pollenterhelés</span>
                     {(() => {
                       const m = new Date().getMonth() + 1;
                       const s = m>=2&&m<=4 ? 'Nyír-éger' : m>=5&&m<=7 ? 'Fűpollen' : m>=8&&m<=10 ? '⚠️ Parlagfű' : null;
@@ -524,9 +524,14 @@ export default function EnvironmentPageClient({
                 </div>
                 {/* UV + Wind */}
                 <div>
-                  <div className="mb-4 flex items-center gap-2">
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
                     <Sun size={15} className="text-amber-400" />
-                    <span className="text-xs font-black text-slate-200">UV-index & Szél</span>
+                    <span className="text-xs font-semibold text-slate-200">UV-index & Szél</span>
+                    {weather?.source === 'mock' && (
+                      <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[9px] font-semibold text-amber-300 ring-1 ring-amber-500/25">
+                        becsült adat — élő forrás nem elérhető
+                      </span>
+                    )}
                   </div>
                   {weather ? (
                     <UvWindPanel
@@ -554,7 +559,7 @@ export default function EnvironmentPageClient({
                   {weather.daily.map(d => (
                     <div key={d.date} className="flex flex-col items-center gap-1 rounded-xl border border-white/[0.05] bg-white/[0.02] p-2">
                       <span className="text-[9px] font-bold text-slate-500">{dayLabel(d.date)}</span>
-                      <span className="text-[11px] font-black text-slate-200">{d.tempMax}°</span>
+                      <span className="text-[11px] font-semibold text-slate-200">{d.tempMax}°</span>
                       <span className="text-[9px] text-slate-600">{d.tempMin}°</span>
                       <div className="h-1 w-full overflow-hidden rounded-full bg-white/[0.06]">
                         <div className="h-full rounded-full bg-amber-500/70" style={{ width: `${Math.min(d.uvMax / 11, 1) * 100}%` }} />
@@ -600,7 +605,7 @@ export default function EnvironmentPageClient({
                     <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
                       <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-slate-500">OSM zöld index</p>
                       <div className="flex items-end gap-2">
-                        <span className="text-3xl font-black text-emerald-400">{green.greenScore}</span>
+                        <span className="text-3xl font-semibold text-emerald-400">{green.greenScore}</span>
                         <span className="text-[10px] text-slate-500 mb-1">/ 100</span>
                       </div>
                       <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-white/[0.07]">
@@ -610,8 +615,8 @@ export default function EnvironmentPageClient({
                     </div>
                     <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
                       <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-slate-500">Legközelebbi park</p>
-                      <p className="text-sm font-black text-slate-200 truncate">{bpTrees?.nearestParkName ?? green.nearestParkName}</p>
-                      <p className="text-xl font-black text-emerald-400">
+                      <p className="text-sm font-semibold text-slate-200 truncate">{bpTrees?.nearestParkName ?? green.nearestParkName}</p>
+                      <p className="text-xl font-semibold text-emerald-400">
                         {bpTrees?.nearestParkM ?? green.nearestParkM}{' '}
                         <span className="text-xs text-slate-500">m</span>
                       </p>
@@ -806,17 +811,17 @@ export default function EnvironmentPageClient({
                   <div className="space-y-4">
                     <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 text-center">
                       <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Éves termelés</p>
-                      <p className="text-4xl font-black text-amber-400">{(solar.eYearKwhKwp ?? 0).toFixed(0)}<span className="text-sm text-slate-500 ml-1">kWh/kWp</span></p>
+                      <p className="text-4xl font-semibold text-amber-400">{(solar.eYearKwhKwp ?? 0).toFixed(0)}<span className="text-sm text-slate-500 ml-1">kWh/kWp</span></p>
                       <p className="mt-1 text-[9px] text-slate-600">Budapest átlag: ~1 050 kWh/kWp/év</p>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
                         <p className="text-[9px] text-slate-500">Napi átlag</p>
-                        <p className="text-lg font-black text-amber-300">{(solar.eDayKwhKwp ?? 0).toFixed(2)} <span className="text-xs text-slate-500">kWh</span></p>
+                        <p className="text-lg font-semibold text-amber-300">{(solar.eDayKwhKwp ?? 0).toFixed(2)} <span className="text-xs text-slate-500">kWh</span></p>
                       </div>
                       <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
                         <p className="text-[9px] text-slate-500">Besugárzás</p>
-                        <p className="text-lg font-black text-amber-300">{(solar.hOptKwhM2 ?? 0).toFixed(0)} <span className="text-xs text-slate-500">kWh/m²</span></p>
+                        <p className="text-lg font-semibold text-amber-300">{(solar.hOptKwhM2 ?? 0).toFixed(0)} <span className="text-xs text-slate-500">kWh/m²</span></p>
                       </div>
                     </div>
                     <p className="text-[9px] text-slate-700 text-center">EU JRC PVGIS-SARAH3 műholdas adat</p>

@@ -262,7 +262,7 @@ export default function SuperadminDiagnostics() {
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-black text-slate-900">🛠 Diagnosztika — külső API curl</h2>
+          <h2 className="text-lg font-semibold text-slate-900">🛠 Diagnosztika — külső API curl</h2>
           <p className="mt-1 text-xs text-slate-500">
             Vercel serverless környezetből futtat tetszőleges HTTP kérést. SSRF-védelem aktív (privát IP-tartományok blokkolva), válasz 512 KB-ra cap-elve, megjelenítve 32 KB-ig.
           </p>

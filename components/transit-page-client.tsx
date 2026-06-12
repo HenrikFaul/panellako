@@ -43,11 +43,11 @@ export default function TransitPageClient({
   }, [fetchCycling]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200">
+    <div className="min-h-screen">
       {/* Page header */}
       <div className="border-b border-slate-800/60 px-6 py-5">
         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Élő adatok · BKK Zrt., CC BY 4.0</p>
-        <h1 className="mt-0.5 text-xl font-black text-white">Közlekedés és tömegközlekedés</h1>
+        <h1 className="mt-0.5 text-xl font-semibold text-white">Közlekedés és tömegközlekedés</h1>
         <p className="mt-0.5 text-sm text-slate-500">{buildingName} · {buildingAddress}</p>
       </div>
 
@@ -63,7 +63,7 @@ export default function TransitPageClient({
         {/* Cycling routes */}
         <div ref={cycleRef} className="mt-6">
           <div className="border-b border-slate-800/60 px-6 py-4">
-            <h2 className="text-base font-black text-white flex items-center gap-2">
+            <h2 className="text-base font-semibold text-white flex items-center gap-2">
               <Bike size={18} className="text-emerald-400" />
               Kerékpáros útvonalak
             </h2>

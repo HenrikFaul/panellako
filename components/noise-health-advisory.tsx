@@ -44,7 +44,7 @@ export default function NoiseHealthAdvisory() {
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-        <h2 className="mb-1 text-lg font-black text-white">Egészségügyi küszöbértékek</h2>
+        <h2 className="mb-1 text-lg font-semibold text-white">Egészségügyi küszöbértékek</h2>
         <p className="mb-5 text-sm text-white/50">
           WHO és Európai Környezetvédelmi Ügynökség (EEA) iránymutatása alapján
         </p>

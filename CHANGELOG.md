@@ -1,4 +1,57 @@
 
+## v0.9.33 — Enterprise dark redesign + UI primitívek + látens hibajavítások
+**Dátum:** 2026-06-12
+**Branch:** claude/enterprise-redesign-v1
+
+### Probléma
+Befektetői pitch + ügyfél-workshop visszajelzés: a funkciókészlet teljes, de a felület
+"régies, gyerekjáték-szerű". Okok: kevert világos/sötét felületek, candy-gradient
+KPI-kártyák, emoji-ikonok, 3 különböző tab-dizájn, nulla közös UI-primitív — és egy
+látens infra-hiba: a tailwind.config.js árnyékolta a .ts configot, így az Inter font,
+az árnyékok és az animációk soha nem generálódtak le.
+
+### Változtatások
+
+**1. Design foundation**
+- `tailwind.config.js` TÖRÖLVE (árnyékolta a .ts-t); `tailwind.config.ts` az egyetlen config
+- Brand oklch paletta `/ <alpha-value>` placeholderrel (enélkül a `brand-500/10` nem fordul le)
+- Új `ink` sötét felület-paletta (#060c18 base, #080e1e deep, #0b1426 panel) a governance tokenek szerint
+- `app/globals.css`: enterprise dark tokenek; `.input-base`/`.btn-*`/`.glass` sötét restyling; `.app-surface`
+
+**2. Közös UI primitívek — `components/ui/` (ÚJ)**
+- Card/InsetCard, SectionCard, StatCard, Badge, SegmentedTabs, PageHeader, ScoreRing, Skeleton, ErrorState, EmptyState
+
+**3. Dashboard refactor (`dashboard-client.tsx` 2854 → ~2200 sor)**
+- Kiemelve: `components/dashboard/activity-calendar.tsx`, `panel-skyline.tsx`, `badges.tsx`
+- Teljes light→dark konverzió minden szekcióban, űrlapban, modálban
+- Gradient MetricCard → StatCard; emoji-ikonok eltávolítva; arany csík → brand hairline
+- Beágyazottak konvertálva: energy-dashboard, announcement-composer, meeting-detail-panel, billing-warning-banner
+
+**4. Aloldalak + belépési felületek egységesítése**
+- financials gradient-kártyák → standard felületek; waste/noise/budapest-2030 → SegmentedTabs
+- green-score, green-actions, compact-city, liveability, profil, ertesitesek: emoji ki, egységes minták
+- Login + épületválasztó: világos → sötét enterprise; `font-black` → `font-semibold` 30 fájlban
+- Sidebar: WCAG-kontraszt javítás (slate-600 → slate-400 inaktív), bal accent-sávos aktív állapot
+
+**5. Hibajavítások**
+- Hősziget "Újrapróbálás" gomb örökre skeletonon ragadt (effect dep hiány) → retryToken fix
+- 5 aloldalon elérhetetlen geokódolási ág (default a null-check előtt) → koordináta nélküli épületek
+  némán Budapest-középpontra estek; + `.is('lat', null)` konkurencia-guard a perzisztáló írásokon
+- `/api/environment/weather` néma mock-fallback → `source: 'live'|'mock'` mező + "becsült adat" badge
+- Hydration mismatch minden dashboard-betöltésnél (DashboardHeroScene megosztott PRNG + HeroVehicle
+  random kezdő-state) → determinisztikus seedelés / mount utáni sorsolás; 0 konzolhiba
+
+**6. Lokalizáció**
+- Új stringek `src/i18n/resources/hu.ts` + `en.ts` `ui.*` namespace alá
+
+### Acceptance criteria
+- [x] `npx tsc --noEmit` 0 hiba; `npx next build` sikeres (67 oldal)
+- [x] Minden funkció, route, handler, API-kontraktus változatlan (csak className + emoji csere)
+- [x] Vizuális verifikáció demo-fiókkal: login, picker, dashboard (12 szekció), hulladek/budapest-2030/financials aloldalak — 0 konzolhiba, nincs vízszintes scroll 375px-en
+- [x] Publikus marketing-oldalak érintetlenek
+
+---
+
 ## v0.9.32 — chore: TypeScript + okclh + best-practices adoptálás
 **Dátum:** 2026-06-05
 **Branch:** claude/fix-cron-null-values-uDCqd

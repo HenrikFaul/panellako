@@ -266,7 +266,7 @@ export default function SuperadminFeaturesTab() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-black text-slate-900">Funkció & Tier</h2>
+          <h2 className="text-lg font-semibold text-slate-900">Funkció & Tier</h2>
           <p className="text-xs text-slate-500">{features.length} funkció · 3 tier (Trial / Alap / Pro)</p>
         </div>
         <button
@@ -301,7 +301,7 @@ export default function SuperadminFeaturesTab() {
         ].map(s => (
           <div key={s.label} className="rounded-xl border border-slate-200 bg-white p-3 text-center shadow-sm">
             <p className="text-xs font-semibold text-slate-500">{s.label}</p>
-            <p className="text-2xl font-black text-slate-900">{s.value}</p>
+            <p className="text-2xl font-semibold text-slate-900">{s.value}</p>
           </div>
         ))}
       </div>
@@ -348,7 +348,7 @@ export default function SuperadminFeaturesTab() {
           {Object.entries(moduleTree).sort(([a], [b]) => a.localeCompare(b)).map(([mod, feats]) => (
             <div key={mod} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
               <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-2">
-                <span className="text-sm font-black text-slate-700">{mod}</span>
+                <span className="text-sm font-semibold text-slate-700">{mod}</span>
                 <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">{feats.length}</span>
               </div>
               <div className="divide-y divide-slate-50">
@@ -366,7 +366,7 @@ export default function SuperadminFeaturesTab() {
             return (
               <div key={tier} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
                 <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50 px-4 py-2">
-                  <span className={`rounded-full px-3 py-1 text-xs font-black ${TIER_COLORS[tier]}`}>
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${TIER_COLORS[tier]}`}>
                     {TIER_LABELS[tier]}
                   </span>
                   <span className="text-sm font-semibold text-slate-500">{feats.length} funkció</span>

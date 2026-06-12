@@ -90,7 +90,7 @@ export default function NoiseHeatmap({ workspaceId }: Props) {
     <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
       <div className="mb-4 flex items-start justify-between">
         <div>
-          <h2 className="text-lg font-black text-white">Zajnaptár</h2>
+          <h2 className="text-lg font-semibold text-white">Zajnaptár</h2>
           <p className="text-sm text-white/50">Utolsó 7 nap — 4 napszak</p>
         </div>
         <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-xs font-bold text-amber-300">

@@ -166,7 +166,7 @@ export default function BillingPageClient({
           <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-teal-500 to-sky-500 text-white shadow-lg">
             <CreditCard size={24} />
           </div>
-          <h1 className="text-3xl font-black text-slate-950">Előfizetési csomagok</h1>
+          <h1 className="text-3xl font-semibold text-slate-950">Előfizetési csomagok</h1>
           <p className="mt-2 text-slate-500">
             14 napos ingyenes próbaidőszak · Kártyaadatok nem szükségesek a próbához
           </p>
@@ -176,7 +176,7 @@ export default function BillingPageClient({
           <div className="mb-6 flex items-center gap-3 rounded-3xl bg-emerald-50 border border-emerald-200 p-4 text-emerald-700">
             <CheckCircle2 size={20} className="shrink-0" />
             <div>
-              <p className="font-black">Sikeres előfizetés!</p>
+              <p className="font-semibold">Sikeres előfizetés!</p>
               <p className="text-sm">Az előfizetés aktiválva. Köszönjük, hogy a PanelLakót választotta!</p>
             </div>
           </div>
@@ -194,7 +194,7 @@ export default function BillingPageClient({
             <div className="flex items-center gap-3">
               <Building2 size={18} className="text-teal-500" />
               <div>
-                <p className="font-black text-slate-950">{building.name}</p>
+                <p className="font-semibold text-slate-950">{building.name}</p>
                 <p className="text-sm text-slate-500">{building.address} · {unitCount} albetét</p>
               </div>
             </div>
@@ -210,7 +210,7 @@ export default function BillingPageClient({
           }`}>
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
-                <p className="font-black">
+                <p className="font-semibold">
                   {isActive    && '✓ Aktív előfizetés'}
                   {isTrialing  && `Próbaidőszak — ${trialDaysRemaining} nap hátra`}
                   {isPastDue   && '⚠ Fizetés sikertelen'}
@@ -265,19 +265,19 @@ export default function BillingPageClient({
                 }`}
               >
                 {plan.badge && (
-                  <span className="absolute -top-3 left-6 rounded-full bg-teal-500 px-3 py-1 text-xs font-black text-white shadow">
+                  <span className="absolute -top-3 left-6 rounded-full bg-teal-500 px-3 py-1 text-xs font-semibold text-white shadow">
                     {plan.badge}
                   </span>
                 )}
 
                 <div className="mb-4">
-                  <p className="text-lg font-black text-slate-950">{plan.name}</p>
+                  <p className="text-lg font-semibold text-slate-950">{plan.name}</p>
                   <p className="mt-1 text-sm text-slate-500">{plan.description}</p>
                 </div>
 
                 <div className="mb-6">
                   <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-black text-slate-950">{plan.currency}{plan.pricePerUnit.toFixed(2)}</span>
+                    <span className="text-4xl font-semibold text-slate-950">{plan.currency}{plan.pricePerUnit.toFixed(2)}</span>
                     <span className="text-sm text-slate-500">{plan.period}</span>
                   </div>
                   {unitCount > 0 && (
@@ -297,14 +297,14 @@ export default function BillingPageClient({
                 </ul>
 
                 {isCurrentPlan ? (
-                  <div className="rounded-2xl bg-emerald-100 px-4 py-3 text-center text-sm font-black text-emerald-700">
+                  <div className="rounded-2xl bg-emerald-100 px-4 py-3 text-center text-sm font-semibold text-emerald-700">
                     Jelenlegi csomag
                   </div>
                 ) : (
                   <button
                     onClick={() => handleSubscribe(plan.key)}
                     disabled={loading !== null}
-                    className={`flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-black transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                    className={`flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
                       plan.highlight
                         ? 'bg-teal-600 text-white hover:bg-teal-700 shadow-md shadow-teal-200'
                         : 'bg-slate-950 text-white hover:bg-slate-800'

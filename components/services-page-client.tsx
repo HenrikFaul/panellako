@@ -152,7 +152,7 @@ function ServiceCard({ s }: { s: PublicService }) {
           {cfg.icon}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-black text-slate-200 leading-tight">{s.name}</p>
+          <p className="text-[11px] font-semibold text-slate-200 leading-tight">{s.name}</p>
           {s.subcategory && <p className="text-[9px] text-slate-600 mt-0.5">{s.subcategory}</p>}
         </div>
         <span className="shrink-0 text-[9px] font-bold text-slate-600 flex items-center gap-0.5">
@@ -264,13 +264,13 @@ export default function ServicesPageClient({ buildingId, buildingName, buildingA
   const hasAnyServices = Object.values(allServices).some(arr => arr.length > 0);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200">
+    <div className="min-h-screen">
       {/* Header */}
       <div className="border-b border-slate-800/60 px-6 py-5">
         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
           Élettér · OSM Overpass · BKK Transit
         </p>
-        <h1 className="mt-0.5 text-xl font-black text-white">Lakókörnyezet - szolgáltatások</h1>
+        <h1 className="mt-0.5 text-xl font-semibold text-white">Lakókörnyezet - szolgáltatások</h1>
         <p className="mt-0.5 text-sm text-slate-500">{buildingName} · {buildingAddress}</p>
       </div>
 
@@ -280,7 +280,7 @@ export default function ServicesPageClient({ buildingId, buildingName, buildingA
         <div ref={urbanRef}>
           <div className="mb-4 flex items-center gap-2">
             <MapPin size={18} className="text-orange-400" />
-            <h2 className="text-base font-black text-white">Kompakt város — 15 perces élettér</h2>
+            <h2 className="text-base font-semibold text-white">Kompakt város — 15 perces élettér</h2>
             <span className="text-[9px] text-slate-600">OSM Overpass · BKK Transit</span>
           </div>
           {loadingUrban ? (
@@ -313,7 +313,7 @@ export default function ServicesPageClient({ buildingId, buildingName, buildingA
           <div className="mb-4 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Building2 size={18} className="text-violet-400" />
-              <h2 className="text-base font-black text-white">Közszolgáltatások</h2>
+              <h2 className="text-base font-semibold text-white">Közszolgáltatások</h2>
               <span className="text-[9px] text-slate-600">OpenStreetMap · 7 napos cache</span>
             </div>
             {services && (

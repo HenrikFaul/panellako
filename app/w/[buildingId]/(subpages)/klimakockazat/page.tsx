@@ -68,16 +68,20 @@ export default async function KlimakockazatPage({ params }: PageProps) {
 
   if (!building) redirect('/app');
 
-  let lat: number = (building as { lat?: number | null }).lat ?? 47.4979;
-  let lon: number = (building as { lon?: number | null }).lon ?? 19.0402;
+  // Bug fix (v0.9.33): apply the Budapest-center default only AFTER the
+  // geocode attempt — previously the default made the geocode branch unreachable.
+  let lat: number | null = (building as { lat?: number | null }).lat ?? null;
+  let lon: number | null = (building as { lon?: number | null }).lon ?? null;
 
-  if ((!lat || !lon) && building.address) {
+  if ((lat === null || lon === null) && building.address) {
     const geo = await geocodeAddress(building.address);
     if (geo) { lat = geo.lat; lon = geo.lon; }
   }
+  lat = lat ?? 47.4979;
+  lon = lon ?? 19.0402;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen">
       {/* Page header */}
       <div className="px-4 pt-8 pb-6 max-w-2xl mx-auto">
         <div className="mb-1 flex items-center gap-2 text-slate-500 text-xs">
@@ -85,7 +89,7 @@ export default async function KlimakockazatPage({ params }: PageProps) {
           <span>·</span>
           <span className="truncate">{building.name ?? building.address}</span>
         </div>
-        <h1 className="text-2xl font-bold text-white">Klímakockázat</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-100">Klímakockázat</h1>
         <p className="text-slate-400 text-sm mt-1">
           Hőszigat hatás és klímaadaptációs lehetőségek
         </p>

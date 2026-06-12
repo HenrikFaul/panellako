@@ -12,11 +12,17 @@
  *   - Inline alpha:  oklch(0.71 0.13 185 / 50%)  (no rgb() wrapper needed)
  *   - Dark mode:     change only L channel, C and H stay constant
  *   - Brand hue:     H≈183 (teal); surfaces H≈247 (cool slate)
+ *
+ * Two surface worlds, one brand:
+ *   - Public/marketing pages: light surfaces (--surface-*)
+ *   - Application (login, picker, /w/* workspace, superadmin): enterprise dark
+ *     per .governance/ui_ux_rules.md — page #060c18/#080e1e, cards as
+ *     rgba(255,255,255,0.04) overlays, 1px hairline borders carry hierarchy.
  */
 :root {
   color-scheme: light;
 
-  /* Surfaces — cool slate hue (H≈247) */
+  /* Light surfaces — cool slate hue (H≈247) — public pages */
   --surface-0:      oklch(1 0 0);
   --surface-1:      oklch(0.984 0.003 247);
   --surface-2:      oklch(0.961 0.007 247);
@@ -29,8 +35,17 @@
   --shadow-card:    0 1px 3px rgb(15 23 42 / 0.06), 0 4px 16px -2px rgb(15 23 42 / 0.06);
   --shadow-float:   0 18px 60px -8px rgb(15 23 42 / 0.12), 0 4px 16px -4px rgb(15 23 42 / 0.08);
 
-  --radius-card:    1.5rem;
-  --radius-section: 1.75rem;
+  /* Enterprise dark app tokens (.governance/ui_ux_rules.md) */
+  --app-bg:           #060c18;
+  --app-bg-alt:       #080e1e;
+  --app-card:         rgb(255 255 255 / 0.04);
+  --app-card-hover:   rgb(255 255 255 / 0.06);
+  --app-border:       rgb(255 255 255 / 0.08);
+  --app-border-hover: rgb(255 255 255 / 0.14);
+
+  /* Radius scale — calmer, enterprise: cards 16px, controls 10px */
+  --radius-card:    1rem;
+  --radius-control: 0.625rem;
 
   /* Brand color tokens (teal, H≈183) */
   --brand-50:  oklch(0.984 0.014 181);
@@ -82,7 +97,7 @@ body {
   border-radius: 4px;
 }
 
-/* ─── Premium sidebar scrollbar ──────────────────────────────────────── */
+/* ─── Sidebar scrollbar — neutral hairline (no gradient) ─────────────── */
 .sidebar-scroll::-webkit-scrollbar {
   width: 3px;
 }
@@ -90,17 +105,15 @@ body {
   background: transparent;
 }
 .sidebar-scroll::-webkit-scrollbar-thumb {
-  /* brand-600 → sky-500 gradient */
-  background: linear-gradient(to bottom, oklch(0.607 0.126 182), oklch(0.671 0.161 229));
+  background: rgb(148 163 184 / 0.35);
   border-radius: 2px;
 }
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-  /* brand-500 → sky-400 gradient */
-  background: linear-gradient(to bottom, oklch(0.714 0.145 181), oklch(0.762 0.117 229));
+  background: rgb(148 163 184 / 0.55);
 }
 .sidebar-scroll {
   scrollbar-width: thin;
-  scrollbar-color: oklch(0.607 0.126 182) transparent;
+  scrollbar-color: rgb(148 163 184 / 0.35) transparent;
 }
 
 /* ─── Thin scrollbar for widgets ─────────────────────────────────────── */
@@ -111,42 +124,49 @@ body {
 
 /* ─── Card hover lift ─────────────────────────────────────────────────── */
 .card-lift {
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
 }
 .card-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px -8px rgb(15 23 42 / 0.14), 0 4px 16px -4px rgb(15 23 42 / 0.08);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 40px -12px rgb(0 0 0 / 0.4);
 }
 
-/* ─── Glass surface utility ───────────────────────────────────────────── */
+/* ─── Glass surface utility (dark) ───────────────────────────────────── */
 .glass {
-  background: rgb(255 255 255 / 0.88);
-  backdrop-filter: blur(16px) saturate(1.5);
-  -webkit-backdrop-filter: blur(16px) saturate(1.5);
-  border: 1px solid rgb(255 255 255 / 0.65);
+  background: rgb(8 14 30 / 0.82);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid rgb(255 255 255 / 0.08);
 }
 
-/* ─── Input base ──────────────────────────────────────────────────────── */
+/* ─── App (dark) form + button base ──────────────────────────────────── */
+/* Used on application surfaces only (login, picker, workspace, superadmin). */
 .input-base {
-  @apply w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none
-         transition-all duration-150
-         focus:border-brand-400 focus:ring-4 focus:ring-brand-100 focus:bg-white;
+  @apply w-full rounded-[0.625rem] border border-white/10 bg-white/[0.04] px-3.5 py-2.5
+         text-sm text-slate-100 placeholder:text-slate-500 outline-none
+         transition-colors duration-150
+         focus:border-brand-400/60 focus:ring-2 focus:ring-brand-500/20 focus:bg-white/[0.06];
 }
 
-/* ─── Button base ─────────────────────────────────────────────────────── */
 .btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-600 px-5 py-2.5
-         text-sm font-bold text-white shadow-sm
-         transition-all duration-150
-         hover:bg-brand-700 hover:shadow-md
-         active:scale-[0.98]
-         disabled:cursor-not-allowed disabled:opacity-60;
+  @apply inline-flex items-center justify-center gap-2 rounded-[0.625rem] bg-brand-500 px-4 py-2.5
+         text-sm font-semibold text-ink-base shadow-sm
+         transition-colors duration-150
+         hover:bg-brand-400
+         active:bg-brand-600
+         disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 .btn-secondary {
-  @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-2.5
-         text-sm font-bold text-slate-700 shadow-sm
-         transition-all duration-150
-         hover:border-brand-300 hover:text-brand-700
-         active:scale-[0.98];
+  @apply inline-flex items-center justify-center gap-2 rounded-[0.625rem] border border-white/10 bg-white/[0.04] px-4 py-2.5
+         text-sm font-semibold text-slate-200
+         transition-colors duration-150
+         hover:border-white/20 hover:bg-white/[0.07] hover:text-white
+         active:bg-white/[0.05];
+}
+
+/* ─── App page background ─────────────────────────────────────────────── */
+.app-surface {
+  background-color: var(--app-bg);
+  color: theme('colors.slate.200');
 }

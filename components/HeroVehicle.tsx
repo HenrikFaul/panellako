@@ -13,7 +13,7 @@
  * No external dependencies — pure React + inline CSS keyframes.
  */
 
-import React, { useState, Fragment } from 'react';
+import React, { useEffect, useState, Fragment } from 'react';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -603,8 +603,15 @@ function pickRandomKind(exclude: VehicleKey | null): VehicleKey {
 // ─── Main rotator component ─────────────────────────────────────────────────
 
 export default function HeroVehicle() {
-  const [kind, setKind] = useState<VehicleKey>(() => pickRandomKind(null));
+  // Hydration fix (v0.9.33): the initial vehicle must be deterministic —
+  // render-time randomness desynced server and client HTML. The first random
+  // pick happens after mount instead.
+  const [kind, setKind] = useState<VehicleKey>(VEHICLE_KEYS[0]);
   const [seq,  setSeq]  = useState(0);
+
+  useEffect(() => {
+    setKind(pickRandomKind(null));
+  }, []);
 
   const cfg = VEHICLE_REGISTRY[kind];
 
@@ -630,8 +637,7 @@ export default function HeroVehicle() {
           height:            cfg.height,
           left:              0,
           ...(isSky ? { top: 4 } : { bottom: 4 }),
-          animation:         `${animName} ${cfg.duration}s linear`,
-          animationFillMode: 'forwards',
+          animation:         `${animName} ${cfg.duration}s linear forwards`,
           willChange:        'transform',
         }}
         onAnimationEnd={onEnd}

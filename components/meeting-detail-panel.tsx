@@ -79,15 +79,15 @@ interface Props {
 }
 
 const outcomeLabels: Record<string, { label: string; color: string }> = {
-  elfogadva: { label: 'Elfogadva', color: 'text-emerald-600' },
-  elutasitva: { label: 'Elutasítva', color: 'text-red-600' },
-  folyamatban: { label: 'Szavazás alatt', color: 'text-amber-600' },
+  elfogadva: { label: 'Elfogadva', color: 'text-emerald-400' },
+  elutasitva: { label: 'Elutasítva', color: 'text-rose-400' },
+  folyamatban: { label: 'Szavazás alatt', color: 'text-amber-400' },
 };
 
 const voteLabels: Record<string, { label: string; color: string }> = {
-  igen: { label: 'Igen', color: 'text-emerald-600' },
-  nem: { label: 'Nem', color: 'text-red-600' },
-  tartozkodas: { label: 'Tartózkodik', color: 'text-amber-600' },
+  igen: { label: 'Igen', color: 'text-emerald-400' },
+  nem: { label: 'Nem', color: 'text-rose-400' },
+  tartozkodas: { label: 'Tartózkodik', color: 'text-amber-400' },
 };
 
 export default function MeetingDetailPanel({
@@ -201,48 +201,48 @@ export default function MeetingDetailPanel({
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/30 backdrop-blur-sm" onClick={onClose}>
       <aside
-        className="relative flex h-full w-full max-w-2xl flex-col overflow-y-auto bg-white shadow-2xl"
+        className="relative flex h-full w-full max-w-2xl flex-col overflow-y-auto border-l border-white/10 bg-ink-panel text-slate-200 shadow-overlay"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-start gap-3 border-b bg-white px-6 py-4">
+        <div className="sticky top-0 z-10 flex items-start gap-3 border-b border-white/10 bg-ink-panel px-6 py-4">
           <div className="flex-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-brand-600">Közgyűlés részletek</p>
-            <h2 className="text-lg font-black text-slate-800 leading-tight">{meeting.title}</h2>
-            <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
+            <p className="text-xs font-semibold uppercase tracking-widest text-brand-400">Közgyűlés részletek</p>
+            <h2 className="text-lg font-semibold text-slate-100 leading-tight">{meeting.title}</h2>
+            <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-400">
               <Clock size={13} className="shrink-0" />
               {scheduledDate.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}
               {' '}{scheduledDate.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}
               {meeting.location ? ` · ${meeting.location}` : ''}
               {!isLocked && daysUntil > 0 && (
-                <span className="ml-1 rounded-full bg-sky-50 px-2 py-0.5 text-xs font-bold text-sky-600">
+                <span className="ml-1 rounded-full bg-sky-500/10 px-2 py-0.5 text-xs font-semibold text-sky-300 ring-1 ring-sky-500/25">
                   {daysUntil} nap múlva
                 </span>
               )}
             </p>
           </div>
-          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-slate-100"><X size={18} /></button>
+          <button onClick={onClose} className="rounded-full p-1.5 text-slate-400 hover:bg-white/[0.08] hover:text-slate-200"><X size={18} /></button>
         </div>
 
         <div className="flex-1 space-y-6 px-6 py-5">
           {/* Status message */}
           {msg && (
-            <p className={`rounded-2xl px-4 py-2.5 text-sm font-medium ${msg.startsWith('Hiba') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
+            <p className={`rounded-xl px-4 py-2.5 text-sm font-medium ${msg.startsWith('Hiba') ? 'border border-rose-500/20 bg-rose-500/10 text-rose-300' : 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-300'}`}>
               {msg}
             </p>
           )}
 
           {/* Quorum indicator */}
-          <div className="rounded-2xl border bg-slate-50 px-4 py-3">
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-bold text-slate-700">Határozatképesség</span>
-              <span className={`text-sm font-black ${quorumPct >= threshold ? 'text-emerald-600' : 'text-red-500'}`}>
+              <span className="text-sm font-semibold text-slate-200">Határozatképesség</span>
+              <span className={`text-sm font-semibold tabular-nums ${quorumPct >= threshold ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {quorumPct.toFixed(1)}% / {threshold}%
               </span>
             </div>
-            <div className="h-2 rounded-full bg-slate-200">
+            <div className="h-2 rounded-full bg-white/[0.08]">
               <div
-                className={`h-2 rounded-full transition-all ${quorumPct >= threshold ? 'bg-emerald-500' : 'bg-red-400'}`}
+                className={`h-2 rounded-full transition-all ${quorumPct >= threshold ? 'bg-emerald-500' : 'bg-rose-500'}`}
                 style={{ width: `${Math.min(quorumPct, 100)}%` }}
               />
             </div>
@@ -258,7 +258,7 @@ export default function MeetingDetailPanel({
                 <button
                   disabled={busy || !!(meeting.invitation_sent_at)}
                   onClick={handleSendInvitation}
-                  className="flex items-center gap-1.5 rounded-xl bg-brand-50 px-3 py-2 text-xs font-bold text-brand-700 hover:bg-brand-100 disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-lg bg-brand-500/10 px-3 py-2 text-xs font-semibold text-brand-300 ring-1 ring-brand-500/25 hover:bg-brand-500/20 disabled:opacity-50"
                 >
                   <Send size={13} /> Meghívó küldése
                   {meeting.invitation_sent_at && <span className="text-[10px] opacity-60">(elküldve)</span>}
@@ -268,7 +268,7 @@ export default function MeetingDetailPanel({
                 <button
                   disabled={busy}
                   onClick={handleClose}
-                  className="flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/25 hover:bg-amber-500/20 disabled:opacity-50"
                 >
                   <Vote size={13} /> Közgyűlés lezárása
                 </button>
@@ -277,7 +277,7 @@ export default function MeetingDetailPanel({
                 <button
                   disabled={generatingProtocol}
                   onClick={handleGenerateProtocol}
-                  className="flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-white/[0.08] disabled:opacity-50"
                 >
                   <FileText size={13} /> {generatingProtocol ? 'Generálás...' : 'Jegyzőkönyv generálása'}
                 </button>
@@ -285,7 +285,7 @@ export default function MeetingDetailPanel({
               {protocolUrl && (
                 <button
                   onClick={handleDownloadProtocol}
-                  className="flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
+                  className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 ring-1 ring-emerald-500/25 hover:bg-emerald-500/20"
                 >
                   <Download size={13} /> Letöltés (PDF)
                 </button>
@@ -295,22 +295,22 @@ export default function MeetingDetailPanel({
 
           {/* Attendance list */}
           <section>
-            <h3 className="mb-3 text-sm font-black uppercase tracking-wider text-slate-500">Jelenlét rögzítése</h3>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Jelenlét rögzítése</h3>
             <div className="space-y-1.5">
               {units.map((unit) => {
                 const attended = attendedUnitIds.has(unit.id);
                 return (
                   <div
                     key={unit.id}
-                    className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ${attended ? 'bg-emerald-50' : 'bg-slate-50'} ${!isLocked && isManager ? 'cursor-pointer hover:opacity-80' : ''}`}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${attended ? 'border border-emerald-500/20 bg-emerald-500/[0.07]' : 'border border-white/[0.05] bg-white/[0.03]'} ${!isLocked && isManager ? 'cursor-pointer hover:opacity-80' : ''}`}
                     onClick={() => isManager && !isLocked && handleToggleAttendance(unit)}
                   >
                     {attended
-                      ? <UserCheck size={15} className="shrink-0 text-emerald-600" />
-                      : <UserX size={15} className="shrink-0 text-slate-400" />}
-                    <span className="font-bold text-slate-800 w-12">{unit.unit_label}</span>
-                    <span className="flex-1 text-slate-600 truncate">{unit.owner_name}</span>
-                    <span className="text-xs text-slate-400">{(unit.ownership_share * 100).toFixed(2)}%</span>
+                      ? <UserCheck size={15} className="shrink-0 text-emerald-400" />
+                      : <UserX size={15} className="shrink-0 text-slate-500" />}
+                    <span className="font-semibold text-slate-200 w-12">{unit.unit_label}</span>
+                    <span className="flex-1 text-slate-400 truncate">{unit.owner_name}</span>
+                    <span className="text-xs text-slate-500 tabular-nums">{(unit.ownership_share * 100).toFixed(2)}%</span>
                   </div>
                 );
               })}
@@ -319,13 +319,13 @@ export default function MeetingDetailPanel({
 
           {/* Agenda + Resolutions + Voting */}
           <section>
-            <h3 className="mb-3 text-sm font-black uppercase tracking-wider text-slate-500">Napirendi pontok és határozatok</h3>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Napirendi pontok és határozatok</h3>
             <div className="space-y-4">
               {agendaItems.map((item) => {
                 const itemResolutions = resolutions.filter((r) => r.agenda_item_id === item.id);
                 return (
-                  <div key={item.id} className="rounded-2xl border bg-white p-4">
-                    <p className="font-bold text-slate-800">{item.order_no}. {item.title}</p>
+                  <div key={item.id} className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
+                    <p className="font-semibold text-slate-100">{item.order_no}. {item.title}</p>
                     {item.description && <p className="mt-1 text-xs text-slate-500">{item.description}</p>}
                     {itemResolutions.length > 0 && (
                       <div className="mt-3 space-y-3">
@@ -338,8 +338,8 @@ export default function MeetingDetailPanel({
                           );
 
                           return (
-                            <div key={res.id} className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-xs text-slate-600">{res.text}</p>
+                            <div key={res.id} className="rounded-lg border border-white/[0.05] bg-white/[0.03] p-3">
+                              <p className="text-xs text-slate-300">{res.text}</p>
 
                               {/* Outcome label + manager outcome buttons */}
                               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -348,13 +348,13 @@ export default function MeetingDetailPanel({
                                   <>
                                     <button
                                       onClick={() => handleOutcome(res.id, 'elfogadva')}
-                                      className="flex items-center gap-1 rounded-lg bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700 hover:bg-emerald-200"
+                                      className="flex items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-300 ring-1 ring-emerald-500/30 hover:bg-emerald-500/25"
                                     >
                                       <CheckCircle size={11} /> Elfogad
                                     </button>
                                     <button
                                       onClick={() => handleOutcome(res.id, 'elutasitva')}
-                                      className="flex items-center gap-1 rounded-lg bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700 hover:bg-red-200"
+                                      className="flex items-center gap-1 rounded-md bg-rose-500/15 px-2 py-0.5 text-xs font-semibold text-rose-300 ring-1 ring-rose-500/30 hover:bg-rose-500/25"
                                     >
                                       <XCircle size={11} /> Elutasít
                                     </button>
@@ -365,15 +365,15 @@ export default function MeetingDetailPanel({
                               {/* Cast votes display */}
                               {votes.length > 0 && (
                                 <div className="mt-2 space-y-1">
-                                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Leadott szavazatok</p>
+                                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Leadott szavazatok</p>
                                   {votes.map((v) => {
                                     const unit = units.find((u) => u.id === v.unit_id);
-                                    const vl = voteLabels[v.vote_value] ?? { label: v.vote_value, color: 'text-slate-600' };
+                                    const vl = voteLabels[v.vote_value] ?? { label: v.vote_value, color: 'text-slate-400' };
                                     return (
                                       <div key={v.id} className="flex items-center gap-2 text-xs">
-                                        <span className="w-12 font-bold text-slate-700">{unit?.unit_label ?? '—'}</span>
+                                        <span className="w-12 font-semibold text-slate-300">{unit?.unit_label ?? '—'}</span>
                                         <span className={`font-bold ${vl.color}`}>{vl.label}</span>
-                                        <span className="text-slate-400">({(v.weight * 100).toFixed(2)}%)</span>
+                                        <span className="text-slate-500 tabular-nums">({(v.weight * 100).toFixed(2)}%)</span>
                                       </div>
                                     );
                                   })}
@@ -382,29 +382,29 @@ export default function MeetingDetailPanel({
 
                               {/* Vote buttons for attending units that haven't voted yet */}
                               {!isLocked && res.outcome === 'folyamatban' && unvotedAttendingUnits.length > 0 && (
-                                <div className="mt-2 space-y-1.5 border-t border-slate-200 pt-2">
-                                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Szavazás</p>
+                                <div className="mt-2 space-y-1.5 border-t border-white/10 pt-2">
+                                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Szavazás</p>
                                   {unvotedAttendingUnits.map((unit) => (
                                     <div key={unit.id} className="flex items-center gap-2">
-                                      <span className="w-12 text-xs font-bold text-slate-700">{unit.unit_label}</span>
+                                      <span className="w-12 text-xs font-semibold text-slate-300">{unit.unit_label}</span>
                                       <button
                                         disabled={busy}
                                         onClick={() => handleVote(res.id, unit.id, 'igen', unit.ownership_share)}
-                                        className="rounded-lg bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700 hover:bg-emerald-200 disabled:opacity-50"
+                                        className="rounded-md bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-300 ring-1 ring-emerald-500/30 hover:bg-emerald-500/25 disabled:opacity-50"
                                       >
                                         Igen
                                       </button>
                                       <button
                                         disabled={busy}
                                         onClick={() => handleVote(res.id, unit.id, 'nem', unit.ownership_share)}
-                                        className="rounded-lg bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700 hover:bg-red-200 disabled:opacity-50"
+                                        className="rounded-md bg-rose-500/15 px-2 py-0.5 text-xs font-semibold text-rose-300 ring-1 ring-rose-500/30 hover:bg-rose-500/25 disabled:opacity-50"
                                       >
                                         Nem
                                       </button>
                                       <button
                                         disabled={busy}
                                         onClick={() => handleVote(res.id, unit.id, 'tartozkodas', unit.ownership_share)}
-                                        className="rounded-lg bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700 hover:bg-amber-200 disabled:opacity-50"
+                                        className="rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30 hover:bg-amber-500/25 disabled:opacity-50"
                                       >
                                         Tartózkodik
                                       </button>
@@ -421,7 +421,7 @@ export default function MeetingDetailPanel({
                 );
               })}
               {agendaItems.length === 0 && (
-                <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-400">Nincs napirendi pont rögzítve.</p>
+                <p className="rounded-xl border border-white/[0.05] bg-white/[0.03] px-4 py-3 text-sm text-slate-500">Nincs napirendi pont rögzítve.</p>
               )}
             </div>
           </section>

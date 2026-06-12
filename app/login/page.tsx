@@ -49,33 +49,33 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(ellipse_at_top_left,theme(colors.brand.50)_0%,theme(colors.slate.50)_45%,theme(colors.indigo.50/40%)_100%)] px-4">
-      <section className="w-full max-w-md animate-scale-in rounded-[2rem] border border-white/70 bg-white/92 p-7 shadow-card-lg backdrop-blur-xl">
+    <main className="app-surface flex min-h-screen items-center justify-center bg-[radial-gradient(ellipse_at_top,rgba(20,184,166,0.06)_0%,transparent_55%)] px-4">
+      <section className="w-full max-w-md animate-scale-in rounded-2xl border border-white/[0.08] bg-white/[0.04] p-7 shadow-panel">
 
         {/* Logo + heading */}
         <div className="mb-7 flex items-center gap-4">
           <Logo className="h-12 w-12 shrink-0" />
           <div>
-            <h1 className="text-xl font-black tracking-tight text-slate-900">PanelLakó belépés</h1>
-            <p className="mt-0.5 text-sm text-slate-500">
+            <h1 className="text-xl font-semibold tracking-tight text-slate-100">PanelLakó belépés</h1>
+            <p className="mt-0.5 text-sm text-slate-400">
               {mode === 'magic' ? 'Biztonságos magic link bejelentkezés' : 'E-mail + jelszó bejelentkezés'}
             </p>
           </div>
         </div>
 
         {/* Mode toggle */}
-        <div className="mb-5 flex rounded-2xl border border-slate-200/80 bg-slate-50 p-1 text-sm font-bold">
+        <div className="mb-5 flex rounded-xl border border-white/[0.08] bg-white/[0.03] p-1 text-sm font-semibold">
           <button
             type="button"
             onClick={() => { setMode('magic'); setStatus(''); }}
-            className={`flex-1 rounded-xl py-2 transition-all ${mode === 'magic' ? 'bg-white text-brand-700 shadow-sm ring-1 ring-slate-900/5' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex-1 rounded-lg py-2 transition-colors ${mode === 'magic' ? 'bg-white/[0.08] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
           >
             Magic link
           </button>
           <button
             type="button"
             onClick={() => { setMode('password'); setStatus(''); }}
-            className={`flex-1 rounded-xl py-2 transition-all ${mode === 'password' ? 'bg-white text-brand-700 shadow-sm ring-1 ring-slate-900/5' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex-1 rounded-lg py-2 transition-colors ${mode === 'password' ? 'bg-white/[0.08] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
           >
             Jelszó
           </button>
@@ -83,7 +83,7 @@ export default function LoginPage() {
 
         <form className="space-y-3.5" onSubmit={mode === 'magic' ? submitMagic : submitPassword}>
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">E-mail</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-300">E-mail</label>
             <input
               type="email"
               required
@@ -95,7 +95,7 @@ export default function LoginPage() {
           </div>
           {mode === 'password' && (
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Jelszó</label>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-300">Jelszó</label>
               <input
                 type="password"
                 required
@@ -108,28 +108,28 @@ export default function LoginPage() {
           )}
           <button
             disabled={loading}
-            className="btn-primary w-full py-3 text-sm font-black shadow-md shadow-brand-100"
+            className="btn-primary w-full py-3 text-sm"
           >
             {loading ? 'Betöltés…' : mode === 'magic' ? 'Belépési link küldése' : 'Belépés'}
           </button>
         </form>
 
         {status ? (
-          <p className={`mt-4 rounded-2xl px-4 py-3 text-sm ${status.startsWith('Hiba') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
+          <p className={`mt-4 rounded-xl px-4 py-3 text-sm ${status.startsWith('Hiba') ? 'border border-rose-500/20 bg-rose-500/10 text-rose-300' : 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-300'}`}>
             {status}
           </p>
         ) : null}
 
         {mode === 'password' && (
-          <div className="mt-4 rounded-2xl bg-teal-50/80 px-4 py-3 text-xs leading-5.5 text-teal-700">
-            <strong className="font-bold">Demo fiókok:</strong><br />
+          <div className="mt-4 rounded-xl border border-brand-500/20 bg-brand-500/[0.06] px-4 py-3 text-xs leading-5 text-brand-300">
+            <strong className="font-semibold">Demo fiókok:</strong><br />
             demo.kepviselo@panellako.hu · PanelLako2026!<br />
             demo.lako@panellako.hu · PanelLako2026!<br />
             demo.konyvelo@panellako.hu · PanelLako2026!
           </div>
         )}
 
-        <Link href="/" className="mt-6 inline-block text-sm font-semibold text-brand-700 hover:text-brand-900">
+        <Link href="/" className="mt-6 inline-block text-sm font-semibold text-brand-400 hover:text-brand-300">
           ← Vissza a főoldalra
         </Link>
       </section>

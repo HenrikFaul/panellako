@@ -949,7 +949,7 @@ export default function WeatherWidget({ city = 'Budapest' }: { city?: string }) 
       </div>
 
       {/* Temperature */}
-      <p className="mt-1 text-4xl font-black tabular-nums leading-none text-white tracking-tight">
+      <p className="mt-1 text-4xl font-semibold tabular-nums leading-none text-white tracking-tight">
         {weather.temp}°
       </p>
       <p className="mt-1 text-[11px] font-semibold text-slate-300 text-center leading-tight">

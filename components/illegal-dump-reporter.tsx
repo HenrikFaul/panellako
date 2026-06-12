@@ -76,7 +76,7 @@ export default function IllegalDumpReporter({ workspaceId }: Props) {
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-      <h2 className="mb-1 text-lg font-black text-white">Szabálytalan lerakás bejelentése</h2>
+      <h2 className="mb-1 text-lg font-semibold text-white">Szabálytalan lerakás bejelentése</h2>
       <p className="mb-5 text-sm text-white/50">
         Jelezze az engedély nélkül lerakott hulladékot az épület közelében.
       </p>
