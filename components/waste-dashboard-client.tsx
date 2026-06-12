@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import SegmentedTabs from '@/components/ui/tabs';
 import WasteTrackerPanel from './waste-tracker-panel';
 import IllegalDumpReporter from './illegal-dump-reporter';
 
@@ -41,9 +42,8 @@ const DISTRICT_RANKING = [
 
 function getScoreColor(score: number) {
   if (score >= 85) return 'text-emerald-400';
-  if (score >= 70) return 'text-yellow-400';
-  if (score >= 55) return 'text-orange-400';
-  return 'text-red-400';
+  if (score >= 70) return 'text-amber-400';
+  return 'text-rose-400';
 }
 
 interface Props {
@@ -55,33 +55,25 @@ export default function WasteDashboardClient({ buildingId, buildingName }: Props
   const [activeTab, setActiveTab] = useState<TabId>('jelentes');
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-8 sm:px-6">
+    <div className="px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-3xl">
         {/* Header */}
         <div className="mb-6">
-          <p className="mb-1 text-sm text-white/40">{buildingName}</p>
-          <h1 className="text-3xl font-black text-white">Hulladékgazdálkodás</h1>
-          <p className="mt-1 text-sm text-white/50">
+          <p className="mb-1 text-xs text-slate-500">{buildingName}</p>
+          <h1 className="text-xl font-semibold tracking-tight text-slate-100 md:text-2xl">Hulladékgazdálkodás</h1>
+          <p className="mt-1 text-sm text-slate-400">
             Szelektív gyűjtés nyomon követése és szabálytalan lerakás bejelentése
           </p>
         </div>
 
         {/* Tab bar */}
-        <div className="mb-6 flex gap-1 rounded-2xl border border-white/10 bg-white/5 p-1">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 rounded-xl px-2 py-2 text-xs font-semibold transition-colors sm:text-sm ${
-                activeTab === tab.id
-                  ? 'bg-emerald-500 text-white'
-                  : 'text-white/50 hover:text-white'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          tabs={TABS.map((tab) => ({ key: tab.id, label: tab.label }))}
+          active={activeTab}
+          onChange={setActiveTab}
+          ariaLabel="Hulladékgazdálkodás nézetek"
+          className="mb-6"
+        />
 
         {/* Tab content */}
         {activeTab === 'jelentes' && (
@@ -93,34 +85,34 @@ export default function WasteDashboardClient({ buildingId, buildingName }: Props
         )}
 
         {activeTab === 'rangsor' && (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <h2 className="mb-1 text-lg font-black text-white">Budapest kerületi rangsor</h2>
-            <p className="mb-5 text-sm text-white/50">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
+            <h2 className="mb-1 text-lg font-semibold text-slate-100">Budapest kerületi rangsor</h2>
+            <p className="mb-5 text-sm text-slate-400">
               Szelektív hulladékgyűjtési teljesítmény — FKF Zrt. 2024-es adatközlés alapján
             </p>
 
-            <div className="overflow-hidden rounded-xl border border-white/10">
+            <div className="overflow-hidden rounded-xl border border-white/[0.06]">
               <table className="w-full">
-                <thead>
-                  <tr className="border-b border-white/10 bg-white/5">
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-white/40">#</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-white/40">Kerület</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-white/40">Pontszám</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-white/40 hidden sm:table-cell">kg/házt.</th>
+                <thead className="border-b border-white/10 text-xs uppercase tracking-wider text-slate-500">
+                  <tr>
+                    <th className="px-4 py-2.5 text-left font-semibold">#</th>
+                    <th className="px-4 py-2.5 text-left font-semibold">Kerület</th>
+                    <th className="px-4 py-2.5 text-right font-semibold">Pontszám</th>
+                    <th className="px-4 py-2.5 text-right font-semibold hidden sm:table-cell">kg/házt.</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-white/[0.06]">
                   {DISTRICT_RANKING.map((row) => (
                     <tr
                       key={row.rank}
-                      className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors"
+                      className="hover:bg-white/[0.04] transition-colors"
                     >
-                      <td className="px-4 py-2.5 text-xs text-white/40">{row.rank}</td>
-                      <td className="px-4 py-2.5 text-sm font-medium text-white">{row.district}</td>
-                      <td className={`px-4 py-2.5 text-right text-sm font-bold ${getScoreColor(row.score)}`}>
+                      <td className="px-4 py-2.5 text-xs text-slate-500 tabular-nums">{row.rank}</td>
+                      <td className="px-4 py-2.5 text-sm font-medium text-slate-200">{row.district}</td>
+                      <td className={`px-4 py-2.5 text-right text-sm font-semibold tabular-nums ${getScoreColor(row.score)}`}>
                         {row.score}
                       </td>
-                      <td className="px-4 py-2.5 text-right text-sm text-white/50 hidden sm:table-cell">
+                      <td className="px-4 py-2.5 text-right text-sm text-slate-400 tabular-nums hidden sm:table-cell">
                         {row.kg_per_hh}
                       </td>
                     </tr>
@@ -129,7 +121,7 @@ export default function WasteDashboardClient({ buildingId, buildingName }: Props
               </table>
             </div>
 
-            <p className="mt-4 text-xs text-white/30">
+            <p className="mt-4 text-xs text-slate-500">
               A pontszám a szelektív hulladék aránya, a részvételi ráta és a kg/háztartás értékek
               súlyozott átlaga. Forrás: FKF Nonprofit Zrt., 2024 éves jelentés.
             </p>

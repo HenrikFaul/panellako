@@ -68,7 +68,7 @@ export default function CityComparisonRadarChart() {
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <div>
-        <h2 className="text-xl font-black text-white">EU Városok Összehasonlítása</h2>
+        <h2 className="text-xl font-semibold text-white">EU Városok Összehasonlítása</h2>
         <p className="text-sm text-slate-400">
           Mind a 11 EU Zöld Főváros indikátor normalizálva (0–100, 100 = legjobb teljesítmény).
           Jelöld ki a városokat az összehasonlításhoz.

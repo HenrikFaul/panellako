@@ -75,7 +75,7 @@ function PoiDetailCard({ poi, onClose }: { poi: CompactCityPoi; onClose: () => v
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-xl shrink-0">{cfg.emoji}</span>
           <div className="min-w-0">
-            <p className="truncate text-xs font-black" style={{ color: cfg.color }}>
+            <p className="truncate text-xs font-semibold" style={{ color: cfg.color }}>
               {poi.name ?? cfg.label}
             </p>
             <p className="text-[9px] text-slate-500">

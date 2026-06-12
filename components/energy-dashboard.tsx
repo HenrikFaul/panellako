@@ -32,7 +32,7 @@ function DonutGauge({ value, max, color }: { value: number; max: number; color: 
   return (
     <svg width="64" height="64" viewBox="0 0 64 64" className="shrink-0">
       <circle cx={cx} cy={cy} r={r} fill="none"
-        stroke="currentColor" strokeWidth="5" className="text-slate-200"
+        stroke="currentColor" strokeWidth="5" className="text-white/10"
         strokeDasharray={`${circ * 0.75} ${circ * 0.25}`}
         strokeLinecap="round" transform="rotate(135 32 32)"
       />
@@ -60,21 +60,21 @@ function MeterCard({ type, readings }: { type: MeterType; readings: MeterReading
 
   if (!latest) {
     return (
-      <div className="flex min-h-[90px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 p-3 text-center">
-        <Icon size={18} className="mb-1 text-slate-300" />
-        <p className="text-xs font-bold text-slate-400">{cfg.label}</p>
-        <p className="mt-0.5 text-[10px] text-slate-300">Nincs adat</p>
+      <div className="flex min-h-[90px] flex-col items-center justify-center rounded-xl border border-dashed border-white/10 p-3 text-center">
+        <Icon size={18} className="mb-1 text-slate-600" />
+        <p className="text-xs font-semibold text-slate-400">{cfg.label}</p>
+        <p className="mt-0.5 text-[10px] text-slate-600">Nincs adat</p>
       </div>
     );
   }
 
   return (
-    <div className="relative flex flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
+    <div className="relative flex flex-col overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 transition-colors hover:bg-white/[0.05]">
       {/* Header */}
       <div className="mb-1.5 flex items-center justify-between gap-1">
         <div className="flex items-center gap-1">
           <Icon size={13} style={{ color: cfg.color }} />
-          <span className="text-xs font-black text-slate-700">{cfg.label}</span>
+          <span className="text-xs font-semibold text-slate-300">{cfg.label}</span>
         </div>
         {delta !== null && (
           <span className={`flex items-center gap-0.5 text-[10px] font-bold leading-none ${deltaUp ? 'text-rose-500' : 'text-emerald-500'}`}>
@@ -89,7 +89,7 @@ function MeterCard({ type, readings }: { type: MeterType; readings: MeterReading
         <div className="relative shrink-0">
           <DonutGauge value={latest.value} max={gaugeMax[type]} color={cfg.color} />
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-[9px] font-black tabular-nums leading-none text-slate-800">
+            <span className="text-[9px] font-bold tabular-nums leading-none text-slate-200">
               {latest.value.toLocaleString('hu-HU', { maximumFractionDigits: 1 })}
             </span>
             <span className="text-[7px] text-slate-400">{cfg.unit}</span>
@@ -100,14 +100,14 @@ function MeterCard({ type, readings }: { type: MeterType; readings: MeterReading
           <p className="text-[10px] leading-tight text-slate-500">{cfg.description}</p>
           <p className="mt-0.5 text-[10px] leading-tight text-slate-400">
             {latest.unit_label && (
-              <span className="font-bold text-slate-600">{latest.unit_label}&thinsp;·&thinsp;</span>
+              <span className="font-semibold text-slate-400">{latest.unit_label}&thinsp;·&thinsp;</span>
             )}
             {new Date(latest.reading_date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })}
           </p>
           {co2 !== null && co2 > 0 && (
-            <div className="mt-1 inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5">
+            <div className="mt-1 inline-flex items-center gap-0.5 rounded-full bg-emerald-500/10 px-1.5 py-0.5 ring-1 ring-emerald-500/25">
               <Leaf size={8} className="text-emerald-500" />
-              <span className="text-[8px] font-bold text-emerald-600">
+              <span className="text-[8px] font-semibold text-emerald-300">
                 {co2 < 1 ? `${(co2 * 1000).toFixed(0)} g` : `${co2.toFixed(1)} kg`} CO₂
               </span>
             </div>
@@ -137,17 +137,17 @@ function CO2Strip({ readings }: { readings: MeterReading[] }) {
   const better = vsAvg < 0;
 
   return (
-    <div className="flex items-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2">
-      <Leaf size={13} className="shrink-0 text-emerald-500" />
+    <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.07] px-3 py-2">
+      <Leaf size={13} className="shrink-0 text-emerald-400" />
       <div className="min-w-0">
-        <p className="text-[11px] font-black text-emerald-700">
+        <p className="text-[11px] font-semibold text-emerald-300">
           ~{totalCo2.toFixed(1)} kg CO₂ ez az időszak
         </p>
         {Math.abs(vsAvg) > 1 && (
-          <p className="text-[10px] text-emerald-600">
+          <p className="text-[10px] text-emerald-400/80">
             {better
-              ? `${Math.abs(vsAvg).toFixed(0)} kg-mal kevesebb a bp-i átlagnál 🌿`
-              : `${vsAvg.toFixed(0)} kg-mal több a bp-i átlagnál`}
+              ? `${Math.abs(vsAvg).toFixed(0)} kg-mal kevesebb a budapesti átlagnál`
+              : `${vsAvg.toFixed(0)} kg-mal több a budapesti átlagnál`}
           </p>
         )}
       </div>
@@ -171,15 +171,15 @@ function ReadingHistory({ readings }: { readings: MeterReading[] }) {
           const cfg  = METER_CONFIG[r.meter_type];
           const Icon = cfg.icon;
           return (
-            <li key={r.id} className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2">
+            <li key={r.id} className="flex items-center gap-2 rounded-lg border border-white/[0.05] bg-white/[0.03] px-3 py-2">
               <Icon size={12} style={{ color: cfg.color }} className="shrink-0" />
-              <span className="flex-1 truncate text-xs font-semibold text-slate-700">
+              <span className="flex-1 truncate text-xs font-medium text-slate-300">
                 {r.unit_label || '—'}
               </span>
-              <span className="shrink-0 text-xs tabular-nums text-slate-600">
+              <span className="shrink-0 text-xs tabular-nums text-slate-400">
                 {r.value.toLocaleString('hu-HU', { maximumFractionDigits: 1 })}&thinsp;{cfg.unit}
               </span>
-              <span className="shrink-0 text-[10px] text-slate-400">
+              <span className="shrink-0 text-[10px] text-slate-500">
                 {new Date(r.reading_date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })}
               </span>
             </li>
@@ -189,7 +189,7 @@ function ReadingHistory({ readings }: { readings: MeterReading[] }) {
       {readings.length > 4 && (
         <button
           onClick={() => setOpen(v => !v)}
-          className="mt-2 w-full text-center text-[10px] font-bold text-slate-400 transition-colors hover:text-slate-600"
+          className="mt-2 w-full text-center text-[10px] font-semibold text-slate-500 transition-colors hover:text-slate-300"
         >
           {open ? 'Kevesebb' : `+${readings.length - 4} korábbi`}
         </button>
@@ -241,18 +241,18 @@ export default function EnergyDashboard({ readings, onSubmit, saved }: EnergyDas
       <CO2Strip readings={readings} />
 
       {/* Submission form — fully responsive, never overflows */}
-      <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
-        <p className="mb-2.5 text-xs font-black text-slate-700">Óraállás diktálása</p>
+      <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
+        <p className="mb-2.5 text-xs font-semibold text-slate-300">Óraállás diktálása</p>
         <form onSubmit={handleSubmit} className="space-y-2">
 
           {/* Row 1: meter type select (full width) */}
           <select
             name="meter_type"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            className="input-base"
           >
-            <option value="viz">💧 Víz (m³)</option>
-            <option value="gaz">🔥 Gáz (m³)</option>
-            <option value="villany">⚡ Villany (kWh)</option>
+            <option value="viz">Víz (m³)</option>
+            <option value="gaz">Gáz (m³)</option>
+            <option value="villany">Villany (kWh)</option>
           </select>
 
           {/* Row 2: value + date side by side */}
@@ -260,12 +260,12 @@ export default function EnergyDashboard({ readings, onSubmit, saved }: EnergyDas
             <input
               name="meter_value" type="number" step="0.01" required
               placeholder="Óraállás"
-              className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              className="input-base min-w-0 flex-1"
             />
             <input
               name="reading_date" type="date" required
               defaultValue={new Date().toISOString().slice(0, 10)}
-              className="min-w-0 w-[140px] shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              className="input-base min-w-0 w-[140px] shrink-0"
             />
           </div>
 
@@ -273,15 +273,15 @@ export default function EnergyDashboard({ readings, onSubmit, saved }: EnergyDas
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-xl bg-slate-900 py-2.5 text-sm font-bold text-white transition-colors hover:bg-slate-700 disabled:opacity-50"
+            className="w-full rounded-[0.625rem] bg-brand-500 py-2.5 text-sm font-semibold text-ink-base transition-colors hover:bg-brand-400 disabled:opacity-50"
           >
             {submitting ? 'Mentés…' : 'Óraállás rögzítése'}
           </button>
         </form>
 
         {(saved || localSaved) && (
-          <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
             Óraállás rögzítve!
           </p>
         )}

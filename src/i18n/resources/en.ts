@@ -1,9 +1,18 @@
 // English (en) locale strings
 // Placeholder file — full i18n integration pending.
 // Pre-commit hook requires this file to be present alongside component changes.
-// v0.9.32 — no new user-facing strings; best-practices adoptálás (TS, satisfies, oklch, errors, hooks)
+// v0.9.33 — enterprise redesign: shared UI primitive strings + new error/status copy
+// v0.9.33 round 2-3 — no new user-facing strings; superadmin/billing dark conversion, emoji-chrome sweep, bottom-nav scroll-spy
 
 export const en = {
+  ui: {
+    retry:               'Retry',
+    loading:             'Loading',
+    noResults:           'No results',
+    estimatedDataBadge:  'estimated data — live source unavailable',
+    heatIslandUnavailable: 'Heat island data currently unavailable',
+    unitMasterData:      'Unit master data',
+  },
   noiseMap: {
     loading:              'Loading noise map…',
     layerLoading:         'Loading noise layer (HungaroMet → NIF → EEA)…',

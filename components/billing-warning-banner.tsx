@@ -70,24 +70,24 @@ export default function BillingWarningBanner({
 
   if (variant === 'past_due') {
     return (
-      <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3.5 shadow-sm">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+      <div className="flex items-start gap-3 rounded-xl border border-rose-500/20 bg-rose-500/[0.07] px-4 py-3.5">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-red-800">
+          <p className="text-sm font-semibold text-rose-300">
             Fizetési probléma — Az előfizetés megújítása sikertelen. Frissítse bankkártyaadatait.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Link
             href={`/billing?building=${buildingId}`}
-            className="rounded-xl bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 transition-colors"
+            className="rounded-lg bg-rose-500/15 px-3 py-1.5 text-xs font-semibold text-rose-300 ring-1 ring-rose-500/30 hover:bg-rose-500/25 transition-colors"
           >
             Előfizetés kezelése
           </Link>
           <button
             onClick={handleDismiss}
             aria-label="Bezárás"
-            className="rounded-lg p-1 text-red-400 hover:bg-red-100 hover:text-red-600 transition-colors"
+            className="rounded-lg p-1 text-rose-500 hover:bg-white/[0.06] hover:text-rose-300 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -98,24 +98,24 @@ export default function BillingWarningBanner({
 
   if (variant === 'trial_ending') {
     return (
-      <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5 shadow-sm">
+      <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.07] px-4 py-3.5">
         <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-amber-800">
+          <p className="text-sm font-semibold text-amber-300">
             A próbaidőszak {daysLeft <= 0 ? 'ma' : `${daysLeft} nap múlva`} lejár. Válasszon csomagot a folytatáshoz.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Link
             href={`/billing?building=${buildingId}`}
-            className="rounded-xl bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700 transition-colors"
+            className="rounded-lg bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30 hover:bg-amber-500/25 transition-colors"
           >
             Csomag kiválasztása
           </Link>
           <button
             onClick={handleDismiss}
             aria-label="Bezárás"
-            className="rounded-lg p-1 text-amber-400 hover:bg-amber-100 hover:text-amber-600 transition-colors"
+            className="rounded-lg p-1 text-amber-500 hover:bg-white/[0.06] hover:text-amber-300 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -126,10 +126,10 @@ export default function BillingWarningBanner({
 
   // cancelled
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-slate-300 bg-slate-100 px-4 py-3.5 shadow-sm">
+    <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3.5">
       <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-slate-700">
+        <p className="text-sm font-semibold text-slate-300">
           Az előfizetés lejárt. A funkciók korlátozottak.
         </p>
       </div>
@@ -143,7 +143,7 @@ export default function BillingWarningBanner({
         <button
           onClick={handleDismiss}
           aria-label="Bezárás"
-          className="rounded-lg p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
+          className="rounded-lg p-1 text-slate-500 hover:bg-white/[0.08] hover:text-slate-300 transition-colors"
         >
           <X className="h-4 w-4" />
         </button>

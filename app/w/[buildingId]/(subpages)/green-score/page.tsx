@@ -83,7 +83,7 @@ export default async function GreenScorePage({ params }: PageProps) {
   const buildingName: string = (building as { name?: string | null }).name ?? building.address;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen">
       {/* Page header */}
       <div className="px-4 pt-8 pb-6 max-w-2xl mx-auto">
         <div className="mb-1 flex items-center gap-2 text-slate-500 text-xs">
@@ -91,7 +91,7 @@ export default async function GreenScorePage({ params }: PageProps) {
           <span>·</span>
           <span className="truncate">{buildingName}</span>
         </div>
-        <h1 className="text-2xl font-bold text-white">Zöld Épület Pontszám</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-100">Zöld Épület Pontszám</h1>
         <p className="text-slate-400 text-sm mt-1">
           Környezeti teljesítmény 6 kategóriában
         </p>

@@ -27,12 +27,12 @@ interface Props {
 }
 
 const ROLE_COLOR: Record<string, string> = {
-  lako:             'bg-sky-500/15 text-sky-300 border-sky-500/25',
-  tulajdonos:       'bg-emerald-500/15 text-emerald-300 border-emerald-500/25',
-  kozos_kepviselo:  'bg-violet-500/15 text-violet-300 border-violet-500/25',
-  megbizott:        'bg-amber-500/15 text-amber-300 border-amber-500/25',
-  bizottsag:        'bg-rose-500/15 text-rose-300 border-rose-500/25',
-  konyvelo:         'bg-cyan-500/15 text-cyan-300 border-cyan-500/25',
+  lako:             'bg-sky-500/10 text-sky-300 ring-1 ring-sky-500/25',
+  tulajdonos:       'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/25',
+  kozos_kepviselo:  'bg-violet-500/10 text-violet-300 ring-1 ring-violet-500/25',
+  megbizott:        'bg-amber-500/10 text-amber-300 ring-1 ring-amber-500/25',
+  bizottsag:        'bg-rose-500/10 text-rose-300 ring-1 ring-rose-500/25',
+  konyvelo:         'bg-brand-500/10 text-brand-300 ring-1 ring-brand-500/25',
 };
 
 export default function ProfilPageClient({
@@ -77,9 +77,9 @@ export default function ProfilPageClient({
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200">
+    <div className="min-h-screen text-slate-200">
       {/* ── Top bar ────────────────────────────────────────────────────── */}
-      <div className="border-b border-slate-800/60 px-6 py-4">
+      <div className="border-b border-white/[0.06] px-6 py-4">
         <div className="flex items-center gap-3">
           <Link
             href={`/w/${buildingId}`}
@@ -88,20 +88,20 @@ export default function ProfilPageClient({
             <ArrowLeft size={13} />
             Vissza a dashboardra
           </Link>
-          <span className="text-slate-700">·</span>
-          <p className="text-[11px] text-slate-600 truncate">{buildingName}</p>
+          <span className="text-slate-600">·</span>
+          <p className="text-[11px] text-slate-500 truncate">{buildingName}</p>
         </div>
         <div className="mt-3 flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-500/15 border border-brand-500/25">
-            <UserCog size={18} className="text-brand-400" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-500/10 ring-1 ring-brand-500/25">
+            <UserCog size={18} className="text-brand-300" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Lakói profil</p>
-            <h1 className="text-xl font-black text-white leading-tight">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Lakói profil</p>
+            <h1 className="text-xl font-semibold text-slate-100 leading-tight">
               {name || 'Névtelen'}
             </h1>
           </div>
-          <span className={`ml-auto shrink-0 rounded-lg border px-2.5 py-1 text-[10px] font-bold ${ROLE_COLOR[role] ?? 'bg-slate-700/30 text-slate-400 border-slate-700/50'}`}>
+          <span className={`ml-auto shrink-0 rounded-lg px-2.5 py-1 text-[10px] font-semibold ${ROLE_COLOR[role] ?? 'bg-white/[0.06] text-slate-400 ring-1 ring-white/10'}`}>
             {roleLabel}
           </span>
         </div>
@@ -110,20 +110,20 @@ export default function ProfilPageClient({
       <div className="mx-auto max-w-2xl space-y-6 p-4 md:p-6">
 
         {/* ── Building context ───────────────────────────────────────────── */}
-        <div className="rounded-2xl border border-slate-800/60 bg-white/[0.03] px-4 py-3">
-          <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-slate-600">Épület</p>
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 py-3">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Épület</p>
           <div className="flex items-center gap-2">
             <Building2 size={14} className="shrink-0 text-slate-500" />
             <div className="min-w-0">
-              <p className="text-sm font-bold text-white truncate">{buildingName}</p>
+              <p className="text-sm font-semibold text-slate-100 truncate">{buildingName}</p>
               <p className="text-[11px] text-slate-500 truncate">{buildingAddress}</p>
             </div>
           </div>
           {unit && (
-            <div className="mt-2 border-t border-slate-800/50 pt-2 flex items-center gap-2">
-              <Home size={13} className="shrink-0 text-slate-600" />
+            <div className="mt-2 border-t border-white/[0.06] pt-2 flex items-center gap-2">
+              <Home size={13} className="shrink-0 text-slate-500" />
               <div>
-                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600">Regisztrált albetét</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Regisztrált albetét</p>
                 <p className="text-sm font-semibold text-slate-300">
                   {[unit.floor, unit.unit_label].filter(Boolean).join(' / ')}
                 </p>
@@ -136,15 +136,15 @@ export default function ProfilPageClient({
         </div>
 
         {/* ── Personal data form ─────────────────────────────────────────── */}
-        <div className="rounded-2xl border border-slate-800/60 bg-white/[0.03] p-5">
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
           <div className="mb-4 flex items-center gap-2">
-            <UserRound size={15} className="text-brand-400" />
-            <h2 className="text-sm font-black text-white">Személyes adatok</h2>
+            <UserRound size={15} className="text-brand-300" />
+            <h2 className="text-sm font-semibold text-slate-100">Személyes adatok</h2>
           </div>
           <form onSubmit={handleSave} className="space-y-4">
             {/* Name */}
             <div>
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-500">
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                 Teljes név
               </label>
               <input
@@ -152,26 +152,26 @@ export default function ProfilPageClient({
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder="Pl. Kovács Anna"
-                className="w-full rounded-xl border border-slate-700/60 bg-white/[0.05] px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-brand-500/60 focus:bg-white/[0.08] transition-colors"
+                className="input-base"
               />
             </div>
 
             {/* Email (read-only) */}
             <div>
-              <label className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+              <label className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                 <Mail size={10} />E-mail cím
-                <span className="ml-1 rounded px-1.5 py-0.5 text-[8px] bg-slate-700/50 text-slate-500 font-normal normal-case tracking-normal">Csak olvasható</span>
+                <span className="ml-1 rounded bg-white/[0.06] px-1.5 py-0.5 text-[8px] font-normal normal-case tracking-normal text-slate-500">Csak olvasható</span>
               </label>
               <input
                 readOnly
                 value={email}
-                className="w-full rounded-xl border border-slate-800/60 bg-white/[0.02] px-4 py-2.5 text-sm text-slate-500 outline-none cursor-not-allowed"
+                className="input-base cursor-not-allowed opacity-60"
               />
             </div>
 
             {/* Phone */}
             <div>
-              <label className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+              <label className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                 <Phone size={10} />Telefonszám
               </label>
               <input
@@ -179,7 +179,7 @@ export default function ProfilPageClient({
                 onChange={e => setPhone(e.target.value)}
                 placeholder="+36 30 123 4567"
                 type="tel"
-                className="w-full rounded-xl border border-slate-700/60 bg-white/[0.05] px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-brand-500/60 focus:bg-white/[0.08] transition-colors"
+                className="input-base"
               />
             </div>
 
@@ -188,7 +188,7 @@ export default function ProfilPageClient({
               <button
                 type="submit"
                 disabled={saving}
-                className="flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-brand-400 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-[0.625rem] bg-brand-500 px-4 py-2.5 text-sm font-semibold text-ink-base transition-colors hover:bg-brand-400 disabled:opacity-50"
               >
                 {saving ? 'Mentés…' : 'Adatok mentése'}
               </button>
@@ -203,13 +203,13 @@ export default function ProfilPageClient({
         </div>
 
         {/* ── Role & authorization ───────────────────────────────────────── */}
-        <div className="rounded-2xl border border-slate-800/60 bg-white/[0.03] px-5 py-4">
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] px-5 py-4">
           <div className="mb-3 flex items-center gap-2">
             <ShieldCheck size={15} className="text-slate-500" />
-            <h2 className="text-sm font-black text-white">Szerepkör és jogosultság</h2>
+            <h2 className="text-sm font-semibold text-slate-100">Szerepkör és jogosultság</h2>
           </div>
           <div className="flex items-center gap-3">
-            <span className={`rounded-lg border px-3 py-1.5 text-sm font-bold ${ROLE_COLOR[role] ?? 'bg-slate-700/30 text-slate-400 border-slate-700/50'}`}>
+            <span className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${ROLE_COLOR[role] ?? 'bg-white/[0.06] text-slate-400 ring-1 ring-white/10'}`}>
               {roleLabel}
             </span>
             <p className="text-xs text-slate-500">
@@ -222,21 +222,21 @@ export default function ProfilPageClient({
                 : 'Saját albetéthez kapcsolódó funkciók és bejelentések.'}
             </p>
           </div>
-          <p className="mt-3 text-[10px] text-slate-600">
+          <p className="mt-3 text-xs text-slate-500">
             A szerepkör módosításához lépj kapcsolatba a közös képviselővel.
           </p>
         </div>
 
         {/* ── Account actions ─────────────────────────────────────────────── */}
-        <div className="rounded-2xl border border-slate-800/60 bg-white/[0.03] px-5 py-4">
-          <h2 className="mb-3 text-sm font-black text-white">Fiók</h2>
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] px-5 py-4">
+          <h2 className="mb-3 text-sm font-semibold text-slate-100">Fiók</h2>
           <div className="space-y-2">
             <Link
               href="/app"
-              className="flex items-center justify-between rounded-xl border border-slate-800/50 bg-white/[0.03] px-4 py-3 text-sm text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-slate-200"
+              className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 text-sm text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-slate-200"
             >
               <span>Épület váltása</span>
-              <span className="text-slate-600">→</span>
+              <span className="text-slate-500">→</span>
             </Link>
           </div>
         </div>

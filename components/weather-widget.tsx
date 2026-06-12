@@ -1,6 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
+import {
+  Sun,
+  Moon,
+  CloudSun,
+  Cloud,
+  CloudRain,
+  CloudLightning,
+  Snowflake as SnowflakeGlyph,
+  CloudFog,
+} from 'lucide-react';
 import type { WeatherResult } from '@/app/api/weather/route';
 
 type WeatherType = 'sunny' | 'clear_night' | 'partly_cloudy' | 'cloudy' | 'rain' | 'storm' | 'snow' | 'fog';
@@ -880,14 +890,20 @@ function WeatherIcon({ type, size = 120 }: { type: WeatherType; size?: number })
   }
 }
 
-// Small emoji fallback for forecast row
+// Small icon fallback for forecast row
 function SmallWeatherIcon({ icon, isDay }: { icon: number; isDay?: boolean }) {
   const type = getWeatherType(icon, isDay ?? true);
-  const emoji: Record<WeatherType, string> = {
-    sunny: '☀️', clear_night: '🌙', partly_cloudy: '⛅',
-    cloudy: '☁️', rain: '🌧️', storm: '⛈️', snow: '❄️', fog: '🌫️',
+  const icons: Record<WeatherType, ReactElement> = {
+    sunny:         <Sun size={16} className="text-amber-300" />,
+    clear_night:   <Moon size={16} className="text-indigo-300" />,
+    partly_cloudy: <CloudSun size={16} className="text-amber-200" />,
+    cloudy:        <Cloud size={16} className="text-slate-300" />,
+    rain:          <CloudRain size={16} className="text-sky-300" />,
+    storm:         <CloudLightning size={16} className="text-violet-300" />,
+    snow:          <SnowflakeGlyph size={16} className="text-cyan-200" />,
+    fog:           <CloudFog size={16} className="text-slate-400" />,
   };
-  return <span className="text-base leading-none">{emoji[type]}</span>;
+  return <span className="leading-none">{icons[type]}</span>;
 }
 
 // ─── Main Widget ───────────────────────────────────────────────────────────────
@@ -949,7 +965,7 @@ export default function WeatherWidget({ city = 'Budapest' }: { city?: string }) 
       </div>
 
       {/* Temperature */}
-      <p className="mt-1 text-4xl font-black tabular-nums leading-none text-white tracking-tight">
+      <p className="mt-1 text-4xl font-semibold tabular-nums leading-none text-white tracking-tight">
         {weather.temp}°
       </p>
       <p className="mt-1 text-[11px] font-semibold text-slate-300 text-center leading-tight">

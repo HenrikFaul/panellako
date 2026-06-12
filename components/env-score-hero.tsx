@@ -73,7 +73,7 @@ export default function EnvScoreHero({ score, loading }: Props) {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ paddingTop: 4 }}>
-          <span className="text-3xl font-black tabular-nums leading-none" style={{ color: score.color }}>
+          <span className="text-3xl font-semibold tabular-nums leading-none" style={{ color: score.color }}>
             {score.total}
           </span>
           <span className="text-[9px] text-slate-500 mt-0.5">/ 100</span>

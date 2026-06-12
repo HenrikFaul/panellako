@@ -40,7 +40,7 @@ export default async function Budapest2030Page({ params }: PageProps) {
   if (!memberships || memberships.length === 0) redirect('/app');
 
   return (
-    <main className="min-h-screen bg-slate-950">
+    <main className="min-h-screen">
       <Budapest2030DashboardClient buildingId={buildingId} />
     </main>
   );

@@ -49,15 +49,15 @@ function MiniSparkline({ data }: { data: { year: number; value: number }[] }) {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function statusBadge(status: IndicatorStatus) {
-  if (status === 'jo')       return { label: 'JÓ',      cls: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' };
-  if (status === 'kozepes')  return { label: 'KÖZEPES', cls: 'bg-amber-500/20 text-amber-300 border-amber-500/30' };
-  return                            { label: 'KRITIKUS',cls: 'bg-red-500/20 text-red-300 border-red-500/30' };
+  if (status === 'jo')       return { label: 'JÓ',      cls: 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/25' };
+  if (status === 'kozepes')  return { label: 'KÖZEPES', cls: 'bg-amber-500/10 text-amber-300 ring-1 ring-amber-500/25' };
+  return                            { label: 'KRITIKUS',cls: 'bg-rose-500/10 text-rose-300 ring-1 ring-rose-500/25' };
 }
 
 function trendArrow(trend: TrendDirection) {
   if (trend === 'javul')  return { arrow: '↗', cls: 'text-emerald-400', label: 'javuló' };
   if (trend === 'stabil') return { arrow: '→', cls: 'text-amber-400',   label: 'stabil'  };
-  return                         { arrow: '↘', cls: 'text-red-400',     label: 'romló'   };
+  return                         { arrow: '↘', cls: 'text-rose-400',    label: 'romló'   };
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -74,16 +74,16 @@ export default function Budapest2030IndicatorCard({ indicator }: Props) {
   const trend = trendArrow(indicator.trend);
 
   return (
-    <div className="rounded-xl border border-white/10 bg-slate-900/60 p-4 flex flex-col gap-3 hover:border-white/20 transition-colors">
+    <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 flex flex-col gap-3 hover:border-white/[0.12] transition-colors">
       {/* Header row */}
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             {indicator.categoryHu}
           </p>
-          <h3 className="text-sm font-bold text-white leading-tight">{indicator.nameHu}</h3>
+          <h3 className="text-sm font-semibold text-slate-100 leading-tight">{indicator.nameHu}</h3>
         </div>
-        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-black tracking-wide ${badge.cls}`}>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide ${badge.cls}`}>
           {badge.label}
         </span>
       </div>
@@ -91,14 +91,14 @@ export default function Budapest2030IndicatorCard({ indicator }: Props) {
       {/* Values row */}
       <div className="flex items-end gap-4">
         <div>
-          <p className="text-2xl font-black text-white tabular-nums">
+          <p className="text-2xl font-semibold text-slate-100 tabular-nums">
             {indicator.currentValue}
             <span className="ml-1 text-xs font-normal text-slate-400">{indicator.unit}</span>
           </p>
           <p className="text-[10px] text-slate-500">Jelenlegi érték ({indicator.currentYear})</p>
         </div>
         <div className="ml-auto text-right">
-          <p className={`text-lg font-bold tabular-nums ${trend.cls}`}>
+          <p className={`text-lg font-semibold tabular-nums ${trend.cls}`}>
             {trend.arrow}
           </p>
           <p className={`text-[10px] font-semibold ${trend.cls}`}>{trend.label}</p>
@@ -107,13 +107,13 @@ export default function Budapest2030IndicatorCard({ indicator }: Props) {
 
       {/* Targets row */}
       <div className="flex gap-3 text-[11px]">
-        <div className="flex flex-col items-center rounded-lg border border-white/10 bg-slate-800/50 px-2 py-1">
+        <div className="flex flex-col items-center rounded-lg border border-white/[0.06] bg-white/[0.03] px-2 py-1">
           <span className="text-slate-500">EU határ</span>
-          <span className="font-bold text-white">{indicator.euThreshold} {indicator.unit}</span>
+          <span className="font-semibold text-slate-100 tabular-nums">{indicator.euThreshold} {indicator.unit}</span>
         </div>
-        <div className="flex flex-col items-center rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-2 py-1">
-          <span className="text-indigo-400">2030 cél</span>
-          <span className="font-bold text-indigo-300">{indicator.target2030} {indicator.unit}</span>
+        <div className="flex flex-col items-center rounded-lg bg-sky-500/10 ring-1 ring-sky-500/25 px-2 py-1">
+          <span className="text-sky-400">2030 cél</span>
+          <span className="font-semibold text-sky-300 tabular-nums">{indicator.target2030} {indicator.unit}</span>
         </div>
       </div>
 
@@ -129,7 +129,7 @@ export default function Budapest2030IndicatorCard({ indicator }: Props) {
       {/* Expand/collapse tips */}
       <button
         onClick={() => setExpanded(v => !v)}
-        className="flex items-center gap-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition-colors"
+        className="flex items-center gap-1 text-[11px] font-semibold text-sky-400 hover:text-sky-300 transition-colors"
       >
         <span>{expanded ? '▲' : '▼'}</span>
         <span>Mit tehetsz te? ({indicator.residentActionHu.length} tipp)</span>
@@ -138,7 +138,7 @@ export default function Budapest2030IndicatorCard({ indicator }: Props) {
         <ul className="space-y-1.5">
           {indicator.residentActionHu.map((tip, i) => (
             <li key={i} className="flex gap-2 text-[11px] text-slate-300">
-              <span className="mt-0.5 shrink-0 text-indigo-400">•</span>
+              <span className="mt-0.5 shrink-0 text-sky-400">•</span>
               <span>{tip}</span>
             </li>
           ))}

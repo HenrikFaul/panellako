@@ -132,34 +132,34 @@ export default function SuperadminOsmImport() {
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-black text-slate-900">OSM Cím-adatbázis import</h2>
+          <h2 className="text-lg font-semibold text-slate-100">OSM Cím-adatbázis import</h2>
           <p className="text-xs text-slate-500">
             Magyar OSM cím-adatok importálása a Panellako Supabase projektbe (<code className="text-[10px]">public.osm_addresses</code>).
             Az autocomplete ebből az adatból dolgozik.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+          <span className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-semibold tabular-nums text-slate-300">
             {rowCount.loading ? 'Töltés…' : rowCount.count === null ? '— sor' : `${rowCount.count.toLocaleString('en-US')} sor`}
           </span>
           <button
             onClick={loadRowCount}
             disabled={rowCount.loading}
-            className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+            className="rounded-lg border border-white/10 px-2 py-1.5 text-xs text-slate-400 hover:bg-white/[0.08] disabled:opacity-50"
           >↻</button>
         </div>
       </div>
 
       {/* Index fix — must run before any import if upsert fails */}
-      <div className="mb-4 rounded-xl border border-red-100 bg-red-50 p-3 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-4 rounded-xl border border-rose-500/25 bg-rose-500/10 p-3 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-bold text-red-800">⚠ Unique index javítás</p>
-          <p className="text-xs text-red-700">Ha &quot;there is no unique or excl&quot; hibát látsz, futtasd ezt először.</p>
+          <p className="text-sm font-semibold text-rose-300">Unique index javítás</p>
+          <p className="text-xs text-rose-300/80">Ha &quot;there is no unique or excl&quot; hibát látsz, futtasd ezt először.</p>
           {indexFixResult && (
-            <p className={`mt-1 text-xs font-bold ${indexFixResult.ok ? 'text-emerald-700' : 'text-red-700'}`}>
+            <p className={`mt-1 text-xs font-semibold ${indexFixResult.ok ? 'text-emerald-300' : 'text-rose-300'}`}>
               {indexFixResult.ok ? `✓ Kész (${indexFixResult.method})` : `✗ ${indexFixResult.error}`}
             </p>
           )}
@@ -167,30 +167,30 @@ export default function SuperadminOsmImport() {
         <button
           onClick={runIndexFix}
           disabled={indexFixRunning || phase1Running || countyRunning !== null}
-          className="shrink-0 rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50"
+          className="shrink-0 rounded-lg bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-300 ring-1 ring-rose-500/25 hover:bg-rose-500/20 disabled:opacity-50"
         >
           {indexFixRunning ? 'Fut…' : 'Index javítás'}
         </button>
       </div>
 
       {/* Phase 1 */}
-      <div className="mb-4 rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+      <div className="mb-4 rounded-xl border border-violet-500/25 bg-violet-500/[0.06] p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="font-bold text-slate-900">1. fázis — Magyarország telephelyek</p>
-            <p className="text-xs text-slate-600">OSM <code className="text-[10px]">place=city|town|village|hamlet</code> csomópontok, ~10 000 sor, ~60 másodperc. Futtatható a felületen.</p>
-            <p className="mt-1 text-[11px] text-slate-400">Forrás: Overpass API · Cél: Panellako <code className="text-[10px]">wzromwxpjlyrqbdiapep</code></p>
+            <p className="font-semibold text-slate-100">1. fázis — Magyarország telephelyek</p>
+            <p className="text-xs text-slate-400">OSM <code className="text-[10px]">place=city|town|village|hamlet</code> csomópontok, ~10 000 sor, ~60 másodperc. Futtatható a felületen.</p>
+            <p className="mt-1 text-[11px] text-slate-500">Forrás: Overpass API · Cél: Panellako <code className="text-[10px]">wzromwxpjlyrqbdiapep</code></p>
           </div>
           <button
             onClick={runPhase1}
             disabled={phase1Running || countyRunning !== null}
-            className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="shrink-0 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-ink-base hover:bg-brand-400 disabled:opacity-50"
           >
             {phase1Running ? 'Fut…' : 'Indítás'}
           </button>
         </div>
         {phase1Result && (
-          <div className={`mt-3 rounded-lg border px-3 py-2 text-xs ${phase1Result.ok ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-800'}`}>
+          <div className={`mt-3 rounded-lg border px-3 py-2 text-xs ${phase1Result.ok ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300' : 'border-rose-500/25 bg-rose-500/10 text-rose-300'}`}>
             {phase1Result.ok
               ? `✓ Kész — ${phase1Result.imported?.toLocaleString('en-US') ?? '?'} sor importálva, ${phase1Result.skipped ?? 0} kihagyva${phase1Result.note ? ` · ${phase1Result.note}` : ''}`
               : `✗ Hiba: ${phase1Result.error}`}
@@ -199,16 +199,16 @@ export default function SuperadminOsmImport() {
       </div>
 
       {/* Phase 2 */}
-      <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+      <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-4">
         <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="font-bold text-slate-900">2. fázis — Teljes cím-adatbázis</p>
-            <p className="text-xs text-slate-600">
+            <p className="font-semibold text-slate-100">2. fázis — Teljes cím-adatbázis</p>
+            <p className="text-xs text-slate-400">
               <code className="text-[10px]">addr:housenumber</code> + <code className="text-[10px]">addr:street</code> — limit nélkül, minden cím.
               Megye: 2–4 perc. Egész ország: 40–80 perc (szerver futtatja végig).
             </p>
             {allResult && (
-              <p className={`mt-1 text-xs font-bold ${allResult.ok ? 'text-emerald-700' : 'text-red-700'}`}>
+              <p className={`mt-1 text-xs font-semibold ${allResult.ok ? 'text-emerald-300' : 'text-rose-300'}`}>
                 {allResult.ok
                   ? `✓ Kész — ${allResult.totalImported?.toLocaleString('en-US') ?? '?'} sor importálva`
                   : `✗ Hiba: ${allResult.error ?? `${allResult.failedCount} megye sikertelen`}`}
@@ -218,20 +218,20 @@ export default function SuperadminOsmImport() {
           <button
             onClick={runAllCounties}
             disabled={allRunning || countyRunning !== null || phase1Running || indexFixRunning}
-            className="shrink-0 rounded-lg bg-emerald-600 px-5 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+            className="shrink-0 rounded-lg bg-brand-500 px-5 py-2 text-sm font-semibold text-ink-base hover:bg-brand-400 disabled:opacity-50"
           >
-            {allRunning ? 'Fut… (kérlek várj)' : '▶ Egész ország'}
+            {allRunning ? 'Fut… (kérlek várj)' : 'Egész ország'}
           </button>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
           {COUNTIES.map(c => {
             const r = countyResults[c.name];
             return (
-              <div key={c.name} className="flex items-center justify-between gap-2 rounded-lg border border-white bg-white px-3 py-2 shadow-sm">
+              <div key={c.name} className="flex items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-slate-800">{c.name}</p>
+                  <p className="truncate text-sm font-semibold text-slate-200">{c.name}</p>
                   {r && (
-                    <p className={`text-[11px] ${r.ok ? 'text-emerald-700' : 'text-red-600'}`}>
+                    <p className={`text-[11px] ${r.ok ? 'text-emerald-300' : 'text-rose-300'}`}>
                       {r.ok
                         ? `✓ ${r.imported?.toLocaleString('en-US') ?? '?'} sor`
                         : `✗ ${(r.error ?? '').slice(0, 60)}`}
@@ -241,10 +241,10 @@ export default function SuperadminOsmImport() {
                 <button
                   onClick={() => runCounty(c.name)}
                   disabled={countyRunning !== null || phase1Running}
-                  className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold disabled:opacity-50 ${
+                  className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
                     countyRunning === c.name
-                      ? 'bg-amber-200 text-amber-800'
-                      : 'bg-amber-500 text-white hover:bg-amber-600'
+                      ? 'bg-amber-500/20 text-amber-200 ring-1 ring-amber-500/25'
+                      : 'bg-amber-500/10 text-amber-300 ring-1 ring-amber-500/25 hover:bg-amber-500/20'
                   }`}
                 >
                   {countyRunning === c.name ? 'Fut…' : r?.ok ? 'Újra' : 'Import'}

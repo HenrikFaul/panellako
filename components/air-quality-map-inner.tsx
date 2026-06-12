@@ -235,7 +235,7 @@ const CHECK_KEYS = Object.keys(CHECK_LABELS) as Array<keyof typeof CHECK_LABELS>
 function ValidationBadge({ score }: { score: number }) {
   const color = score >= 5 ? '#34d399' : score >= 3 ? '#fbbf24' : '#ef4444';
   return (
-    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[8px] font-black"
+    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[8px] font-semibold"
       style={{ background: `${color}20`, color, border: `1px solid ${color}40` }}>
       {score}/6
     </span>
@@ -263,7 +263,7 @@ function ValidationReportPanel({ stations }: { stations: AQIStation[] }) {
       >
         <div className="flex items-center gap-2">
           <ShieldCheck size={13} className="text-emerald-400 shrink-0" />
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
             Térbeli validációs jelentés
           </span>
         </div>
@@ -286,7 +286,7 @@ function ValidationReportPanel({ stations }: { stations: AQIStation[] }) {
           <div className="py-3 grid grid-cols-2 sm:grid-cols-3 gap-1.5">
             {CHECK_KEYS.map((key, i) => (
               <div key={key} className="flex items-center gap-1.5">
-                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-[8px] font-black bg-white/[0.06] text-slate-400">{i + 1}</span>
+                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-[8px] font-semibold bg-white/[0.06] text-slate-400">{i + 1}</span>
                 <span className="text-[8px] text-slate-500">{CHECK_LABELS[key]}</span>
               </div>
             ))}
@@ -325,8 +325,8 @@ function ValidationReportPanel({ stations }: { stations: AQIStation[] }) {
                       {CHECK_KEYS.map(key => (
                         <td key={key} className="text-center py-1.5 px-1">
                           {v[key]
-                            ? <span className="text-emerald-500">✓</span>
-                            : <span className="text-red-500">✗</span>
+                            ? <span className="text-emerald-400">✓</span>
+                            : <span className="text-rose-400">✗</span>
                           }
                         </td>
                       ))}
@@ -678,7 +678,7 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
                           : <span className="flex items-center gap-0.5 text-[7px] text-red-500"><XCircle size={8} /> Alacsony</span>;
                     })()}
                   </div>
-                  <p className="text-sm font-black text-slate-100 leading-tight">{selectedStation.stationName}</p>
+                  <p className="text-sm font-semibold text-slate-100 leading-tight">{selectedStation.stationName}</p>
                   <p className="mt-0.5 text-[9px] text-slate-600">
                     {selectedStation.lat.toFixed(4)}°N · {selectedStation.lon.toFixed(4)}°E
                     <span className="ml-2">· {selectedStation.validation.nearestCityName} ({Math.round(selectedStation.validation.nearestCityKm)} km)</span>
@@ -696,7 +696,7 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
                 <div className="flex items-start gap-3 shrink-0">
                   {selectedStation.aqi !== null && (
                     <div className="flex flex-col items-end">
-                      <span className="text-3xl font-black leading-none tabular-nums"
+                      <span className="text-3xl font-semibold leading-none tabular-nums"
                         style={{ color: aqiColor(selectedStation.aqi), textShadow: `0 0 20px ${aqiColor(selectedStation.aqi)}50` }}>
                         {selectedStation.aqi}
                       </span>
@@ -728,7 +728,7 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
                     return (
                       <div key={key} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5">
                         <p className="text-[8px] font-bold uppercase text-slate-500 mb-1">{p.label}</p>
-                        <p className="text-sm font-black text-slate-100 tabular-nums leading-none">{val.toFixed(1)}</p>
+                        <p className="text-sm font-semibold text-slate-100 tabular-nums leading-none">{val.toFixed(1)}</p>
                         <p className="mt-0.5 text-[8px] text-slate-600">{p.unit}</p>
                         <div className="mt-2 h-0.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
                           <div className="h-full rounded-full transition-all" style={{ width: `${intens * 100}%`, background: color }} />
@@ -751,7 +751,7 @@ const AirQualityMapInner = forwardRef<AirQualityMapHandle, Props>(
                       return (
                         <div key={key} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 opacity-65">
                           <p className="text-[8px] font-bold uppercase text-slate-500 mb-1">{p.label}</p>
-                          <p className="text-sm font-black text-slate-100 tabular-nums leading-none">~{val.toFixed(0)}</p>
+                          <p className="text-sm font-semibold text-slate-100 tabular-nums leading-none">~{val.toFixed(0)}</p>
                           <p className="mt-0.5 text-[8px] text-slate-600">{p.unit}</p>
                           <div className="mt-2 h-0.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
                             <div className="h-full rounded-full" style={{ width: `${intens * 100}%`, background: color }} />

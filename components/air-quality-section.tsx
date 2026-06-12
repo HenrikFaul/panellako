@@ -102,7 +102,7 @@ export default function AirQualitySection({ buildingLat, buildingLon, buildingAd
       >
         <div className="flex items-center gap-2">
           <Wind size={18} className="text-sky-400" />
-          <span className="text-sm font-black tracking-tight">Levegőminőség</span>
+          <span className="text-sm font-semibold tracking-tight">Levegőminőség</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-sky-500/10 px-3 py-0.5 text-[10px] font-bold text-sky-400">
@@ -153,12 +153,12 @@ export default function AirQualitySection({ buildingLat, buildingLon, buildingAd
                 <>
                   <div className="flex flex-col items-center gap-1">
                     <span
-                      className="text-8xl font-black leading-none tabular-nums"
+                      className="text-8xl font-semibold leading-none tabular-nums"
                       style={{ color: aq.color, textShadow: `0 0 30px ${aq.color}60` }}
                     >
                       {aq.aqi}
                     </span>
-                    <span className="mt-1 text-sm font-black" style={{ color: aq.color, textShadow: `0 0 12px ${aq.color}50` }}>
+                    <span className="mt-1 text-sm font-semibold" style={{ color: aq.color, textShadow: `0 0 12px ${aq.color}50` }}>
                       {aq.aqiLabel}
                     </span>
                     <span className="text-center text-[10px] leading-tight text-slate-400">
@@ -234,7 +234,7 @@ export default function AirQualitySection({ buildingLat, buildingLon, buildingAd
               <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
                 <div className="mb-2 flex items-center gap-2">
                   <Database size={13} className="shrink-0 text-sky-500" />
-                  <span className="text-[10px] font-black text-slate-300">Adatforrások</span>
+                  <span className="text-[10px] font-semibold text-slate-300">Adatforrások</span>
                 </div>
                 <ul className="space-y-1.5 text-[9px] leading-relaxed text-slate-500">
                   <li>Budapest OLM állomásainak valós idejű mérései (AQICN/WAQI hálózat)</li>
@@ -248,7 +248,7 @@ export default function AirQualitySection({ buildingLat, buildingLon, buildingAd
               <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
                 <div className="mb-2 flex items-center gap-2">
                   <Wind size={13} className="shrink-0 text-sky-500" />
-                  <span className="text-[10px] font-black text-slate-300">Befolyásoló tényezők</span>
+                  <span className="text-[10px] font-semibold text-slate-300">Befolyásoló tényezők</span>
                 </div>
                 <ul className="space-y-1.5 text-[9px] leading-relaxed text-slate-500">
                   <li><span className="text-slate-400 font-semibold">Közlekedés:</span> a városi PM2.5 kb. 60%-a</li>
@@ -263,7 +263,7 @@ export default function AirQualitySection({ buildingLat, buildingLon, buildingAd
               <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
                 <div className="mb-2 flex items-center gap-2">
                   <AlertCircle size={13} className="shrink-0 text-sky-500" />
-                  <span className="text-[10px] font-black text-slate-300">Egészségügyi küszöbök</span>
+                  <span className="text-[10px] font-semibold text-slate-300">Egészségügyi küszöbök</span>
                 </div>
                 <div className="space-y-1.5 text-[9px] leading-relaxed">
                   <div className="flex items-center gap-2">

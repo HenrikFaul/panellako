@@ -1,9 +1,18 @@
 // Hungarian (hu) locale strings
 // Placeholder file — full i18n integration pending.
 // Pre-commit hook requires this file to be present alongside component changes.
-// v0.9.32 — no new user-facing strings; best-practices adoptálás (TS, satisfies, oklch, errors, hooks)
+// v0.9.33 — enterprise redesign: shared UI primitive strings + new error/status copy
+// v0.9.33 round 2-3 — no new user-facing strings; superadmin/billing dark conversion, emoji-chrome sweep, bottom-nav scroll-spy
 
 export const hu = {
+  ui: {
+    retry:               'Újrapróbálás',
+    loading:             'Betöltés',
+    noResults:           'Nincs találat',
+    estimatedDataBadge:  'becsült adat — élő forrás nem elérhető',
+    heatIslandUnavailable: 'Hősziget-adatok jelenleg nem elérhetők',
+    unitMasterData:      'Albetét törzsadatok',
+  },
   noiseMap: {
     loading:              'Zajtérkép betöltése…',
     layerLoading:         'Zajréteg betöltése (HungaroMet → NIF → EEA)…',

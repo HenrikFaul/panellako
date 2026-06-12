@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
+import SegmentedTabs from '@/components/ui/tabs';
 import NoiseReportForm from './noise-report-form';
 import NoiseHeatmap from './noise-heatmap';
 import NoiseHealthAdvisory from './noise-health-advisory';
@@ -28,40 +29,32 @@ export default function NoiseDashboardClient({ buildingId, buildingName, buildin
   const [activeTab, setActiveTab] = useState<TabId>('terkep');
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-8 sm:px-6">
+    <div className="px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-3xl">
         {/* Header */}
         <div className="mb-6">
-          <p className="mb-1 text-sm text-white/40">{buildingName}</p>
-          <h1 className="text-3xl font-black text-white">Zajriporter</h1>
-          <p className="mt-1 text-sm text-white/50">
+          <p className="mb-1 text-xs text-slate-500">{buildingName}</p>
+          <h1 className="text-xl font-semibold tracking-tight text-slate-100 md:text-2xl">Zajriporter</h1>
+          <p className="mt-1 text-sm text-slate-400">
             Rögzítse és kövesse az épülete körüli zajszennyezést
           </p>
         </div>
 
         {/* Tab bar */}
-        <div className="mb-6 flex gap-1 rounded-2xl border border-white/10 bg-white/5 p-1">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-amber-500 text-slate-900'
-                  : 'text-white/50 hover:text-white'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          tabs={TABS.map((tab) => ({ key: tab.id, label: tab.label }))}
+          active={activeTab}
+          onChange={setActiveTab}
+          ariaLabel="Zajriporter nézetek"
+          className="mb-6"
+        />
 
         {/* Tab content */}
         {activeTab === 'terkep' && (
           <NoiseMap
             buildingLat={buildingLat}
             buildingLon={buildingLon}
-            className="h-[420px] rounded-2xl overflow-hidden"
+            className="h-[420px] rounded-2xl border border-white/[0.08] overflow-hidden"
           />
         )}
 

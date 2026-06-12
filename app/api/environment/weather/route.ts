@@ -29,6 +29,8 @@ export interface EnvWeatherResult {
   };
   daily:     EnvWeatherDaily[];
   fetchedAt: string;
+  /** 'live' = Open-Meteo response; 'mock' = upstream failed, approximate values */
+  source?:   'live' | 'mock';
 }
 
 const _cache = new Map<string, { data: EnvWeatherResult; expires: number }>();
@@ -151,6 +153,7 @@ async function fetchWeather(lat: number, lon: number): Promise<EnvWeatherResult>
     },
     daily,
     fetchedAt: new Date().toISOString(),
+    source: 'live',
   };
 }
 
@@ -169,6 +172,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result);
   } catch (err) {
     console.warn('[environment/weather] fetch failed, returning mock:', err);
-    return NextResponse.json({ ...MOCK_WEATHER, fetchedAt: new Date().toISOString() });
+    return NextResponse.json({ ...MOCK_WEATHER, fetchedAt: new Date().toISOString(), source: 'mock' });
   }
 }

@@ -59,13 +59,17 @@ export default async function ZajPage({ params }: PageProps) {
 
   if (!building) redirect('/app');
 
-  let lat: number = (building as { lat?: number | null }).lat ?? 47.5278845;
-  let lon: number = (building as { lon?: number | null }).lon ?? 19.0705657;
+  // Bug fix (v0.9.33): apply the Budapest-center default only AFTER the
+  // geocode attempt — previously the default made the geocode branch unreachable.
+  let lat: number | null = (building as { lat?: number | null }).lat ?? null;
+  let lon: number | null = (building as { lon?: number | null }).lon ?? null;
 
-  if ((!lat || !lon) && building.address) {
+  if ((lat === null || lon === null) && building.address) {
     const geo = await geocodeAddress(building.address);
     if (geo) { lat = geo.lat; lon = geo.lon; }
   }
+  lat = lat ?? 47.5278845;
+  lon = lon ?? 19.0705657;
 
   return (
     <NoiseDashboardClient

@@ -74,12 +74,12 @@ export default function ErtesitesekClient({ buildingId, buildingName }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-8 sm:px-6">
+    <div className="min-h-screen px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-2xl">
         {/* Back link */}
         <Link
           href={`/w/${buildingId}`}
-          className="mb-6 inline-flex items-center gap-1.5 text-sm text-white/50 transition-colors hover:text-white"
+          className="mb-6 inline-flex items-center gap-1.5 text-sm text-slate-400 transition-colors hover:text-slate-200"
         >
           <ChevronLeft size={15} />
           Vissza a dashboardra
@@ -87,14 +87,14 @@ export default function ErtesitesekClient({ buildingId, buildingName }: Props) {
 
         {/* Header */}
         <div className="mb-8">
-          <p className="mb-1 text-sm text-white/40">{buildingName}</p>
+          <p className="mb-1 text-sm text-slate-500">{buildingName}</p>
           <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-500/20 text-brand-400">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-500/10 text-brand-300 ring-1 ring-brand-500/25">
               <BellRing size={20} />
             </div>
             <div>
-              <h1 className="text-3xl font-black text-white">Push értesítések</h1>
-              <p className="mt-0.5 text-sm text-white/40">
+              <h1 className="text-2xl font-semibold tracking-tight text-slate-100">Push értesítések</h1>
+              <p className="mt-0.5 text-sm text-slate-400">
                 Küldjön azonnali értesítést a társasház tagjainak
               </p>
             </div>
@@ -102,11 +102,11 @@ export default function ErtesitesekClient({ buildingId, buildingName }: Props) {
         </div>
 
         {/* Form card */}
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6">
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Title */}
             <div>
-              <label className="mb-1.5 block text-sm font-bold text-slate-300" htmlFor="push-title">
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-500" htmlFor="push-title">
                 Cím <span className="text-rose-400">*</span>
               </label>
               <input
@@ -116,14 +116,14 @@ export default function ErtesitesekClient({ buildingId, buildingName }: Props) {
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={100}
                 required
-                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/20"
+                className="input-base"
                 placeholder="pl. Vízelzárás holnap reggel"
               />
             </div>
 
             {/* Body */}
             <div>
-              <label className="mb-1.5 block text-sm font-bold text-slate-300" htmlFor="push-body">
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-500" htmlFor="push-body">
                 Üzenet <span className="text-rose-400">*</span>
               </label>
               <textarea
@@ -133,38 +133,38 @@ export default function ErtesitesekClient({ buildingId, buildingName }: Props) {
                 maxLength={300}
                 required
                 rows={4}
-                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/20"
+                className="input-base"
                 placeholder="A részletes értesítés szövege…"
               />
-              <p className="mt-1 text-right text-xs text-white/30">{body.length}/300</p>
+              <p className="mt-1 text-right text-xs tabular-nums text-slate-500">{body.length}/300</p>
             </div>
 
             {/* URL (optional) */}
             <div>
-              <label className="mb-1.5 block text-sm font-bold text-slate-300" htmlFor="push-url">
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-500" htmlFor="push-url">
                 Hivatkozás URL{' '}
-                <span className="text-xs font-normal text-white/40">(opcionális — pl. /dokumentumok)</span>
+                <span className="text-[10px] font-normal normal-case tracking-normal text-slate-500">(opcionális — pl. /dokumentumok)</span>
               </label>
               <input
                 id="push-url"
                 type="text"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/20"
+                className="input-base"
                 placeholder={`/w/${buildingId}`}
               />
             </div>
 
             {/* Target role */}
             <div>
-              <label className="mb-1.5 block text-sm font-bold text-slate-300" htmlFor="push-target">
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-500" htmlFor="push-target">
                 Cél
               </label>
               <select
                 id="push-target"
                 value={targetRole}
                 onChange={(e) => setTargetRole(e.target.value as TargetRole)}
-                className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none transition focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/20"
+                className="input-base"
               >
                 {(Object.entries(TARGET_ROLE_LABELS) as [TargetRole, string][]).map(([key, label]) => (
                   <option key={key} value={key}>
@@ -178,7 +178,7 @@ export default function ErtesitesekClient({ buildingId, buildingName }: Props) {
             <button
               type="submit"
               disabled={status === 'sending' || !title.trim() || !body.trim()}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-[0.625rem] bg-brand-500 px-4 py-2.5 text-sm font-semibold text-ink-base transition-colors hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Send size={15} />
               {status === 'sending' ? 'Küldés…' : 'Értesítés küldése'}
@@ -187,14 +187,14 @@ export default function ErtesitesekClient({ buildingId, buildingName }: Props) {
 
           {/* Result messages */}
           {status === 'success' && result && (
-            <div className="mt-5 flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+            <div className="mt-5 flex items-start gap-3 rounded-xl bg-emerald-500/10 p-4 ring-1 ring-emerald-500/25">
               <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-emerald-400" />
               <div>
-                <p className="text-sm font-bold text-emerald-300">Sikeresen elküldve!</p>
+                <p className="text-sm font-semibold text-emerald-300">Sikeresen elküldve!</p>
                 <p className="mt-0.5 text-sm text-emerald-300/70">
                   {result.sent} értesítés elküldve
                   {result.failed > 0 && (
-                    <span className="text-amber-400/80">
+                    <span className="text-amber-300">
                       {' '}· {result.failed} sikertelen (lejárt feliratkozás)
                     </span>
                   )}
@@ -204,10 +204,10 @@ export default function ErtesitesekClient({ buildingId, buildingName }: Props) {
           )}
 
           {status === 'error' && (
-            <div className="mt-5 flex items-start gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4">
+            <div className="mt-5 flex items-start gap-3 rounded-xl bg-rose-500/10 p-4 ring-1 ring-rose-500/25">
               <AlertTriangle size={18} className="mt-0.5 shrink-0 text-rose-400" />
               <div>
-                <p className="text-sm font-bold text-rose-300">Küldési hiba</p>
+                <p className="text-sm font-semibold text-rose-300">Küldési hiba</p>
                 <p className="mt-0.5 text-sm text-rose-300/70">{errorMsg}</p>
               </div>
             </div>
@@ -215,9 +215,9 @@ export default function ErtesitesekClient({ buildingId, buildingName }: Props) {
         </div>
 
         {/* Info box */}
-        <div className="mt-6 rounded-xl border border-white/5 bg-white/[0.03] p-4">
-          <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">Tudnivalók</p>
-          <ul className="space-y-1.5 text-xs text-white/30">
+        <div className="mt-6 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Tudnivalók</p>
+          <ul className="space-y-1.5 text-xs text-slate-500">
             <li>• Az értesítés csak azoknak kerül kézbesítésre, akik engedélyezték a push értesítéseket.</li>
             <li>• A lejárt feliratkozások automatikusan törlésre kerülnek.</li>
             <li>• Az üzenet azonnal megjelenik az eszközökön, nem e-mail.</li>

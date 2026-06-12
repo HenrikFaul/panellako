@@ -21,7 +21,7 @@ export default function WorkspaceShell({
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="app-surface flex min-h-screen">
       <WorkspaceSidebar
         buildingId={buildingId}
         buildingName={buildingName}
@@ -31,7 +31,7 @@ export default function WorkspaceShell({
         onCollapse={setCollapsed}
       />
       <main
-        className="flex-1 min-w-0 transition-[padding] duration-200"
+        className="flex-1 min-w-0 overflow-x-hidden transition-[padding] duration-200"
         style={{ paddingLeft: collapsed ? 60 : 272 }}
       >
         {children}

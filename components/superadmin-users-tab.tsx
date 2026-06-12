@@ -118,13 +118,13 @@ export default function SuperadminUsersTab() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-black text-slate-900">Felhasználók</h2>
+          <h2 className="text-lg font-semibold text-slate-100">Felhasználók</h2>
           <p className="text-xs text-slate-500">{users.length} regisztrált felhasználó</p>
         </div>
         <button
           onClick={load}
           disabled={loading}
-          className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/[0.08] disabled:opacity-50"
         >
           {loading ? 'Töltés…' : '↻ Frissítés'}
         </button>
@@ -136,20 +136,20 @@ export default function SuperadminUsersTab() {
         placeholder="Keresés név vagy e-mail alapján…"
         value={search}
         onChange={e => setSearch(e.target.value)}
-        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+        className="input-base"
       />
 
       {/* Table */}
       {loading && users.length === 0 ? (
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-14 animate-pulse rounded-xl bg-slate-100" />
+            <div key={i} className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <p className="py-8 text-center text-sm text-slate-400">Nincs találat</p>
+        <p className="py-8 text-center text-sm text-slate-500">Nincs találat</p>
       ) : (
-        <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
+        <div className="divide-y divide-white/[0.06] rounded-2xl border border-white/[0.08] bg-white/[0.03]">
           {filtered.map(user => {
             const isOpen = expanded === user.id;
             const state  = editing[user.id];
@@ -159,47 +159,47 @@ export default function SuperadminUsersTab() {
               <div key={user.id}>
                 {/* Row */}
                 <div
-                  className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-slate-50"
+                  className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-white/[0.03]"
                   onClick={() => (isOpen ? setExpanded(null) : openEdit(user))}
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-black text-indigo-700">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-500/15 text-xs font-semibold text-brand-300">
                       {(user.full_name ?? user.email).slice(0, 1).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-900">{user.full_name || '(névtelen)'}</p>
+                      <p className="truncate text-sm font-semibold text-slate-100">{user.full_name || '(névtelen)'}</p>
                       <p className="truncate text-xs text-slate-500">{user.email}</p>
                     </div>
                   </div>
                   <div className="hidden shrink-0 text-right sm:block">
-                    <p className="text-xs text-slate-400">Regisztrált</p>
-                    <p className="text-xs font-semibold text-slate-700">{fmtDate(user.created_at)}</p>
+                    <p className="text-xs text-slate-500">Regisztrált</p>
+                    <p className="text-xs font-semibold text-slate-300">{fmtDate(user.created_at)}</p>
                   </div>
                   <div className="hidden shrink-0 text-right md:block">
-                    <p className="text-xs text-slate-400">Próbaidőszak vége</p>
-                    <p className={`text-xs font-semibold ${user.free_trial_never_expires ? 'text-emerald-600' : trialEnd(user).startsWith('Lejárt') ? 'text-red-600' : 'text-slate-700'}`}>
+                    <p className="text-xs text-slate-500">Próbaidőszak vége</p>
+                    <p className={`text-xs font-semibold ${user.free_trial_never_expires ? 'text-emerald-400' : trialEnd(user).startsWith('Lejárt') ? 'text-rose-400' : 'text-slate-300'}`}>
                       {trialEnd(user)}
                     </p>
                   </div>
-                  <span className="shrink-0 text-slate-300">{isOpen ? '▲' : '▼'}</span>
+                  <span className="shrink-0 text-slate-600">{isOpen ? '▲' : '▼'}</span>
                 </div>
 
                 {/* Expanded edit panel */}
                 {isOpen && state && (
-                  <div className="border-t border-slate-100 bg-slate-50 px-4 pb-4 pt-3">
+                  <div className="border-t border-white/[0.06] bg-white/[0.02] px-4 pb-4 pt-3">
                     <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
                       {/* Registration date — READ ONLY */}
                       <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Regisztrációs dátum</label>
-                        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
-                          <span className="text-sm text-slate-500">{fmtDate(user.created_at)}</span>
-                          <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-400">NEM MÓDOSÍTHATÓ</span>
+                        <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Regisztrációs dátum</label>
+                        <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
+                          <span className="text-sm text-slate-400">{fmtDate(user.created_at)}</span>
+                          <span className="ml-auto rounded-full bg-white/[0.06] px-2 py-0.5 text-[9px] font-semibold text-slate-500">NEM MÓDOSÍTHATÓ</span>
                         </div>
                       </div>
 
                       {/* Trial start date */}
                       <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                           Próbaidőszak kezdete
                         </label>
                         <input
@@ -207,13 +207,13 @@ export default function SuperadminUsersTab() {
                           value={state.free_trial_start}
                           disabled={state.free_trial_never_expires}
                           onChange={e => patch(user.id, 'free_trial_start', e.target.value)}
-                          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                          className="input-base disabled:opacity-40"
                         />
                       </div>
 
                       {/* Trial days */}
                       <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                           Ingyenes időszak (nap)
                         </label>
                         <input
@@ -223,10 +223,10 @@ export default function SuperadminUsersTab() {
                           value={state.free_trial_days}
                           disabled={state.free_trial_never_expires}
                           onChange={e => patch(user.id, 'free_trial_days', Math.max(1, parseInt(e.target.value) || 14))}
-                          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                          className="input-base disabled:opacity-40"
                         />
                         {!state.free_trial_never_expires && state.free_trial_start && (
-                          <p className="text-[10px] text-slate-400">
+                          <p className="text-[10px] text-slate-500">
                             Lejár: {fmtDate(
                               new Date(new Date(state.free_trial_start).getTime() + state.free_trial_days * 86_400_000).toISOString()
                             )}
@@ -236,19 +236,19 @@ export default function SuperadminUsersTab() {
 
                       {/* Never expires toggle */}
                       <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                           Soha nem jár le
                         </label>
                         <button
                           onClick={() => patch(user.id, 'free_trial_never_expires', !state.free_trial_never_expires)}
                           className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
                             state.free_trial_never_expires
-                              ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                              : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                              : 'border-white/10 bg-white/[0.04] text-slate-400 hover:border-white/20'
                           }`}
                         >
-                          <span className={`inline-block h-4 w-4 rounded border-2 transition-colors ${state.free_trial_never_expires ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300'}`}>
-                            {state.free_trial_never_expires && <span className="flex h-full w-full items-center justify-center text-[9px] font-black text-white">✓</span>}
+                          <span className={`inline-block h-4 w-4 rounded border-2 transition-colors ${state.free_trial_never_expires ? 'border-emerald-500 bg-emerald-500' : 'border-slate-600'}`}>
+                            {state.free_trial_never_expires && <span className="flex h-full w-full items-center justify-center text-[9px] font-semibold text-ink-base">✓</span>}
                           </span>
                           Örökös hozzáférés
                         </button>
@@ -259,18 +259,18 @@ export default function SuperadminUsersTab() {
                       <button
                         onClick={() => save(user.id)}
                         disabled={saving === user.id}
-                        className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
+                        className="rounded-[0.625rem] bg-brand-500 px-4 py-2 text-sm font-semibold text-ink-base hover:bg-brand-400 disabled:opacity-50"
                       >
                         {saving === user.id ? 'Mentés…' : 'Mentés'}
                       </button>
                       <button
                         onClick={() => setExpanded(null)}
-                        className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100"
+                        className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-white/[0.08]"
                       >
                         Mégse
                       </button>
                       {msg && (
-                        <span className={`text-sm font-bold ${msg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>
+                        <span className={`text-sm font-semibold ${msg.startsWith('✓') ? 'text-emerald-400' : 'text-rose-400'}`}>
                           {msg}
                         </span>
                       )}

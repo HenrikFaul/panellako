@@ -85,7 +85,7 @@ export default function NoiseReportForm({ workspaceId }: Props) {
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-      <h2 className="mb-1 text-lg font-black text-white">Zajbejelentés</h2>
+      <h2 className="mb-1 text-lg font-semibold text-white">Zajbejelentés</h2>
       <p className="mb-5 text-sm text-white/50">
         Rögzítse az észlelt zajszennyezést — adatai segítik a közösség érdekérvényesítését.
       </p>
@@ -96,7 +96,7 @@ export default function NoiseReportForm({ workspaceId }: Props) {
         </div>
       )}
       {status === 'error' && (
-        <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <div className="mb-4 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
           Hiba: {errorMsg}
         </div>
       )}
@@ -244,7 +244,7 @@ export default function NoiseReportForm({ workspaceId }: Props) {
         <button
           type="submit"
           disabled={status === 'loading'}
-          className="w-full rounded-xl bg-amber-500 px-4 py-3 text-sm font-bold text-slate-900 transition-colors hover:bg-amber-400 disabled:opacity-50"
+          className="w-full rounded-[0.625rem] bg-brand-500 px-4 py-3 text-sm font-semibold text-ink-base transition-colors hover:bg-brand-400 disabled:opacity-50"
         >
           {status === 'loading' ? 'Mentés...' : 'Zajbejelentés elküldése'}
         </button>

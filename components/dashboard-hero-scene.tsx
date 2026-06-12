@@ -219,11 +219,14 @@ export default function DashboardHeroScene({
     };
   }, []);
 
-  // Stable randomness for stars, snow, leaves — generated once.
-  const rng = useMemo(() => mulberry32(1337), []);
-  const stars = useMemo(
-    () =>
-      Array.from({ length: 38 }, (_, i) => ({
+  // Stable randomness for stars, snow, leaves.
+  // Hydration fix (v0.9.33): each useMemo gets its OWN re-seeded generator.
+  // A single shared mutable generator desynced between server render and the
+  // client's strict-mode double-invocation, producing different particle
+  // positions and a full-document hydration mismatch.
+  const stars = useMemo(() => {
+    const rng = mulberry32(1337);
+    return Array.from({ length: 38 }, (_, i) => ({
         cx: rng() * 418,
         cy: rng() * 70,
         r: 0.4 + rng() * 1.4,
@@ -231,14 +234,13 @@ export default function DashboardHeroScene({
         twinkleDelay: rng() * 5,
         twinkleDuration: 2 + rng() * 4,
         id: i,
-      })),
-    [rng]
-  );
+      }));
+  }, []);
 
   // Three slowly rotating constellation clusters.
-  const constellations = useMemo(
-    () =>
-      Array.from({ length: 3 }, (_, i) => ({
+  const constellations = useMemo(() => {
+    const rng = mulberry32(2337);
+    return Array.from({ length: 3 }, (_, i) => ({
         cx: 60 + i * 130 + rng() * 20,
         cy: 12 + rng() * 18,
         pts: Array.from({ length: 5 }, () => ({
@@ -247,26 +249,24 @@ export default function DashboardHeroScene({
         })),
         duration: 10 + rng() * 8,
         id: i,
-      })),
-    [rng]
-  );
+      }));
+  }, []);
 
-  const snowflakes = useMemo(
-    () =>
-      Array.from({ length: 22 }, (_, i) => ({
+  const snowflakes = useMemo(() => {
+    const rng = mulberry32(3337);
+    return Array.from({ length: 22 }, (_, i) => ({
         startX: rng() * 418,
         r: 0.7 + rng() * 1.1,
         duration: 9 + rng() * 8,
         delay: rng() * 12,
         drift: 6 + rng() * 10,
         id: i,
-      })),
-    [rng]
-  );
+      }));
+  }, []);
 
-  const leaves = useMemo(
-    () =>
-      Array.from({ length: 7 }, (_, i) => ({
+  const leaves = useMemo(() => {
+    const rng = mulberry32(4337);
+    return Array.from({ length: 7 }, (_, i) => ({
         startX: rng() * 418,
         color: ['#f97316', '#dc2626', '#facc15', '#ea580c'][Math.floor(rng() * 4)],
         duration: 9 + rng() * 6,
@@ -274,22 +274,20 @@ export default function DashboardHeroScene({
         drift: 12 + rng() * 18,
         scale: 0.8 + rng() * 0.6,
         id: i,
-      })),
-    [rng]
-  );
+      }));
+  }, []);
 
-  const clouds = useMemo(
-    () =>
-      Array.from({ length: 3 }, (_, i) => ({
+  const clouds = useMemo(() => {
+    const rng = mulberry32(5337);
+    return Array.from({ length: 3 }, (_, i) => ({
         baseY: 18 + i * 12 + rng() * 6,
         duration: 50 + rng() * 30,
         delay: -rng() * 50,
         opacity: 0.55 + rng() * 0.35,
         scale: 0.8 + rng() * 0.5,
         id: i,
-      })),
-    [rng]
-  );
+      }));
+  }, []);
 
   const sky = skyGradient(tod);
   const palette = buildingPalette(tod);

@@ -48,18 +48,29 @@ export default async function LakokornyzeSzolgaltatasokPage({ params }: PageProp
     .eq('id', buildingId).single();
   if (!building) redirect('/app');
 
-  let lat: number = (building as { lat?: number | null }).lat ?? 47.5278845;
-  let lon: number = (building as { lon?: number | null }).lon ?? 19.0705657;
+  // Bug fix (v0.9.33): the Budapest-center default used to be applied BEFORE the
+  // missing-coordinate check, so the geocode branch was unreachable and buildings
+  // without stored coordinates silently used the city center.
+  const rawLat = (building as { lat?: number | null }).lat ?? null;
+  const rawLon = (building as { lon?: number | null }).lon ?? null;
+  let lat: number | null = rawLat;
+  let lon: number | null = rawLon;
 
-  if ((!lat || !lon) && building.address) {
+  if ((lat === null || lon === null) && building.address) {
     const geo = await geocodeAddress(building.address);
     if (geo) {
       lat = geo.lat; lon = geo.lon;
+      // .is('lat', null) guard: concurrent page loads won't overwrite each other
       await supabase.from('buildings')
         .update({ lat: geo.lat, lon: geo.lon, geocoded_at: new Date().toISOString() })
-        .eq('id', buildingId);
+        .eq('id', buildingId)
+        .is('lat', null);
     }
   }
+
+  // Final fallback: Budapest center, only if geocoding also failed
+  lat = lat ?? 47.5278845;
+  lon = lon ?? 19.0705657;
 
   const buildingName = (building as { name?: string | null }).name ?? building.address;
 

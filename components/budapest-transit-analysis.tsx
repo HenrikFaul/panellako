@@ -19,13 +19,13 @@ import { useMapTheme } from '@/hooks/use-map-theme';
 
 type Mode = 'TRAM' | 'METRO' | 'BUS' | 'HEV' | 'TROLLEY' | 'FERRY';
 
-const MODE_CFG: Record<Mode, { label: string; color: string; emoji: string }> = {
-  TRAM:    { label: 'Villamos',           color: '#facc15', emoji: '🟡' }, // yellow-400
-  METRO:   { label: 'Metró / Földalatti', color: '#1e3a8a', emoji: '🔵' }, // blue-900
-  BUS:     { label: 'Busz',               color: '#22d3ee', emoji: '🟦' }, // cyan-400
-  HEV:     { label: 'HÉV',                color: '#22c55e', emoji: '🟢' }, // green-500
-  TROLLEY: { label: 'Troli',              color: '#dc2626', emoji: '🔴' }, // red-600
-  FERRY:   { label: 'Hajó',               color: '#92400e', emoji: '🟤' }, // amber-800
+const MODE_CFG: Record<Mode, { label: string; color: string }> = {
+  TRAM:    { label: 'Villamos',           color: '#facc15' }, // yellow-400
+  METRO:   { label: 'Metró / Földalatti', color: '#1e3a8a' }, // blue-900
+  BUS:     { label: 'Busz',               color: '#22d3ee' }, // cyan-400
+  HEV:     { label: 'HÉV',                color: '#22c55e' }, // green-500
+  TROLLEY: { label: 'Troli',              color: '#dc2626' }, // red-600
+  FERRY:   { label: 'Hajó',               color: '#92400e' }, // amber-800
 };
 
 const MODE_ORDER: Mode[] = ['TRAM', 'METRO', 'BUS', 'HEV', 'TROLLEY', 'FERRY'];
@@ -388,25 +388,25 @@ export default function BudapestTransitAnalysis() {
   return (
     <div className="relative w-full" style={{ height: 'calc(100vh - 180px)', minHeight: 520 }}>
       {/* Map container */}
-      <div ref={containerRef} className="absolute inset-0 rounded-2xl overflow-hidden bg-slate-100" />
+      <div ref={containerRef} className="absolute inset-0 rounded-2xl overflow-hidden bg-slate-900" />
 
       {/* Loading / error overlay */}
       {loading && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <p className="rounded-full bg-white/90 px-4 py-2 text-xs font-bold text-slate-600 shadow-md animate-pulse">
+          <p className="rounded-full border border-white/10 bg-slate-900/90 px-4 py-2 text-xs font-bold text-slate-300 shadow-md animate-pulse">
             GTFS-adatok betöltése…
           </p>
         </div>
       )}
       {loadError && (
-        <div className="absolute inset-x-0 top-4 mx-auto w-fit max-w-md rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-xs font-bold text-red-700 shadow-md">
+        <div className="absolute inset-x-0 top-4 mx-auto w-fit max-w-md rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-xs font-bold text-rose-300 shadow-md">
           ⚠ Adatlekérés sikertelen: {loadError}
         </div>
       )}
 
       {/* Layer panel (top-left) */}
-      <div className="absolute left-3 top-3 z-[1000] w-64 max-w-[80vw] rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur">
-        <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Rétegek</p>
+      <div className="absolute left-3 top-3 z-[1000] w-64 max-w-[80vw] rounded-2xl border border-white/10 bg-slate-900/90 p-3 shadow-lg backdrop-blur">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Rétegek</p>
 
         <div className="flex flex-col gap-1.5">
           {modeLayers.map(l => (
@@ -420,7 +420,7 @@ export default function BudapestTransitAnalysis() {
           ))}
         </div>
 
-        <div className="my-2 border-t border-slate-200" />
+        <div className="my-2 border-t border-white/10" />
 
         <div className="flex flex-col gap-1.5">
           {analysisLayers.map(l => (
@@ -435,7 +435,7 @@ export default function BudapestTransitAnalysis() {
         </div>
 
         {residentialError && active.has('residential') && (
-          <p className="mt-2 text-[9px] text-red-600">⚠ OSM Overpass: {residentialError}</p>
+          <p className="mt-2 text-[9px] text-rose-400">⚠ OSM Overpass: {residentialError}</p>
         )}
 
         {data?.meta && (
@@ -449,7 +449,7 @@ export default function BudapestTransitAnalysis() {
       <button
         type="button"
         onClick={() => setShowInfo(v => !v)}
-        className="absolute right-3 top-3 z-[1000] grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white/95 text-base font-black text-slate-700 shadow-lg hover:bg-white"
+        className="absolute right-3 top-3 z-[1000] grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-slate-900/90 text-base font-semibold text-slate-200 shadow-lg hover:bg-slate-800"
         aria-label="Módszertan"
       >
         ℹ
@@ -457,13 +457,13 @@ export default function BudapestTransitAnalysis() {
 
       {/* Info popup */}
       {showInfo && (
-        <div className="absolute right-3 top-16 z-[1001] w-80 max-w-[80vw] rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-700 shadow-2xl">
+        <div className="absolute right-3 top-16 z-[1001] w-80 max-w-[80vw] rounded-2xl border border-white/10 bg-slate-900 p-4 text-xs text-slate-300 shadow-2xl">
           <div className="mb-2 flex items-start justify-between gap-2">
-            <p className="text-sm font-black text-slate-900">Módszertan</p>
+            <p className="text-sm font-semibold text-slate-100">Módszertan</p>
             <button
               type="button"
               onClick={() => setShowInfo(false)}
-              className="rounded-md border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-500 hover:bg-slate-50"
+              className="rounded-md border border-white/10 px-2 py-0.5 text-[10px] font-bold text-slate-400 hover:bg-white/10"
             >
               ×
             </button>
@@ -513,8 +513,8 @@ function LayerChip({
       onClick={onClick}
       className={`flex items-center gap-2 rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors ${
         active
-          ? 'bg-slate-900 text-white shadow-sm'
-          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+          ? 'bg-white/[0.12] text-white shadow-sm'
+          : 'bg-white/[0.04] text-slate-400 hover:bg-white/[0.08]'
       }`}
     >
       <span

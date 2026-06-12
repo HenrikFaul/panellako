@@ -36,12 +36,12 @@ function ScoreBar({ label, value, color }: { label: string; value: number; color
   return (
     <div>
       <div className="mb-1 flex items-center justify-between">
-        <span className="text-[10px] font-bold text-slate-300">{label}</span>
-        <span className="text-[10px] font-black tabular-nums" style={{ color }}>{value}</span>
+        <span className="text-[10px] font-semibold text-slate-300">{label}</span>
+        <span className="text-[10px] font-semibold tabular-nums" style={{ color }}>{value}</span>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.07]">
         <div className="h-full rounded-full transition-all duration-700"
-          style={{ width: `${value}%`, background: color, boxShadow: `0 0 6px ${color}60` }} />
+          style={{ width: `${value}%`, background: color }} />
       </div>
     </div>
   );
@@ -58,7 +58,7 @@ function WalkRing({ score, color }: { score: number; color: string }) {
         strokeDasharray={`${(score / 100) * C} ${C}`}
         strokeDashoffset={C / 4}
         style={{ transition: 'stroke-dasharray 1s ease' }} />
-      <text x={60} y={56} textAnchor="middle" fontSize={22} fontWeight={900} fill={color}>{score}</text>
+      <text x={60} y={56} textAnchor="middle" fontSize={22} fontWeight={600} fill={color}>{score}</text>
       <text x={60} y={68} textAnchor="middle" fontSize={8} fill="#94a3b8">/ 100</text>
     </svg>
   );
@@ -66,9 +66,9 @@ function WalkRing({ score, color }: { score: number; color: string }) {
 
 // ─── Score color ──────────────────────────────────────────────────────────────
 function scoreColor(s: number) {
-  if (s >= 75) return '#22c55e';
+  if (s >= 75) return '#34d399';
   if (s >= 55) return '#84cc16';
-  if (s >= 40) return '#eab308';
+  if (s >= 40) return '#fbbf24';
   return '#f97316';
 }
 
@@ -97,7 +97,7 @@ export default function CompactCityPanel({
   data, loading, buildingLat, buildingLon, onRequestLivePois, loadingPois,
 }: Props) {
   const [view, setView] = useState<ViewMode>('stats');
-  // null  → map shows ALL categories (default "🗺️ Térkép" tab behaviour)
+  // null  → map shows ALL categories (default "Térkép" tab behaviour)
   // Set   → map filter chips are pre-set to only these groups
   const [mapFilterGroups, setMapFilterGroups] = useState<Set<CatGroup> | null>(null);
   // null  → no auto-zoom (default)
@@ -145,7 +145,7 @@ export default function CompactCityPanel({
     if (!hasPois && onRequestLivePois) onRequestLivePois();
   }
 
-  // Default "🗺️ Térkép" tab — full unfiltered map.
+  // Default "Térkép" tab — full unfiltered map.
   function openFullMap() {
     setMapFilterGroups(null);
     setMapZoomToPoiId(null);
@@ -160,21 +160,21 @@ export default function CompactCityPanel({
       <button
         type="button"
         onClick={() => setView('stats')}
-        className={`rounded-xl px-4 py-2 text-[11px] font-bold transition-colors ${
+        className={`rounded-xl px-4 py-2 text-[11px] font-semibold transition-colors ${
           view === 'stats' ? 'bg-orange-500/20 text-orange-300' : 'text-slate-400 hover:text-slate-200'
         }`}
       >
-        📊 Statisztika
+        Statisztika
       </button>
       <button
         type="button"
         onClick={openFullMap}
         disabled={!canShowMap}
-        className={`rounded-xl px-4 py-2 text-[11px] font-bold transition-colors ${
+        className={`rounded-xl px-4 py-2 text-[11px] font-semibold transition-colors ${
           view === 'map' ? 'bg-orange-500/20 text-orange-300' : 'text-slate-400 hover:text-slate-200'
         } ${!canShowMap ? 'opacity-40 cursor-not-allowed' : ''}`}
       >
-        🗺️ Térkép
+        Térkép
       </button>
     </div>
   );
@@ -200,7 +200,7 @@ export default function CompactCityPanel({
               <button
                 type="button"
                 onClick={onRequestLivePois}
-                className="rounded-xl border border-white/[0.1] px-4 py-2 text-[10px] font-bold text-slate-300 hover:bg-white/[0.05] transition-colors"
+                className="rounded-xl border border-white/[0.08] px-4 py-2 text-[10px] font-semibold text-slate-300 hover:bg-white/[0.05] transition-colors"
               >
                 Live POI-k lekérése
               </button>
@@ -209,12 +209,12 @@ export default function CompactCityPanel({
         ) : (
           <>
             {singlePoiOsmId != null && (
-              <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2">
-                <p className="text-[9px] font-bold text-slate-400">Egyetlen helyszín megjelenítve</p>
+              <div className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                <p className="text-[9px] font-semibold text-slate-400">Egyetlen helyszín megjelenítve</p>
                 <button
                   type="button"
                   onClick={() => { setSinglePoiOsmId(null); setMapZoomToPoiId(null); }}
-                  className="rounded-md border border-white/[0.1] px-2 py-0.5 text-[9px] font-bold text-slate-300 hover:bg-white/[0.06] transition-colors"
+                  className="rounded-md border border-white/[0.08] px-2 py-0.5 text-[9px] font-semibold text-slate-300 hover:bg-white/[0.06] transition-colors"
                 >
                   ← Összes POI mutatása
                 </button>
@@ -241,7 +241,7 @@ export default function CompactCityPanel({
       <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
         <div className="flex flex-col items-center gap-1">
           <WalkRing score={data.score15min} color={mainColor} />
-          <p className="text-[10px] font-black" style={{ color: mainColor }}>{scoreLabel(data.score15min)}</p>
+          <p className="text-[10px] font-semibold" style={{ color: mainColor }}>{scoreLabel(data.score15min)}</p>
           <p className="text-[8px] text-slate-600">15 perces város index</p>
         </div>
         <div className="flex-1 space-y-3 w-full">
@@ -257,9 +257,9 @@ export default function CompactCityPanel({
       {/* Key distances */}
       <div className="grid gap-2 sm:grid-cols-3">
         {([
-          { kind: 'food'      as const, label: 'Legközelebbi ABC',          dist: data.nearestSupermarketM, icon: '🛒', color: '#fb923c' },
-          { kind: 'health'    as const, label: 'Legközelebbi gyógyszertár', dist: data.nearestPharmacyM,    icon: '💊', color: '#60a5fa' },
-          { kind: 'education' as const, label: 'Legközelebbi iskola',       dist: data.nearestSchoolM,      icon: '🏫', color: '#a78bfa' },
+          { kind: 'food'      as const, label: 'Legközelebbi ABC',          dist: data.nearestSupermarketM, color: '#fb923c' },
+          { kind: 'health'    as const, label: 'Legközelebbi gyógyszertár', dist: data.nearestPharmacyM,    color: '#38bdf8' },
+          { kind: 'education' as const, label: 'Legközelebbi iskola',       dist: data.nearestSchoolM,      color: '#a78bfa' },
         ]).map(item => {
           // Only act on the click if the data is actually there AND the map
           // tab is reachable; otherwise the card is purely informational.
@@ -271,22 +271,22 @@ export default function CompactCityPanel({
               tabIndex={clickable ? 0 : undefined}
               onClick={clickable ? () => focusNearest(item.kind) : undefined}
               onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); focusNearest(item.kind); } } : undefined}
-              className={`relative rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3 text-center transition-colors ${
+              className={`relative rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-center transition-colors ${
                 clickable ? 'cursor-pointer hover:bg-white/[0.05] hover:border-white/[0.15]' : ''
               }`}
             >
               {clickable && (
-                <span className="absolute top-1.5 right-2 text-[8px] font-bold text-slate-500">🗺️ →</span>
+                <span className="absolute top-1.5 right-2 text-[8px] font-semibold text-slate-500">→</span>
               )}
-              <p className="text-base">{item.icon}</p>
+              <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} aria-hidden />
               <p className="text-[9px] text-slate-500 mt-1">{item.label}</p>
               {item.dist !== null ? (
                 <>
-                  <p className="text-lg font-black" style={{ color: item.color }}>{item.dist} <span className="text-xs text-slate-500">m</span></p>
+                  <p className="text-lg font-semibold tabular-nums" style={{ color: item.color }}>{item.dist} <span className="text-xs text-slate-500">m</span></p>
                   <p className="text-[8px] text-slate-600">~{Math.round(item.dist / 67)} perc gyalog</p>
                 </>
               ) : (
-                <p className="text-xs text-slate-700 mt-1">Nincs az 1 km-es körben</p>
+                <p className="text-xs text-slate-600 mt-1">Nincs az 1 km-es körben</p>
               )}
             </div>
           );
@@ -295,7 +295,7 @@ export default function CompactCityPanel({
 
       {/* Amenity grid */}
       <div>
-        <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-slate-500">Létesítmények 1 km-en belül</p>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Létesítmények 1 km-en belül</p>
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
           {data.amenities.map(a => {
             // `a.category` on the server is already one of our CatGroup keys
@@ -315,13 +315,12 @@ export default function CompactCityPanel({
                 tabIndex={clickable ? 0 : undefined}
                 onClick={clickable ? () => focusCategoryGroup(group) : undefined}
                 onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); focusCategoryGroup(group); } } : undefined}
-                className={`rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 text-center transition-colors ${
+                className={`rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-center transition-colors ${
                   clickable ? 'cursor-pointer hover:bg-white/[0.05] hover:border-white/[0.15]' : ''
                 }`}
               >
-                <p className="text-lg">{a.icon}</p>
                 <p className="text-[9px] text-slate-500 mt-1">{a.label}</p>
-                <p className="text-xl font-black text-slate-200">{a.count}</p>
+                <p className="text-xl font-semibold tabular-nums text-slate-100">{a.count}</p>
                 {a.nearestM !== null && <p className="text-[8px] text-slate-600">{a.nearestM}m</p>}
               </div>
             );
@@ -330,12 +329,12 @@ export default function CompactCityPanel({
       </div>
 
       {/* What is compact city */}
-      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-        <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-slate-500">A 15 perces város koncepció</p>
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">A 15 perces város koncepció</p>
         <div className="grid gap-2 sm:grid-cols-3 text-[9px] leading-relaxed text-slate-500">
-          <p><span className="text-slate-300 font-bold">Carlos Moreno (2016):</span> Minden alapszolgáltatás gyalog vagy kerékpárral elérhető 15 percen belül.</p>
-          <p><span className="text-slate-300 font-bold">Gyalogolhatóság:</span> Üzletek, egészségügy, oktatás, kultúra távolsága exponenciális decay-függvény alapján.</p>
-          <p><span className="text-slate-300 font-bold">Adat:</span> OSM Overpass API (1,5 km sugár) + BKK Transit megálló-adatbázis.</p>
+          <p><span className="text-slate-300 font-semibold">Carlos Moreno (2016):</span> Minden alapszolgáltatás gyalog vagy kerékpárral elérhető 15 percen belül.</p>
+          <p><span className="text-slate-300 font-semibold">Gyalogolhatóság:</span> Üzletek, egészségügy, oktatás, kultúra távolsága exponenciális decay-függvény alapján.</p>
+          <p><span className="text-slate-300 font-semibold">Adat:</span> OSM Overpass API (1,5 km sugár) + BKK Transit megálló-adatbázis.</p>
         </div>
       </div>
     </div>

@@ -35,8 +35,8 @@ export default function NoiseHealthAdvisory() {
       rangeText: '> 65 dB',
       label: 'Súlyos egészségügyi veszély',
       detail: 'WHO: magas halálozási és betegségi kockázat, különösen gyerekeknél és idős korban.',
-      color: 'border-red-500/30 bg-red-500/10 text-red-300',
-      badge: 'bg-red-500/20 text-red-300',
+      color: 'border-rose-500/30 bg-rose-500/10 text-rose-300',
+      badge: 'bg-rose-500/20 text-rose-300',
       icon: '✕',
     },
   ];
@@ -44,7 +44,7 @@ export default function NoiseHealthAdvisory() {
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-        <h2 className="mb-1 text-lg font-black text-white">Egészségügyi küszöbértékek</h2>
+        <h2 className="mb-1 text-lg font-semibold text-white">Egészségügyi küszöbértékek</h2>
         <p className="mb-5 text-sm text-white/50">
           WHO és Európai Környezetvédelmi Ügynökség (EEA) iránymutatása alapján
         </p>
