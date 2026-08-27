@@ -20,6 +20,7 @@ interface BillingWarningBannerProps {
   subscriptionStatus: SubscriptionStatus;
   trialEnd: string | null | undefined;
   isManager: boolean;
+  hasPermanentAccess: boolean;
 }
 
 function getDaysUntil(dateStr: string): number {
@@ -34,6 +35,7 @@ export default function BillingWarningBanner({
   subscriptionStatus,
   trialEnd,
   isManager,
+  hasPermanentAccess,
 }: BillingWarningBannerProps) {
   const storageKey = `billing-banner-dismissed-${buildingId}`;
   const [dismissed, setDismissed] = useState(true); // start hidden to avoid hydration flicker
@@ -43,7 +45,7 @@ export default function BillingWarningBanner({
     if (!saved) setDismissed(false);
   }, [storageKey]);
 
-  if (!isManager) return null;
+  if (!isManager || hasPermanentAccess) return null;
 
   const handleDismiss = () => {
     sessionStorage.setItem(storageKey, '1');

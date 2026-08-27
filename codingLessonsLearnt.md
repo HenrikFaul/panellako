@@ -1387,3 +1387,19 @@ brand: { 500: 'oklch(0.714 0.145 181 / <alpha-value>)' }
 **Context**: Épület-geokódolás 5 aloldalon (`kozlekedes`, `lakokornyzet-szolgaltatasok`, `zaj`, `kornyezet`, `klimakockazat`).
 **Problem**: `let lat = building.lat ?? 47.5278845;` után az `if (!lat) { geocode... }` ág SOHA nem fut le (a default truthy), így a koordináta nélküli épületek némán Budapest-középpont adatait kapták.
 **Fix**: A default fallbackot csak a geokódolási kísérlet UTÁN szabad alkalmazni; DB-író ágon `.is('lat', null)` guard a konkurens felülírás ellen.
+
+---
+
+## ➕ APPEND — 2026-08-27 Demo hozzáférés megbízhatósági tanulságok
+
+### [LESSON-DEMO-ACCESS-089]: A publikus demo hozzáférés ne naptári subscription trialból származzon
+**Context**: A három PanelLakó demo felhasználó egy 14 napos, majd meghosszabbított, de véges próbához kötődött. A seed `ON CONFLICT DO NOTHING` ága a már létező profilokat nem tudta javítani.
+**Problem**: A publikus demo idővel billing falra irányított. A middleware már ismerte az örökös profil-hozzáférést, de a demo seed nem állította be, ezért a kód képessége és az éles adatállapot szétcsúszott.
+**Fix**: A három fix demo UUID + e-mail pár `free_trial_never_expires` jelzője célzott, auditált és idempotens módon `true`; a seed konfliktus esetén is ezt az egy mezőt reconciliálja.
+**Prevention**: Publikus demo fióknál üzleti invariánst seedelj, ne jövőbeli dátumot. A javítást mindig pontos stabil azonosító-párral határold, és ne használj domain-szintű vagy globális paywall-bypass-t.
+
+### [LESSON-ACCESS-UI-090]: Az engedélyezési döntés és a billing UI ugyanazt az állapotot értelmezze
+**Context**: A middleware subscription VAGY profil-próba alapján engedett, miközben a dashboard banner kizárólag a subscription lejáratát nézte.
+**Problem**: Sikeres hozzáférés mellett is megjelenhetett a „ma lejár” figyelmeztetés, ami demó közben hamis állapotot kommunikált.
+**Fix**: A profil `free_trial_never_expires` mezője bekerült a meglévő dashboard-adatlekérésbe, és az örökös hozzáférésű profiloknál a billing banner nem renderelődik.
+**Prevention**: Ha több jogosultsági forrás OR kapcsolatban áll, minden hozzáférési állapotot kommunikáló UI-komponensnek ugyanazt a kombinált döntést vagy annak teljes bemeneti állapotát kell használnia. A döntési függvényeket tiszta modulba kell emelni és határértékekkel tesztelni.

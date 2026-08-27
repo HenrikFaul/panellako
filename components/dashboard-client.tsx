@@ -114,7 +114,7 @@ type DashboardData = {
   unitId?: string;
   subscriptionStatus?: string;
   trialEnd?: string;
-  currentUser: { full_name: string; role: Role };
+  currentUser: { full_name: string; role: Role; free_trial_never_expires: boolean };
   news: Array<{
     id: string;
     title: string;
@@ -663,6 +663,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             subscriptionStatus={data.subscriptionStatus as SubscriptionStatus}
             trialEnd={data.trialEnd}
             isManager={isManager}
+            hasPermanentAccess={data.currentUser.free_trial_never_expires}
           />
 
           {/* ── Premium header ──────────────────────────────────────────────── */}
