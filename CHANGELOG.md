@@ -1,4 +1,37 @@
 
+## v0.9.36 — Determinisztikus production hydration
+**Dátum:** 2026-08-27
+**Branch:** codex/production-hydration-hotfix
+
+### Probléma
+- Az éles Vercel SSR UTC időzónában, a magyar böngésző pedig `Europe/Budapest`
+  időzónában formázta ugyanazokat a dátumokat, ezért a dashboard első renderje
+  React `#425`, `#418` és `#423` hydration hibákat jelzett.
+- Az aktivitási naptár render közben a gép helyi idejéből számolta a hetet, így az
+  SSR és a kliens napkulcsai időzónahatáron eltérhettek.
+
+### Javítás
+- Minden dashboard-dátum explicit `Europe/Budapest` időzónával formázódik.
+- A szerver egyetlen `renderedAt` és magyar `calendarDate` pillanatképet ad át a
+  kliensnek; a naptár kizárólag UTC-alapú dátumaritmetikát végez ezen a napkulcson.
+- Az esedékességi kiválasztás ugyanebből a stabil szerverpillanatból dolgozik.
+- A mérőóra-diktálás alapértelmezett napja is a szerverről kapott magyar napkulcs,
+  az előzmények rövid dátumai pedig ugyanazzal az explicit időzónával jelennek meg.
+
+### Megőrzött invariánsok
+- Nincs adatbázis-, migráció-, API-, jogosultság-, route- vagy műveletváltozás.
+- A magyarul megjelenő dátumok üzleti időzónája változatlanul Budapest; csak a
+  szerver és a böngésző lett determinisztikusan összehangolva.
+- A v0.9.35 statikus workspace dizájnja és összes funkciója változatlan maradt.
+
+### Ellenőrzés
+- Teljes Vitest: 7 fájl / 34 teszt — PASS.
+- `npm run typecheck` — PASS.
+- `npm run lint` — PASS, 0 warning és 0 error.
+- `npm run build` — PASS, 67/67 statikus oldal.
+
+---
+
 ## v0.9.35 — Kifinomult, statikus workspace felület
 **Dátum:** 2026-08-27
 **Branch:** codex/refined-workspace-redesign

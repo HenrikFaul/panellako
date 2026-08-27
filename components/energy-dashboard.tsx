@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react';
 import { Droplets, Flame, Zap, Leaf, ChevronDown, ChevronUp } from 'lucide-react';
 import type { MeterType } from '@/app/actions/meter-readings';
 import type { MeterReading } from '@/lib/types';
+import { formatHungarianMonthDay } from '../lib/hungarian-date';
 
 // ─── CO₂ emission factors ─────────────────────────────────────────────────────
 const CO2_FACTORS: Record<MeterType, number> = {
@@ -102,7 +103,7 @@ function MeterCard({ type, readings }: { type: MeterType; readings: MeterReading
             {latest.unit_label && (
               <span className="font-semibold text-slate-400">{latest.unit_label}&thinsp;·&thinsp;</span>
             )}
-            {new Date(latest.reading_date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })}
+            {formatHungarianMonthDay(latest.reading_date)}
           </p>
           {co2 !== null && co2 > 0 && (
             <div className="mt-1 inline-flex items-center gap-0.5 rounded-full bg-emerald-500/10 px-1.5 py-0.5 ring-1 ring-emerald-500/25">
@@ -180,7 +181,7 @@ function ReadingHistory({ readings }: { readings: MeterReading[] }) {
                 {r.value.toLocaleString('hu-HU', { maximumFractionDigits: 1 })}&thinsp;{cfg.unit}
               </span>
               <span className="shrink-0 text-[10px] text-slate-500">
-                {new Date(r.reading_date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })}
+                {formatHungarianMonthDay(r.reading_date)}
               </span>
             </li>
           );
@@ -203,9 +204,10 @@ interface EnergyDashboardProps {
   readings: MeterReading[];
   onSubmit: (type: MeterType, value: number, date: string) => Promise<void>;
   saved?: boolean;
+  defaultReadingDate: string;
 }
 
-export default function EnergyDashboard({ readings, onSubmit, saved }: EnergyDashboardProps) {
+export default function EnergyDashboard({ readings, onSubmit, saved, defaultReadingDate }: EnergyDashboardProps) {
   const [submitting, setSubmitting] = useState(false);
   const [localSaved, setLocalSaved] = useState(false);
 
@@ -264,7 +266,7 @@ export default function EnergyDashboard({ readings, onSubmit, saved }: EnergyDas
             />
             <input
               name="reading_date" type="date" required
-              defaultValue={new Date().toISOString().slice(0, 10)}
+              defaultValue={defaultReadingDate}
               className="input-base min-w-0 w-[140px] shrink-0"
             />
           </div>

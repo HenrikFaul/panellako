@@ -1431,3 +1431,13 @@ brand: { 500: 'oklch(0.714 0.145 181 / <alpha-value>)' }
 **Problem**: Nyitás/zárás önmagában nem elég: fókuszcsapda, Escape, fókusz-visszaadás, body scroll lock, breakpointváltás, 44 px-es célfelület és hash offset nélkül a navigáció részben használhatatlan marad.
 **Fix**: A drawer teljes billentyűzet- és viewport-életciklust kezel, a hash-célok pedig kitérnek a fix mobil fejléc elől; a környezetoldal második fejléce mobilon nem sticky.
 **Prevention**: Drawer acceptance tesztben mindig szerepeljen nyitás, Tab/Shift+Tab, Escape, overlay kattintás, resize desktopra, body-scroll helyreállítás, fókusz-visszaadás és deep-link pozíció.
+
+---
+
+## ➕ APPEND — 2026-08-27 Production hydration tanulságok
+
+### [LESSON-HYDRATION-095]: A lokális zöld böngészőkonzol nem bizonyítja a cross-timezone SSR egyezést
+**Context**: A dashboard dátumai és aktivitási naptára helyi időzónát használtak. A budapesti fejlesztői szerver és böngésző azonos szöveget adott, a Vercel UTC SSR és a budapesti production kliens viszont nem.
+**Problem**: Az implicit `Intl.DateTimeFormat` időzóna ismételt React `#425` szövegeltérést okozott; a render közbeni `new Date()` és kevert helyi/UTC naptáraritmetika `#418`/`#423` fallbackig juthatott. A funkció látszólag működött, mert React kliensoldalon újrarenderelte a gyökeret.
+**Fix**: Minden üzleti dátum explicit `Europe/Budapest` időzónát kapott; a szerver egyetlen renderpillanatot és magyar napkulcsot ad át, a naptár pedig kizárólag UTC dátum-metódusokkal dolgozik ezen a stabil kulcson.
+**Prevention**: SSR-es klienskomponens renderében ne használj implicit időzónát, `Date.now()`-t vagy friss `new Date()`-et. A production gate tartalmazzon UTC szerver/Budapest kliens SSR-markup tesztet és éles konzolellenőrzést; a hydration fallback nem tekinthető ártalmatlan warningnak.
