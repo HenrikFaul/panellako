@@ -31,8 +31,10 @@ export default function WorkspaceShell({
         onCollapse={setCollapsed}
       />
       <main
-        className="flex-1 min-w-0 overflow-x-hidden transition-[padding] duration-200"
-        style={{ paddingLeft: collapsed ? 60 : 272 }}
+        id="workspace-main"
+        className={`min-w-0 flex-1 overflow-x-hidden pt-14 transition-[padding] duration-200 lg:pt-0 ${
+          collapsed ? 'lg:pl-16' : 'lg:pl-[248px]'
+        }`}
       >
         {children}
       </main>

@@ -70,15 +70,12 @@ import { createCharge as createChargeAction, recordPayment as recordPaymentActio
 import { createMeeting as createMeetingAction, closeMeeting as closeMeetingAction, sendAssemblyInvitation as sendInvitationAction, getMeetingWithDetails } from '@/app/actions/meetings';
 import MeetingDetailPanel from '@/components/meeting-detail-panel';
 import AnnouncementComposer from '@/components/announcement-composer';
-import DashboardHeroScene, { detectTimeOfDay as heroDetectTod, skyGradient as heroSkyGradient, type TimeOfDay as HeroTimeOfDay } from '@/components/dashboard-hero-scene';
-import HeroVehicle from '@/components/HeroVehicle';
 import WorkspaceSidebar from '@/components/workspace-sidebar';
 import BillingWarningBanner, { type SubscriptionStatus } from '@/components/billing-warning-banner';
 import ResidentBottomNav from '@/components/resident-bottom-nav';
 import SectionCard from '@/components/ui/section-card';
 import StatCard from '@/components/ui/stat-card';
 import ActivityCalendar from '@/components/dashboard/activity-calendar';
-import PanelSkylineSvg from '@/components/dashboard/panel-skyline';
 import {
   AiCategoryChip,
   AiTriagePendingSkeleton,
@@ -204,12 +201,6 @@ function numberOrZero(value: number | string | null | undefined) {
   return Number(value ?? 0);
 }
 
-
-function hexToRgba(hex: string, alpha: number): string {
-  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!m) return `rgba(0,0,0,${alpha})`;
-  return `rgba(${parseInt(m[1], 16)},${parseInt(m[2], 16)},${parseInt(m[3], 16)},${alpha})`;
-}
 
 export default function DashboardClient({ data }: { data: DashboardData }) {
   const [ticketSaved, setTicketSaved] = useState(false);
@@ -351,14 +342,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       .filter((i) => i.label.toLowerCase().includes(q) || i.type.toLowerCase().includes(q) || i.meta.toLowerCase().includes(q))
       .slice(0, 8);
   }, [searchQuery, searchItems]);
-
-  // Hero ambient colour — tracks time-of-day so the seasonal sky glow updates live
-  const [heroTod, setHeroTod] = useState<HeroTimeOfDay>(() => heroDetectTod());
-  useEffect(() => {
-    const id = setInterval(() => setHeroTod(heroDetectTod()), 60_000);
-    return () => clearInterval(id);
-  }, []);
-  const heroAmbient = heroSkyGradient(heroTod).mid;
 
   // Close search dropdown on outside click
   useEffect(() => {
@@ -547,9 +530,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
   const tasks = useMemo(() => {
     return [
-      { id: 'task-1', title: 'Új hibabejelentések triage', meta: `${tickets.filter((ticket) => ticket.status === 'uj').length} új ticket`, tone: 'bg-sky-500/10 text-sky-300 ring-sky-500/25' },
-      { id: 'task-2', title: 'Lejárt közös költség ellenőrzés', meta: formatCurrency(arrears), tone: 'bg-amber-500/10 text-amber-300 ring-amber-500/25' },
-      { id: 'task-3', title: 'Közgyűlési dokumentumok olvasottsága', meta: `${data.documents.filter((document) => !document.acknowledged_at).length} nyitott visszaigazolás`, tone: 'bg-violet-500/10 text-violet-300 ring-violet-500/25' }
+      { id: 'task-1', title: 'Új hibabejelentések triage', meta: `${tickets.filter((ticket) => ticket.status === 'uj').length} új ticket`, tone: 'bg-brand-500/[0.08] text-brand-300 ring-brand-500/20', href: '#tickets' },
+      { id: 'task-2', title: 'Lejárt közös költség ellenőrzés', meta: formatCurrency(arrears), tone: 'bg-amber-500/[0.08] text-amber-300 ring-amber-500/20', href: '#finances' },
+      { id: 'task-3', title: 'Közgyűlési dokumentumok olvasottsága', meta: `${data.documents.filter((document) => !document.acknowledged_at).length} nyitott visszaigazolás`, tone: 'bg-white/[0.055] text-slate-300 ring-white/10', href: '#documents' }
     ];
   }, [arrears, data.documents, tickets]);
 
@@ -654,8 +637,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         />
 
         <main
-          className="min-w-0 flex-1 overflow-x-hidden space-y-5 px-4 py-5 md:px-8 lg:px-10 transition-[padding] duration-200"
-          style={{ paddingLeft: sidebarCollapsed ? 60 : 272 }}
+          id="workspace-main"
+          className={`min-w-0 flex-1 space-y-4 overflow-x-hidden px-4 pb-8 pt-20 transition-[padding] duration-200 md:px-6 lg:py-6 lg:pr-8 xl:pr-10 ${
+            sidebarCollapsed ? 'lg:pl-[84px]' : 'lg:pl-[268px]'
+          }`}
         >
           {/* ── Billing warning banner ────────────────────────────────────── */}
           <BillingWarningBanner
@@ -666,100 +651,62 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             hasPermanentAccess={data.currentUser.free_trial_never_expires}
           />
 
-          {/* ── Premium header ──────────────────────────────────────────────── */}
-          <header
-            className="relative overflow-hidden rounded-2xl border border-white/[0.08]"
-            style={{
-              background: `radial-gradient(ellipse 62% 220% at 50% 50%, ${heroAmbient} 0%, ${hexToRgba(heroAmbient, 0.88)} 14%, ${hexToRgba(heroAmbient, 0.68)} 30%, ${hexToRgba(heroAmbient, 0.44)} 46%, ${hexToRgba(heroAmbient, 0.22)} 62%, ${hexToRgba(heroAmbient, 0.07)} 76%, #05091a 90%)`,
-            }}
-          >
-            {/* Brand accent top hairline */}
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-400/50 to-transparent" />
-
-            {/* Content — skyline sits inline between title and actions */}
-            <div className="relative z-10 flex items-center gap-3 px-5 py-4">
-              {/* Left: building info */}
-              <div className="min-w-0 shrink-0">
+          {/* ── Static workspace context ────────────────────────────────────── */}
+          <header className="relative z-20 rounded-[18px] border border-white/[0.07] bg-white/[0.035] px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] md:px-6">
+            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+              <div className="flex min-w-0 items-start gap-4">
+                <div className="mt-0.5 hidden h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-500/[0.08] text-brand-300 sm:grid">
+                  <Building2 size={18} />
+                </div>
+                <div className="min-w-0">
                 {data.buildingName ? (
                   <>
                     {/* Mobile building switcher */}
                     <Link
                       href="/app"
-                      className="inline-flex items-center gap-1.5 text-xs font-medium mb-1 lg:hidden"
-                      style={{ color: '#8ba3c7' }}
+                      className="mb-1 inline-flex max-w-full items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-brand-300 lg:hidden"
                     >
                       <Layers3 size={12} />
                       <span className="truncate max-w-[200px]">{data.buildingName}</span>
                       <ChevronRight size={11} className="flex-shrink-0 opacity-60" />
                     </Link>
-                    <h1
-                      className="text-2xl font-semibold tracking-tight break-words md:text-3xl"
-                      style={{ color: '#f0f4ff', textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 2px 20px rgba(0,0,0,0.7)' }}
-                    >
+                    <h1 className="break-words font-display text-[1.75rem] font-medium leading-tight tracking-[-0.025em] text-slate-50 md:text-[2rem]">
                       {data.buildingName}
                     </h1>
-                    <p className="mt-1 text-xs" style={{ color: '#c0d0e8', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+                    <p className="mt-1.5 text-xs text-slate-400">
                       {addressCityLine(data.buildingAddress ?? '', data.buildingName ?? '')}
                     </p>
                     {myUnit && (myUnit.floor || myUnit.unit_label) && (
-                      <p className="mt-0.5 text-[11px] font-semibold" style={{ color: '#8ba3c7', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+                      <p className="mt-1 text-[11px] font-medium text-slate-400">
                         {[myUnit.floor, myUnit.unit_label].filter(Boolean).join(' / ')}
                       </p>
                     )}
                   </>
                 ) : (
                   <>
-                    <h1 className="text-2xl font-semibold tracking-tight md:text-3xl" style={{ color: '#f0f4ff', textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 2px 20px rgba(0,0,0,0.7)' }}>PanelLakó</h1>
-                    <p className="mt-1 text-xs" style={{ color: '#c0d0e8', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Modern lakói és képviselői működés egy felületen.</p>
+                    <h1 className="font-display text-[1.75rem] font-medium leading-tight tracking-[-0.025em] text-slate-50 md:text-[2rem]">PanelLakó</h1>
+                    <p className="mt-1.5 text-xs text-slate-400">Modern lakói és képviselői működés egy felületen.</p>
                   </>
                 )}
+                </div>
               </div>
 
-              {/* Center: animated time/season-aware skyline scene (v0.7.15) */}
-              <div
-                className="pointer-events-none select-none relative flex-1 min-w-0 h-[108px] overflow-hidden"
-                style={{
-                  /* 4-directional soft mask — all edges fade to transparent so the
-                     header's own radial-gradient background bleeds through seamlessly.
-                     mask-composite:intersect means only pixels visible in BOTH
-                     the left/right gradient AND the top/bottom gradient are shown. */
-                  WebkitMaskImage: [
-                    'linear-gradient(to right,  transparent 0%, black 13%, black 87%, transparent 100%)',
-                    'linear-gradient(to bottom, transparent 0%, black 13%, black 87%, transparent 100%)',
-                  ].join(', '),
-                  WebkitMaskComposite: 'destination-in',
-                  maskImage: [
-                    'linear-gradient(to right,  transparent 0%, black 13%, black 87%, transparent 100%)',
-                    'linear-gradient(to bottom, transparent 0%, black 13%, black 87%, transparent 100%)',
-                  ].join(', '),
-                  maskComposite: 'intersect',
-                }}
-              >
-                <DashboardHeroScene hideTram />
-                <HeroVehicle />
-              </div>
-
-              {/* Right: actions */}
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex w-full shrink-0 items-center gap-2 md:w-auto">
                 {/* Header search */}
-                <div className="relative" ref={searchRef}>
-                  <Search className="pointer-events-none absolute left-3 top-2.5" style={{ color: '#8ba3c7' }} size={14} />
+                <div className="relative min-w-0 flex-1 md:flex-none" ref={searchRef}>
+                  <Search className="pointer-events-none absolute left-3 top-2.5 text-slate-500" size={14} />
                   <input
-                    className="w-full rounded-xl py-2 pl-9 pr-4 text-sm outline-none transition-all md:w-48"
-                    style={{
-                      background: 'rgba(0,0,0,0.35)',
-                      border: '1px solid rgba(255,255,255,0.18)',
-                      color: '#dce8f8',
-                    }}
+                    aria-label="Keresés…"
+                    className="w-full rounded-[0.625rem] border border-white/[0.09] bg-black/15 py-2 pl-9 pr-4 text-sm text-slate-200 outline-none transition-colors placeholder:text-slate-400 hover:border-white/[0.14] focus:border-brand-400/50 focus:bg-black/25 md:w-56"
                     placeholder="Keresés…"
                     value={searchQuery}
                     onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
                     onFocus={() => setSearchOpen(true)}
                   />
                   {searchOpen && searchQuery.trim().length > 0 && (
-                    <div className="absolute left-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-white/10 bg-ink-panel shadow-overlay">
+                    <div className="absolute right-0 top-full z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-white/10 bg-ink-panel shadow-overlay md:w-80">
                       {searchResults.length === 0 ? (
-                        <p className="px-4 py-3 text-sm text-slate-500">Nincs találat</p>
+                        <p className="px-4 py-3 text-sm text-slate-400">Nincs találat</p>
                       ) : (
                         <ul className="py-1">
                           {searchResults.map((item) => (
@@ -771,7 +718,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                               >
                                 <span className="shrink-0 rounded-full bg-white/[0.07] px-2 py-0.5 text-[10px] font-semibold text-slate-400 ring-1 ring-white/10">{item.type}</span>
                                 <span className="flex-1 truncate text-slate-200">{item.label}</span>
-                                {item.meta && <span className="shrink-0 text-xs text-slate-500">{item.meta}</span>}
+                                {item.meta && <span className="shrink-0 text-xs text-slate-400">{item.meta}</span>}
                               </a>
                             </li>
                           ))}
@@ -798,7 +745,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
                 {isLoggedIn ? (
                   <button
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3.5 py-2 text-xs font-semibold text-slate-400 transition-colors hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-300"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-[0.625rem] border border-white/[0.08] bg-white/[0.025] px-3.5 py-2 text-xs font-semibold text-slate-400 transition-colors hover:border-white/[0.14] hover:bg-white/[0.055] hover:text-slate-200"
                     onClick={async () => {
                       const supabase = createClient();
                       await supabase.auth.signOut();
@@ -813,77 +760,68 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </div>
           </header>
 
-          <section id="overview" className="overflow-hidden rounded-2xl border border-white/[0.08] bg-ink-deep text-white">
-            <div className="grid gap-0 md:grid-cols-[1fr_auto]">
-              {/* Left: resident identity block — building address shown once in the header above */}
-              <div className="p-6 md:p-8">
+          <section id="overview" className="grid items-start gap-4 xl:grid-cols-[minmax(0,0.82fr)_minmax(660px,1.18fr)]">
+              <article className="self-start rounded-[18px] border border-white/[0.07] bg-white/[0.035] p-5 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] md:p-6">
                 {/* Who is logged in */}
-                <div className="mb-4 flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.12] bg-white/[0.07]">
-                    <UserRound size={18} className="text-slate-300" />
+                <div className="mb-5 flex items-start gap-3.5">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.055]">
+                    <UserRound size={18} className="text-slate-400" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="mb-0.5 text-[9px] font-bold uppercase tracking-widest text-slate-500">Bejelentkezett lakó</p>
-                    <p className="truncate text-lg font-semibold leading-tight text-white">
+                    <p className="mb-1 text-[11px] font-medium text-slate-400">Bejelentkezett lakó</p>
+                    <p className="truncate text-lg font-semibold leading-tight tracking-[-0.015em] text-white">
                       {data.currentUser.full_name || 'Ismeretlen'}
                     </p>
                   </div>
-                  <span className="mt-0.5 shrink-0 rounded-lg border border-brand-500/25 bg-brand-500/15 px-2.5 py-1 text-[10px] font-bold text-brand-300">
+                  <span className="mt-0.5 shrink-0 rounded-full bg-brand-500/[0.1] px-2.5 py-1 text-[10px] font-semibold text-brand-300">
                     {ROLE_LABEL[data.currentUser.role] ?? data.currentUser.role}
                   </span>
                 </div>
 
                 {/* Linked unit */}
                 {myUnit ? (
-                  <div className="mb-5 flex items-start gap-3 rounded-xl border border-white/[0.08] bg-white/[0.05] px-3.5 py-3">
+                  <div className="mb-5 flex items-start gap-3 rounded-xl bg-black/[0.12] px-3.5 py-3.5">
                     <Building2 size={14} className="mt-0.5 shrink-0 text-slate-500" />
                     <div className="min-w-0">
-                      <p className="mb-0.5 text-[9px] font-bold uppercase tracking-widest text-slate-600">Regisztrált albetét</p>
-                      <p className="text-sm font-bold text-white">
+                      <p className="mb-1 text-[11px] font-medium text-slate-400">Regisztrált albetét</p>
+                      <p className="text-sm font-semibold text-white">
                         {[myUnit.floor, myUnit.unit_label].filter(Boolean).join(' / ')}
                       </p>
                       {myUnit.area_m2 ? (
-                        <p className="mt-0.5 text-[10px] text-slate-500">{myUnit.area_m2} m²</p>
+                        <p className="mt-0.5 text-[10px] text-slate-400">{myUnit.area_m2} m²</p>
                       ) : null}
                     </div>
                   </div>
                 ) : isManager ? (
-                  <div className="mb-5 flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.05] px-3.5 py-3">
+                  <div className="mb-5 flex items-center gap-2.5 rounded-xl bg-black/[0.12] px-3.5 py-3.5">
                     <Layers3 size={14} className="shrink-0 text-slate-500" />
                     <p className="text-sm text-slate-400">{data.units.length} albetét ebben az épületben</p>
                   </div>
                 ) : null}
 
-                <div className="flex flex-wrap gap-3">
-                  <a href="#tickets" className="rounded-[0.625rem] bg-brand-500 px-5 py-2.5 text-sm font-semibold text-ink-base transition-colors hover:bg-brand-400">Új bejelentés</a>
-                  <a href="#units" className="rounded-[0.625rem] bg-white/[0.06] px-5 py-2.5 text-sm font-semibold text-slate-200 ring-1 ring-white/10 transition-colors hover:bg-white/[0.1]">Albetétek</a>
-                  <a href={`/w/${data.buildingId}/profil`} className="rounded-[0.625rem] bg-white/[0.06] px-5 py-2.5 text-sm font-semibold text-slate-200 ring-1 ring-white/10 transition-colors hover:bg-white/[0.1] flex items-center gap-1.5"><UserCog size={13} />Profil</a>
+                <div className="flex flex-wrap gap-2.5">
+                  <a href="#tickets" className="rounded-[0.625rem] bg-brand-500 px-4 py-2.5 text-sm font-semibold text-ink-base transition-colors hover:bg-brand-400">Új bejelentés</a>
+                  <a href="#units" className="rounded-[0.625rem] bg-white/[0.055] px-4 py-2.5 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/[0.09]">Albetétek</a>
+                  <a href={`/w/${data.buildingId}/profil`} className="flex items-center gap-1.5 rounded-[0.625rem] bg-white/[0.055] px-4 py-2.5 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/[0.09]"><UserCog size={13} />Profil</a>
                 </div>
-              </div>
+              </article>
 
-              {/* Right: weather + air quality + ticket heatmap */}
-              <div className="hidden lg:flex gap-0 border-l border-white/10 overflow-x-auto">
-
-                {/* Weather panel */}
-                <div className="w-44 shrink-0 border-r border-white/10 p-3">
-                  <WeatherWidget city={
+              <article className="rounded-[18px] border border-white/[0.07] bg-white/[0.035] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] md:p-4">
+                <div className="grid h-full gap-3 md:grid-cols-2 lg:grid-cols-[160px_160px_minmax(0,1fr)]">
+                  <div className="min-h-36 rounded-xl bg-black/[0.11] p-3">
+                    <WeatherWidget quiet city={
                     data.buildingAddress?.match(/\d{4}\s+([A-Za-záéíóöőúüűÁÉÍÓÖŐÚÜŰ-]+)/)?.[1]
                     ?? 'Budapest'
                   } />
+                  </div>
+                  <div className="min-h-36 rounded-xl bg-black/[0.11] p-3">
+                    <AirQualityWidget quiet href={`/w/${data.buildingId}/kornyezet#sec-air`} />
+                  </div>
+                  <div className="hidden min-w-0 rounded-xl bg-black/[0.11] p-4 lg:col-span-1 lg:block">
+                    <ActivityCalendar tickets={tickets} meetings={meetings} currentUnit={myUnit?.unit_label || undefined} />
+                  </div>
                 </div>
-
-                {/* Air quality panel */}
-                <div className="w-40 shrink-0 border-r border-white/10 p-3">
-                  <AirQualityWidget />
-                </div>
-
-                {/* Ticket activity heatmap */}
-                <div className="p-4 w-[340px] max-w-full">
-                  <ActivityCalendar tickets={tickets} meetings={meetings} currentUnit={myUnit?.unit_label || undefined} />
-                </div>
-
-              </div>
-            </div>
+              </article>
           </section>
 
           <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -1096,12 +1034,12 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             <SectionCard id="tasks" title="Teendők és gyors műveletek" icon={<ClipboardCheck size={18} />}>
               <div className="grid gap-3 md:grid-cols-3">
                 {tasks.map((task) => (
-                  <article key={task.id} className="card-lift rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
-                    <div className={`mb-3 inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold ring-1 ring-inset ${task.tone.replace('bg-', 'bg-').replace('text-', 'text-')}`}>{task.meta}</div>
+                  <article key={task.id} className="rounded-xl bg-black/[0.11] p-4">
+                    <div className={`mb-3 inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${task.tone}`}>{task.meta}</div>
                     <p className="text-sm font-semibold leading-snug text-slate-100">{task.title}</p>
-                    <button className="mt-3.5 inline-flex items-center gap-1 text-xs font-semibold text-brand-400 hover:text-brand-300" type="button">
+                    <a className="mt-3.5 inline-flex items-center gap-1 text-xs font-semibold text-brand-300 hover:text-brand-200" href={task.href}>
                       Megnyitás <ChevronRight size={13} />
-                    </button>
+                    </a>
                   </article>
                 ))}
               </div>
@@ -1961,26 +1899,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </div>
           </a>
 
-          {/* Decorative footer skyline — static SVG panel-building band that
-              echoes the original v0.6.x branding. Kept as a subtle, low-
-              opacity visual signature at the bottom of every dashboard view
-              (the live animated DashboardHeroScene is in the header). */}
-          <div className="mt-8 pointer-events-none select-none" aria-hidden="true">
-            <div
-              className="relative mx-auto h-32 max-w-3xl overflow-hidden opacity-40"
-              style={{
-                WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 18%, black 82%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 22%, black 100%)',
-                WebkitMaskComposite: 'source-in',
-                maskImage: 'linear-gradient(to right, transparent 0%, black 18%, black 82%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 22%, black 100%)',
-                maskComposite: 'intersect',
-              }}
-            >
-              <PanelSkylineSvg />
-            </div>
-            <p className="mt-2 text-center text-[10px] font-medium tracking-widest text-slate-400 uppercase">
-              PanelLakó · a társasházak digitális központja
-            </p>
-          </div>
         </main>
       </div>
 

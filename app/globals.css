@@ -22,6 +22,9 @@
 :root {
   color-scheme: light;
 
+  /* Editorial display face; system fallbacks keep builds deterministic. */
+  --font-display: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+
   /* Light surfaces — cool slate hue (H≈247) — public pages */
   --surface-0:      oklch(1 0 0);
   --surface-1:      oklch(0.984 0.003 247);
@@ -84,6 +87,22 @@ body {
 /* Anchor scroll margin — accounts for sticky headers */
 [id] {
   scroll-margin-top: 1.5rem;
+}
+
+/* Workspace hash links clear the fixed mobile context bar. */
+.app-surface [id] {
+  scroll-margin-top: 4.5rem;
+}
+
+@media (min-width: 1024px) {
+  .app-surface [id] {
+    scroll-margin-top: 1.5rem;
+  }
+}
+
+/* Environment quick-nav targets also clear the subpage header on desktop. */
+.app-surface .environment-section {
+  scroll-margin-top: 4.5rem;
 }
 
 ::selection {
@@ -169,4 +188,19 @@ body {
 .app-surface {
   background-color: var(--app-bg);
   color: theme('colors.slate.200');
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

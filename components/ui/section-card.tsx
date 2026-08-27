@@ -25,17 +25,17 @@ export default function SectionCard({
   return (
     <section
       id={id}
-      className={`min-w-0 overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5${className ? ` ${className}` : ''}`}
+      className={`min-w-0 overflow-hidden rounded-[18px] border border-white/[0.07] bg-white/[0.035] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] md:p-6${className ? ` ${className}` : ''}`}
     >
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="flex items-center gap-2.5 text-[15px] font-semibold text-slate-100">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-500/10 text-brand-400 ring-1 ring-brand-500/20">
+          <h2 className="flex items-center gap-2.5 text-base font-semibold tracking-[-0.01em] text-slate-100">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-brand-500/[0.08] text-brand-300">
               {icon}
             </span>
             {title}
           </h2>
-          {note && <p className="ml-[42px] mt-0.5 text-[11px] text-slate-500">{note}</p>}
+          {note && <p className="ml-[42px] mt-1 text-xs text-slate-400">{note}</p>}
         </div>
         {action}
       </div>

@@ -1,4 +1,51 @@
 
+## v0.9.35 — Kifinomult, statikus workspace felület
+**Dátum:** 2026-08-27
+**Branch:** codex/refined-workspace-redesign
+
+### Probléma
+- A dashboard mozgó városképe, járművei, világító időjárás- és AQI-elemei elvonták
+  a figyelmet az operatív feladatokról, és generikus, túldíszített hatást keltettek.
+- A desktop sidebar fix szélessége mobilon is érvényesült, ezért 375 px-en összenyomta
+  a tartalmat és vízszintes elrendezési hibákat okozott.
+- A túl sok egymással versengő szín, apró halvány felirat és egymásba ágyazott kártya
+  gyengítette a vizuális hierarchiát.
+
+### Javítás
+- A dashboard fejlécéből kikerült minden folyamatos dekoratív animáció; helyette
+  statikus, szerkesztőségi tipográfiájú épület-kontextus fejléc készült.
+- Az időjárás és levegőminőség ugyanazokat az API-kat, értékeket, előrejelzést és
+  adatforrás-jelölést használó, statikus `quiet` nézetet kapott.
+- A sidebar desktopon 248/64 px-es, mobilon pedig teljes útvonal- és szerepkör-
+  paritású, fókuszcsapdás, Escape-pel zárható drawer lett.
+- A KPI- és szekciókártyák egységes, csendes felületet, olvashatóbb kontrasztot és
+  következetesebb tipográfiai hierarchiát kaptak.
+- A gyors műveletek valódi anchorcélokra mutatnak; a levegőminőség-link a létező
+  `#sec-air` szekcióra vezet, a mobil hash-célok pedig nem csúsznak a fix fejléc alá.
+- A környezetoldal másodlagos fejléce mobilon nem marad sticky, így nem takarja el
+  a workspace menüsávját.
+
+### Megőrzött invariánsok
+- Minden dashboard-adat, űrlap, API-hívás, szerver action, modal, logout és billing
+  hozzáférési figyelmeztetés változatlanul elérhető.
+- Minden kezelői, lakói, bizottsági és könyvelői navigációs útvonal megmaradt.
+- A mobil ActivityCalendar a korábbi viselkedéssel egyezően desktop-only; az
+  időjárás és AQI mobilon is olvashatóvá vált.
+- Az ideiglenes vizuális QA útvonal nem része a végleges kódnak.
+
+### Ellenőrzés
+- CodeGraph dependency audit + végső sync — PASS.
+- Vitest: 5 fájl / 30 teszt — PASS.
+- `npm run typecheck` — PASS.
+- `npm run lint` — PASS, 0 warning és 0 error.
+- `npm run build` — PASS, 67/67 statikus oldal.
+- `git diff --check` — PASS; csak a repó Windows CRLF figyelmeztetései maradtak.
+- Helyi böngésző QA 1440×900 és 375×812 nézeten: nincs vízszintes overflow;
+  keresés, naptárléptetés, desktop collapse, mobil drawer, fókusz-visszaadás és
+  Escape-zárás működik; konzol warning/error 0.
+
+---
+
 ## v0.9.34 — Lejárat nélküli demo hozzáférés
 **Dátum:** 2026-08-27
 **Branch:** codex/demo-users-never-expire
