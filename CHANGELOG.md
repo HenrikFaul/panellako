@@ -1,4 +1,41 @@
 
+## v0.9.34 — Lejárat nélküli demo hozzáférés
+**Dátum:** 2026-08-27
+**Branch:** codex/demo-users-never-expire
+
+### Probléma
+- A három publikus demo felhasználó 2026. májusi profil-próbaideje lejárt.
+- A demo ház előfizetési seedje fix 14 napos próbát hozott létre, majd konfliktusnál
+  nem javította a már létező rekordokat.
+- A middleware ugyan támogatta az örökös profil-hozzáférést, de a demo profiloknál
+  ez a jelző nem volt beállítva; a dashboard figyelmeztetése pedig csak az elavult
+  subscription állapotot nézte.
+
+### Javítás
+- A három rögzített demo UUID + e-mail pár éles profilján célzottan bekapcsoltuk a
+  `free_trial_never_expires` jelzőt, három audit eseménnyel.
+- Idempotens migráció és javító seed biztosítja, hogy újratelepítéskor vagy seed
+  újrafuttatásakor a demo hozzáférés többé ne járjon le.
+- A workspace-hozzáférési logika külön, tiszta és determinisztikusan tesztelhető
+  modulba került, a meglévő fizetős és normál próbaidős szabályok változtatása nélkül.
+- A dashboard továbbadja a profil örökös-hozzáférési állapotát, ezért nem mutat
+  téves lejárati vagy fizetési bannert a demo közös képviselőnek.
+- A repó CodeGraph indexet kapott a későbbi függőségi és regressziós elemzésekhez.
+
+### Ellenőrzés
+- CodeGraph CLI 1.6.0, teljes index: 312 fájl / 3751 node / 7459 edge — PASS.
+- Célzott Vitest: 2 fájl / 19 teszt — PASS; teljes Vitest: 4 fájl / 25 teszt — PASS.
+- `npm run typecheck` — PASS.
+- `npm run lint` — PASS, 0 warning és 0 error.
+- Production Next.js build rendszer-CA használatával — PASS, 67/67 statikus oldal.
+- Az éles adatbázisban kizárólag a három publikus demo profil lett módosítva és
+  visszaolvasással ellenőrizve.
+- Éles böngészőteszt: közös képviselő, lakó és könyvelő belépés, `/app` és a demo
+  workspace — PASS, billing átirányítás nélkül. A három kért környezet/közlekedés/
+  szolgáltatások aloldal ugyancsak megnyílt billing átirányítás nélkül.
+
+---
+
 ## v0.9.33 — Enterprise dark redesign + UI primitívek + látens hibajavítások
 **Dátum:** 2026-06-12
 **Branch:** claude/enterprise-redesign-v1

@@ -1,42 +1,14 @@
 import { createServerClient } from '@supabase/ssr';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
+import {
+  hasWorkspaceAccess,
+  type ProfileTrialAccess,
+  type SubscriptionAccess,
+} from '@/lib/subscription-access';
 
 const PROTECTED_PREFIXES = ['/w/', '/app'];
 const AUTH_ROUTES = ['/login'];
-
-interface Subscription {
-  status:    string;
-  trial_end: string | null;
-}
-
-interface ProfileTrial {
-  free_trial_never_expires: boolean;
-  free_trial_start:         string | null;
-  free_trial_days:          number;
-  created_at:               string;
-}
-
-// Returns true if the superadmin-managed profile trial grants access.
-function hasProfileTrialAccess(profile: ProfileTrial | null): boolean {
-  if (!profile) return false;
-  if (profile.free_trial_never_expires) return true;
-  // Use free_trial_start if set, otherwise fall back to profile created_at
-  const start = profile.free_trial_start ?? profile.created_at;
-  if (!start) return false;
-  const end = new Date(new Date(start).getTime() + profile.free_trial_days * 86_400_000);
-  return end > new Date();
-}
-
-function hasSubscriptionAccess(subscription: Subscription | null): boolean {
-  if (!subscription) return true; // no record = new building, allow + prompt
-  if (subscription.status === 'active') return true;
-  if (subscription.status === 'trialing') {
-    if (!subscription.trial_end) return true;
-    return new Date(subscription.trial_end) > new Date();
-  }
-  return false;
-}
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -109,9 +81,10 @@ export async function middleware(request: NextRequest) {
     ]);
 
     // Allow if either the subscription is valid OR the superadmin-managed trial grants access
-    const allowed =
-      hasSubscriptionAccess(subscription as Subscription | null) ||
-      hasProfileTrialAccess(profile as ProfileTrial | null);
+    const allowed = hasWorkspaceAccess(
+      subscription as SubscriptionAccess | null,
+      profile as ProfileTrialAccess | null,
+    );
 
     if (!allowed) {
       const billingUrl = request.nextUrl.clone();

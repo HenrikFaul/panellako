@@ -20,7 +20,7 @@ import { Role } from './types';
 export async function getDashboardData(role: Role = 'lako', buildingId?: string) {
   const fallback = {
     source: 'mock',
-    currentUser: { ...mockCurrentUser, role },
+    currentUser: { ...mockCurrentUser, role, free_trial_never_expires: false },
     news: mockNews,
     notifications: mockNotifications,
     tickets: mockTickets,
@@ -103,7 +103,7 @@ export async function getDashboardData(role: Role = 'lako', buildingId?: string)
     scoped(supabase.from('knowledge_base_articles').select('*').limit(8)),
     supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(10),
     user
-      ? supabase.from('profiles').select('id, full_name, email, role').eq('id', user.id).single()
+      ? supabase.from('profiles').select('id, full_name, email, role, free_trial_never_expires').eq('id', user.id).single()
       : Promise.resolve({ data: null })
   ]);
 
@@ -154,9 +154,10 @@ export async function getDashboardData(role: Role = 'lako', buildingId?: string)
         id: profileResult.data.id,
         full_name: profileResult.data.full_name,
         email: profileResult.data.email,
-        role
+        role,
+        free_trial_never_expires: Boolean(profileResult.data.free_trial_never_expires),
       }
-    : { ...mockCurrentUser, role };
+    : { ...mockCurrentUser, role, free_trial_never_expires: false };
 
   return {
     source: 'supabase',

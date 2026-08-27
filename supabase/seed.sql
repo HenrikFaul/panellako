@@ -194,11 +194,12 @@ ON CONFLICT (id) DO NOTHING;
 -- 2. PROFILES
 -- =============================================================
 
-INSERT INTO profiles (id, full_name, email, role) VALUES
-(v_uid_kepviselo, 'Kovács Béla', 'demo.kepviselo@panellako.hu', 'kozos_kepviselo'),
-(v_uid_lako,      'Szabó Mária', 'demo.lako@panellako.hu',      'lako'),
-(v_uid_konyvelo,  'Nagy Péter',  'demo.konyvelo@panellako.hu',  'konyvelo')
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO profiles (id, full_name, email, role, free_trial_never_expires) VALUES
+(v_uid_kepviselo, 'Kovács Béla', 'demo.kepviselo@panellako.hu', 'kozos_kepviselo', true),
+(v_uid_lako,      'Szabó Mária', 'demo.lako@panellako.hu',      'lako',             true),
+(v_uid_konyvelo,  'Nagy Péter',  'demo.konyvelo@panellako.hu',  'konyvelo',         true)
+ON CONFLICT (id) DO UPDATE
+SET free_trial_never_expires = EXCLUDED.free_trial_never_expires;
 
 -- =============================================================
 -- 3. BUILDING
