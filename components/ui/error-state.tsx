@@ -24,12 +24,12 @@ export default function ErrorState({
       role="alert"
       className={`flex flex-col items-center gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/[0.06] px-6 py-8 text-center ${className}`}
     >
-      <span className="grid h-10 w-10 place-items-center rounded-xl bg-rose-500/10 text-rose-400 ring-1 ring-rose-500/25">
+      <span className="grid h-10 w-10 place-items-center rounded-xl bg-rose-50 text-rose-700 ring-1 ring-rose-200">
         <AlertTriangle size={18} />
       </span>
       <div>
-        <p className="text-sm font-semibold text-slate-100">{title}</p>
-        {message && <p className="mt-1 max-w-md text-xs leading-relaxed text-slate-400">{message}</p>}
+        <p className="text-sm font-semibold text-slate-900">{title}</p>
+        {message && <p className="mt-1 max-w-md text-xs leading-relaxed text-slate-600">{message}</p>}
       </div>
       {onRetry && (
         <button type="button" onClick={onRetry} className="btn-secondary mt-1 px-3.5 py-2 text-xs">

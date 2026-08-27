@@ -202,10 +202,10 @@ function duration(start: string, end: string | null): string {
 }
 
 const STATUS_PILL: Record<string, string> = {
-  ok:      'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/25',
-  error:   'bg-rose-500/10 text-rose-300 ring-1 ring-rose-500/25',
-  partial: 'bg-amber-500/10 text-amber-300 ring-1 ring-amber-500/25',
-  running: 'bg-sky-500/10 text-sky-300 ring-1 ring-sky-500/25',
+  ok:      'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200',
+  error:   'bg-rose-50 text-rose-800 ring-1 ring-rose-200',
+  partial: 'bg-amber-50 text-amber-900 ring-1 ring-amber-200',
+  running: 'bg-sky-50 text-sky-800 ring-1 ring-sky-200',
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -366,28 +366,28 @@ export default function SuperadminClient() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <main className="app-surface min-h-screen p-6">
+    <main className="app-surface min-h-screen p-4 sm:p-6" style={{ backgroundImage: 'none' }}>
       <div className="mx-auto max-w-6xl space-y-6">
 
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold text-slate-100">Platform Vezérlőpult</h1>
-            <p className="text-sm text-slate-400">Integrációk állapota és manuális job indítások</p>
+            <h1 className="text-3xl font-semibold text-canvas-ink">Platform Vezérlőpult</h1>
+            <p className="text-sm text-canvas-muted">Integrációk állapota és manuális job indítások</p>
           </div>
           <button onClick={logout} className="btn-secondary px-4 py-2">Kijelentkezés</button>
         </div>
 
         {/* Tab nav */}
-        <div className="flex gap-0.5 rounded-xl border border-white/[0.08] bg-white/[0.03] p-1">
+        <div className="flex gap-0.5 overflow-x-auto rounded-xl border border-canvas-line bg-canvas-sage p-1">
           {TABS.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              className={`min-h-11 min-w-fit flex-1 rounded-lg px-4 py-2 text-sm font-medium ${
                 activeTab === tab.id
-                  ? 'bg-white/[0.08] text-white'
-                  : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+                  ? 'bg-white text-canvas-ink shadow-sm ring-1 ring-canvas-line'
+                  : 'text-canvas-muted hover:bg-white/70 hover:text-canvas-ink'
               }`}
             >
               {tab.label}
@@ -397,14 +397,14 @@ export default function SuperadminClient() {
 
         {/* Felhasználók tab */}
         {activeTab === 'users' && (
-          <section className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
+          <section className="rounded-2xl border border-canvas-line bg-white p-5 shadow-card">
             <SuperadminUsersTab />
           </section>
         )}
 
         {/* Funkció & Tier tab */}
         {activeTab === 'features' && (
-          <section className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
+          <section className="rounded-2xl border border-canvas-line bg-white p-5 shadow-card">
             <SuperadminFeaturesTab />
           </section>
         )}
@@ -419,36 +419,36 @@ export default function SuperadminClient() {
             { name: 'Supabase',    key: 'NEXT_PUBLIC_SUPABASE_URL', note: '' },
             { name: 'Air Quality', key: 'AQICN_API_TOKEN',          note: 'Ha Sanghaj jelenik meg, a demo token aktív — regisztrálj valódi kulcsot: aqicn.org/data-platform/token' },
           ].map(({ name, key, note }) => (
-            <div key={name} className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4">
-              <h3 className="text-sm font-semibold text-slate-300">{name}</h3>
-              <p className="mt-2 text-lg font-semibold text-emerald-400">Aktív (env kulcs alapján)</p>
-              <p className="mt-1 text-xs text-slate-500">Kulcs: {key}</p>
-              {note && <p className="mt-2 text-[11px] text-amber-300">{note}</p>}
+            <div key={name} className="rounded-2xl border border-canvas-line bg-white p-4 shadow-card">
+              <h3 className="text-sm font-semibold text-slate-700">{name}</h3>
+              <p className="mt-2 text-lg font-semibold text-emerald-800">Aktív (env kulcs alapján)</p>
+              <p className="mt-1 text-xs text-canvas-muted">Kulcs: {key}</p>
+              {note && <p className="mt-2 text-[11px] text-amber-900">{note}</p>}
             </div>
           ))}
         </section>
 
         {/* Env / connectivity health */}
-        <section className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
+        <section className="rounded-2xl border border-canvas-line bg-white p-5 shadow-card">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-slate-100">Környezeti változók és kapcsolat</h2>
+            <h2 className="text-lg font-semibold text-canvas-ink">Környezeti változók és kapcsolat</h2>
             <button
               onClick={loadHealth}
               disabled={healthLoading}
-              className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/[0.08] disabled:opacity-50"
+              className="min-h-11 rounded-xl border border-canvas-line bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-canvas-sage disabled:opacity-50"
             >
               {healthLoading ? 'Töltés…' : '↻ Ellenőrzés'}
             </button>
           </div>
           {!health ? (
-            <p className="text-sm text-slate-500">Töltés…</p>
+            <p className="text-sm text-canvas-muted">Töltés…</p>
           ) : (
             <div className="space-y-4">
               {/* Env vars table */}
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="border-b border-white/10 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    <tr className="border-b border-canvas-line text-left text-[10px] font-semibold uppercase tracking-wider text-canvas-muted">
                       <th className="pb-1.5 pr-4">Változó</th>
                       <th className="pb-1.5 pr-3">Be van állítva?</th>
                       <th className="pb-1.5 pr-3">Hossz</th>
@@ -457,15 +457,15 @@ export default function SuperadminClient() {
                   </thead>
                   <tbody>
                     {Object.entries(health.envVars).map(([k, v]) => (
-                      <tr key={k} className="border-b border-white/[0.06] last:border-0">
-                        <td className="py-1.5 pr-4 font-mono font-semibold text-slate-300">{k}</td>
+                      <tr key={k} className="border-b border-slate-200 last:border-0">
+                        <td className="py-1.5 pr-4 font-mono font-semibold text-slate-700">{k}</td>
                         <td className="py-1.5 pr-3">
-                          <span className={`rounded-full px-2 py-0.5 font-semibold ${v.set ? 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/25' : 'bg-rose-500/10 text-rose-300 ring-1 ring-rose-500/25'}`}>
+                          <span className={`rounded-full px-2 py-0.5 font-semibold ${v.set ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200' : 'bg-rose-50 text-rose-800 ring-1 ring-rose-200'}`}>
                             {v.set ? '✓ igen' : '✗ hiányzik'}
                           </span>
                         </td>
-                        <td className="py-1.5 pr-3 font-mono tabular-nums text-slate-500">{v.length || '—'}</td>
-                        <td className="py-1.5 font-mono text-slate-500">{v.prefix || '—'}</td>
+                        <td className="py-1.5 pr-3 font-mono tabular-nums text-canvas-muted">{v.length || '—'}</td>
+                        <td className="py-1.5 font-mono text-canvas-muted">{v.prefix || '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -479,22 +479,22 @@ export default function SuperadminClient() {
                   { label: 'Service key whitespace?',  ok: !health.keyAnalysis.serviceKeyHasWhitespace },
                   { label: 'URL whitespace?',          ok: !health.keyAnalysis.urlHasWhitespace },
                 ].map(item => (
-                  <span key={item.label} className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.ok ? 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/25' : 'bg-rose-500/10 text-rose-300 ring-1 ring-rose-500/25'}`}>
+                  <span key={item.label} className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.ok ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200' : 'bg-rose-50 text-rose-800 ring-1 ring-rose-200'}`}>
                     {item.ok ? '✓' : '✗'} {item.label}
                   </span>
                 ))}
-                <span className="rounded-full bg-sky-500/10 px-2.5 py-1 text-[11px] font-semibold text-sky-300 ring-1 ring-sky-500/25">
+                <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-800 ring-1 ring-sky-200">
                   Aktív kulcs: {health.keyAnalysis.effectiveKeyUsed}
                 </span>
               </div>
               {/* Supabase connectivity */}
               <div className="flex flex-wrap gap-3">
                 {health.supabaseTests.map(t => (
-                  <div key={t.label} className={`rounded-xl border px-3 py-2 text-xs ${t.ok ? 'border-emerald-500/25 bg-emerald-500/10' : 'border-rose-500/25 bg-rose-500/10'}`}>
-                    <p className="font-semibold text-slate-300">{t.label}</p>
+                  <div key={t.label} className={`rounded-xl border px-3 py-2 text-xs ${t.ok ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'}`}>
+                    <p className="font-semibold text-slate-700">{t.label}</p>
                     {t.ok
-                      ? <p className="text-emerald-300">✓ OK — buildings rekord: {t.count}</p>
-                      : <p className="text-rose-300">✗ {t.error}</p>
+                      ? <p className="text-emerald-800">✓ OK — buildings rekord: {t.count}</p>
+                      : <p className="text-rose-800">✗ {t.error}</p>
                     }
                   </div>
                 ))}
@@ -504,29 +504,29 @@ export default function SuperadminClient() {
         </section>
 
         {/* DB stats */}
-        <section className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
+        <section className="rounded-2xl border border-canvas-line bg-white p-5 shadow-card">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-slate-100">Adatbázis állapot</h2>
+              <h2 className="text-lg font-semibold text-canvas-ink">Adatbázis állapot</h2>
               {statsFetchedAt && (
-                <p className="text-xs text-slate-500">Lekérve: {fmt(statsFetchedAt)}</p>
+                <p className="text-xs text-canvas-muted">Lekérve: {fmt(statsFetchedAt)}</p>
               )}
             </div>
             <button
               onClick={loadStats}
               disabled={statsLoading}
-              className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/[0.08] disabled:opacity-50"
+              className="min-h-11 rounded-xl border border-canvas-line bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-canvas-sage disabled:opacity-50"
             >
               {statsLoading ? 'Töltés…' : '↻ Frissítés'}
             </button>
           </div>
           {stats.length === 0 && !statsLoading ? (
-            <p className="text-sm text-slate-500">Nincs adat — próbáld frissíteni.</p>
+            <p className="text-sm text-canvas-muted">Nincs adat — próbáld frissíteni.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/10 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <tr className="border-b border-canvas-line text-left text-xs font-semibold uppercase tracking-wider text-canvas-muted">
                     <th className="pb-2 pr-4">Tábla</th>
                     <th className="pb-2 pr-4 text-right">Rekordok</th>
                     <th className="pb-2">Utolsó frissítés</th>
@@ -538,8 +538,8 @@ export default function SuperadminClient() {
                     if (s.group && s.group !== prevGroup) {
                       acc.push(
                         <tr key={`group-${s.group}`}>
-                          <td colSpan={3} className={`pb-1 ${i > 0 ? 'border-t border-white/10 pt-4' : 'pt-1'}`}>
-                            <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                          <td colSpan={3} className={`pb-1 ${i > 0 ? 'border-t border-canvas-line pt-4' : 'pt-1'}`}>
+                            <span className="text-[10px] font-semibold uppercase tracking-widest text-canvas-muted">
                               {GROUP_LABELS[s.group] ?? s.group}
                             </span>
                           </td>
@@ -547,16 +547,16 @@ export default function SuperadminClient() {
                       );
                     }
                     acc.push(
-                      <tr key={s.name} className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.03]">
+                      <tr key={s.name} className="border-b border-slate-200 last:border-0 hover:bg-canvas-sage">
                         <td className="py-2 pr-4">
-                          <span className="font-medium text-slate-200">{s.label}</span>
-                          <span className="ml-2 font-mono text-[10px] text-slate-500">{s.name}</span>
-                          {s.error && <span className="ml-2 text-[10px] text-rose-400">{s.error}</span>}
+                          <span className="font-medium text-canvas-ink">{s.label}</span>
+                          <span className="ml-2 font-mono text-[10px] text-canvas-muted">{s.name}</span>
+                          {s.error && <span className="ml-2 text-[10px] text-rose-800">{s.error}</span>}
                         </td>
-                        <td className="py-2 pr-4 text-right font-mono font-semibold tabular-nums text-slate-100">
+                        <td className="py-2 pr-4 text-right font-mono font-semibold tabular-nums text-canvas-ink">
                           {s.count === null ? '—' : s.count.toLocaleString('en-US')}
                         </td>
-                        <td className="py-2 text-slate-500">{fmt(s.lastUpdated)}</td>
+                        <td className="py-2 text-canvas-muted">{fmt(s.lastUpdated)}</td>
                       </tr>
                     );
                     return acc;
@@ -568,16 +568,16 @@ export default function SuperadminClient() {
         </section>
 
         {/* DB Migrations */}
-        <section className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
+        <section className="rounded-2xl border border-canvas-line bg-white p-5 shadow-card">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-slate-100">Adatbázis migrációk</h2>
-              <p className="text-xs text-slate-500">Hiányzó táblák és alapértelmezett adatok létrehozása a Panellako Supabase projektben.</p>
+              <h2 className="text-lg font-semibold text-canvas-ink">Adatbázis migrációk</h2>
+              <p className="text-xs text-canvas-muted">Hiányzó táblák és alapértelmezett adatok létrehozása a Panellako Supabase projektben.</p>
             </div>
             <button
               onClick={applyMigrations}
               disabled={migrRunning}
-              className="rounded-lg border border-violet-500/25 bg-violet-500/10 px-4 py-2 text-sm font-semibold text-violet-300 hover:bg-violet-500/20 disabled:opacity-50"
+              className="min-h-11 rounded-xl border border-brand-200 bg-canvas-sage px-4 py-2 text-sm font-semibold text-brand-900 hover:bg-brand-100 disabled:opacity-50"
             >
               {migrRunning ? 'Alkalmazás…' : 'Migrációk alkalmazása'}
             </button>
@@ -585,18 +585,18 @@ export default function SuperadminClient() {
           {migrResult && (
             <div className="space-y-2">
               {migrResult.results.map(r => (
-                <div key={r.name} className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-sm ${r.ok ? 'border-emerald-500/25 bg-emerald-500/10' : 'border-rose-500/25 bg-rose-500/10'}`}>
-                  <span className={`font-semibold ${r.ok ? 'text-emerald-300' : 'text-rose-300'}`}>{r.ok ? '✓' : '✗'}</span>
-                  <span className="font-mono text-xs text-slate-300">{r.name}</span>
-                  {r.ok && r.status === 'already_applied' && <span className="text-[11px] text-slate-500">(már alkalmazva volt)</span>}
-                  {r.ok && r.status === 'applied' && r.method && <span className="text-[11px] text-emerald-400">(most alkalmazva — {r.method})</span>}
-                  {!r.ok && r.error && <span className="text-xs text-rose-300">{r.error}</span>}
+                <div key={r.name} className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-sm ${r.ok ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'}`}>
+                  <span className={`font-semibold ${r.ok ? 'text-emerald-800' : 'text-rose-800'}`}>{r.ok ? '✓' : '✗'}</span>
+                  <span className="font-mono text-xs text-slate-700">{r.name}</span>
+                  {r.ok && r.status === 'already_applied' && <span className="text-[11px] text-canvas-muted">(már alkalmazva volt)</span>}
+                  {r.ok && r.status === 'applied' && r.method && <span className="text-[11px] text-emerald-800">(most alkalmazva — {r.method})</span>}
+                  {!r.ok && r.error && <span className="text-xs text-rose-800">{r.error}</span>}
                 </div>
               ))}
               {migrResult.manualSqlIfFailed && (
-                <div className="mt-3 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3">
-                  <p className="mb-1 text-xs font-semibold text-amber-300">Automatikus alkalmazás sikertelen — futtasd manuálisan a Supabase SQL Editorban:</p>
-                  <pre className="max-h-64 overflow-auto rounded-lg bg-slate-950 p-3 text-[11px] text-slate-100">
+                <div className="mt-3 rounded-xl border border-amber-200 bg-canvas-warm p-3">
+                  <p className="mb-1 text-xs font-semibold text-amber-900">Automatikus alkalmazás sikertelen — futtasd manuálisan a Supabase SQL Editorban:</p>
+                  <pre className="max-h-64 overflow-auto rounded-lg bg-slate-950 p-3 text-[11px] text-[#f8fafc]">
                     {migrResult.manualSqlIfFailed}
                   </pre>
                 </div>
@@ -606,14 +606,14 @@ export default function SuperadminClient() {
         </section>
 
         {/* Map Theme Selector */}
-        <section className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
+        <section className="rounded-2xl border border-canvas-line bg-white p-5 shadow-card">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-slate-100">Térképstílus</h2>
-              <p className="text-xs text-slate-500">A kiválasztott stílus minden felhasználói térképnézeten érvényes — oldalfrissítés után életbe lép.</p>
+              <h2 className="text-lg font-semibold text-canvas-ink">Térképstílus</h2>
+              <p className="text-xs text-canvas-muted">A kiválasztott stílus minden felhasználói térképnézeten érvényes — oldalfrissítés után életbe lép.</p>
             </div>
             {themeSaveMsg && (
-              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${themeSaveMsg.startsWith('✓') ? 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/25' : 'bg-rose-500/10 text-rose-300 ring-1 ring-rose-500/25'}`}>
+              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${themeSaveMsg.startsWith('✓') ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200' : 'bg-rose-50 text-rose-800 ring-1 ring-rose-200'}`}>
                 {themeSaveMsg}
               </span>
             )}
@@ -627,22 +627,22 @@ export default function SuperadminClient() {
                   key={id}
                   onClick={() => saveMapTheme(id)}
                   disabled={themeSaving}
-                  className={`rounded-xl border-2 p-3 text-left transition-all duration-150 disabled:opacity-60 ${
+                  className={`rounded-xl border-2 p-3 text-left disabled:opacity-60 ${
                     active
-                      ? 'border-brand-500/60 bg-brand-500/10'
-                      : 'border-white/[0.08] bg-white/[0.03] hover:border-brand-400/40 hover:bg-white/[0.06]'
+                      ? 'border-brand-700 bg-canvas-sage'
+                      : 'border-canvas-line bg-white hover:border-brand-300 hover:bg-canvas-sage'
                   }`}
                 >
                   {/* Color swatches */}
                   <div className="mb-2 flex gap-1">
                     {t.swatchColors.map((c, i) => (
-                      <span key={i} className="h-4 w-4 rounded-full border border-white/20" style={{ background: c }} />
+                      <span key={i} className="h-4 w-4 rounded-full border border-slate-300" style={{ background: c }} />
                     ))}
                   </div>
-                  <p className={`text-xs font-semibold ${active ? 'text-brand-300' : 'text-slate-200'}`}>{t.labelHu}</p>
-                  <p className="mt-0.5 text-[10px] leading-tight text-slate-500 line-clamp-2">{t.description.split(' — ')[0]}</p>
+                  <p className={`text-xs font-semibold ${active ? 'text-brand-900' : 'text-canvas-ink'}`}>{t.labelHu}</p>
+                  <p className="mt-0.5 text-[10px] leading-tight text-canvas-muted line-clamp-2">{t.description.split(' — ')[0]}</p>
                   {active && (
-                    <span className="mt-2 inline-block rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold text-brand-300 ring-1 ring-brand-500/25">✓ Aktív</span>
+                    <span className="mt-2 inline-block rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-900 ring-1 ring-brand-200">✓ Aktív</span>
                   )}
                 </button>
               );
@@ -651,13 +651,13 @@ export default function SuperadminClient() {
         </section>
 
         {/* BKK Rate Limit Settings */}
-        <section className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
-          <h2 className="mb-1 text-lg font-semibold text-slate-100">BKK API rate-limit beállítások</h2>
-          <div className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 text-xs text-amber-200 space-y-1">
+        <section className="rounded-2xl border border-canvas-line bg-white p-5 shadow-card">
+          <h2 className="mb-1 text-lg font-semibold text-canvas-ink">BKK API rate-limit beállítások</h2>
+          <div className="mb-4 space-y-1 rounded-xl border border-amber-200 bg-canvas-warm p-3 text-xs text-amber-900">
             <p className="font-semibold">BKK Futár API rate limit — amit tudunk</p>
             <p>A BKK nem publikálja pontosan a limiteket, de a következők érvényesek a tapasztalatok alapján:</p>
             <ul className="ml-4 list-disc space-y-0.5">
-              <li>A <code className="bg-amber-500/20 px-1 rounded">LIMIT_EXCEEDED</code> (HTTP 400, code: 400) a napi/óránkénti kvóta kimerülését jelzi</li>
+              <li>A <code className="rounded bg-amber-100 px-1">LIMIT_EXCEEDED</code> (HTTP 400, code: 400) a napi/óránkénti kvóta kimerülését jelzi</li>
               <li>Az ingyenes tesztkulcs valószínűleg <strong>~100–500 kérés/nap</strong> korláttal rendelkezik</li>
               <li>A kvóta valószínűleg <strong>éjfélkor UTC-ben resetel</strong> — ekkor próbáld újra</li>
               <li>Produkciós kulcsért vedd fel a kapcsolatot a BKK-val: <strong>futar@bkk.hu</strong></li>
@@ -666,8 +666,8 @@ export default function SuperadminClient() {
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-slate-300">Cellák közötti késleltetés (ms)</span>
-              <span className="text-[10px] text-slate-500">Budapest 6 cellára osztva — ennyi ms telik el minden BKK API kérés után</span>
+              <span className="text-xs font-semibold text-slate-700">Cellák közötti késleltetés (ms)</span>
+              <span className="text-[10px] text-canvas-muted">Budapest 6 cellára osztva — ennyi ms telik el minden BKK API kérés után</span>
               <input
                 type="number" min={500} max={30000} step={500}
                 value={bkkSettings.cell_delay_ms}
@@ -676,8 +676,8 @@ export default function SuperadminClient() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-slate-300">Max újrapróbálkozás / cella</span>
-              <span className="text-[10px] text-slate-500">Rate limit esetén ennyiszer próbálja újra ugyanazt a cellát</span>
+              <span className="text-xs font-semibold text-slate-700">Max újrapróbálkozás / cella</span>
+              <span className="text-[10px] text-canvas-muted">Rate limit esetén ennyiszer próbálja újra ugyanazt a cellát</span>
               <input
                 type="number" min={0} max={10} step={1}
                 value={bkkSettings.retry_max}
@@ -686,8 +686,8 @@ export default function SuperadminClient() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-slate-300">Várakozás újrapróbálkozás előtt (ms)</span>
-              <span className="text-[10px] text-slate-500">Rate limit után ennyi ideig vár újrapróbálkozás előtt</span>
+              <span className="text-xs font-semibold text-slate-700">Várakozás újrapróbálkozás előtt (ms)</span>
+              <span className="text-[10px] text-canvas-muted">Rate limit után ennyi ideig vár újrapróbálkozás előtt</span>
               <input
                 type="number" min={5000} max={300000} step={5000}
                 value={bkkSettings.retry_wait_ms}
@@ -698,8 +698,8 @@ export default function SuperadminClient() {
           </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-3">
             <label className="flex flex-col gap-1 sm:col-span-1">
-              <span className="text-xs font-semibold text-slate-300">Cellák száma / futás</span>
-              <span className="text-[10px] text-slate-500">Budapest 3 cellára osztva. 0 = mind (3 db). Erős limit esetén állítsd 1-re.</span>
+              <span className="text-xs font-semibold text-slate-700">Cellák száma / futás</span>
+              <span className="text-[10px] text-canvas-muted">Budapest 3 cellára osztva. 0 = mind (3 db). Erős limit esetén állítsd 1-re.</span>
               <input
                 type="number" min={0} max={3} step={1}
                 value={bkkSettings.cells_per_run}
@@ -712,26 +712,26 @@ export default function SuperadminClient() {
             <button onClick={saveBkkSettings} disabled={bkkSaving} className="btn-primary px-4 py-2 text-sm">
               {bkkSaving ? 'Mentés...' : 'Beállítások mentése'}
             </button>
-            {bkkSaveMsg && <span className="text-sm font-semibold text-emerald-400">{bkkSaveMsg}</span>}
-            <span className="ml-auto text-xs text-slate-500">Alapértelmezett: 5 000 ms · 3 retry · 90 000 ms · 0 (mind)</span>
+            {bkkSaveMsg && <span className="text-sm font-semibold text-emerald-800">{bkkSaveMsg}</span>}
+            <span className="ml-auto text-xs text-canvas-muted">Alapértelmezett: 5 000 ms · 3 retry · 90 000 ms · 0 (mind)</span>
           </div>
         </section>
 
         {/* Job runner */}
-        <section className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
-          <h2 className="mb-4 text-lg font-semibold text-slate-100">Ütemezett feladatok / Manuális indítás</h2>
+        <section className="rounded-2xl border border-canvas-line bg-white p-5 shadow-card">
+          <h2 className="mb-4 text-lg font-semibold text-canvas-ink">Ütemezett feladatok / Manuális indítás</h2>
           <div className="space-y-3">
             {JOBS.map(j => (
-              <div key={j.id} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
+              <div key={j.id} className="rounded-xl border border-slate-200 bg-canvas-sage p-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-slate-100">{j.label}</p>
-                    <p className="text-xs text-slate-500">{j.description}</p>
+                    <p className="font-semibold text-canvas-ink">{j.label}</p>
+                    <p className="text-xs text-canvas-muted">{j.description}</p>
                     {/* API endpoints */}
                     {j.endpoints && j.endpoints.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {j.endpoints.map(ep => (
-                          <span key={ep.url} title={ep.note} className="inline-flex max-w-full items-center gap-1 rounded-md border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
+                          <span key={ep.url} title={ep.note} className="inline-flex max-w-full items-center gap-1 rounded-md border border-canvas-line bg-white px-1.5 py-0.5 font-mono text-[10px] text-canvas-muted">
                             <span className="truncate">{ep.url}</span>
                           </span>
                         ))}
@@ -741,11 +741,11 @@ export default function SuperadminClient() {
                     {j.envVars !== undefined && (
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         {j.envVars.length === 0 ? (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300 ring-1 ring-emerald-500/25">
+                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800 ring-1 ring-emerald-200">
                             ✓ Nincs API kulcs szükséges
                           </span>
                         ) : j.envVars.map(v => (
-                          <span key={v} className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/25">
+                          <span key={v} className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-900 ring-1 ring-amber-200">
                             {v}
                           </span>
                         ))}
@@ -757,7 +757,7 @@ export default function SuperadminClient() {
                   </button>
                 </div>
                 {results[j.id] ? (
-                  <pre className="mt-3 max-h-64 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">
+                  <pre className="mt-3 max-h-64 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-[#f8fafc]">
                     {JSON.stringify(results[j.id], null, 2)}
                   </pre>
                 ) : null}
@@ -767,37 +767,37 @@ export default function SuperadminClient() {
         </section>
 
         {/* Job run logs */}
-        <section className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
+        <section className="rounded-2xl border border-canvas-line bg-white p-5 shadow-card">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-slate-100">Job futási napló</h2>
+            <h2 className="text-lg font-semibold text-canvas-ink">Job futási napló</h2>
             <button
               onClick={loadLogs}
               disabled={logsLoading}
-              className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/[0.08] disabled:opacity-50"
+              className="min-h-11 rounded-xl border border-canvas-line bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-canvas-sage disabled:opacity-50"
             >
               {logsLoading ? 'Töltés…' : '↻ Frissítés'}
             </button>
           </div>
           {logs.length === 0 && !logsLoading ? (
-            <p className="text-sm text-slate-500">Még nem futott le egyetlen job sem, vagy a platform_job_logs tábla hiányzik.</p>
+            <p className="text-sm text-canvas-muted">Még nem futott le egyetlen job sem, vagy a platform_job_logs tábla hiányzik.</p>
           ) : (
             <div className="space-y-2">
               {logs.map(log => (
-                <div key={log.id} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
+                <div key={log.id} className="rounded-xl border border-slate-200 bg-canvas-sage p-3">
                   <div
                     className="flex cursor-pointer flex-wrap items-center gap-3"
                     onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}
                   >
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_PILL[log.status] ?? 'bg-white/[0.06] text-slate-300 ring-1 ring-white/10'}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_PILL[log.status] ?? 'bg-slate-100 text-slate-700 ring-1 ring-slate-200'}`}>
                       {log.status}
                     </span>
-                    <span className="font-mono text-xs font-semibold text-slate-300">{log.job_id}</span>
-                    <span className="text-xs text-slate-500">{fmt(log.started_at)}</span>
-                    <span className="text-xs text-slate-500">({duration(log.started_at, log.finished_at)})</span>
-                    <span className="ml-auto text-[10px] text-slate-600">{expandedLog === log.id ? '▲' : '▼'}</span>
+                    <span className="font-mono text-xs font-semibold text-slate-700">{log.job_id}</span>
+                    <span className="text-xs text-canvas-muted">{fmt(log.started_at)}</span>
+                    <span className="text-xs text-canvas-muted">({duration(log.started_at, log.finished_at)})</span>
+                    <span className="ml-auto text-[10px] text-canvas-muted">{expandedLog === log.id ? '▲' : '▼'}</span>
                   </div>
                   {expandedLog === log.id && (
-                    <pre className="mt-2 max-h-72 overflow-auto rounded-lg bg-slate-950 p-3 text-[11px] text-slate-100">
+                    <pre className="mt-2 max-h-72 overflow-auto rounded-lg bg-slate-950 p-3 text-[11px] text-[#f8fafc]">
                       {JSON.stringify(log.result, null, 2)}
                     </pre>
                   )}

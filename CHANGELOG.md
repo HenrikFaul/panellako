@@ -1,3 +1,49 @@
+## v0.9.37 — Daylight workspace redesign
+**Dátum:** 2026-08-27
+**Branch:** codex/light-workspace-redesign
+
+### Probléma
+- Az autentikált alkalmazás teljes képernyős sötét témája komor, generikus és
+  mesterséges benyomást keltett, miközben a világos referenciafelületek sokkal
+  könnyedebb, élőbb és bizalomkeltőbb termékélményt adtak.
+- A hardcoded sötét utility osztályok több tucat komponensben szétszóródtak, így
+  egy puszta tokenváltás nem adott volna konzisztens eredményt.
+- A lejárat nélküli demo profil a billing oldalon még tévesen „0 nap” próbaidőt
+  és lejárati figyelmeztetést mutatott.
+
+### Megoldás
+- Az alkalmazás meleg törtfehér canvas, fehér kártyák, halvány zsálya navigáció,
+  mély teal CTA-k, napfény-sárga és finom korall állapotszínek rendszerére váltott.
+- A dashboard, sidebar, belépés, épületválasztó, billing, superadmin, környezet,
+  közlekedés és lakókörnyezeti szolgáltatások közvetlen daylight migrációt kapott;
+  a közös primitívek és a kompatibilitási réteg a többi autentikált route-ot fedi.
+- Minden ambient gradient és dekoratív mozgás kikerült. Sötét felület csak valódi
+  térképi, kód- vagy modal-kontextusban maradt.
+- A 1280 px körüli dashboard-rács egymás alá törik, így a profil neve és műveletei
+  nem szorulnak össze; 1400 px-től tér vissza a kétoszlopos elrendezés.
+- A billing UI a `free_trial_never_expires` profilállapotot is értelmezi, ezért a
+  demo fiókoknál „Demo hozzáférés — lejárat nélkül” állapotot mutat.
+
+### Megőrzött invariánsok
+- Nem változott route, szerepkör, auth-, membership- vagy subscription-döntés.
+- Minden ticket-, dokumentum-, pénzügy-, mérőóra-, közgyűlés-, push-, kereső- és
+  profilkezelő handler, Supabase/API hívás és adatforrás-attribúció megmaradt.
+- A desktop collapse, mobil drawer, fókuszcsapda, Escape-zárás, scroll lock,
+  fókusz-visszaadás és hash navigáció változatlanul működik.
+
+### Ellenőrzés
+- CodeGraph-first blast-radius audit és route/call-path visszaellenőrzés — PASS.
+- Teljes Vitest: 8 fájl / 39 teszt — PASS.
+- `npm run typecheck` — PASS.
+- `npm run lint` — PASS, 0 warning és 0 error.
+- `npm run build` — PASS, 67/67 statikus oldal.
+- Helyi hitelesített browser QA 1440×900 és 375×812 nézeten — PASS: nincs
+  vízszintes overflow; dashboard, billing, környezet, közlekedés és szolgáltatások
+  renderelnek; desktop collapse és mobil drawer billentyűzetesen működik; a
+  böngészőkonzol warning/error száma 0.
+
+---
+
 
 ## v0.9.36 — Determinisztikus production hydration
 **Dátum:** 2026-08-27

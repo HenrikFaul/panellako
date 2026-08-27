@@ -140,27 +140,27 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit, refer
   const pastTicketMax = Math.max(1, ...cells.filter(c => !c.isFuture).map(c => c.events.filter(e => e.category === 'ticket').length));
 
   function cellBg(cell: typeof cells[0]): string {
-    if (cell.isToday) return 'bg-emerald-500/20 ring-1 ring-emerald-500/50';
+    if (cell.isToday) return 'bg-emerald-100 ring-1 ring-emerald-400';
     if (cell.isFuture) {
       // Future: show upcoming events with a soft highlight
       const cat = dominantCat(cell.events);
-      if (!cat) return 'bg-white/[0.03] opacity-40';
-      return 'bg-white/[0.06] opacity-70';
+      if (!cat) return 'bg-slate-100/70 opacity-60';
+      return 'bg-slate-200/80 opacity-80';
     }
-    if (cell.events.length === 0) return 'bg-white/[0.06]';
+    if (cell.events.length === 0) return 'bg-slate-100';
     const cat = dominantCat(cell.events);
     if (cat === 'ticket') {
       const n = cell.events.filter(e => e.category === 'ticket').length;
       const v = n / pastTicketMax;
-      if (v < 0.2)  return 'bg-rose-950/70';
-      if (v < 0.4)  return 'bg-rose-800/75';
-      if (v < 0.65) return 'bg-rose-600/80';
-      if (v < 0.85) return 'bg-rose-500';
-      return 'bg-rose-400 shadow-[0_0_6px_rgba(251,113,133,0.7)]';
+      if (v < 0.2)  return 'bg-rose-50 ring-1 ring-rose-100';
+      if (v < 0.4)  return 'bg-rose-100';
+      if (v < 0.65) return 'bg-rose-200';
+      if (v < 0.85) return 'bg-rose-300';
+      return 'bg-rose-400 shadow-sm';
     }
-    if (cat === 'vote')    return 'bg-amber-500/70';
-    if (cat === 'meeting') return 'bg-blue-600/70';
-    return 'bg-purple-600/60';
+    if (cat === 'vote')    return 'bg-amber-200';
+    if (cat === 'meeting') return 'bg-sky-200';
+    return 'bg-violet-200';
   }
 
   // Colored dot indicators per category present on a cell
@@ -209,7 +209,7 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit, refer
         <div className="flex items-center gap-1">
           <button
             onClick={() => setWeekOffset(o => o - 1)}
-            className="flex h-5 w-5 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-300"
+            className="flex h-5 w-5 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white hover:text-brand-700 hover:shadow-sm"
             title="Korábbi hetek"
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -219,14 +219,14 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit, refer
           {weekOffset !== 0 && (
             <button
               onClick={() => setWeekOffset(0)}
-              className="rounded-md px-1.5 py-0.5 text-[8px] font-bold text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-300"
+              className="rounded-md px-1.5 py-0.5 text-[8px] font-bold text-slate-500 transition-colors hover:bg-white hover:text-brand-700 hover:shadow-sm"
             >
               ma
             </button>
           )}
           <button
             onClick={() => setWeekOffset(o => o + 1)}
-            className="flex h-5 w-5 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-300"
+            className="flex h-5 w-5 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white hover:text-brand-700 hover:shadow-sm"
             title="Következő hetek"
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -267,7 +267,7 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit, refer
                 className={`h-7 w-full rounded transition-colors cursor-pointer relative flex flex-col items-center justify-end pb-0.5 gap-px ${cellBg(cell)}`}
               >
                 {cell.date.getUTCDate() === 1 && (
-                  <span className="absolute top-0.5 left-0.5 text-[6px] text-white/40 font-bold leading-none">
+                  <span className="absolute top-0.5 left-0.5 text-[6px] font-bold leading-none text-slate-500">
                     {HU_MONTHS[cell.date.getUTCMonth()]}
                   </span>
                 )}
@@ -295,7 +295,7 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit, refer
       {/* Fixed-position tooltip */}
       {hovered && hoveredCell && (
         <div
-          className="pointer-events-none fixed z-[9999] rounded-xl border border-white/10 bg-ink-panel p-3 shadow-overlay"
+          className="pointer-events-none fixed z-[9999] rounded-xl border border-slate-200 bg-white p-3 shadow-card-lg"
           style={{
             width: TT_W,
             left: Math.min(mousePos.x - TT_W / 2, (typeof window !== 'undefined' ? window.innerWidth : 1200) - TT_W - 8),

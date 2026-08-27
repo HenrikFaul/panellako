@@ -40,12 +40,12 @@ const roleLabels: Record<string, string> = {
 };
 
 const roleBadgeStyle: Record<string, { bg: string; text: string; ring: string }> = {
-  lako:            { bg: 'bg-white/[0.06]',    text: 'text-slate-300',  ring: 'ring-white/10' },
-  tulajdonos:      { bg: 'bg-sky-500/10',      text: 'text-sky-300',    ring: 'ring-sky-500/25' },
-  kozos_kepviselo: { bg: 'bg-brand-500/10',    text: 'text-brand-300',  ring: 'ring-brand-500/25' },
-  megbizott:       { bg: 'bg-violet-500/10',   text: 'text-violet-300', ring: 'ring-violet-500/25' },
-  bizottsag:       { bg: 'bg-violet-500/10',   text: 'text-violet-300', ring: 'ring-violet-500/25' },
-  konyvelo:        { bg: 'bg-emerald-500/10',  text: 'text-emerald-300', ring: 'ring-emerald-500/25' },
+  lako:            { bg: 'bg-slate-100',   text: 'text-slate-700',   ring: 'ring-slate-200' },
+  tulajdonos:      { bg: 'bg-sky-50',      text: 'text-sky-800',     ring: 'ring-sky-200' },
+  kozos_kepviselo: { bg: 'bg-brand-50',    text: 'text-brand-800',   ring: 'ring-brand-200' },
+  megbizott:       { bg: 'bg-violet-50',   text: 'text-violet-800',  ring: 'ring-violet-200' },
+  bizottsag:       { bg: 'bg-violet-50',   text: 'text-violet-800',  ring: 'ring-violet-200' },
+  konyvelo:        { bg: 'bg-emerald-50',  text: 'text-emerald-800', ring: 'ring-emerald-200' },
 };
 
 export default async function BuildingPickerPage() {
@@ -79,31 +79,31 @@ export default async function BuildingPickerPage() {
     .join('');
 
   return (
-    <div className="app-surface min-h-screen bg-[radial-gradient(ellipse_at_top,rgba(20,184,166,0.05)_0%,transparent_50%)]">
+    <div className="app-surface min-h-screen" style={{ backgroundImage: 'none' }}>
 
       {/* ── Header ── */}
-      <header className="glass sticky top-0 z-30">
+      <header className="sticky top-0 z-30 border-b border-canvas-line bg-white/95 shadow-sm backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-500 text-ink-base">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-700 text-white shadow-sm">
               <Building2 className="h-4.5 w-4.5" size={18} />
             </div>
-            <span className="text-[15px] font-semibold tracking-tight text-slate-100">PanelLakó</span>
+            <span className="text-[15px] font-semibold tracking-tight text-canvas-ink">PanelLakó</span>
           </div>
 
           <div className="flex items-center gap-3">
             {displayName && (
               <div className="hidden items-center gap-2.5 sm:flex">
-                <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-500/15 text-[10px] font-semibold text-brand-300 ring-1 ring-brand-500/25">
+                <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-50 text-[10px] font-semibold text-brand-800 ring-1 ring-brand-200">
                   {initials || '?'}
                 </div>
-                <span className="max-w-[180px] truncate text-sm font-medium text-slate-400">{displayName}</span>
+                <span className="max-w-[180px] truncate text-sm font-medium text-canvas-muted">{displayName}</span>
               </div>
             )}
             <form action="/auth/signout" method="post">
               <button
                 type="submit"
-                className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-sm font-medium text-slate-400 transition-colors hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-300"
+                className="flex min-h-11 items-center gap-1.5 rounded-xl border border-canvas-line bg-white px-3 py-2 text-sm font-medium text-canvas-muted shadow-sm transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-800"
               >
                 <LogOut className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Kilépés</span>
@@ -118,15 +118,15 @@ export default async function BuildingPickerPage() {
 
         {/* Page title */}
         <div className="mb-8">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-100 sm:text-3xl">Épületeim</h1>
-          <p className="mt-1.5 text-sm text-slate-400">
+          <h1 className="text-2xl font-semibold tracking-tight text-canvas-ink sm:text-3xl">Épületeim</h1>
+          <p className="mt-1.5 text-sm text-canvas-muted">
             Válassz épületet a kezelőfelület megnyitásához.
           </p>
         </div>
 
         {/* Error banner */}
         {buildingsError && (
-          <div className="mb-6 flex items-center gap-3 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3.5 text-sm text-rose-300">
+          <div className="mb-6 flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3.5 text-sm text-rose-800">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <span>Nem sikerült betölteni az épületlistát: {buildingsError.message}</span>
           </div>
@@ -135,11 +135,11 @@ export default async function BuildingPickerPage() {
         {/* Empty state */}
         {!hasBuildings && !buildingsError && (
           <div className="flex flex-col items-center py-24 text-center">
-            <div className="mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-white/[0.05] text-slate-600 ring-1 ring-white/10">
+            <div className="mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-canvas-sage text-brand-800 ring-1 ring-canvas-line">
               <Building2 className="h-8 w-8" />
             </div>
-            <h2 className="mb-2 text-lg font-semibold text-slate-200">Még nincs épületed</h2>
-            <p className="max-w-xs text-sm leading-relaxed text-slate-400">
+            <h2 className="mb-2 text-lg font-semibold text-canvas-ink">Még nincs épületed</h2>
+            <p className="max-w-xs text-sm leading-relaxed text-canvas-muted">
               A rendszergazda adhat hozzá épületet a fiókodhoz. Vedd fel a kapcsolatot
               az épület közös képviselőjével.
             </p>
@@ -155,21 +155,21 @@ export default async function BuildingPickerPage() {
           const needsAttention  = bList.filter((b) => b.open_tickets > 0).length;
           return (
             <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div className="flex flex-col gap-0.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3.5">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Összes épület</span>
-                <span className="text-2xl font-semibold text-slate-100 tabular-nums">{totalBuildings}</span>
+              <div className="flex flex-col gap-0.5 rounded-xl border border-canvas-line bg-white px-4 py-3.5 shadow-card">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted">Összes épület</span>
+                <span className="text-2xl font-semibold text-canvas-ink tabular-nums">{totalBuildings}</span>
               </div>
-              <div className="flex flex-col gap-0.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3.5">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Összes lakás</span>
-                <span className="text-2xl font-semibold text-slate-100 tabular-nums">{totalUnits}</span>
+              <div className="flex flex-col gap-0.5 rounded-xl border border-canvas-line bg-white px-4 py-3.5 shadow-card">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted">Összes lakás</span>
+                <span className="text-2xl font-semibold text-canvas-ink tabular-nums">{totalUnits}</span>
               </div>
-              <div className="flex flex-col gap-0.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3.5">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Nyitott hibajegyek</span>
-                <span className={`text-2xl font-semibold tabular-nums ${totalOpenTickets > 0 ? 'text-rose-400' : 'text-slate-100'}`}>{totalOpenTickets}</span>
+              <div className="flex flex-col gap-0.5 rounded-xl border border-canvas-line bg-white px-4 py-3.5 shadow-card">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted">Nyitott hibajegyek</span>
+                <span className={`text-2xl font-semibold tabular-nums ${totalOpenTickets > 0 ? 'text-rose-700' : 'text-canvas-ink'}`}>{totalOpenTickets}</span>
               </div>
-              <div className="flex flex-col gap-0.5 rounded-xl border border-amber-500/20 bg-amber-500/[0.07] px-4 py-3.5">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-400/90">Figyelmet igénylő</span>
-                <span className={`text-2xl font-semibold tabular-nums ${needsAttention > 0 ? 'text-amber-300' : 'text-slate-100'}`}>{needsAttention}</span>
+              <div className="flex flex-col gap-0.5 rounded-xl border border-amber-200 bg-canvas-warm px-4 py-3.5 shadow-card">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-800">Figyelmet igénylő</span>
+                <span className={`text-2xl font-semibold tabular-nums ${needsAttention > 0 ? 'text-amber-800' : 'text-canvas-ink'}`}>{needsAttention}</span>
               </div>
             </div>
           );
@@ -197,55 +197,55 @@ function BuildingCard({ building, index }: { building: BuildingPickerRow; index:
   return (
     <Link
       href={`/w/${building.building_id}`}
-      style={{ animationDelay: delay }}
-      className={`card-lift group relative flex animate-fade-in-up flex-col overflow-hidden rounded-2xl border bg-white/[0.04] p-5 ${
+      style={{ animationDelay: delay, animationName: 'none' }}
+      className={`group relative flex flex-col overflow-hidden rounded-2xl border bg-white p-5 shadow-card transition-[border-color,box-shadow] ${
         hasAlerts
-          ? 'border-amber-500/25 hover:border-amber-500/40'
-          : 'border-white/[0.08] hover:border-brand-500/30'
+          ? 'border-amber-200 hover:border-amber-300 hover:shadow-card-md'
+          : 'border-canvas-line hover:border-brand-200 hover:shadow-card-md'
       }`}
     >
       {/* Alert dot */}
       {hasAlerts && (
         <span className="absolute right-4 top-4 flex h-2.5 w-2.5">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-60" />
-          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-ink-base" />
+          <span className="absolute inline-flex h-full w-full rounded-full bg-rose-100" />
+          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-rose-600 ring-2 ring-white" />
         </span>
       )}
 
       {/* Building icon */}
-      <div className="mb-4 grid h-11 w-11 place-items-center rounded-xl bg-brand-500/10 text-brand-400 ring-1 ring-brand-500/20 transition-colors group-hover:bg-brand-500/15">
+      <div className="mb-4 grid h-11 w-11 place-items-center rounded-xl bg-canvas-sage text-brand-800 ring-1 ring-brand-100 transition-colors group-hover:bg-brand-100">
         <Building2 className="h-5 w-5" />
       </div>
 
       {/* Name + address */}
-      <h2 className="mb-0.5 text-base font-semibold leading-snug text-slate-100 transition-colors group-hover:text-brand-300">
+      <h2 className="mb-0.5 text-base font-semibold leading-snug text-canvas-ink transition-colors group-hover:text-brand-800">
         {building.building_name}
       </h2>
       {building.address && (
-        <p className="mb-4 flex items-start gap-1 text-xs leading-relaxed text-slate-500">
+        <p className="mb-4 flex items-start gap-1 text-xs leading-relaxed text-canvas-muted">
           <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
           <span className="line-clamp-2">{building.address}</span>
         </p>
       )}
 
       {/* Stats row */}
-      <div className="mt-auto flex items-center gap-4 text-xs text-slate-400">
+      <div className="mt-auto flex items-center gap-4 text-xs text-canvas-muted">
         <span className="flex items-center gap-1.5">
-          <Layers3 className="h-3.5 w-3.5 text-slate-500" />
+          <Layers3 className="h-3.5 w-3.5 text-canvas-muted" />
           <span className="font-medium">{building.unit_count}</span> albetét
         </span>
-        <span className={`flex items-center gap-1.5 ${hasAlerts ? 'font-semibold text-rose-300' : ''}`}>
-          <TicketCheck className={`h-3.5 w-3.5 ${hasAlerts ? 'text-rose-400' : 'text-slate-500'}`} />
+        <span className={`flex items-center gap-1.5 ${hasAlerts ? 'font-semibold text-rose-700' : ''}`}>
+          <TicketCheck className={`h-3.5 w-3.5 ${hasAlerts ? 'text-rose-700' : 'text-canvas-muted'}`} />
           <span className="font-medium">{building.open_tickets}</span> nyitott ügy
         </span>
       </div>
 
       {/* Role + arrow */}
-      <div className="mt-3.5 flex items-center justify-between border-t border-white/[0.06] pt-3.5">
+      <div className="mt-3.5 flex items-center justify-between border-t border-canvas-line pt-3.5">
         <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${badge.bg} ${badge.text} ${badge.ring}`}>
           {roleLabel}
         </span>
-        <ArrowRight className="h-4 w-4 text-slate-600 transition-all group-hover:translate-x-0.5 group-hover:text-brand-400" />
+        <ArrowRight className="h-4 w-4 text-canvas-muted transition-colors group-hover:text-brand-800" />
       </div>
     </Link>
   );

@@ -2,7 +2,7 @@
 // Placeholder file — full i18n integration pending.
 // Pre-commit hook requires this file to be present alongside component changes.
 // v0.9.33 — enterprise redesign: shared UI primitive strings + new error/status copy
-// v0.9.33 round 2-3 — no new user-facing strings; superadmin/billing dark conversion, emoji-chrome sweep, bottom-nav scroll-spy
+// v0.9.37 — daylight workspace + permanent demo billing state
 
 export const hu = {
   ui: {
@@ -12,6 +12,9 @@ export const hu = {
     estimatedDataBadge:  'becsült adat — élő forrás nem elérhető',
     heatIslandUnavailable: 'Hősziget-adatok jelenleg nem elérhetők',
     unitMasterData:      'Albetét törzsadatok',
+  },
+  billing: {
+    permanentDemoAccess: 'Demo hozzáférés — lejárat nélkül',
   },
   noiseMap: {
     loading:              'Zajtérkép betöltése…',

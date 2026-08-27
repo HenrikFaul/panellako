@@ -63,38 +63,38 @@ export default function UvWindPanel({
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {/* UV gauge */}
-      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-        <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-slate-500">UV-index</p>
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700/75">UV-index</p>
         <svg viewBox="0 0 160 90" className="w-full max-w-[180px] mx-auto">
           {uvSegs.map((seg, i) => (
             <path key={i} d={arc(seg.s, seg.e)} fill="none" stroke={seg.color} strokeWidth="9" strokeLinecap="butt" opacity="0.7" />
           ))}
           {/* Needle */}
           <line x1={cx.toFixed(1)} y1={cy.toFixed(1)} x2={nx.toFixed(1)} y2={ny.toFixed(1)}
-            stroke="white" strokeWidth="2" strokeLinecap="round" />
-          <circle cx={cx} cy={cy} r="3" fill="white" />
+            stroke="#334155" strokeWidth="2" strokeLinecap="round" />
+          <circle cx={cx} cy={cy} r="3" fill="#334155" />
           {/* Center text */}
           <text x={cx} y={cy - 8}  textAnchor="middle" fontSize="18" fontWeight="900" fill={uvColor}>{uvIndex.toFixed(1)}</text>
-          <text x={cx} y={cy + 8}  textAnchor="middle" fontSize="7"  fill="rgba(255,255,255,0.5)">{uvLabel}</text>
+          <text x={cx} y={cy + 8}  textAnchor="middle" fontSize="8"  fill="#475569">{uvLabel}</text>
         </svg>
-        <p className="mt-2 text-center text-[10px] text-slate-400">{UV_ADVICE[uvLabel] ?? '—'}</p>
-        <div className="mt-2 flex items-center justify-center gap-3 text-[9px] text-slate-500">
-          <span className="flex items-center gap-1"><Thermometer size={11} className="shrink-0 text-rose-300" />{temperature}°C</span>
-          <span className="flex items-center gap-1"><CloudRain size={11} className="shrink-0 text-sky-300" />{precipProb}%</span>
+        <p className="mt-2 text-center text-[10px] text-slate-700">{UV_ADVICE[uvLabel] ?? '—'}</p>
+        <div className="mt-2 flex items-center justify-center gap-3 text-[10px] text-slate-700/75">
+          <span className="flex items-center gap-1"><Thermometer size={11} className="shrink-0 text-rose-700" />{temperature}°C</span>
+          <span className="flex items-center gap-1"><CloudRain size={11} className="shrink-0 text-sky-700" />{precipProb}%</span>
         </div>
       </div>
 
       {/* Wind compass */}
-      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-        <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-slate-500">Szél</p>
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700/75">Szél</p>
         <div className="flex items-center gap-4">
           <svg viewBox="0 0 80 80" className="h-20 w-20 shrink-0">
-            <circle cx="40" cy="40" r="36" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+            <circle cx="40" cy="40" r="36" fill="#ffffff" stroke="#cbd5e1" strokeWidth="1" />
             {['É','K','D','Ny'].map((dir, i) => {
               const angle = i * 90 * Math.PI / 180;
               return (
                 <text key={dir} x={40 + 30 * Math.sin(angle)} y={40 - 30 * Math.cos(angle) + 3}
-                  textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.3)">{dir}</text>
+                  textAnchor="middle" fontSize="8" fill="#64748b">{dir}</text>
               );
             })}
             {/* Arrow */}
@@ -103,12 +103,12 @@ export default function UvWindPanel({
             <circle cx="40" cy="40" r="3" fill="#ef4444" />
           </svg>
           <div>
-            <p className="text-xl font-semibold text-slate-200">{windSpeed} <span className="text-xs text-slate-500">km/h</span></p>
-            <p className="text-[10px] text-slate-400">{windDirectionLabel} · {windLabel}</p>
+            <p className="text-xl font-semibold text-slate-900">{windSpeed} <span className="text-xs text-slate-700/75">km/h</span></p>
+            <p className="text-[10px] text-slate-700">{windDirectionLabel} · {windLabel}</p>
           </div>
         </div>
         <p className={`mt-2 rounded-xl px-3 py-1.5 text-[9px] ${
-          windSpeed < 5 ? 'bg-rose-500/10 text-rose-400' : windSpeed < 15 ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'
+          windSpeed < 5 ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-100' : windSpeed < 15 ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-100' : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'
         }`}>
           {windSpeed < 5 ? '⚠' : windSpeed < 15 ? '↗' : '✓'} {windAqiImpact}
         </p>

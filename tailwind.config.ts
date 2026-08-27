@@ -30,13 +30,23 @@ module.exports = {
           900: 'oklch(0.374 0.056 185 / <alpha-value>)',
           950: 'oklch(0.237 0.034 184 / <alpha-value>)',
         },
-        // Enterprise dark app surfaces (.governance/ui_ux_rules.md):
-        // page bg #060c18 / #080e1e, cards = white alpha overlays on top.
+        // Retained for true overlays and map chrome only. Authenticated page
+        // surfaces use the daylight `--app-*` CSS tokens from app/globals.css.
         ink: {
-          base:   '#060c18', // app page background
-          deep:   '#080e1e', // alternate page background / header bands
-          panel:  '#0b1426', // opaque raised panel (modals, dropdowns)
-          raised: '#101b30', // hover state of opaque panels
+          base:   '#17231e',
+          deep:   '#203129',
+          panel:  '#263a31',
+          raised: '#30483d',
+        },
+        canvas: {
+          base:   '#f4f7f4',
+          soft:   '#edf3ee',
+          sage:   '#edf6ef',
+          warm:   '#fff7e7',
+          coral:  '#fff0ea',
+          line:   '#dbe5df',
+          ink:    '#17231e',
+          muted:  '#66736c',
         },
       },
       boxShadow: {
@@ -44,9 +54,8 @@ module.exports = {
         'card-md': '0 4px 24px -4px rgb(15 23 42 / 0.10), 0 1px 4px 0 rgb(15 23 42 / 0.06)',
         'card-lg': '0 18px 60px -8px rgb(15 23 42 / 0.12), 0 4px 16px -4px rgb(15 23 42 / 0.08)',
         'inset-brand': 'inset 0 1px 0 rgb(255 255 255 / 0.12)',
-        // Dark-surface elevation — borders carry hierarchy, shadows stay soft.
-        'overlay': '0 24px 64px -16px rgb(0 0 0 / 0.55), 0 4px 16px -4px rgb(0 0 0 / 0.4)',
-        'panel':   '0 1px 0 0 rgb(255 255 255 / 0.04) inset, 0 8px 32px -12px rgb(0 0 0 / 0.45)',
+        'overlay': '0 24px 64px -16px rgb(15 23 42 / 0.22), 0 4px 16px -4px rgb(15 23 42 / 0.12)',
+        'panel':   '0 16px 40px -26px rgb(31 57 45 / 0.38), 0 1px 4px rgb(15 23 42 / 0.05)',
       },
       borderRadius: {
         '4xl': '2rem',

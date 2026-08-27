@@ -94,23 +94,23 @@ export default function SatelliteNdviPanel({ data, loading }: Props) {
   if (loading) {
     return (
       <div className="space-y-4 animate-pulse">
-        <div className="h-20 rounded-2xl bg-white/[0.06]" />
-        <div className="h-12 rounded-2xl bg-white/[0.06]" />
-        <div className="h-24 rounded-2xl bg-white/[0.06]" />
+        <div className="h-20 rounded-2xl bg-slate-100" />
+        <div className="h-12 rounded-2xl bg-slate-100" />
+        <div className="h-24 rounded-2xl bg-slate-100" />
       </div>
     );
   }
 
   // ── Toggle bar between "épület közeli" and "Magyarország" nézet ──────────
   const ToggleBar = (
-    <div className="inline-flex rounded-2xl border border-white/[0.08] bg-white/[0.02] p-1">
+    <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1">
       <button
         type="button"
         onClick={() => setView('building')}
         className={`rounded-xl px-4 py-2 text-[11px] font-bold transition-colors ${
           view === 'building'
-            ? 'bg-emerald-500/20 text-emerald-300'
-            : 'text-slate-400 hover:text-slate-200'
+            ? 'bg-white text-emerald-800 shadow-sm ring-1 ring-slate-200'
+            : 'text-slate-700 hover:bg-white/70 hover:text-slate-900'
         }`}
       >
         Épület közeli NDVI
@@ -120,8 +120,8 @@ export default function SatelliteNdviPanel({ data, loading }: Props) {
         onClick={() => setView('hungary')}
         className={`rounded-xl px-4 py-2 text-[11px] font-bold transition-colors ${
           view === 'hungary'
-            ? 'bg-emerald-500/20 text-emerald-300'
-            : 'text-slate-400 hover:text-slate-200'
+            ? 'bg-white text-emerald-800 shadow-sm ring-1 ring-slate-200'
+            : 'text-slate-700 hover:bg-white/70 hover:text-slate-900'
         }`}
       >
         Magyarország NDVI
@@ -144,45 +144,45 @@ export default function SatelliteNdviPanel({ data, loading }: Props) {
       {/* NDVI value + classification */}
       <div className="grid gap-3 sm:grid-cols-3">
         {/* Big number */}
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 text-center">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-2">Vegetációs index (NDVI)</p>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-center">
+          <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-slate-700">Vegetációs index (NDVI)</p>
           {data?.ndvi !== null && data?.ndvi !== undefined ? (
             <>
-              <p className="text-4xl font-semibold tabular-nums" style={{ color: data.ndviColor, textShadow: `0 0 20px ${data.ndviColor}60` }}>
+              <p className="text-4xl font-semibold tabular-nums" style={{ color: data.ndviColor }}>
                 {data.ndvi.toFixed(3)}
               </p>
-              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
                 <div className="h-full rounded-full transition-all duration-700"
                   style={{ width: `${data.ndviPct}%`, background: data.ndviColor }} />
               </div>
               <p className="mt-1.5 text-[10px] font-bold" style={{ color: data.ndviColor }}>{data.ndviLabel}</p>
             </>
           ) : (
-            <p className="text-[11px] text-slate-400 mt-2">Nem elérhető</p>
+            <p className="mt-2 text-[11px] text-slate-700">Nem elérhető</p>
           )}
         </div>
 
         {/* Scene metadata */}
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 space-y-2.5">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Felvétel adatai</p>
+        <div className="space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-700">Felvétel adatai</p>
           <div className="space-y-2 text-[10px]">
             <div className="flex items-center justify-between">
-              <span className="text-slate-500">Műhold</span>
-              <span className="font-bold text-slate-200">{data?.satellite ?? 'Sentinel-2'}</span>
+              <span className="text-slate-700">Műhold</span>
+              <span className="font-bold text-slate-900">{data?.satellite ?? 'Sentinel-2'}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-slate-500">Felvétel dátuma</span>
-              <span className="font-bold text-slate-200">{data?.sceneDate ?? '—'}</span>
+              <span className="text-slate-700">Felvétel dátuma</span>
+              <span className="font-bold text-slate-900">{data?.sceneDate ?? '—'}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-slate-500">Felhőborítottság</span>
-              <span className="font-bold text-slate-200">
+              <span className="text-slate-700">Felhőborítottság</span>
+              <span className="font-bold text-slate-900">
                 {data?.cloudCover !== null && data?.cloudCover !== undefined ? `${data.cloudCover.toFixed(0)}%` : '—'}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-slate-500">Forrás</span>
-              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] text-emerald-400">
+              <span className="text-slate-700">Forrás</span>
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-medium text-emerald-800">
                 {data?.source === 'cache' ? 'Cache' : data?.source === 'sentinel2' ? 'Élő lekérdezés' : 'N/A'}
               </span>
             </div>
@@ -190,8 +190,8 @@ export default function SatelliteNdviPanel({ data, loading }: Props) {
         </div>
 
         {/* NDVI scale legend */}
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-2.5">NDVI skála</p>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <p className="mb-2.5 text-[9px] font-bold uppercase tracking-widest text-slate-700">NDVI skála</p>
           <div className="space-y-1.5">
             {[
               { range: '> 0.5', label: 'Sűrű növényzet',   color: '#16a34a' },
@@ -202,7 +202,7 @@ export default function SatelliteNdviPanel({ data, loading }: Props) {
             ].map(r => (
               <div key={r.range} className="flex items-center gap-2">
                 <div className="h-2 w-2 shrink-0 rounded-full" style={{ background: r.color }} />
-                <span className="text-[9px] text-slate-400">{r.range} — {r.label}</span>
+                <span className="text-[9px] text-slate-700">{r.range} — {r.label}</span>
               </div>
             ))}
           </div>
@@ -210,8 +210,8 @@ export default function SatelliteNdviPanel({ data, loading }: Props) {
       </div>
 
       {/* Seasonal chart */}
-      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-        <p className="mb-3 text-[9px] font-bold uppercase tracking-widest text-slate-500">
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <p className="mb-3 text-[9px] font-bold uppercase tracking-widest text-slate-700">
           Szezonális NDVI — Budapest referencia + jelenlegi mérés
         </p>
         <svg viewBox={`0 0 ${SVG_W} ${SVG_H + 16}`} className="w-full" style={{ height: 80 }}>
@@ -231,27 +231,21 @@ export default function SatelliteNdviPanel({ data, loading }: Props) {
           {data?.ndvi !== null && data?.ndvi !== undefined && (
             <>
               <line x1={dotX} y1={0} x2={dotX} y2={SVG_H} stroke={data.ndviColor} strokeWidth={1} strokeOpacity={0.5} strokeDasharray="2 2" />
-              <circle cx={dotX} cy={dotY} r={5} fill={data.ndviColor} filter="url(#glow)" />
+              <circle cx={dotX} cy={dotY} r={5} fill={data.ndviColor} fillOpacity={0.2} />
               <circle cx={dotX} cy={dotY} r={3} fill={data.ndviColor} />
-              <defs>
-                <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-                  <feGaussianBlur stdDeviation="3" result="blur" />
-                  <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-                </filter>
-              </defs>
             </>
           )}
         </svg>
-        <p className="mt-1 text-[8px] text-slate-500">Copernicus Sentinel-2 MSI · ESA STAC · titiler.xyz · Copernicus Land Service</p>
+        <p className="mt-1 text-[8px] text-slate-700">Copernicus Sentinel-2 MSI · ESA STAC · titiler.xyz · Copernicus Land Service</p>
       </div>
 
       {/* What NDVI means */}
-      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-        <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-slate-500">Miért fontos az NDVI?</p>
-        <div className="grid gap-2 sm:grid-cols-3 text-[9px] leading-relaxed text-slate-500">
-          <p><span className="text-slate-300 font-bold">Hővédelemi hatás:</span> Magasabb NDVI = kisebb városi hősziget-hatás (akár –3°C nyáron)</p>
-          <p><span className="text-slate-300 font-bold">Levegőminőség:</span> Sűrű növényzet ~10–20% PM2.5 abszorpciót biztosít</p>
-          <p><span className="text-slate-300 font-bold">Mentális egészség:</span> NDVI &gt;0.35 összefügg alacsonyabb stressz-szinttel (WHO 2023)</p>
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-slate-700">Miért fontos az NDVI?</p>
+        <div className="grid gap-2 text-[9px] leading-relaxed text-slate-700 sm:grid-cols-3">
+          <p><span className="font-bold text-slate-900">Hővédelemi hatás:</span> Magasabb NDVI = kisebb városi hősziget-hatás (akár –3°C nyáron)</p>
+          <p><span className="font-bold text-slate-900">Levegőminőség:</span> Sűrű növényzet ~10–20% PM2.5 abszorpciót biztosít</p>
+          <p><span className="font-bold text-slate-900">Mentális egészség:</span> NDVI &gt;0.35 összefügg alacsonyabb stressz-szinttel (WHO 2023)</p>
         </div>
       </div>
     </div>

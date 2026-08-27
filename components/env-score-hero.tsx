@@ -33,11 +33,11 @@ export default function EnvScoreHero({ score, loading }: Props) {
   if (loading) {
     return (
       <div className="flex flex-col items-center gap-4">
-        <div className="h-36 w-36 rounded-full bg-white/[0.06] animate-pulse" />
-        <div className="h-3 w-24 rounded bg-white/[0.06] animate-pulse" />
+        <div className="h-36 w-36 animate-pulse rounded-full bg-slate-100" />
+        <div className="h-3 w-24 animate-pulse rounded bg-slate-100" />
         <div className="w-full space-y-2 max-w-xs">
           {[1,2,3,4,5].map(i => (
-            <div key={i} className="h-6 rounded-lg bg-white/[0.06] animate-pulse" />
+            <div key={i} className="h-6 animate-pulse rounded-lg bg-slate-100" />
           ))}
         </div>
       </div>
@@ -47,7 +47,7 @@ export default function EnvScoreHero({ score, loading }: Props) {
   if (!score) {
     return (
       <div className="flex flex-col items-center gap-2 py-8">
-        <p className="text-[11px] text-slate-600">Pontszám kiszámítása…</p>
+        <p className="text-[11px] text-slate-700/75">Pontszám kiszámítása…</p>
       </div>
     );
   }
@@ -58,7 +58,7 @@ export default function EnvScoreHero({ score, loading }: Props) {
       <div className="relative">
         <svg viewBox="0 0 160 160" className="h-36 w-36" style={{ transform: 'rotate(-90deg)' }}>
           {/* Background ring */}
-          <circle cx="80" cy="80" r="65" fill="none" stroke="white" strokeOpacity="0.07" strokeWidth="12" />
+          <circle cx="80" cy="80" r="65" fill="none" stroke="#e2e8f0" strokeWidth="12" />
           {/* Animated score arc */}
           <circle
             cx="80" cy="80" r="65" fill="none"
@@ -68,7 +68,6 @@ export default function EnvScoreHero({ score, loading }: Props) {
             strokeDasharray={strokeDash}
             style={{
               transition: 'stroke-dasharray 1.2s cubic-bezier(.4,0,.2,1)',
-              filter: `drop-shadow(0 0 8px ${score.color}60)`,
             }}
           />
         </svg>
@@ -76,7 +75,7 @@ export default function EnvScoreHero({ score, loading }: Props) {
           <span className="text-3xl font-semibold tabular-nums leading-none" style={{ color: score.color }}>
             {score.total}
           </span>
-          <span className="text-[9px] text-slate-500 mt-0.5">/ 100</span>
+          <span className="mt-0.5 text-[10px] text-slate-700/75">/ 100</span>
           <span className="text-[11px] font-bold mt-1" style={{ color: score.color }}>
             {score.label}
           </span>
@@ -88,23 +87,22 @@ export default function EnvScoreHero({ score, loading }: Props) {
         {components.map(c => (
           <div key={c.label} className="flex items-center gap-2">
             <c.Icon size={12} className="shrink-0" style={{ color: c.color }} />
-            <span className="w-28 shrink-0 text-[10px] text-slate-500">{c.label}</span>
-            <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/[0.07]">
+            <span className="w-28 shrink-0 text-[10px] text-slate-700/75">{c.label}</span>
+            <div className="h-1 flex-1 overflow-hidden rounded-full bg-slate-200">
               <div
                 className="h-full rounded-full transition-all duration-700"
                 style={{
                   width:      `${(c.score / c.max) * 100}%`,
                   background: c.color,
-                  boxShadow:  `0 0 4px ${c.color}60`,
                 }}
               />
             </div>
-            <span className="w-10 text-right text-[10px] tabular-nums text-slate-400">{c.score}/{c.max}</span>
+            <span className="w-10 text-right text-[10px] tabular-nums text-slate-700">{c.score}/{c.max}</span>
           </div>
         ))}
       </div>
 
-      <p className="text-[9px] text-slate-700">Budapest átlag: ~58/100</p>
+      <p className="text-[10px] text-slate-700/75">Budapest átlag: ~58/100</p>
     </div>
   );
 }

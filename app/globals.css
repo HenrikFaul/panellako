@@ -13,11 +13,11 @@
  *   - Dark mode:     change only L channel, C and H stay constant
  *   - Brand hue:     H≈183 (teal); surfaces H≈247 (cool slate)
  *
- * Two surface worlds, one brand:
- *   - Public/marketing pages: light surfaces (--surface-*)
- *   - Application (login, picker, /w/* workspace, superadmin): enterprise dark
- *     per .governance/ui_ux_rules.md — page #060c18/#080e1e, cards as
- *     rgba(255,255,255,0.04) overlays, 1px hairline borders carry hierarchy.
+ * One daylight surface language, one brand:
+ *   - Public/marketing pages: crisp editorial whites (--surface-*)
+ *   - Application (login, picker, /w/* workspace, superadmin): warm daylight
+ *     canvas, white cards and restrained teal accents. Dark ink is reserved for
+ *     typography and true overlays instead of becoming the entire environment.
  */
 :root {
   color-scheme: light;
@@ -38,13 +38,20 @@
   --shadow-card:    0 1px 3px rgb(15 23 42 / 0.06), 0 4px 16px -2px rgb(15 23 42 / 0.06);
   --shadow-float:   0 18px 60px -8px rgb(15 23 42 / 0.12), 0 4px 16px -4px rgb(15 23 42 / 0.08);
 
-  /* Enterprise dark app tokens (.governance/ui_ux_rules.md) */
-  --app-bg:           #060c18;
-  --app-bg-alt:       #080e1e;
-  --app-card:         rgb(255 255 255 / 0.04);
-  --app-card-hover:   rgb(255 255 255 / 0.06);
-  --app-border:       rgb(255 255 255 / 0.08);
-  --app-border-hover: rgb(255 255 255 / 0.14);
+  /* Daylight application tokens (.governance/ui_ux_rules.md) */
+  --app-bg:           #f4f7f4;
+  --app-bg-alt:       #edf3ee;
+  --app-card:         rgb(255 255 255 / 0.96);
+  --app-card-hover:   #fbfdfb;
+  --app-border:       #dbe5df;
+  --app-border-hover: #b9ccc2;
+  --app-ink:          #17231e;
+  --app-ink-soft:     #34483f;
+  --app-muted:        #52635b;
+  --app-subtle:       #66736c;
+  --app-sage:         #edf6ef;
+  --app-warm:         #fff7e7;
+  --app-coral:        #fff0ea;
 
   /* Radius scale — calmer, enterprise: cards 16px, controls 10px */
   --radius-card:    1rem;
@@ -147,47 +154,285 @@ body {
 }
 .card-lift:hover {
   transform: translateY(-1px);
-  box-shadow: 0 12px 40px -12px rgb(0 0 0 / 0.4);
+  box-shadow: 0 16px 38px -18px rgb(31 57 45 / 0.24);
 }
 
-/* ─── Glass surface utility (dark) ───────────────────────────────────── */
+/* ─── Glass surface utility (daylight) ───────────────────────────────── */
 .glass {
-  background: rgb(8 14 30 / 0.82);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
-  border: 1px solid rgb(255 255 255 / 0.08);
+  background: rgb(255 255 255 / 0.86);
+  backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+  border: 1px solid rgb(213 225 218 / 0.92);
+  box-shadow: 0 10px 34px -24px rgb(31 57 45 / 0.35);
 }
 
-/* ─── App (dark) form + button base ──────────────────────────────────── */
+/* ─── App (daylight) form + button base ─────────────────────────────── */
 /* Used on application surfaces only (login, picker, workspace, superadmin). */
 .input-base {
-  @apply w-full rounded-[0.625rem] border border-white/10 bg-white/[0.04] px-3.5 py-2.5
-         text-sm text-slate-100 placeholder:text-slate-500 outline-none
+  @apply w-full rounded-[0.625rem] border border-slate-200 bg-white px-3.5 py-2.5
+         text-sm text-slate-800 placeholder:text-slate-400 outline-none shadow-sm
          transition-colors duration-150
-         focus:border-brand-400/60 focus:ring-2 focus:ring-brand-500/20 focus:bg-white/[0.06];
+         focus:border-brand-600/60 focus:ring-2 focus:ring-brand-500/15;
 }
 
 .btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-[0.625rem] bg-brand-500 px-4 py-2.5
-         text-sm font-semibold text-ink-base shadow-sm
+  @apply inline-flex items-center justify-center gap-2 rounded-[0.625rem] bg-brand-700 px-4 py-2.5
+         text-sm font-semibold text-white shadow-sm
          transition-colors duration-150
-         hover:bg-brand-400
-         active:bg-brand-600
+         hover:bg-brand-800
+         active:bg-brand-900
          disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 .btn-secondary {
-  @apply inline-flex items-center justify-center gap-2 rounded-[0.625rem] border border-white/10 bg-white/[0.04] px-4 py-2.5
-         text-sm font-semibold text-slate-200
+  @apply inline-flex items-center justify-center gap-2 rounded-[0.625rem] border border-slate-200 bg-white px-4 py-2.5
+         text-sm font-semibold text-slate-700 shadow-sm
          transition-colors duration-150
-         hover:border-white/20 hover:bg-white/[0.07] hover:text-white
-         active:bg-white/[0.05];
+         hover:border-brand-300 hover:bg-brand-50 hover:text-brand-800
+         active:bg-brand-100;
 }
 
 /* ─── App page background ─────────────────────────────────────────────── */
 .app-surface {
+  color-scheme: light;
   background-color: var(--app-bg);
-  color: theme('colors.slate.200');
+  background-image: none;
+  color: var(--app-ink-soft);
+}
+
+.app-surface .btn-primary {
+  color: #ffffff;
+}
+
+/*
+ * v0.9.37 compatibility bridge.
+ * The product accumulated many dark-surface Tailwind utilities before the
+ * daylight direction was chosen. These selectors are intentionally scoped to
+ * .app-surface: they migrate every authenticated route at once while leaving
+ * public/marketing pages outside the scope. Explicit rules below preserve the
+ * contrast of true dark map and modal overlays. New components should use the
+ * semantic primitives below instead of adding more dark utility tokens.
+ */
+.app-surface :where(
+  [class~="bg-white/[0.035]"],
+  [class~="bg-white/[0.04]"],
+  [class~="bg-white/[0.045]"],
+  [class~="bg-ink-panel"],
+  [class~="bg-ink-deep"],
+  [class~="bg-ink-deep/95"],
+  [class~="bg-ink-raised"],
+  [class~="bg-[#060c18]"],
+  [class~="bg-[#090f1e]"],
+  [class~="bg-[#0a1322]"]
+) {
+  background-color: var(--app-card);
+}
+
+.app-surface :where(
+  [class~="bg-white/[0.02]"],
+  [class~="bg-white/[0.025]"],
+  [class~="bg-white/[0.03]"],
+  [class~="bg-white/[0.05]"],
+  [class~="bg-white/[0.055]"],
+  [class~="bg-white/[0.06]"],
+  [class~="bg-white/[0.07]"],
+  [class~="bg-white/[0.08]"],
+  [class~="bg-white/[0.10]"],
+  [class~="bg-white/[0.12]"],
+  [class~="bg-white/5"],
+  [class~="bg-white/10"],
+  [class~="bg-white/15"],
+  [class~="bg-white/20"],
+  [class~="bg-black/[0.11]"],
+  [class~="bg-black/[0.12]"],
+  [class~="bg-black/[0.14]"],
+  [class~="bg-black/15"],
+  [class~="bg-slate-700"],
+  [class~="bg-slate-700/50"],
+  [class~="bg-slate-800"],
+  [class~="bg-slate-800/40"],
+  [class~="bg-slate-800/50"],
+  [class~="bg-slate-800/60"],
+  [class~="bg-slate-800/90"],
+  [class~="bg-slate-900"],
+  [class~="bg-slate-900/30"],
+  [class~="bg-slate-900/60"],
+  [class~="bg-slate-900/90"],
+  [class~="bg-slate-950"],
+  [class~="bg-[#060c18]/80"],
+  [class~="bg-[#070d1a]/90"]
+) {
+  background-color: var(--app-sage);
+}
+
+.app-surface :where(
+  [class~="border-white/[0.03]"],
+  [class~="border-white/[0.04]"],
+  [class~="border-white/[0.05]"],
+  [class~="border-white/[0.06]"],
+  [class~="border-white/[0.07]"],
+  [class~="border-white/[0.08]"],
+  [class~="border-white/[0.09]"],
+  [class~="border-white/[0.1]"],
+  [class~="border-white/[0.12]"],
+  [class~="border-white/[0.14]"],
+  [class~="border-white/[0.15]"],
+  [class~="border-white/5"],
+  [class~="border-white/10"],
+  [class~="border-white/20"],
+  [class~="border-white/30"],
+  [class~="divide-white/[0.06]"]
+) {
+  border-color: var(--app-border);
+}
+
+.app-surface :where([class~="ring-white/10"], [class~="ring-white/20"], [class~="ring-white/30"]) {
+  --tw-ring-color: rgb(168 190 178 / 0.5);
+}
+
+.app-surface :where([class~="shadow-black/40"], [class~="shadow-black/30"]) {
+  --tw-shadow-color: rgb(31 57 45 / 0.12);
+  --tw-shadow: 0 18px 44px -30px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.app-surface :where(.text-slate-50, .text-slate-100, .text-white) { color: var(--app-ink); }
+.app-surface :where(.text-slate-200, .text-slate-300) { color: var(--app-ink-soft); }
+.app-surface .text-slate-400 { color: var(--app-muted); }
+.app-surface .text-slate-500 { color: var(--app-subtle); }
+.app-surface .text-slate-600 { color: var(--app-subtle); }
+
+.app-surface :where(.text-brand-100, .text-brand-200, .text-brand-300, .text-brand-400) { color: #0f766e; }
+.app-surface :where(.text-emerald-200, .text-emerald-300, .text-emerald-400) { color: #047857; }
+.app-surface :where(.text-amber-200, .text-amber-300, .text-amber-400) { color: #a16207; }
+.app-surface :where(.text-rose-200, .text-rose-300, .text-rose-400) { color: #be123c; }
+.app-surface :where(.text-violet-300, .text-violet-400) { color: #6d28d9; }
+.app-surface :where(.text-sky-300, .text-sky-400) { color: #0369a1; }
+
+.app-surface :where(
+  [class~="text-white/30"],
+  [class~="text-white/40"],
+  [class~="text-white/50"],
+  [class~="text-white/60"]
+) { color: var(--app-subtle); }
+
+.app-surface :where([class~="text-white/70"], [class~="text-white/80"], [class~="text-white/85"], [class~="text-white/90"]) {
+  color: var(--app-muted);
+}
+
+.app-surface :where(
+  input:not([type]),
+  input[type='text'],
+  input[type='email'],
+  input[type='password'],
+  input[type='date'],
+  input[type='datetime-local'],
+  input[type='number'],
+  input[type='search'],
+  input[type='tel'],
+  input[type='time'],
+  input[type='url'],
+  textarea,
+  select
+) {
+  border-color: var(--app-border);
+  background-color: rgb(255 255 255 / 0.96);
+  color: var(--app-ink);
+}
+
+.app-surface :where(input, textarea)::placeholder { color: var(--app-subtle); }
+
+.app-surface :is(
+  [class~="bg-brand-500"],
+  [class~="bg-brand-600"],
+  [class~="bg-brand-700"],
+  [class~="bg-emerald-500"],
+  [class~="bg-emerald-600"],
+  [class~="bg-violet-500"],
+  [class~="bg-rose-500"],
+  [class~="bg-orange-500"],
+  [class~="bg-sky-500"],
+  [class~="bg-red-600"],
+  [class~="bg-red-400"],
+  [class~="bg-teal-500"]
+):is([class~="text-white"], [class~="text-ink-base"]) {
+  color: white;
+}
+
+.app-surface :is(
+  [class~="bg-brand-500"],
+  [class~="bg-brand-600"],
+  [class~="bg-brand-700"],
+  [class~="bg-emerald-500"],
+  [class~="bg-emerald-600"],
+  [class~="bg-violet-500"],
+  [class~="bg-rose-500"],
+  [class~="bg-orange-500"],
+  [class~="bg-sky-500"],
+  [class~="bg-red-600"],
+  [class~="bg-red-400"],
+  [class~="bg-teal-500"]
+) :where(.text-white, [class~="text-white/70"], [class~="text-white/80"], [class~="text-white/90"]) {
+  color: white;
+}
+
+.app-surface :is(
+  [class~="bg-black/30"],
+  [class~="bg-black/40"],
+  [class~="bg-black/60"],
+  [class~="bg-black/65"],
+  [class~="bg-black/70"],
+  [class~="bg-black/75"]
+) {
+  color: white;
+}
+
+.app-surface :is(
+  [class~="bg-black/30"],
+  [class~="bg-black/40"],
+  [class~="bg-black/60"],
+  [class~="bg-black/65"],
+  [class~="bg-black/70"],
+  [class~="bg-black/75"]
+) :where(.text-white, [class~="text-white/70"], [class~="text-white/80"], [class~="text-white/90"]) {
+  color: white;
+}
+
+.app-surface :is(
+  [class~="bg-black/30"],
+  [class~="bg-black/40"],
+  [class~="bg-black/60"],
+  [class~="bg-black/65"],
+  [class~="bg-black/70"],
+  [class~="bg-black/75"]
+) :where([class~="text-white/30"], [class~="text-white/40"], [class~="text-white/50"], [class~="text-white/60"]) {
+  color: rgb(255 255 255 / 0.68);
+}
+
+.app-surface :where(
+  [class~="hover:bg-white/[0.04]"],
+  [class~="hover:bg-white/[0.045]"],
+  [class~="hover:bg-white/[0.05]"],
+  [class~="hover:bg-white/[0.055]"],
+  [class~="hover:bg-white/[0.06]"],
+  [class~="hover:bg-white/[0.07]"],
+  [class~="hover:bg-white/[0.08]"],
+  [class~="hover:bg-white/[0.09]"],
+  [class~="hover:bg-white/10"]
+):hover {
+  background-color: #e5f1ea;
+}
+
+.workspace-welcome {
+  border-top: 3px solid #efc76e;
+  background: #ffffff;
+  box-shadow: 0 18px 45px -34px rgb(31 57 45 / 0.42);
+}
+
+.workspace-card {
+  border: 1px solid var(--app-border);
+  background: var(--app-card);
+  box-shadow: 0 14px 36px -30px rgb(31 57 45 / 0.42);
 }
 
 @media (prefers-reduced-motion: reduce) {

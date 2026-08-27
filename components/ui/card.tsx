@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 
 /*
- * Enterprise dark surface primitives (v0.9.33).
- * Per .governance/ui_ux_rules.md: cards are rgba(255,255,255,0.04) overlays on
- * the #060c18 app background; 1px hairline borders carry the hierarchy.
+ * Daylight surface primitives (v0.9.37).
+ * White cards sit on a warm neutral canvas; soft borders and low elevation
+ * provide hierarchy without turning every section into a heavy container.
  */
 
 export function Card({
@@ -20,7 +20,7 @@ export function Card({
   return (
     <Tag
       id={id}
-      className={`min-w-0 rounded-2xl border border-white/[0.08] bg-white/[0.04] ${className}`}
+      className={`min-w-0 rounded-2xl border border-slate-200/80 bg-white shadow-card ${className}`}
     >
       {children}
     </Tag>
@@ -38,7 +38,7 @@ export function InsetCard({
   as?: 'div' | 'article' | 'li';
 }) {
   return (
-    <Tag className={`min-w-0 rounded-xl border border-white/[0.06] bg-white/[0.03] ${className}`}>
+    <Tag className={`min-w-0 rounded-xl border border-slate-200/80 bg-slate-50/80 ${className}`}>
       {children}
     </Tag>
   );

@@ -43,43 +43,45 @@ export default function TransitPageClient({
   }, [fetchCycling]);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen text-slate-800">
       {/* Page header */}
-      <div className="border-b border-slate-800/60 px-6 py-5">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Élő adatok · BKK Zrt., CC BY 4.0</p>
-        <h1 className="mt-0.5 text-xl font-semibold text-white">Közlekedés és tömegközlekedés</h1>
-        <p className="mt-0.5 text-sm text-slate-500">{buildingName} · {buildingAddress}</p>
+      <div className="border-b border-slate-200 bg-white px-6 py-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-700">Élő adatok · BKK Zrt., CC BY 4.0</p>
+        <h1 className="mt-1 text-xl font-semibold tracking-[-0.015em] text-slate-900">Közlekedés és tömegközlekedés</h1>
+        <p className="mt-1 text-sm text-slate-700">{buildingName} · {buildingAddress}</p>
       </div>
 
       {/* Full-width transport panel */}
-      <div className="p-4 md:p-6 space-y-4">
-        <TransportPanel
-          lat={buildingLat}
-          lon={buildingLon}
-          buildingAddress={buildingAddress}
-          buildingId={buildingId}
-        />
+      <div className="space-y-5 p-4 md:p-6">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_32px_-28px_rgba(15,23,42,0.28)] md:p-5">
+          <TransportPanel
+            lat={buildingLat}
+            lon={buildingLon}
+            buildingAddress={buildingAddress}
+            buildingId={buildingId}
+          />
+        </section>
 
         {/* Cycling routes */}
-        <div ref={cycleRef} className="mt-6">
-          <div className="border-b border-slate-800/60 px-6 py-4">
-            <h2 className="text-base font-semibold text-white flex items-center gap-2">
-              <Bike size={18} className="text-emerald-400" />
+        <div ref={cycleRef} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_32px_-28px_rgba(15,23,42,0.28)]">
+          <div className="border-b border-slate-200 px-5 py-4 md:px-6">
+            <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+              <Bike size={18} className="text-emerald-700" />
               Kerékpáros útvonalak
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">OpenStreetMap · Overpass API</p>
+            <p className="mt-1 text-xs text-slate-700">OpenStreetMap · Overpass API</p>
           </div>
           <div className="p-4 md:p-6">
             {loadingCycle ? (
               <div className="flex flex-col items-center gap-3 py-16">
-                <RefreshCw size={22} className="animate-spin text-slate-600" />
-                <p className="text-xs text-slate-500">Betöltés…</p>
+                <RefreshCw size={22} className="animate-spin text-slate-700" />
+                <p className="text-xs text-slate-700">Betöltés…</p>
               </div>
             ) : errorCycle ? (
               <div className="flex flex-col items-center gap-3 py-12">
-                <p className="text-xs text-slate-500">Overpass API nem elérhető</p>
+                <p className="text-xs text-slate-700">Overpass API nem elérhető</p>
                 <button type="button" onClick={fetchCycling}
-                  className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-slate-400 hover:bg-white/5">
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:border-brand-200 hover:bg-brand-50 hover:text-brand-800">
                   Újrapróbálás
                 </button>
               </div>
@@ -88,7 +90,7 @@ export default function TransitPageClient({
             ) : (
               <div className="flex flex-col items-center gap-2 py-8">
                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500/30 border-t-emerald-500" />
-                <p className="text-xs text-slate-600">Betöltés…</p>
+                <p className="text-xs text-slate-700">Betöltés…</p>
               </div>
             )}
           </div>

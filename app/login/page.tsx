@@ -49,33 +49,33 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="app-surface flex min-h-screen items-center justify-center bg-[radial-gradient(ellipse_at_top,rgba(20,184,166,0.06)_0%,transparent_55%)] px-4">
-      <section className="w-full max-w-md animate-scale-in rounded-2xl border border-white/[0.08] bg-white/[0.04] p-7 shadow-panel">
+    <main className="app-surface flex min-h-screen items-center justify-center px-4 py-8" style={{ backgroundImage: 'none' }}>
+      <section className="w-full max-w-md rounded-[1.25rem] border border-canvas-line bg-white p-7 shadow-card-md">
 
         {/* Logo + heading */}
         <div className="mb-7 flex items-center gap-4">
           <Logo className="h-12 w-12 shrink-0" />
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-slate-100">PanelLakó belépés</h1>
-            <p className="mt-0.5 text-sm text-slate-400">
+            <h1 className="text-xl font-semibold tracking-tight text-canvas-ink">PanelLakó belépés</h1>
+            <p className="mt-0.5 text-sm text-canvas-muted">
               {mode === 'magic' ? 'Biztonságos magic link bejelentkezés' : 'E-mail + jelszó bejelentkezés'}
             </p>
           </div>
         </div>
 
         {/* Mode toggle */}
-        <div className="mb-5 flex rounded-xl border border-white/[0.08] bg-white/[0.03] p-1 text-sm font-semibold">
+        <div className="mb-5 flex rounded-xl border border-canvas-line bg-canvas-sage p-1 text-sm font-semibold">
           <button
             type="button"
             onClick={() => { setMode('magic'); setStatus(''); }}
-            className={`flex-1 rounded-lg py-2 transition-colors ${mode === 'magic' ? 'bg-white/[0.08] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+            className={`min-h-11 flex-1 rounded-lg px-3 py-2 transition-colors ${mode === 'magic' ? 'bg-white text-brand-900 shadow-sm ring-1 ring-canvas-line' : 'text-canvas-muted hover:bg-white/70 hover:text-canvas-ink'}`}
           >
             Magic link
           </button>
           <button
             type="button"
             onClick={() => { setMode('password'); setStatus(''); }}
-            className={`flex-1 rounded-lg py-2 transition-colors ${mode === 'password' ? 'bg-white/[0.08] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+            className={`min-h-11 flex-1 rounded-lg px-3 py-2 transition-colors ${mode === 'password' ? 'bg-white text-brand-900 shadow-sm ring-1 ring-canvas-line' : 'text-canvas-muted hover:bg-white/70 hover:text-canvas-ink'}`}
           >
             Jelszó
           </button>
@@ -83,7 +83,7 @@ export default function LoginPage() {
 
         <form className="space-y-3.5" onSubmit={mode === 'magic' ? submitMagic : submitPassword}>
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-300">E-mail</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">E-mail</label>
             <input
               type="email"
               required
@@ -95,7 +95,7 @@ export default function LoginPage() {
           </div>
           {mode === 'password' && (
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-300">Jelszó</label>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Jelszó</label>
               <input
                 type="password"
                 required
@@ -115,13 +115,13 @@ export default function LoginPage() {
         </form>
 
         {status ? (
-          <p className={`mt-4 rounded-xl px-4 py-3 text-sm ${status.startsWith('Hiba') ? 'border border-rose-500/20 bg-rose-500/10 text-rose-300' : 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-300'}`}>
+          <p className={`mt-4 rounded-xl px-4 py-3 text-sm ${status.startsWith('Hiba') ? 'border border-rose-200 bg-rose-50 text-rose-800' : 'border border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
             {status}
           </p>
         ) : null}
 
         {mode === 'password' && (
-          <div className="mt-4 rounded-xl border border-brand-500/20 bg-brand-500/[0.06] px-4 py-3 text-xs leading-5 text-brand-300">
+          <div className="mt-4 rounded-xl border border-brand-200 bg-canvas-sage px-4 py-3 text-xs leading-5 text-brand-900">
             <strong className="font-semibold">Demo fiókok:</strong><br />
             demo.kepviselo@panellako.hu · PanelLako2026!<br />
             demo.lako@panellako.hu · PanelLako2026!<br />
@@ -129,7 +129,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        <Link href="/" className="mt-6 inline-block text-sm font-semibold text-brand-400 hover:text-brand-300">
+        <Link href="/" className="mt-6 inline-block rounded-md text-sm font-semibold text-brand-800 transition-colors hover:text-brand-950">
           ← Vissza a főoldalra
         </Link>
       </section>

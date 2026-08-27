@@ -1441,3 +1441,19 @@ brand: { 500: 'oklch(0.714 0.145 181 / <alpha-value>)' }
 **Problem**: Az implicit `Intl.DateTimeFormat` időzóna ismételt React `#425` szövegeltérést okozott; a render közbeni `new Date()` és kevert helyi/UTC naptáraritmetika `#418`/`#423` fallbackig juthatott. A funkció látszólag működött, mert React kliensoldalon újrarenderelte a gyökeret.
 **Fix**: Minden üzleti dátum explicit `Europe/Budapest` időzónát kapott; a szerver egyetlen renderpillanatot és magyar napkulcsot ad át, a naptár pedig kizárólag UTC dátum-metódusokkal dolgozik ezen a stabil kulcson.
 **Prevention**: SSR-es klienskomponens renderében ne használj implicit időzónát, `Date.now()`-t vagy friss `new Date()`-et. A production gate tartalmazzon UTC szerver/Budapest kliens SSR-markup tesztet és éles konzolellenőrzést; a hydration fallback nem tekinthető ártalmatlan warningnak.
+
+---
+
+## ➕ APPEND — 2026-08-27 Daylight workspace tanulságok
+
+### [LESSON-THEME-096]: A hardcoded dark utility-adósságot szemantikus rendszerrel és renderelt QA-val együtt kell kiváltani
+**Context**: Az autentikált PanelLakó felület 100-nál több TSX fájlban hordozott sötét háttér-, világos szöveg- és fehér-alpha utilityket; a felhasználó a teljes termék világos, élő újratervezését kérte funkcióvesztés nélkül.
+**Problem**: Egy egyszerű globális tokenfordítás nem érte volna el az inline és hardcoded osztályokat, egy korlátlan globális CSS-felülírás pedig könnyen tönkretette volna a CTA-k, térképi overlayek és státuszok kontrasztját. A `#66786f` segédszöveg fehéren még megfelelt, de a meleg canvas ellen 4.5:1 alá esett.
+**Fix**: Szemantikus daylight tokenek és shared primitive-ek készültek, a legfontosabb route-ok közvetlen class-migrációt kaptak, a régi osztályokat csak `.app-surface` alatt kezeli egy átmeneti bridge, explicit filled-control és dark-overlay kivételekkel. A segédszöveg `#66736c` lett, a CTA fehér színét computed style-lal ellenőrzött explicit szabály védi, a dashboard kétoszlopos breakpointja pedig csak 1400 px-től aktív.
+**Prevention**: Témaváltásnál a forrás-scan, CodeGraph blast radius, kontraszt-számítás, computed-style ellenőrzés és 375/1440 browser QA egyetlen release-kapu legyen. A sötét térkép vagy kódblokk legyen név szerint engedélyezett kivétel, ne a teljes alkalmazás alapértelmezése.
+
+### [LESSON-ACCESS-UI-097]: A permanens hozzáférést minden billing felületnek ugyanúgy kell kommunikálnia
+**Context**: A middleware és a dashboard banner már tiszteletben tartotta a demo profil `free_trial_never_expires` mezőjét, a külön billing oldal azonban csak az épület subscription dátumát olvasta.
+**Problem**: A demo működött, mégis „0 nap hátra” és lejárati figyelmeztetés jelent meg, ami bemutatón hibának látszott.
+**Fix**: A billing szerveroldal lekéri és átadja a profil permanens hozzáférési jelzőjét; a kliens ilyenkor lejárat nélküli demoállapotot mutat, és elrejti a téves trial-warningot és a múltbeli következő számlázási dátumot.
+**Prevention**: A hozzáférési döntés minden felületén ugyanazokat a bemeneteket kell használni, és forrás-invariáns teszttel kell védeni a kommunikált állapotot is, nem csak a middleware engedélyét.

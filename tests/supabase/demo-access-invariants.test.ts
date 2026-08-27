@@ -7,6 +7,8 @@ const migrationPath = resolve(
   'supabase/migrations/20260827163737_demo_profiles_never_expire.sql',
 );
 const seedPath = resolve(process.cwd(), 'supabase/seed.sql');
+const billingPagePath = resolve(process.cwd(), 'app/billing/page.tsx');
+const billingClientPath = resolve(process.cwd(), 'app/billing/billing-client.tsx');
 
 const demoIdentities = [
   ['aaaaaaaa-0001-0001-0001-000000000001', 'demo.kepviselo@panellako.hu'],
@@ -32,5 +34,15 @@ describe('demo access data invariants', () => {
     expect(seed).toContain('role, free_trial_never_expires');
     expect(seed).toMatch(/ON CONFLICT \(id\) DO UPDATE\s+SET free_trial_never_expires = EXCLUDED\.free_trial_never_expires;/);
     expect(seed).not.toContain('SET status = \'active\'');
+  });
+
+  it('keeps permanent demo access visible and suppresses the expired-trial warning', () => {
+    const billingPage = readFileSync(billingPagePath, 'utf8');
+    const billingClient = readFileSync(billingClientPath, 'utf8');
+
+    expect(billingPage).toContain(".select('free_trial_never_expires')");
+    expect(billingPage).toContain('hasPermanentAccess={hasPermanentAccess}');
+    expect(billingClient).toContain('Demo hozzáférés — lejárat nélkül');
+    expect(billingClient).toContain('!hasPermanentAccess && isTrialing && trialDaysRemaining <= 3');
   });
 });

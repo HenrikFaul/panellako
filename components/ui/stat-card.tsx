@@ -3,13 +3,13 @@ import type { ReactNode } from 'react';
 export type StatTone = 'brand' | 'amber' | 'violet' | 'neutral' | 'rose' | 'emerald' | 'sky';
 
 const TONE = {
-  brand:   'bg-brand-500/[0.08] text-brand-300',
-  amber:   'bg-amber-500/[0.08] text-amber-300',
-  violet:  'bg-violet-500/[0.08] text-violet-300',
-  rose:    'bg-rose-500/[0.08] text-rose-300',
-  emerald: 'bg-emerald-500/[0.08] text-emerald-300',
-  sky:     'bg-sky-500/[0.08] text-sky-300',
-  neutral: 'bg-white/[0.045] text-slate-400',
+  brand:   'bg-brand-50 text-brand-700 ring-1 ring-brand-100',
+  amber:   'bg-amber-50 text-amber-700 ring-1 ring-amber-100',
+  violet:  'bg-violet-50 text-violet-700 ring-1 ring-violet-100',
+  rose:    'bg-rose-50 text-rose-700 ring-1 ring-rose-100',
+  emerald: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100',
+  sky:     'bg-sky-50 text-sky-700 ring-1 ring-sky-100',
+  neutral: 'bg-slate-100 text-slate-600 ring-1 ring-slate-200',
 } satisfies Record<StatTone, string>;
 
 /*
@@ -38,23 +38,23 @@ export default function StatCard({
     <>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-xs font-medium text-slate-400">{title}</p>
-          <p className="mt-2.5 text-[28px] font-semibold leading-none tracking-[-0.025em] text-slate-100 tabular-nums">{value}</p>
+          <p className="truncate text-xs font-medium text-slate-500">{title}</p>
+          <p className="mt-2.5 text-[28px] font-semibold leading-none tracking-[-0.025em] text-slate-900 tabular-nums">{value}</p>
         </div>
         <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${toneClass}`}>
           {icon}
         </span>
       </div>
-      {subtitle && <p className="mt-3 text-xs leading-relaxed text-slate-400">{subtitle}</p>}
+      {subtitle && <p className="mt-3 text-xs leading-relaxed text-slate-500">{subtitle}</p>}
     </>
   );
 
   const baseClass =
-    'relative block min-w-0 rounded-[18px] border border-white/[0.07] bg-white/[0.035] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]';
+    'workspace-card relative block min-w-0 rounded-[18px] p-5';
 
   if (href) {
     return (
-      <a href={href} className={`${baseClass} transition-colors duration-150 hover:border-white/[0.12] hover:bg-white/[0.05]`}>
+      <a href={href} className={`${baseClass} transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-card-md`}>
         {inner}
       </a>
     );

@@ -29,9 +29,26 @@ describe('quiet workspace redesign invariants', () => {
     expect(dashboard).toContain('<WeatherWidget quiet');
     expect(dashboard).toContain('<AirQualityWidget quiet');
     expect(dashboard).toContain('/kornyezet#sec-air');
-    expect(dashboard).toContain('hidden min-w-0 rounded-xl bg-black/[0.11] p-4 lg:col-span-1 lg:block');
+    expect(dashboard).toContain('workspace-welcome');
+    expect(dashboard).not.toContain('DashboardHeroScene');
 
-    for (const id of ['overview', 'tasks', 'tickets', 'units', 'documents', 'finances', 'meters', 'meetings', 'knowledge', 'audit']) {
+    for (const id of [
+      'workspace-main',
+      'overview',
+      'profile',
+      'tasks',
+      'tickets',
+      'units',
+      'documents',
+      'finances',
+      'meters',
+      'meetings',
+      'notifications',
+      'knowledge',
+      'audit',
+      'transport',
+      'kornyezet-link',
+    ]) {
       expect(dashboard).toContain(`id="${id}"`);
     }
 
@@ -91,8 +108,19 @@ describe('quiet workspace redesign invariants', () => {
     expect(weather).toContain('quiet = false');
     expect(airQuality).toContain('quiet = false');
     expect(airQuality).toContain('AQICN · OLM');
-    expect(airQuality).toContain('text-[11px] text-slate-400');
+    expect(airQuality).toContain('text-[11px]');
     expect(weather).toContain('aria-label={forecastLinkLabel}');
     expect(weather).toContain('h-11 w-11');
+  });
+
+  it('uses a flat daylight workspace contract without restoring dark app backgrounds', () => {
+    expect(globals).toContain('--app-bg:           #f4f7f4');
+    expect(globals).toContain('--app-card:         rgb(255 255 255 / 0.96)');
+    expect(globals).toContain('--app-ink:          #17231e');
+    expect(globals).toContain('--app-muted:        #52635b');
+    expect(globals).toContain('background-image: none');
+    expect(globals).toContain('.workspace-card');
+    expect(globals).not.toContain('background-color: #060c18');
+    expect(dashboard).not.toContain('animate-[drift');
   });
 });

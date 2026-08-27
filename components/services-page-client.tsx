@@ -146,33 +146,33 @@ const CAT_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: 
 function ServiceCard({ s }: { s: PublicService }) {
   const cfg = CAT_CONFIG[s.category] ?? CAT_CONFIG.healthcare;
   return (
-    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] p-4 flex flex-col gap-2">
+    <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_10px_26px_-24px_rgba(15,23,42,0.24)]">
       <div className="flex items-start gap-2">
         <span className="mt-0.5 shrink-0 rounded-lg p-1.5" style={{ background: cfg.color + '22', color: cfg.color }}>
           {cfg.icon}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold text-slate-200 leading-tight">{s.name}</p>
-          {s.subcategory && <p className="text-[9px] text-slate-600 mt-0.5">{s.subcategory}</p>}
+          <p className="text-xs font-semibold leading-tight text-slate-900">{s.name}</p>
+          {s.subcategory && <p className="mt-0.5 text-[10px] text-slate-700">{s.subcategory}</p>}
         </div>
-        <span className="shrink-0 text-[9px] font-bold text-slate-600 flex items-center gap-0.5">
+        <span className="flex shrink-0 items-center gap-0.5 text-[10px] font-semibold text-slate-700">
           <Navigation size={8} />{s.distanceM} m
         </span>
       </div>
       {s.address && (
-        <p className="text-[10px] text-slate-500 leading-snug flex items-start gap-1">
+        <p className="flex items-start gap-1 text-[11px] leading-snug text-slate-700">
           <MapPin size={9} className="mt-0.5 shrink-0 text-slate-700" />{s.address}
         </p>
       )}
       <div className="flex items-center gap-3 mt-0.5">
         {s.phone && (
-          <a href={`tel:${s.phone}`} className="flex items-center gap-1 text-[9px] text-sky-500 hover:text-sky-400">
+          <a href={`tel:${s.phone}`} className="flex items-center gap-1 text-[10px] font-medium text-sky-700 hover:text-sky-900">
             <Phone size={9} />{s.phone}
           </a>
         )}
         {s.website && (
           <a href={s.website} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1 text-[9px] text-sky-500 hover:text-sky-400">
+            className="flex items-center gap-1 text-[10px] font-medium text-sky-700 hover:text-sky-900">
             <Globe size={9} />Weboldal
           </a>
         )}
@@ -264,35 +264,35 @@ export default function ServicesPageClient({ buildingId, buildingName, buildingA
   const hasAnyServices = Object.values(allServices).some(arr => arr.length > 0);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen text-slate-800">
       {/* Header */}
-      <div className="border-b border-slate-800/60 px-6 py-5">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
+      <div className="border-b border-slate-200 bg-white px-6 py-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-700">
           Élettér · OSM Overpass · BKK Transit
         </p>
-        <h1 className="mt-0.5 text-xl font-semibold text-white">Lakókörnyezet - szolgáltatások</h1>
-        <p className="mt-0.5 text-sm text-slate-500">{buildingName} · {buildingAddress}</p>
+        <h1 className="mt-1 text-xl font-semibold tracking-[-0.015em] text-slate-900">Lakókörnyezet - szolgáltatások</h1>
+        <p className="mt-1 text-sm text-slate-700">{buildingName} · {buildingAddress}</p>
       </div>
 
-      <div className="mx-auto max-w-5xl space-y-8 p-4 md:p-6">
+      <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-6">
 
         {/* 1. Kompakt város */}
-        <div ref={urbanRef}>
+        <div ref={urbanRef} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_32px_-28px_rgba(15,23,42,0.28)] md:p-5">
           <div className="mb-4 flex items-center gap-2">
-            <MapPin size={18} className="text-orange-400" />
-            <h2 className="text-base font-semibold text-white">Kompakt város — 15 perces élettér</h2>
-            <span className="text-[9px] text-slate-600">OSM Overpass · BKK Transit</span>
+            <MapPin size={18} className="text-orange-700" />
+            <h2 className="text-base font-semibold text-slate-900">Kompakt város — 15 perces élettér</h2>
+            <span className="text-[10px] text-slate-700">OSM Overpass · BKK Transit</span>
           </div>
           {loadingUrban ? (
             <div className="space-y-3 animate-pulse">
-              <div className="h-32 rounded-2xl bg-white/[0.06]" />
-              <div className="grid grid-cols-3 gap-3">{[1,2,3].map(i=><div key={i} className="h-20 rounded-2xl bg-white/[0.06]" />)}</div>
+              <div className="h-32 rounded-2xl bg-slate-100" />
+              <div className="grid grid-cols-3 gap-3">{[1,2,3].map(i=><div key={i} className="h-20 rounded-2xl bg-slate-100" />)}</div>
             </div>
           ) : errorUrban ? (
             <div className="flex flex-col items-center gap-3 py-8">
-              <p className="text-xs text-slate-500">Overpass API nem elérhető</p>
+              <p className="text-xs text-slate-700">Overpass API nem elérhető</p>
               <button type="button" onClick={() => { urbanLoaded.current = false; doUrban(); }}
-                className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-slate-400 hover:bg-white/5">
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:border-brand-200 hover:bg-brand-50 hover:text-brand-800">
                 Újrapróbálás
               </button>
             </div>
@@ -309,16 +309,16 @@ export default function ServicesPageClient({ buildingId, buildingName, buildingA
         </div>
 
         {/* 2. Közszolgáltatások */}
-        <div ref={svcRef}>
+        <div ref={svcRef} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_32px_-28px_rgba(15,23,42,0.28)] md:p-5">
           <div className="mb-4 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Building2 size={18} className="text-violet-400" />
-              <h2 className="text-base font-semibold text-white">Közszolgáltatások</h2>
-              <span className="text-[9px] text-slate-600">OpenStreetMap · 7 napos cache</span>
+              <Building2 size={18} className="text-violet-700" />
+              <h2 className="text-base font-semibold text-slate-900">Közszolgáltatások</h2>
+              <span className="text-[10px] text-slate-700">OpenStreetMap · 7 napos cache</span>
             </div>
             {services && (
               <button type="button" onClick={() => fetchServices(true)}
-                className="flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1 text-[9px] font-bold text-slate-500 hover:text-slate-300 hover:bg-white/5">
+                className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-700 shadow-sm transition-colors hover:border-brand-200 hover:bg-brand-50 hover:text-brand-800">
                 <RefreshCw size={9} />Frissítés
               </button>
             )}
@@ -326,14 +326,14 @@ export default function ServicesPageClient({ buildingId, buildingName, buildingA
 
           {loadingSvc ? (
             <div className="flex flex-col items-center gap-3 py-16">
-              <RefreshCw size={22} className="animate-spin text-slate-600" />
-              <p className="text-xs text-slate-500">OSM Overpass lekérdezés…</p>
+              <RefreshCw size={22} className="animate-spin text-slate-700" />
+              <p className="text-xs text-slate-700">OSM Overpass lekérdezés…</p>
             </div>
           ) : errorSvc ? (
             <div className="flex flex-col items-center gap-3 py-12">
-              <p className="text-xs text-slate-500">Nem sikerült betölteni</p>
+              <p className="text-xs text-slate-700">Nem sikerült betölteni</p>
               <button type="button" onClick={() => fetchServices(true)}
-                className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-slate-400 hover:bg-white/5">
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:border-brand-200 hover:bg-brand-50 hover:text-brand-800">
                 Újrapróbálás
               </button>
             </div>
@@ -348,16 +348,16 @@ export default function ServicesPageClient({ buildingId, buildingName, buildingA
                     return (
                       <button key={cat} type="button"
                         onClick={() => setActiveCat(cat)}
-                        className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[10px] font-bold transition-all ${
+                        className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[10px] font-semibold transition-colors ${
                           activeCat === cat
-                            ? 'border-transparent text-white'
-                            : 'border-white/[0.08] text-slate-500 hover:text-slate-300'
+                            ? 'border-transparent'
+                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900'
                         }`}
                         style={activeCat === cat ? { background: cfg.color + '33', borderColor: cfg.color + '60', color: cfg.color } : {}}>
                         {cfg.icon}
                         {cfg.label}
                         <span className="rounded-full px-1.5 py-0.5 text-[8px]"
-                          style={{ background: activeCat === cat ? cfg.color + '33' : 'rgba(255,255,255,0.05)' }}>
+                          style={{ background: activeCat === cat ? cfg.color + '22' : '#eef2f0' }}>
                           {count}
                         </span>
                       </button>
@@ -366,16 +366,16 @@ export default function ServicesPageClient({ buildingId, buildingName, buildingA
                 </div>
                 {/* List/Map toggle */}
                 {hasAnyServices && (
-                  <div className="flex gap-1 rounded-xl border border-white/[0.08] bg-white/[0.03] p-1">
+                  <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-100/80 p-1">
                     <button type="button" onClick={() => setSvcView('list')}
                       className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-bold transition-colors ${
-                        svcView === 'list' ? 'bg-violet-500/20 text-violet-300' : 'text-slate-500 hover:text-slate-300'
+                        svcView === 'list' ? 'bg-white text-violet-700 shadow-sm ring-1 ring-slate-200' : 'text-slate-700 hover:bg-white/70 hover:text-slate-900'
                       }`}>
                       <List size={11} />Lista
                     </button>
                     <button type="button" onClick={() => setSvcView('map')}
                       className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-bold transition-colors ${
-                        svcView === 'map' ? 'bg-violet-500/20 text-violet-300' : 'text-slate-500 hover:text-slate-300'
+                        svcView === 'map' ? 'bg-white text-violet-700 shadow-sm ring-1 ring-slate-200' : 'text-slate-700 hover:bg-white/70 hover:text-slate-900'
                       }`}>
                       <Map size={11} />Térkép
                     </button>
@@ -402,7 +402,7 @@ export default function ServicesPageClient({ buildingId, buildingName, buildingA
               {svcView === 'list' && (
                 <>
                   {(allServices[activeCat] ?? []).length === 0 ? (
-                    <p className="py-8 text-center text-xs text-slate-600">Nem találtunk ilyen intézményt a közelben.</p>
+                    <p className="py-8 text-center text-xs text-slate-700">Nem találtunk ilyen intézményt a közelben.</p>
                   ) : (
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       {(allServices[activeCat] ?? []).map(s => <ServiceCard key={s.id} s={s} />)}
@@ -412,7 +412,7 @@ export default function ServicesPageClient({ buildingId, buildingName, buildingA
               )}
 
               {services && (
-                <p className="mt-4 text-center text-[8px] text-slate-700">
+                <p className="mt-4 text-center text-[10px] text-slate-700">
                   Forrás: OpenStreetMap · {services.source === 'cache' ? 'Gyorsítótárból' : 'Friss adat'} · {new Date(services.fetchedAt).toLocaleDateString('hu-HU')}
                 </p>
               )}

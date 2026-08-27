@@ -649,10 +649,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           />
 
           {/* ── Static workspace context ────────────────────────────────────── */}
-          <header className="relative z-20 rounded-[18px] border border-white/[0.07] bg-white/[0.035] px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] md:px-6">
+          <header className="workspace-welcome relative z-20 overflow-visible rounded-[20px] border border-slate-200/80 px-5 py-5 md:px-6">
             <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
               <div className="flex min-w-0 items-start gap-4">
-                <div className="mt-0.5 hidden h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-500/[0.08] text-brand-300 sm:grid">
+                <div className="mt-0.5 hidden h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-brand-700 shadow-sm ring-1 ring-brand-100 sm:grid">
                   <Building2 size={18} />
                 </div>
                 <div className="min-w-0">
@@ -661,28 +661,28 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     {/* Mobile building switcher */}
                     <Link
                       href="/app"
-                      className="mb-1 inline-flex max-w-full items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-brand-300 lg:hidden"
+                      className="mb-1 inline-flex max-w-full items-center gap-1.5 text-xs font-medium text-slate-500 transition-colors hover:text-brand-800 lg:hidden"
                     >
                       <Layers3 size={12} />
                       <span className="truncate max-w-[200px]">{data.buildingName}</span>
                       <ChevronRight size={11} className="flex-shrink-0 opacity-60" />
                     </Link>
-                    <h1 className="break-words font-display text-[1.75rem] font-medium leading-tight tracking-[-0.025em] text-slate-50 md:text-[2rem]">
+                    <h1 className="break-words font-display text-[1.75rem] font-medium leading-tight tracking-[-0.025em] text-slate-900 md:text-[2rem]">
                       {data.buildingName}
                     </h1>
-                    <p className="mt-1.5 text-xs text-slate-400">
+                    <p className="mt-1.5 text-xs text-slate-600">
                       {addressCityLine(data.buildingAddress ?? '', data.buildingName ?? '')}
                     </p>
                     {myUnit && (myUnit.floor || myUnit.unit_label) && (
-                      <p className="mt-1 text-[11px] font-medium text-slate-400">
+                      <p className="mt-1 text-[11px] font-medium text-slate-500">
                         {[myUnit.floor, myUnit.unit_label].filter(Boolean).join(' / ')}
                       </p>
                     )}
                   </>
                 ) : (
                   <>
-                    <h1 className="font-display text-[1.75rem] font-medium leading-tight tracking-[-0.025em] text-slate-50 md:text-[2rem]">PanelLakó</h1>
-                    <p className="mt-1.5 text-xs text-slate-400">Modern lakói és képviselői működés egy felületen.</p>
+                    <h1 className="font-display text-[1.75rem] font-medium leading-tight tracking-[-0.025em] text-slate-900 md:text-[2rem]">PanelLakó</h1>
+                    <p className="mt-1.5 text-xs text-slate-600">Modern lakói és képviselői működés egy felületen.</p>
                   </>
                 )}
                 </div>
@@ -691,17 +691,17 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               <div className="flex w-full shrink-0 items-center gap-2 md:w-auto">
                 {/* Header search */}
                 <div className="relative min-w-0 flex-1 md:flex-none" ref={searchRef}>
-                  <Search className="pointer-events-none absolute left-3 top-2.5 text-slate-500" size={14} />
+                  <Search className="pointer-events-none absolute left-3 top-2.5 text-slate-400" size={14} />
                   <input
                     aria-label="Keresés…"
-                    className="w-full rounded-[0.625rem] border border-white/[0.09] bg-black/15 py-2 pl-9 pr-4 text-sm text-slate-200 outline-none transition-colors placeholder:text-slate-400 hover:border-white/[0.14] focus:border-brand-400/50 focus:bg-black/25 md:w-56"
+                    className="w-full rounded-[0.625rem] border border-slate-200 bg-white/90 py-2 pl-9 pr-4 text-sm text-slate-800 shadow-sm outline-none transition-colors placeholder:text-slate-400 hover:border-brand-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 md:w-56"
                     placeholder="Keresés…"
                     value={searchQuery}
                     onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
                     onFocus={() => setSearchOpen(true)}
                   />
                   {searchOpen && searchQuery.trim().length > 0 && (
-                    <div className="absolute right-0 top-full z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-white/10 bg-ink-panel shadow-overlay md:w-80">
+                    <div className="absolute right-0 top-full z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card-lg md:w-80">
                       {searchResults.length === 0 ? (
                         <p className="px-4 py-3 text-sm text-slate-400">Nincs találat</p>
                       ) : (
@@ -711,11 +711,11 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                               <a
                                 href={item.href}
                                 onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
-                                className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-white/[0.05]"
+                                className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-brand-50"
                               >
-                                <span className="shrink-0 rounded-full bg-white/[0.07] px-2 py-0.5 text-[10px] font-semibold text-slate-400 ring-1 ring-white/10">{item.type}</span>
-                                <span className="flex-1 truncate text-slate-200">{item.label}</span>
-                                {item.meta && <span className="shrink-0 text-xs text-slate-400">{item.meta}</span>}
+                                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-slate-200">{item.type}</span>
+                                <span className="flex-1 truncate text-slate-800">{item.label}</span>
+                                {item.meta && <span className="shrink-0 text-xs text-slate-500">{item.meta}</span>}
                               </a>
                             </li>
                           ))}
@@ -742,7 +742,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
                 {isLoggedIn ? (
                   <button
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-[0.625rem] border border-white/[0.08] bg-white/[0.025] px-3.5 py-2 text-xs font-semibold text-slate-400 transition-colors hover:border-white/[0.14] hover:bg-white/[0.055] hover:text-slate-200"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-[0.625rem] border border-slate-200 bg-white/80 px-3.5 py-2 text-xs font-semibold text-slate-600 shadow-sm transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
                     onClick={async () => {
                       const supabase = createClient();
                       await supabase.auth.signOut();
@@ -757,31 +757,31 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </div>
           </header>
 
-          <section id="overview" className="grid items-start gap-4 xl:grid-cols-[minmax(0,0.82fr)_minmax(660px,1.18fr)]">
-              <article className="self-start rounded-[18px] border border-white/[0.07] bg-white/[0.035] p-5 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] md:p-6">
+          <section id="overview" className="grid items-start gap-4 min-[1400px]:grid-cols-[minmax(360px,0.82fr)_minmax(660px,1.18fr)]">
+              <article className="workspace-card self-start rounded-[18px] p-5 text-slate-900 md:p-6">
                 {/* Who is logged in */}
                 <div className="mb-5 flex items-start gap-3.5">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.055]">
-                    <UserRound size={18} className="text-slate-400" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 ring-1 ring-brand-100">
+                    <UserRound size={18} className="text-brand-700" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="mb-1 text-[11px] font-medium text-slate-400">Bejelentkezett lakó</p>
-                    <p className="truncate text-lg font-semibold leading-tight tracking-[-0.015em] text-white">
+                    <p className="mb-1 text-[11px] font-medium text-slate-500">Bejelentkezett lakó</p>
+                    <p className="truncate text-lg font-semibold leading-tight tracking-[-0.015em] text-slate-900">
                       {data.currentUser.full_name || 'Ismeretlen'}
                     </p>
                   </div>
-                  <span className="mt-0.5 shrink-0 rounded-full bg-brand-500/[0.1] px-2.5 py-1 text-[10px] font-semibold text-brand-300">
+                  <span className="mt-0.5 shrink-0 rounded-full bg-brand-50 px-2.5 py-1 text-[10px] font-semibold text-brand-800 ring-1 ring-brand-100">
                     {ROLE_LABEL[data.currentUser.role] ?? data.currentUser.role}
                   </span>
                 </div>
 
                 {/* Linked unit */}
                 {myUnit ? (
-                  <div className="mb-5 flex items-start gap-3 rounded-xl bg-black/[0.12] px-3.5 py-3.5">
-                    <Building2 size={14} className="mt-0.5 shrink-0 text-slate-500" />
+                  <div className="mb-5 flex items-start gap-3 rounded-xl bg-slate-50 px-3.5 py-3.5 ring-1 ring-slate-200/80">
+                    <Building2 size={14} className="mt-0.5 shrink-0 text-slate-400" />
                     <div className="min-w-0">
-                      <p className="mb-1 text-[11px] font-medium text-slate-400">Regisztrált albetét</p>
-                      <p className="text-sm font-semibold text-white">
+                      <p className="mb-1 text-[11px] font-medium text-slate-500">Regisztrált albetét</p>
+                      <p className="text-sm font-semibold text-slate-900">
                         {[myUnit.floor, myUnit.unit_label].filter(Boolean).join(' / ')}
                       </p>
                       {myUnit.area_m2 ? (
@@ -790,31 +790,31 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     </div>
                   </div>
                 ) : isManager ? (
-                  <div className="mb-5 flex items-center gap-2.5 rounded-xl bg-black/[0.12] px-3.5 py-3.5">
-                    <Layers3 size={14} className="shrink-0 text-slate-500" />
-                    <p className="text-sm text-slate-400">{data.units.length} albetét ebben az épületben</p>
+                  <div className="mb-5 flex items-center gap-2.5 rounded-xl bg-slate-50 px-3.5 py-3.5 ring-1 ring-slate-200/80">
+                    <Layers3 size={14} className="shrink-0 text-slate-400" />
+                    <p className="text-sm text-slate-600">{data.units.length} albetét ebben az épületben</p>
                   </div>
                 ) : null}
 
                 <div className="flex flex-wrap gap-2.5">
-                  <a href="#tickets" className="rounded-[0.625rem] bg-brand-500 px-4 py-2.5 text-sm font-semibold text-ink-base transition-colors hover:bg-brand-400">Új bejelentés</a>
-                  <a href="#units" className="rounded-[0.625rem] bg-white/[0.055] px-4 py-2.5 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/[0.09]">Albetétek</a>
-                  <a href={`/w/${data.buildingId}/profil`} className="flex items-center gap-1.5 rounded-[0.625rem] bg-white/[0.055] px-4 py-2.5 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/[0.09]"><UserCog size={13} />Profil</a>
+                  <a href="#tickets" className="rounded-[0.625rem] bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-800">Új bejelentés</a>
+                  <a href="#units" className="rounded-[0.625rem] border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-brand-200 hover:bg-brand-50">Albetétek</a>
+                  <a href={`/w/${data.buildingId}/profil`} className="flex items-center gap-1.5 rounded-[0.625rem] border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-brand-200 hover:bg-brand-50"><UserCog size={13} />Profil</a>
                 </div>
               </article>
 
-              <article className="rounded-[18px] border border-white/[0.07] bg-white/[0.035] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] md:p-4">
+              <article className="workspace-card rounded-[18px] p-3 md:p-4">
                 <div className="grid h-full gap-3 md:grid-cols-2 lg:grid-cols-[160px_160px_minmax(0,1fr)]">
-                  <div className="min-h-36 rounded-xl bg-black/[0.11] p-3">
+                  <div className="min-h-36 rounded-xl bg-amber-50/60 p-3 ring-1 ring-amber-100/80">
                     <WeatherWidget quiet city={
                     data.buildingAddress?.match(/\d{4}\s+([A-Za-záéíóöőúüűÁÉÍÓÖŐÚÜŰ-]+)/)?.[1]
                     ?? 'Budapest'
                   } />
                   </div>
-                  <div className="min-h-36 rounded-xl bg-black/[0.11] p-3">
+                  <div className="min-h-36 rounded-xl bg-emerald-50/60 p-3 ring-1 ring-emerald-100/80">
                     <AirQualityWidget quiet href={`/w/${data.buildingId}/kornyezet#sec-air`} />
                   </div>
-                  <div className="hidden min-w-0 rounded-xl bg-black/[0.11] p-4 lg:col-span-1 lg:block">
+                  <div className="hidden min-w-0 rounded-xl bg-slate-50/90 p-4 ring-1 ring-slate-200/80 lg:col-span-1 lg:block">
                     <ActivityCalendar
                       tickets={tickets}
                       meetings={meetings}

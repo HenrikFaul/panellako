@@ -27,7 +27,7 @@ export default function SegmentedTabs<T extends string>({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className={`inline-flex max-w-full flex-wrap gap-0.5 rounded-xl border border-white/[0.08] bg-white/[0.03] p-1 ${className}`}
+      className={`inline-flex max-w-full flex-wrap gap-0.5 rounded-xl border border-slate-200 bg-slate-100/80 p-1 ${className}`}
     >
       {tabs.map((tab) => {
         const isActive = tab.key === active;
@@ -40,8 +40,8 @@ export default function SegmentedTabs<T extends string>({
             onClick={() => onChange(tab.key)}
             className={`rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors ${
               isActive
-                ? 'bg-white/[0.08] text-white shadow-sm'
-                : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+                ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80'
+                : 'text-slate-600 hover:bg-white/70 hover:text-slate-900'
             }`}
           >
             {tab.label}

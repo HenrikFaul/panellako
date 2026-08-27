@@ -45,14 +45,14 @@ function RadarChart({ dimensions }: { dimensions: LiveabilityData['dimensions'] 
         return (
           <polygon key={lvl}
             points={pts.map(([x, y]) => `${x},${y}`).join(' ')}
-            fill="none" stroke="#ffffff10" strokeWidth={1} />
+            fill="none" stroke="#cbd5e1" strokeWidth={1} />
         );
       })}
 
       {/* Axis lines */}
       {dimensions.map((_, i) => {
         const [x, y] = axisPoint(i, R);
-        return <line key={i} x1={CX} y1={CY} x2={x} y2={y} stroke="#ffffff10" strokeWidth={1} />;
+        return <line key={i} x1={CX} y1={CY} x2={x} y2={y} stroke="#cbd5e1" strokeWidth={1} />;
       })}
 
       {/* Budapest avg benchmark */}
@@ -65,7 +65,7 @@ function RadarChart({ dimensions }: { dimensions: LiveabilityData['dimensions'] 
 
       {/* Data vertices */}
       {dataPts.map(([x, y], i) => (
-        <circle key={i} cx={x} cy={y} r={4} fill={dimensions[i].color} stroke="#0a0f1e" strokeWidth={1.5} />
+        <circle key={i} cx={x} cy={y} r={4} fill={dimensions[i].color} stroke="#ffffff" strokeWidth={1.5} />
       ))}
 
       {/* Labels */}
@@ -74,7 +74,7 @@ function RadarChart({ dimensions }: { dimensions: LiveabilityData['dimensions'] 
         const anchor = x < CX - 5 ? 'end' : x > CX + 5 ? 'start' : 'middle';
         return (
           <g key={i}>
-            <text x={x} y={y - 2} textAnchor={anchor} fontSize={9} fill="#94a3b8" fontWeight={600}>
+            <text x={x} y={y - 2} textAnchor={anchor} fontSize={9} fill="#475569" fontWeight={600}>
               {d.label}
             </text>
             <text x={x} y={y + 9} textAnchor={anchor} fontSize={8} fill={d.color} fontWeight={600}>
@@ -89,9 +89,9 @@ function RadarChart({ dimensions }: { dimensions: LiveabilityData['dimensions'] 
 
       {/* Legend (bottom-right, inside the wider viewBox) */}
       <line x1={250} y1={300} x2={270} y2={300} stroke="#fbbf24" strokeWidth={1.5} strokeDasharray="3 3" strokeOpacity={0.7} />
-      <text x={275} y={303} fontSize={8} fill="#94a3b8">Budapest átlag (~60)</text>
+      <text x={275} y={303} fontSize={8} fill="#475569">Budapest átlag (~60)</text>
       <line x1={250} y1={290} x2={270} y2={290} stroke="#34d399" strokeWidth={2} />
-      <text x={275} y={293} fontSize={8} fill="#94a3b8">Az Ön lakókörnyezete</text>
+      <text x={275} y={293} fontSize={8} fill="#475569">Az Ön lakókörnyezete</text>
     </svg>
   );
 }
@@ -100,13 +100,13 @@ function RadarChart({ dimensions }: { dimensions: LiveabilityData['dimensions'] 
 
 function DimCard({ dim }: { dim: LiveabilityData['dimensions'][0] }) {
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
       <div className="mb-2 flex items-center gap-2">
         <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: dim.color }} aria-hidden />
-        <span className="text-[10px] font-semibold text-slate-100">{dim.label}</span>
+        <span className="text-[10px] font-semibold text-slate-800">{dim.label}</span>
         <span className="ml-auto text-sm font-semibold tabular-nums" style={{ color: dim.color }}>{dim.score}</span>
       </div>
-      <div className="h-1 w-full overflow-hidden rounded-full bg-white/[0.07]">
+      <div className="h-1 w-full overflow-hidden rounded-full bg-slate-200">
         <div className="h-full rounded-full transition-all duration-700"
           style={{ width: `${dim.score}%`, background: dim.color }} />
       </div>
@@ -121,17 +121,17 @@ function ScoreRing({ score, color, label }: { score: number; color: string; labe
   return (
     <div className="flex flex-col items-center gap-1">
       <svg viewBox="0 0 130 130" className="w-32 h-32">
-        <circle cx={65} cy={65} r={R} fill="none" stroke="#ffffff08" strokeWidth={10} />
+        <circle cx={65} cy={65} r={R} fill="none" stroke="#e2e8f0" strokeWidth={10} />
         <circle cx={65} cy={65} r={R} fill="none" stroke={color} strokeWidth={10}
           strokeLinecap="round"
           strokeDasharray={`${(score / 100) * C} ${C}`}
           strokeDashoffset={C / 4}
           style={{ transition: 'stroke-dasharray 1s ease' }} />
         <text x={65} y={61} textAnchor="middle" fontSize={26} fontWeight={600} fill={color}>{score}</text>
-        <text x={65} y={73} textAnchor="middle" fontSize={9} fill="#94a3b8">/ 100</text>
+        <text x={65} y={73} textAnchor="middle" fontSize={9} fill="#64748b">/ 100</text>
       </svg>
       <p className="text-[10px] font-semibold" style={{ color }}>{label}</p>
-      <p className="text-[8px] text-slate-600">Élhetőség összesített pontszáma</p>
+      <p className="text-[8px] text-slate-700">Élhetőség összesített pontszáma</p>
     </div>
   );
 }
@@ -144,12 +144,12 @@ export default function LiveabilityPanel({ data, loading }: Props) {
   if (loading) {
     return (
       <div className="space-y-4 animate-pulse">
-        <div className="h-64 rounded-2xl bg-white/[0.06]" />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{[1,2,3,4,5,6].map(i => <div key={i} className="h-14 rounded-2xl bg-white/[0.06]" />)}</div>
+        <div className="h-64 rounded-2xl bg-slate-100" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{[1,2,3,4,5,6].map(i => <div key={i} className="h-14 rounded-2xl bg-slate-100" />)}</div>
       </div>
     );
   }
-  if (!data) return <p className="text-center py-8 text-[11px] text-slate-600">Élhetőségi adat nem elérhető</p>;
+  if (!data) return <p className="py-8 text-center text-[11px] text-slate-700">Élhetőségi adat nem elérhető</p>;
 
   return (
     <div className="space-y-5">
@@ -160,9 +160,9 @@ export default function LiveabilityPanel({ data, loading }: Props) {
         </div>
         <div className="flex flex-col items-center gap-4">
           <ScoreRing score={data.totalScore} color={data.labelColor} label={data.label} />
-          <div className="space-y-1 text-[9px] text-slate-600 text-center">
+          <div className="space-y-1 text-center text-[9px] text-slate-700">
             <p>Budapest átlag: ~62/100</p>
-            <p className="rounded-full bg-white/[0.04] px-3 py-0.5 text-slate-500">
+            <p className="rounded-full bg-slate-100 px-3 py-0.5 text-slate-700">
               {data.source === 'cache' ? 'Cache (30 napos frissítés)' : 'Friss Overpass lekérdezés'}
             </p>
           </div>
@@ -175,38 +175,38 @@ export default function LiveabilityPanel({ data, loading }: Props) {
       </div>
 
       {/* Methodology + sources + acquisition info */}
-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5 space-y-4">
+      <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
         <div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Módszertan dimenziónként</p>
-          <div className="grid gap-2 text-[10px] leading-relaxed text-slate-400 sm:grid-cols-2 lg:grid-cols-3">
-            <p><span className="text-emerald-300 font-semibold">Zöld & Levegő (20%):</span> OSM zöldfelület-score (parkok, fák, sportpályák 500 m-en belül) súlyozott összege 60%-on + Open-Meteo Air Quality PM2.5/PM10/NO₂/O₃ AQI 40%-on.</p>
-            <p><span className="text-sky-300 font-semibold">Egészségügy (20%):</span> Legközelebbi kórház 800 m exponenciális decay-jel 40%-on + legközelebbi gyógyszertár 400 m-rel 30%-on + orvos/fogorvos 20%-on + alap 10%.</p>
-            <p><span className="text-violet-300 font-semibold">Oktatás (15%):</span> Legközelebbi iskola/óvoda 600 m decay-jel 50%-on + iskola-sűrűség (max 40%) + alap 10%.</p>
-            <p><span className="text-rose-300 font-semibold">Kultúra (15%):</span> Színház/mozi/múzeum/galéria/közösségi tér sűrűség 60%-on (max) + sport-sűrűség 30%-on + alap 10%.</p>
-            <p><span className="text-orange-300 font-semibold">Szolgáltatások (15%):</span> Vendéglátóhelyek sűrűsége 50%-on + ABC-k/élelmiszerboltok 30%-on + bank/posta/ATM 20%-on.</p>
-            <p><span className="text-amber-300 font-semibold">Biztonság (15%):</span> Alap 40 + rendőrség/tűzoltóság közelsége (max 40, decay 1500 m) + tömegközlekedés sűrűsége (max 20). Proxy-mérés: a kriminalisztikai statisztika nincs nyilvános felbontásban, ezért az infrastruktúra-jelenlét helyettesíti.</p>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-700">Módszertan dimenziónként</p>
+          <div className="grid gap-2 text-[10px] leading-relaxed text-slate-700 sm:grid-cols-2 lg:grid-cols-3">
+            <p><span className="font-semibold text-emerald-700">Zöld & Levegő (20%):</span> OSM zöldfelület-score (parkok, fák, sportpályák 500 m-en belül) súlyozott összege 60%-on + Open-Meteo Air Quality PM2.5/PM10/NO₂/O₃ AQI 40%-on.</p>
+            <p><span className="font-semibold text-sky-700">Egészségügy (20%):</span> Legközelebbi kórház 800 m exponenciális decay-jel 40%-on + legközelebbi gyógyszertár 400 m-rel 30%-on + orvos/fogorvos 20%-on + alap 10%.</p>
+            <p><span className="font-semibold text-violet-700">Oktatás (15%):</span> Legközelebbi iskola/óvoda 600 m decay-jel 50%-on + iskola-sűrűség (max 40%) + alap 10%.</p>
+            <p><span className="font-semibold text-rose-700">Kultúra (15%):</span> Színház/mozi/múzeum/galéria/közösségi tér sűrűség 60%-on (max) + sport-sűrűség 30%-on + alap 10%.</p>
+            <p><span className="font-semibold text-orange-700">Szolgáltatások (15%):</span> Vendéglátóhelyek sűrűsége 50%-on + ABC-k/élelmiszerboltok 30%-on + bank/posta/ATM 20%-on.</p>
+            <p><span className="font-semibold text-amber-700">Biztonság (15%):</span> Alap 40 + rendőrség/tűzoltóság közelsége (max 40, decay 1500 m) + tömegközlekedés sűrűsége (max 20). Proxy-mérés: a kriminalisztikai statisztika nincs nyilvános felbontásban, ezért az infrastruktúra-jelenlét helyettesíti.</p>
           </div>
         </div>
 
-        <div className="border-t border-white/[0.06] pt-3 grid gap-3 sm:grid-cols-3 text-[10px]">
+        <div className="grid gap-3 border-t border-slate-200 pt-3 text-[10px] sm:grid-cols-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Adatforrások</p>
-            <p className="text-slate-500">
-              <span className="text-slate-300">OpenStreetMap Overpass API</span> (POI, közlekedés, infrastruktúra), <span className="text-slate-300">Open-Meteo</span> (légszennyezés, időjárás), <span className="text-slate-300">BKK Futár GTFS</span> (tömegközlekedés-megálló sűrűség). Mindhárom 100%-ban nyílt adat, API-kulcs nélkül.
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-700">Adatforrások</p>
+            <p className="text-slate-700">
+              <span className="font-medium text-slate-900">OpenStreetMap Overpass API</span> (POI, közlekedés, infrastruktúra), <span className="font-medium text-slate-900">Open-Meteo</span> (légszennyezés, időjárás), <span className="font-medium text-slate-900">BKK Futár GTFS</span> (tömegközlekedés-megálló sűrűség). Mindhárom 100%-ban nyílt adat, API-kulcs nélkül.
             </p>
           </div>
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Lekérdezve</p>
-            <p className="text-slate-500">
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-700">Lekérdezve</p>
+            <p className="text-slate-700">
               {data.source === 'cache' || data.source === 'stale-cache'
-                ? <>Cache-ből: <span className="text-emerald-300">{new Date(data.computedAt).toLocaleString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></>
-                : <>Élő lekérdezés: <span className="text-emerald-300">{new Date(data.computedAt).toLocaleString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></>}
+                ? <>Cache-ből: <span className="font-medium text-emerald-700">{new Date(data.computedAt).toLocaleString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></>
+                : <>Élő lekérdezés: <span className="font-medium text-emerald-700">{new Date(data.computedAt).toLocaleString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></>}
             </p>
-            <p className="text-slate-500 mt-1">Frissítési kadencia: 30 nap (OSM POI változás-ráta alapján).</p>
+            <p className="mt-1 text-slate-700">Frissítési kadencia: 30 nap (OSM POI változás-ráta alapján).</p>
           </div>
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Tudományos háttér</p>
-            <p className="text-slate-500">
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-700">Tudományos háttér</p>
+            <p className="text-slate-700">
               EIU Liveability Index + Mercer Quality of Living módszertanra alapozva. Az exponenciális távolság-decay függvény a Walk Score™ (Front Seat Management 2007) modelljét követi.
             </p>
           </div>

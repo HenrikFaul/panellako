@@ -51,7 +51,10 @@
 
 ## UI component rules
 
-- Dark theme: background `#060c18` / `#080e1e`, surface cards `rgba(255,255,255,0.04)`
+- Daylight application theme: warm canvas `#f4f7f4` / `#edf3ee`, white cards,
+  border `#dbe5df`, primary ink `#17231e`, restrained teal brand accents
+- Full-screen dark workspace backgrounds are prohibited; dark surfaces are
+  reserved for true overlays, map chrome, media and exceptional high-contrast context
 - Typography scale: see `AI_PROMPTING_FOLDERSTRUCTURE/ui/typography.md`
 - Component library: see `AI_PROMPTING_FOLDERSTRUCTURE/ui/components.md`
 - Accessibility: WCAG 2.1 AA minimum — see `AI_PROMPTING_FOLDERSTRUCTURE/ui/accessibility.md`

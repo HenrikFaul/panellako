@@ -2,7 +2,7 @@
  * Skeleton — shared loading placeholder (v0.9.33).
  */
 export default function Skeleton({ className = '' }: { className?: string }) {
-  return <div className={`animate-pulse rounded-xl bg-white/[0.06] ${className}`} aria-hidden="true" />;
+  return <div className={`animate-pulse rounded-xl bg-slate-200/80 ${className}`} aria-hidden="true" />;
 }
 
 export function SkeletonGroup({ rows = 3, className = '' }: { rows?: number; className?: string }) {

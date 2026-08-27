@@ -65,7 +65,7 @@ export default function Sparkline24h({ data, height = 72 }: Props) {
         {/* Grid lines */}
         {gridLines.map(f => (
           <line key={f} x1={0} y1={H * (1 - f)} x2={W} y2={H * (1 - f)}
-            stroke="white" strokeOpacity="0.05" strokeWidth="1" />
+            stroke="#cbd5e1" strokeOpacity="0.7" strokeWidth="1" />
         ))}
         {/* PM2.5 path */}
         <path d={pm25Path} fill="none" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round" />
@@ -76,8 +76,8 @@ export default function Sparkline24h({ data, height = 72 }: Props) {
           const x = (h / 23) * W;
           return (
             <g key={h}>
-              <line x1={x} y1={H} x2={x} y2={H + 4} stroke="white" strokeOpacity="0.2" strokeWidth="1" />
-              <text x={x} y={H + 14} textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.3)">
+              <line x1={x} y1={H} x2={x} y2={H + 4} stroke="#94a3b8" strokeWidth="1" />
+              <text x={x} y={H + 14} textAnchor="middle" fontSize="9" fill="#64748b">
                 {h}:00
               </text>
             </g>
@@ -86,7 +86,7 @@ export default function Sparkline24h({ data, height = 72 }: Props) {
         {/* Tooltip line */}
         {tooltip && (
           <line x1={tooltip.x} y1={0} x2={tooltip.x} y2={H}
-            stroke="white" strokeOpacity="0.3" strokeWidth="1" strokeDasharray="3 2" />
+            stroke="#64748b" strokeOpacity="0.7" strokeWidth="1" strokeDasharray="3 2" />
         )}
         {/* Invisible mouse layer */}
         <rect x={0} y={0} width={W} height={H} fill="transparent" />
@@ -95,15 +95,15 @@ export default function Sparkline24h({ data, height = 72 }: Props) {
       <div className="flex gap-4 px-1 mt-0.5">
         <div className="flex items-center gap-1.5">
           <div className="h-0.5 w-5 rounded-full bg-sky-400" />
-          <span className="text-[9px] text-slate-500">PM2.5 µg/m³</span>
+          <span className="text-[10px] text-slate-700/75">PM2.5 µg/m³</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-0.5 w-5 rounded-full bg-amber-400" style={{ backgroundImage: 'repeating-linear-gradient(90deg,#eab308 0,#eab308 4px,transparent 4px,transparent 7px)' }} />
-          <span className="text-[9px] text-slate-500">UV index</span>
+          <span className="text-[10px] text-slate-700/75">UV index</span>
         </div>
         {tooltip && t && (
-          <div className="ml-auto text-[9px] text-slate-400">
-            {timeLabel} · PM2.5: <span className="text-sky-400">{t.pm25?.toFixed(1) ?? '—'}</span> · UV: <span className="text-amber-400">{t.uvIndex?.toFixed(1) ?? '—'}</span>
+          <div className="ml-auto text-[10px] text-slate-700">
+            {timeLabel} · PM2.5: <span className="text-sky-700">{t.pm25?.toFixed(1) ?? '—'}</span> · UV: <span className="text-amber-800">{t.uvIndex?.toFixed(1) ?? '—'}</span>
           </div>
         )}
       </div>

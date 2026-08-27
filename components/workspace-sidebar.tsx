@@ -136,15 +136,15 @@ export default function WorkspaceSidebar({
     <div className="flex h-full min-h-0 flex-col px-3.5 py-4">
       <div className="mb-4 flex items-center gap-3 px-1">
         <a href={base} onClick={mobile ? () => setMobileOpen(false) : undefined} className="flex min-w-0 flex-1 items-center gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-500 text-ink-base">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-700 text-white shadow-sm">
             <Building2 size={17} />
           </span>
-          <span className="truncate text-[15px] font-semibold tracking-[-0.015em] text-white">PanelLakó</span>
+          <span className="truncate text-[15px] font-semibold tracking-[-0.015em] text-slate-900">PanelLakó</span>
         </a>
         <button
           type="button"
           onClick={() => mobile ? setMobileOpen(false) : onCollapse(true)}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-slate-500 transition-colors hover:bg-white/[0.055] hover:text-slate-200"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-slate-500 transition-colors hover:bg-white hover:text-brand-800 hover:shadow-sm"
           title="Menü összecsukása"
           aria-label="Menü összecsukása"
         >
@@ -152,14 +152,14 @@ export default function WorkspaceSidebar({
         </button>
       </div>
 
-      <div className="mb-3 rounded-xl bg-black/[0.14] px-3.5 py-3">
-        <p className="mb-1 text-[11px] font-medium text-slate-400">Aktuális épület</p>
-        <p className="truncate text-[13px] font-semibold leading-snug text-slate-200">{buildingName}</p>
-        <p className="mt-1 truncate text-[11px] text-slate-400">{buildingAddress}</p>
+      <div className="mb-3 rounded-xl border border-brand-100 bg-brand-50/70 px-3.5 py-3">
+        <p className="mb-1 text-[11px] font-medium text-slate-500">Aktuális épület</p>
+        <p className="truncate text-[13px] font-semibold leading-snug text-slate-900">{buildingName}</p>
+        <p className="mt-1 truncate text-[11px] text-slate-500">{buildingAddress}</p>
         <Link
           href="/app"
           onClick={mobile ? () => setMobileOpen(false) : undefined}
-          className="mt-2.5 flex items-center gap-1.5 text-[11px] font-semibold text-brand-300 transition-colors hover:text-brand-200"
+          className="mt-2.5 flex items-center gap-1.5 text-[11px] font-semibold text-brand-700 transition-colors hover:text-brand-900"
         >
           <Layers3 size={11} />
           Épület váltása
@@ -177,16 +177,16 @@ export default function WorkspaceSidebar({
               onClick={mobile ? () => setMobileOpen(false) : undefined}
               aria-current={active ? 'page' : undefined}
               className={`group flex min-h-11 items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium transition-colors ${
-                active ? 'bg-brand-500/[0.09] text-slate-50' : 'text-slate-400 hover:bg-white/[0.045] hover:text-slate-100'
+                active ? 'bg-brand-50 text-brand-900 ring-1 ring-brand-100' : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm'
               }`}
             >
-              <Icon size={15} className={`shrink-0 ${active ? 'text-brand-300' : 'text-slate-500 group-hover:text-slate-300'}`} />
+              <Icon size={15} className={`shrink-0 ${active ? 'text-brand-700' : 'text-slate-400 group-hover:text-brand-700'}`} />
               <span>{item.label}</span>
             </a>
           );
         })}
 
-        <p className="mb-1 mt-4 px-3 text-[11px] font-medium text-slate-400">Élettér</p>
+        <p className="mb-1 mt-4 px-3 text-[11px] font-medium text-slate-500">Élettér</p>
 
         {envNav.map((item) => {
           const Icon = item.icon;
@@ -198,10 +198,10 @@ export default function WorkspaceSidebar({
               onClick={mobile ? () => setMobileOpen(false) : undefined}
               aria-current={active ? 'page' : undefined}
               className={`group flex min-h-11 items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium transition-colors ${
-                active ? 'bg-brand-500/[0.09] text-slate-50' : 'text-slate-400 hover:bg-white/[0.045] hover:text-slate-100'
+                active ? 'bg-brand-50 text-brand-900 ring-1 ring-brand-100' : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm'
               }`}
             >
-              <Icon size={15} className={`shrink-0 ${active ? 'text-brand-300' : 'text-slate-500 group-hover:text-slate-300'}`} />
+              <Icon size={15} className={`shrink-0 ${active ? 'text-brand-700' : 'text-slate-400 group-hover:text-brand-700'}`} />
               <span>{item.label}</span>
             </a>
           );
@@ -212,21 +212,21 @@ export default function WorkspaceSidebar({
         <a
           href={`/billing?building=${buildingId}`}
           onClick={mobile ? () => setMobileOpen(false) : undefined}
-          className="group mt-3 flex min-h-11 w-full items-center gap-2.5 rounded-xl bg-brand-500/[0.07] px-3 transition-colors hover:bg-brand-500/[0.11]"
+          className="group mt-3 flex min-h-11 w-full items-center gap-2.5 rounded-xl border border-brand-100 bg-brand-50 px-3 transition-colors hover:border-brand-200 hover:bg-brand-100/70"
         >
-          <Sparkles size={13} className="shrink-0 text-brand-300" />
-          <span className="text-xs font-semibold text-brand-200">Előfizetés &amp; Számlázás</span>
-          <ChevronRight size={12} className="ml-auto text-brand-500 transition-colors group-hover:text-brand-300" />
+          <Sparkles size={13} className="shrink-0 text-brand-700" />
+          <span className="text-xs font-semibold text-brand-800">Előfizetés &amp; Számlázás</span>
+          <ChevronRight size={12} className="ml-auto text-brand-500 transition-colors group-hover:text-brand-800" />
         </a>
       )}
 
-      <div className="mt-3 flex items-center gap-2.5 border-t border-white/[0.06] px-1 pt-3">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white/[0.045] text-slate-400">
+      <div className="mt-3 flex items-center gap-2.5 border-t border-slate-200 px-1 pt-3">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white text-slate-500 shadow-sm ring-1 ring-slate-200">
           <UserRound size={14} />
         </span>
         <div className="min-w-0">
-          <p className="text-[11px] font-medium text-slate-400">Aktív szerepkör</p>
-          <p className="truncate text-xs font-semibold text-slate-300">{roleLabels[role] ?? role}</p>
+          <p className="text-[11px] font-medium text-slate-500">Aktív szerepkör</p>
+          <p className="truncate text-xs font-semibold text-slate-800">{roleLabels[role] ?? role}</p>
         </div>
       </div>
     </div>
@@ -234,21 +234,21 @@ export default function WorkspaceSidebar({
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center border-b border-white/[0.07] bg-ink-deep/95 px-4 backdrop-blur-xl lg:hidden">
+      <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center border-b border-slate-200/80 bg-white/90 px-4 shadow-sm backdrop-blur-xl lg:hidden">
         <a href={base} className="flex min-w-0 flex-1 items-center gap-2.5">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-brand-500 text-ink-base">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-brand-700 text-white">
             <Building2 size={15} />
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-slate-100">{buildingName || 'PanelLakó'}</span>
-            {buildingAddress && <span className="block truncate text-[10px] text-slate-400">{buildingAddress}</span>}
+            <span className="block truncate text-sm font-semibold text-slate-900">{buildingName || 'PanelLakó'}</span>
+            {buildingAddress && <span className="block truncate text-[10px] text-slate-500">{buildingAddress}</span>}
           </span>
         </a>
         <button
           ref={mobileTriggerRef}
           type="button"
           onClick={() => setMobileOpen(true)}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-slate-400 transition-colors hover:bg-white/[0.055] hover:text-white"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-slate-600 transition-colors hover:bg-brand-50 hover:text-brand-800"
           title="Menü megnyitása"
           aria-label="Menü megnyitása"
           aria-expanded={mobileOpen}
@@ -272,7 +272,7 @@ export default function WorkspaceSidebar({
             role="dialog"
             aria-modal="true"
             aria-label="Navigáció"
-            className="relative h-full w-[min(88vw,320px)] border-r border-white/[0.07] bg-ink-deep text-slate-200 shadow-overlay"
+            className="relative h-full w-[min(88vw,320px)] border-r border-slate-200 bg-[#f7faf7] text-slate-700 shadow-overlay"
           >
             {expandedContent(true)}
           </aside>
@@ -280,17 +280,17 @@ export default function WorkspaceSidebar({
       )}
 
       {collapsed ? (
-        <aside className="fixed left-0 top-0 z-40 hidden h-screen w-16 flex-col border-r border-white/[0.07] bg-ink-deep text-slate-300 lg:flex">
+        <aside className="fixed left-0 top-0 z-40 hidden h-screen w-16 flex-col border-r border-slate-200 bg-[#f7faf7] text-slate-700 shadow-[4px_0_24px_-24px_rgba(31,57,45,0.5)] lg:flex">
           <button
             type="button"
             onClick={() => onCollapse(false)}
-            className="grid h-14 w-full place-items-center border-b border-white/[0.06] text-slate-500 transition-colors hover:bg-white/[0.045] hover:text-slate-200"
+            className="grid h-14 w-full place-items-center border-b border-slate-200 text-slate-500 transition-colors hover:bg-white hover:text-brand-800"
             title="Menü megnyitása"
             aria-label="Menü megnyitása"
           >
             <ChevronRight size={17} />
           </button>
-          <a href={base} title="Főoldal" className="mx-auto my-3 grid h-9 w-9 place-items-center rounded-xl bg-brand-500 text-ink-base">
+          <a href={base} title="Főoldal" className="mx-auto my-3 grid h-9 w-9 place-items-center rounded-xl bg-brand-700 text-white shadow-sm">
             <Building2 size={16} />
           </a>
           <nav className="sidebar-scroll min-h-0 flex-1 overflow-y-auto py-1" aria-label="Navigáció">
@@ -305,7 +305,7 @@ export default function WorkspaceSidebar({
                   aria-label={item.label}
                   aria-current={active ? 'page' : undefined}
                   className={`mx-2 grid h-11 place-items-center rounded-xl transition-colors ${
-                    active ? 'bg-brand-500/[0.09] text-brand-300' : 'text-slate-500 hover:bg-white/[0.045] hover:text-slate-200'
+                    active ? 'bg-brand-50 text-brand-800 ring-1 ring-brand-100' : 'text-slate-400 hover:bg-white hover:text-brand-800'
                   }`}
                 >
                   <Icon size={16} />
@@ -318,17 +318,17 @@ export default function WorkspaceSidebar({
               href={`/billing?building=${buildingId}`}
               title="Előfizetés & Számlázás"
               aria-label="Előfizetés & Számlázás"
-              className="mx-2 mb-2 grid h-11 place-items-center rounded-xl bg-brand-500/[0.07] text-brand-300 transition-colors hover:bg-brand-500/[0.11]"
+              className="mx-2 mb-2 grid h-11 place-items-center rounded-xl bg-brand-50 text-brand-700 ring-1 ring-brand-100 transition-colors hover:bg-brand-100"
             >
               <Sparkles size={15} />
             </a>
           )}
-          <div className="mx-auto mb-3 grid h-9 w-9 place-items-center rounded-xl bg-white/[0.045] text-slate-400" title={roleLabels[role] ?? role}>
+          <div className="mx-auto mb-3 grid h-9 w-9 place-items-center rounded-xl bg-white text-slate-500 shadow-sm ring-1 ring-slate-200" title={roleLabels[role] ?? role}>
             <UserRound size={14} />
           </div>
         </aside>
       ) : (
-        <aside className="fixed left-0 top-0 z-40 hidden h-screen w-[248px] flex-col border-r border-white/[0.07] bg-ink-deep text-slate-200 lg:flex">
+        <aside className="fixed left-0 top-0 z-40 hidden h-screen w-[248px] flex-col border-r border-slate-200 bg-[#f7faf7] text-slate-700 shadow-[4px_0_24px_-24px_rgba(31,57,45,0.5)] lg:flex">
           {expandedContent(false)}
         </aside>
       )}

@@ -25,6 +25,16 @@ export default async function BillingPage({
   let building = null;
   let unitCount = 0;
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('free_trial_never_expires')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  const hasPermanentAccess = Boolean(
+    (profile as { free_trial_never_expires?: boolean } | null)?.free_trial_never_expires,
+  );
+
   if (buildingId) {
     const [subResult, buildingResult, unitResult] = await Promise.all([
       supabase.from('subscriptions').select('*').eq('building_id', buildingId).maybeSingle(),
@@ -43,6 +53,7 @@ export default async function BillingPage({
       building={building}
       unitCount={unitCount}
       buildingId={buildingId}
+      hasPermanentAccess={hasPermanentAccess}
       successFromCheckout={searchParams.success === 'true'}
       cancelledFromCheckout={searchParams.cancelled === 'true'}
     />
