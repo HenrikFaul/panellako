@@ -170,20 +170,20 @@ function AQIcon({ category, color, aqi }: { category: AQICategory; color: string
 }
 
 // ─── Mini pollutant bar ───────────────────────────────────────────────────────
-function PollutantBar({ label, value, max, color }: {
-  label: string; value: number | null; max: number; unit?: string; color: string;
+function PollutantBar({ label, value, max, color, quiet = false }: {
+  label: string; value: number | null; max: number; unit?: string; color: string; quiet?: boolean;
 }) {
   if (value === null) return null;
   const frac = Math.min(value / max, 1);
   return (
     <div className="flex items-center gap-1.5">
-      <span className="w-7 text-[8px] font-bold uppercase text-slate-600">{label}</span>
+      <span className={quiet ? 'w-8 text-[11px] font-medium text-slate-400' : 'w-7 text-[8px] font-bold uppercase text-slate-600'}>{label}</span>
       <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/[0.07]">
-        <div className="h-full rounded-full transition-all duration-700"
-          style={{ width: `${frac * 100}%`, background: color, boxShadow: `0 0 4px ${color}80` }}
+        <div className={`h-full rounded-full${quiet ? '' : ' transition-all duration-700'}`}
+          style={{ width: `${frac * 100}%`, background: color, boxShadow: quiet ? 'none' : `0 0 4px ${color}80` }}
         />
       </div>
-      <span className="w-8 text-right text-[8px] tabular-nums text-slate-500">{value.toFixed(0)}</span>
+      <span className={`${quiet ? 'text-[11px] text-slate-400' : 'text-[8px] text-slate-500'} w-8 text-right tabular-nums`}>{value.toFixed(0)}</span>
     </div>
   );
 }
@@ -199,7 +199,7 @@ const ADVICE: Record<AQICategory, string> = {
 };
 
 // ─── Main widget ──────────────────────────────────────────────────────────────
-export default function AirQualityWidget() {
+export default function AirQualityWidget({ quiet = false, href = '#air-quality' }: { quiet?: boolean; href?: string }) {
   const [aq, setAq] = useState<AirQualityResult | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -212,8 +212,8 @@ export default function AirQualityWidget() {
 
   if (loading) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 animate-pulse">
-        <div className="h-[110px] w-[110px] rounded-full bg-white/[0.07]" />
+      <div className={`flex h-full flex-col items-center justify-center gap-2${quiet ? '' : ' animate-pulse'}`}>
+        <div className={quiet ? 'h-10 w-10 rounded-xl bg-white/[0.06]' : 'h-[110px] w-[110px] rounded-full bg-white/[0.07]'} />
         <div className="h-3 w-16 rounded bg-white/[0.07]" />
         <div className="h-2 w-24 rounded bg-white/[0.07]" />
       </div>
@@ -228,8 +228,45 @@ export default function AirQualityWidget() {
     );
   }
 
+  if (quiet) {
+    return (
+      <a href={href} className="flex h-full min-w-0 flex-col transition-opacity hover:opacity-90" title="Részletes levegőminőség adatok">
+        <p className="text-xs font-medium text-slate-400">Levegőminőség</p>
+
+        <div className="mt-3 flex items-center gap-3">
+          <span
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-sm font-semibold tabular-nums"
+            style={{ color: aq.color, backgroundColor: `${aq.color}14` }}
+          >
+            {aq.aqi}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold" style={{ color: aq.color }}>{aq.aqiLabel}</p>
+            <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-slate-400">{ADVICE[aq.aqiCategory]}</p>
+          </div>
+        </div>
+
+        <div className="mt-3 space-y-1.5 border-t border-white/[0.06] pt-2.5">
+          <PollutantBar quiet label="PM2.5" value={aq.pm25} max={75} color={aq.color} />
+          <PollutantBar quiet label="NO₂" value={aq.no2} max={200} color="#60a5fa" />
+          <PollutantBar quiet label="O₃" value={aq.o3} max={180} color="#a78bfa" />
+          {'so2' in aq && (aq as { so2: number | null }).so2 !== null && (
+            <PollutantBar quiet label="SO₂" value={(aq as { so2: number | null }).so2} max={350} color="#fb923c" />
+          )}
+        </div>
+
+        <div className="mt-auto pt-2 text-[11px] text-slate-400">
+          <p className="truncate">{aq.stationName}</p>
+          {'source' in aq && (aq as { source: string }).source === 'aqicn' && (
+            <p className="mt-0.5 font-medium text-slate-400">AQICN · OLM</p>
+          )}
+        </div>
+      </a>
+    );
+  }
+
   return (
-    <a href="#air-quality" className="flex h-full flex-col items-center cursor-pointer hover:opacity-90 transition-opacity" title="Részletes levegőminőség adatok">
+    <a href={href} className="flex h-full flex-col items-center cursor-pointer hover:opacity-90 transition-opacity" title="Részletes levegőminőség adatok">
       {/* Header label */}
       <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-slate-500">
         Levegőminőség

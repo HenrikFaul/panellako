@@ -907,7 +907,7 @@ function SmallWeatherIcon({ icon, isDay }: { icon: number; isDay?: boolean }) {
 }
 
 // ─── Main Widget ───────────────────────────────────────────────────────────────
-export default function WeatherWidget({ city = 'Budapest' }: { city?: string }) {
+export default function WeatherWidget({ city = 'Budapest', quiet = false }: { city?: string; quiet?: boolean }) {
   const [weather, setWeather] = useState<WeatherResult | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -920,10 +920,10 @@ export default function WeatherWidget({ city = 'Budapest' }: { city?: string }) 
 
   if (loading) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 animate-pulse">
-        <div className="h-24 w-24 rounded-full bg-white/10" />
-        <div className="h-5 w-16 rounded bg-white/10" />
-        <div className="h-3 w-28 rounded bg-white/10" />
+      <div className={`flex h-full flex-col items-center justify-center gap-3${quiet ? '' : ' animate-pulse'}`}>
+        <div className={quiet ? 'h-9 w-9 rounded-xl bg-white/[0.06]' : 'h-24 w-24 rounded-full bg-white/10'} />
+        <div className="h-4 w-16 rounded bg-white/[0.06]" />
+        <div className="h-3 w-24 rounded bg-white/[0.06]" />
       </div>
     );
   }
@@ -939,6 +939,60 @@ export default function WeatherWidget({ city = 'Budapest' }: { city?: string }) 
   const type = getWeatherType(weather.icon, weather.isDay);
 
   const idokepUrl = `https://www.idokep.hu/30napos/${encodeURIComponent(city)}`;
+  const forecastLinkLabel = `${city} — 30 napos előrejelzés (időkép.hu)`;
+
+  if (quiet) {
+    return (
+      <div className="flex h-full min-w-0 flex-col">
+        <p className="flex items-center gap-1 text-xs font-medium text-slate-400">
+          <span className="truncate">{weather.locationName}</span>
+          <a
+            href={idokepUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={forecastLinkLabel}
+            title={forecastLinkLabel}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-lg transition-colors hover:bg-white/[0.05] hover:text-slate-300"
+          >
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              <path d="M8 1h3m0 0v3m0-3L5.5 6.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </a>
+        </p>
+
+        <div className="mt-3 flex items-center gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/[0.055]">
+            <SmallWeatherIcon icon={weather.icon} isDay={weather.isDay} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-2xl font-semibold leading-none tracking-[-0.025em] text-slate-100 tabular-nums">
+              {weather.temp}°
+            </p>
+            <p className="mt-1 truncate text-xs text-slate-400">{weather.conditionText}</p>
+          </div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-slate-400">
+          <span>Érzőhő <strong className="font-medium text-slate-400">{weather.feelsLike}°</strong></span>
+          <span>Párat <strong className="font-medium text-slate-400">{weather.humidity}%</strong></span>
+          <span className="col-span-2">Szél <strong className="font-medium text-slate-400">{weather.wind} km/h</strong></span>
+        </div>
+
+        {weather.forecast.length > 0 && (
+          <div className="mt-auto grid grid-cols-3 gap-x-1 gap-y-2 border-t border-white/[0.06] pt-2.5 sm:grid-cols-6">
+            {weather.forecast.map((day) => (
+              <div key={day.date} className="flex min-w-0 flex-col items-center gap-1">
+                <span className="text-[11px] font-medium text-slate-400">{getDayLabel(day.date)}</span>
+                <SmallWeatherIcon icon={day.icon} isDay />
+                <span className="text-[11px] text-slate-400 tabular-nums">{day.maxTemp}°</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col items-center">
@@ -949,7 +1003,7 @@ export default function WeatherWidget({ city = 'Budapest' }: { city?: string }) 
           href={idokepUrl}
           target="_blank"
           rel="noopener noreferrer"
-          title={`${city} — 30 napos előrejelzés (időkép.hu)`}
+          title={forecastLinkLabel}
           className="transition-colors hover:text-slate-300"
         >
           <svg width="10" height="10" viewBox="0 0 12 12" fill="none" className="shrink-0">

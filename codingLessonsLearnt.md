@@ -1403,3 +1403,31 @@ brand: { 500: 'oklch(0.714 0.145 181 / <alpha-value>)' }
 **Problem**: Sikeres hozzáférés mellett is megjelenhetett a „ma lejár” figyelmeztetés, ami demó közben hamis állapotot kommunikált.
 **Fix**: A profil `free_trial_never_expires` mezője bekerült a meglévő dashboard-adatlekérésbe, és az örökös hozzáférésű profiloknál a billing banner nem renderelődik.
 **Prevention**: Ha több jogosultsági forrás OR kapcsolatban áll, minden hozzáférési állapotot kommunikáló UI-komponensnek ugyanazt a kombinált döntést vagy annak teljes bemeneti állapotát kell használnia. A döntési függvényeket tiszta modulba kell emelni és határértékekkel tesztelni.
+
+---
+
+## ➕ APPEND — 2026-08-27 Kifinomult workspace redesign tanulságok
+
+### [LESSON-UI-MOTION-091]: A dekoratív mozgást a callerben válaszd le, ne a teljes komponenst rombold le
+**Context**: A dashboard hero skyline-t, járműveket és több időzített ambient réteget renderelt, miközben ezeknek nem volt más runtime callere.
+**Problem**: A folyamatos mozgás vizuálisan uralta az operatív felületet, de a forráskomponensek vak törlése feleslegesen növelte volna a rollback és merge kockázatát.
+**Fix**: CodeGraph blast-radius alapján csak a dashboard importjai, renderelése és elárvult lokális state/helper részei kerültek ki; a dekoratív komponensek caller nélkül maradtak.
+**Prevention**: Prezentációs réteg eltávolításakor először a call pathot és a dinamikus dispatch-t ellenőrizd, majd a legszűkebb runtime-leválasztást válaszd.
+
+### [LESSON-RESPONSIVE-SHELL-092]: Fix sidebar offset csak azon a breakpointon élhet, ahol a sidebar látható
+**Context**: A 272 px-es desktop sidebar és a hozzá tartozó inline main padding 375 px-en is aktív volt.
+**Problem**: A mobil tartalom szélessége összeomlott, miközben a navigáció és a bottom nav egymással versengett.
+**Fix**: A desktop sidebar `lg` alatt rejtett, a main offset kizárólag `lg:` utility, mobilon pedig ugyanazokból az útvonallistákból épülő drawer működik.
+**Prevention**: A shell vizuális szélességét és a content offsetet egy breakpoint-szerződésként kezeld; minden módosítást legalább 375 és 1440 px-en, overflow-méréssel ellenőrizz.
+
+### [LESSON-DATA-PRESENTATION-093]: A „quiet” UI variáns nem veszíthet adatot vagy provenance-t
+**Context**: Az időjárás és AQI animált dashboard widgetje statikus prezentációt kapott ugyanazon fetch-logika fölött.
+**Problem**: Egy korai quiet ág megőrizte az értékeket, de az AQICN/OLM forrásjelölés és a valódi környezeti deep-link könnyen elveszhetett volna.
+**Fix**: A quiet ág ugyanazt az API-t, előrejelzést, pollutánsokat, állomásnevet és külön látható provenance sort használja; a link a létező `#sec-air` célra mutat.
+**Prevention**: Prezentációs refaktornál készíts explicit adat- és interakció-invariáns listát, és ne tekintsd késznek a változást csak azért, mert a fő számérték látszik.
+
+### [LESSON-MOBILE-A11Y-094]: A mobil drawer állapotgép, nem csak rejtett sidebar
+**Context**: A workspace navigáció mobil drawerre váltott.
+**Problem**: Nyitás/zárás önmagában nem elég: fókuszcsapda, Escape, fókusz-visszaadás, body scroll lock, breakpointváltás, 44 px-es célfelület és hash offset nélkül a navigáció részben használhatatlan marad.
+**Fix**: A drawer teljes billentyűzet- és viewport-életciklust kezel, a hash-célok pedig kitérnek a fix mobil fejléc elől; a környezetoldal második fejléce mobilon nem sticky.
+**Prevention**: Drawer acceptance tesztben mindig szerepeljen nyitás, Tab/Shift+Tab, Escape, overlay kattintás, resize desktopra, body-scroll helyreállítás, fókusz-visszaadás és deep-link pozíció.

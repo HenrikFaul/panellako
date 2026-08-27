@@ -116,7 +116,7 @@ function SolarCalculator({ solar }: { solar: SolarData }) {
 // ─── Section wrappers ─────────────────────────────────────────────────────────
 function Section({ id, children }: { id: string; children: React.ReactNode }) {
   return (
-    <section id={id} className="overflow-hidden rounded-[2rem] bg-[#060c18] text-white shadow-2xl shadow-black/40">
+    <section id={id} className="environment-section overflow-hidden rounded-[2rem] bg-[#060c18] text-white shadow-2xl shadow-black/40">
       {children}
     </section>
   );
@@ -328,7 +328,7 @@ export default function EnvironmentPageClient({
     <div className="min-h-screen">
 
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#070d1a]/90 backdrop-blur-xl">
+      <header className="relative z-30 border-b border-white/[0.06] bg-[#070d1a]/90 backdrop-blur-xl lg:sticky lg:top-0 lg:z-50">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
           <a href={`/w/${buildingId}`}
             className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold text-slate-400 hover:bg-white/[0.06] hover:text-slate-200 transition-colors">
