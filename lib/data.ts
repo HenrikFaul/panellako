@@ -16,10 +16,15 @@ import {
 import { createClient } from './supabase/server';
 import { hasSupabaseConfig } from './supabase';
 import { Role } from './types';
+import { getHungarianDateKey } from './hungarian-date';
 
 export async function getDashboardData(role: Role = 'lako', buildingId?: string) {
+  const renderedAt = new Date().toISOString();
+  const calendarDate = getHungarianDateKey(renderedAt);
   const fallback = {
     source: 'mock',
+    renderedAt,
+    calendarDate,
     currentUser: { ...mockCurrentUser, role, free_trial_never_expires: false },
     news: mockNews,
     notifications: mockNotifications,
@@ -161,6 +166,8 @@ export async function getDashboardData(role: Role = 'lako', buildingId?: string)
 
   return {
     source: 'supabase',
+    renderedAt,
+    calendarDate,
     currentUser,
     news: mergedNews.length ? mergedNews : mockNews,
     notifications: notifications.data?.length ? notifications.data : mockNotifications,

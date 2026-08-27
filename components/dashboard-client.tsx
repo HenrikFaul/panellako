@@ -60,6 +60,7 @@ import type { ContactSubject } from '@/app/actions/contact';
 import WeatherWidget from '@/components/weather-widget';
 import AirQualityWidget from '@/components/air-quality-widget';
 import EnergyDashboard from '@/components/energy-dashboard';
+import { formatHungarianDate, formatHungarianDateTime, getHungarianDateKey } from '@/lib/hungarian-date';
 
 // Defined here (not imported from server action file) to avoid 'use server' serialization issues
 const CONTACT_SUBJECTS: ContactSubject[] = ['Ajánlatkérés', 'Érdeklődés', 'Hibabejelentés', 'Visszajelzés', 'Partnerség', 'Egyéb'];
@@ -103,6 +104,8 @@ type AddressOption = {
 
 type DashboardData = {
   source: string;
+  renderedAt: string;
+  calendarDate: string;
   buildingId?: string;
   buildingName?: string;
   buildingAddress?: string;
@@ -165,17 +168,11 @@ const navigation = [
 ];
 
 function formatDate(value?: string | null) {
-  if (!value) {
-    return '-';
-  }
-  return new Intl.DateTimeFormat('hu-HU', { dateStyle: 'medium' }).format(new Date(value));
+  return formatHungarianDate(value);
 }
 
 function formatDateTime(value?: string | null) {
-  if (!value) {
-    return '-';
-  }
-  return new Intl.DateTimeFormat('hu-HU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+  return formatHungarianDateTime(value);
 }
 
 function formatCurrency(value: number | string | null | undefined) {
@@ -818,7 +815,12 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     <AirQualityWidget quiet href={`/w/${data.buildingId}/kornyezet#sec-air`} />
                   </div>
                   <div className="hidden min-w-0 rounded-xl bg-black/[0.11] p-4 lg:col-span-1 lg:block">
-                    <ActivityCalendar tickets={tickets} meetings={meetings} currentUnit={myUnit?.unit_label || undefined} />
+                    <ActivityCalendar
+                      tickets={tickets}
+                      meetings={meetings}
+                      currentUnit={myUnit?.unit_label || undefined}
+                      referenceDate={data.calendarDate}
+                    />
                   </div>
                 </div>
               </article>
@@ -1431,8 +1433,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 const nextDue = charges
                   .filter((f) => f.due_date)
                   .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
-                  .find((f) => new Date(f.due_date) >= new Date(new Date().toDateString()));
-                const isOverdue = nextDue && new Date(nextDue.due_date) < new Date();
+                  .find((f) => getHungarianDateKey(f.due_date) >= data.calendarDate);
+                const isOverdue = nextDue && new Date(nextDue.due_date) < new Date(data.renderedAt);
                 return (
                   <div className="mb-5 grid gap-3 sm:grid-cols-3">
                     <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-3">
@@ -1546,6 +1548,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               <EnergyDashboard
                 readings={data.meterReadings}
                 saved={meterSaved}
+                defaultReadingDate={data.calendarDate}
                 onSubmit={async (type, value, date) => {
                   await submitMeterReadingAction({ meter_type: type, value, reading_date: date, unit_label: myUnit?.unit_label || undefined });
                   setMeterSaved(true);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { getHungarianDateKey } from '../../lib/hungarian-date';
 
 /*
  * ActivityCalendar — 7-week building activity heatmap (extracted from
@@ -37,8 +38,8 @@ function meterDeadlines(viewStart: Date, weeks: number): CalendarEvent[] {
   const seen = new Set<string>();
   for (let w = 0; w < weeks * 7; w++) {
     const d = new Date(viewStart);
-    d.setDate(viewStart.getDate() + w);
-    if (d.getDate() === 20) {
+    d.setUTCDate(viewStart.getUTCDate() + w);
+    if (d.getUTCDate() === 20) {
       const key = d.toISOString().slice(0, 10);
       if (!seen.has(key)) {
         seen.add(key);
@@ -53,26 +54,26 @@ export interface ActivityCalendarProps {
   tickets:  Array<{ created_at?: string; title?: string; unit_label?: string }>;
   meetings: Array<{ scheduled_at: string; title: string; status: string; agenda_preview?: string }>;
   currentUnit?: string;
+  referenceDate: string;
 }
 
-export default function ActivityCalendar({ tickets, meetings, currentUnit }: ActivityCalendarProps) {
+export default function ActivityCalendar({ tickets, meetings, currentUnit, referenceDate }: ActivityCalendarProps) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [hovered, setHovered]       = useState<string | null>(null);
   const [mousePos, setMousePos]     = useState({ x: 0, y: 0 });
 
-  const today = new Date();
-  today.setHours(23, 59, 59, 999);
-  const todayKey = today.toISOString().slice(0, 10);
+  const todayKey = referenceDate;
+  const today = new Date(`${referenceDate}T00:00:00.000Z`);
 
-  // Monday of current real week
-  const dow = today.getDay();
+  // Monday of the server-provided Hungarian calendar week. UTC-only date
+  // arithmetic keeps the SSR and browser trees byte-for-byte identical.
+  const dow = today.getUTCDay();
   const thisMon = new Date(today);
-  thisMon.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
-  thisMon.setHours(0, 0, 0, 0);
+  thisMon.setUTCDate(today.getUTCDate() - (dow === 0 ? 6 : dow - 1));
 
   // View starts at: this Monday + weekOffset weeks
   const viewStart = new Date(thisMon);
-  viewStart.setDate(thisMon.getDate() + weekOffset * 7);
+  viewStart.setUTCDate(thisMon.getUTCDate() + weekOffset * 7);
 
   // Build unified event list from all sources
   const allEvents: CalendarEvent[] = [];
@@ -80,7 +81,7 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit }: Act
   // Tickets → unit scope (or building if no unit)
   for (const t of tickets) {
     if (!t.created_at) continue;
-    const key = new Date(t.created_at).toISOString().slice(0, 10);
+    const key = getHungarianDateKey(t.created_at);
     allEvents.push({
       date:      key,
       title:     t.title ?? 'Hibabejelentés',
@@ -93,7 +94,7 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit }: Act
   // Meetings + votes → building scope
   for (const m of meetings) {
     if (!m.scheduled_at) continue;
-    const key = new Date(m.scheduled_at).toISOString().slice(0, 10);
+    const key = getHungarianDateKey(m.scheduled_at);
     const isVote = m.agenda_preview?.toLowerCase().includes('szavaz') ?? false;
     allEvents.push({
       date:     key,
@@ -116,13 +117,13 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit }: Act
   const cells: Array<{ key: string; events: CalendarEvent[]; date: Date; isFuture: boolean; isToday: boolean }> = [];
   for (let i = 0; i < 49; i++) {
     const d = new Date(viewStart);
-    d.setDate(viewStart.getDate() + i);
+    d.setUTCDate(viewStart.getUTCDate() + i);
     const key = d.toISOString().slice(0, 10);
     cells.push({
       key,
       events:   eventMap.get(key) ?? [],
       date:     d,
-      isFuture: d > today,
+      isFuture: key > todayKey,
       isToday:  key === todayKey,
     });
   }
@@ -177,15 +178,15 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit }: Act
   // Row labels
   const weeks = Array.from({ length: 7 }, (_, w) => {
     const mon = new Date(viewStart);
-    mon.setDate(viewStart.getDate() + w * 7);
+    mon.setUTCDate(viewStart.getUTCDate() + w * 7);
     const isCurrentWeek = mon.toISOString().slice(0, 10) === thisMon.toISOString().slice(0, 10);
-    return { mon, label: `${HU_MONTHS[mon.getMonth()]} ${mon.getDate()}`, isCurrentWeek };
+    return { mon, label: `${HU_MONTHS[mon.getUTCMonth()]} ${mon.getUTCDate()}`, isCurrentWeek };
   });
 
   const DAYS = ['H', 'K', 'Sz', 'Cs', 'P', 'Szo', 'V'];
 
   function formatDate(d: Date) {
-    return `${d.getFullYear()}. ${HU_MONTHS[d.getMonth()]} ${d.getDate()}.`;
+    return `${d.getUTCFullYear()}. ${HU_MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}.`;
   }
 
   const hoveredCell   = hovered ? cells.find(c => c.key === hovered) : undefined;
@@ -259,14 +260,15 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit }: Act
             {cells.map((cell) => (
               <div
                 key={cell.key}
+                data-date={cell.key}
                 onMouseEnter={(e) => { setHovered(cell.key); setMousePos({ x: e.clientX, y: e.clientY }); }}
                 onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}
                 onMouseLeave={() => setHovered(null)}
                 className={`h-7 w-full rounded transition-colors cursor-pointer relative flex flex-col items-center justify-end pb-0.5 gap-px ${cellBg(cell)}`}
               >
-                {cell.date.getDate() === 1 && (
+                {cell.date.getUTCDate() === 1 && (
                   <span className="absolute top-0.5 left-0.5 text-[6px] text-white/40 font-bold leading-none">
-                    {HU_MONTHS[cell.date.getMonth()]}
+                    {HU_MONTHS[cell.date.getUTCMonth()]}
                   </span>
                 )}
                 {cell.events.length > 0 && (
