@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import {
+  environmentScopeErrorResponse,
+  resolveEnvironmentBuildingScope,
+} from '@/lib/authorization/environment-scope';
 
 export const dynamic = 'force-dynamic';
 
@@ -153,20 +157,27 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const lat        = parseFloat(searchParams.get('lat') ?? '47.5278845');
   const lon        = parseFloat(searchParams.get('lon') ?? '19.0705657');
-  const buildingId = searchParams.get('buildingId') ?? null;
+  const workspaceId = searchParams.get('buildingId');
 
   if (Number.isNaN(lat) || Number.isNaN(lon)) {
     return NextResponse.json({ error: 'Invalid coords' }, { status: 400 });
   }
 
-  const supabase = buildingId ? makeSupabase() : null;
+  let physicalBuildingId: string | null;
+  try {
+    ({ physicalBuildingId } = await resolveEnvironmentBuildingScope(request, workspaceId));
+  } catch (error) {
+    return environmentScopeErrorResponse(error);
+  }
+
+  const supabase = physicalBuildingId ? makeSupabase() : null;
 
   // ── 1. Check DB cache ──────────────────────────────────────────────────────
-  if (supabase && buildingId) {
+  if (supabase && physicalBuildingId) {
     const { data } = await supabase
       .from('building_satellite_cache')
       .select('*')
-      .eq('building_id', buildingId)
+      .eq('building_id', physicalBuildingId)
       .gt('computed_at', new Date(Date.now() - 7 * 24 * 3600_000).toISOString())
       .maybeSingle();
 
@@ -239,9 +250,9 @@ export async function GET(request: NextRequest) {
     }
 
     // ── 3. Upsert to cache ────────────────────────────────────────────────────
-    if (supabase && buildingId) {
+    if (supabase && physicalBuildingId) {
       await supabase.from('building_satellite_cache').upsert({
-        building_id:   buildingId,
+        building_id:   physicalBuildingId,
         ndvi:          rounded,
         ndvi_label:    info.label,
         ndvi_color:    info.color,

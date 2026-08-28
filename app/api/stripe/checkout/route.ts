@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
+import {
+  authorizationMessage,
+  requireAuthenticatedUser,
+  requireWorkspaceCapability,
+} from '@/lib/authorization/guards';
 export const dynamic = 'force-dynamic';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -17,13 +21,6 @@ function getAdminClient() {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Nem vagy bejelentkezve' }, { status: 401 });
-  }
-
   let body: { plan: string; buildingId: string };
   try {
     body = await request.json();
@@ -38,30 +35,25 @@ export async function POST(request: NextRequest) {
   }
 
   if (!buildingId) {
-    return NextResponse.json({ error: 'Épület azonosító hiányzik' }, { status: 400 });
+    return NextResponse.json({ error: 'Lakóközösség azonosító hiányzik' }, { status: 400 });
   }
 
-  // Verify user is a manager of this building
-  const { data: membership, error: membershipError } = await supabase
-    .from('memberships')
-    .select('id, role')
-    .eq('profile_id', user.id)
-    .eq('building_id', buildingId)
-    .eq('active', true)
-    .in('role', ['kozos_kepviselo', 'megbizott'])
-    .single();
-
-  if (membershipError || !membership) {
-    return NextResponse.json(
-      { error: 'Nincs jogosultságod előfizetést kezelni ehhez az épülethez' },
-      { status: 403 }
-    );
+  let auth: Awaited<ReturnType<typeof requireAuthenticatedUser>>;
+  let context: Awaited<ReturnType<typeof requireWorkspaceCapability>>;
+  try {
+    [auth, context] = await Promise.all([
+      requireAuthenticatedUser(),
+      requireWorkspaceCapability(buildingId, 'billing.manage'),
+    ]);
+  } catch (error) {
+    return NextResponse.json({ error: authorizationMessage(error) }, { status: 403 });
   }
+  const { supabase, user } = auth;
 
   const { data: building, error: buildingError } = await supabase
     .from('buildings')
     .select('id, name, address')
-    .eq('id', buildingId)
+    .eq('id', context.primaryBuildingId)
     .single();
 
   if (buildingError || !building) {
@@ -71,7 +63,7 @@ export async function POST(request: NextRequest) {
   const { count: unitCount, error: unitCountError } = await supabase
     .from('units')
     .select('id', { count: 'exact', head: true })
-    .eq('building_id', buildingId);
+    .eq('building_id', context.primaryBuildingId);
 
   if (unitCountError) {
     return NextResponse.json({ error: 'Nem sikerült lekérdezni az albetétek számát' }, { status: 500 });
@@ -97,7 +89,7 @@ export async function POST(request: NextRequest) {
   const { data: existingSubscription } = await getAdminClient()
     .from('subscriptions')
     .select('stripe_customer_id, stripe_subscription_id, status')
-    .eq('building_id', buildingId)
+    .eq('workspace_id', context.workspaceId)
     .maybeSingle();
 
   let stripeCustomerId: string;
@@ -122,7 +114,8 @@ export async function POST(request: NextRequest) {
       email: user.email,
       name: building.name,
       metadata: {
-        building_id: buildingId,
+        workspace_id: context.workspaceId,
+        building_id: context.primaryBuildingId,
         building_address: building.address,
         supabase_user_id: user.id
       }
@@ -130,7 +123,8 @@ export async function POST(request: NextRequest) {
     stripeCustomerId = customer.id;
 
     await getAdminClient().from('subscriptions').upsert({
-      building_id: buildingId,
+      workspace_id: context.workspaceId,
+      building_id: context.primaryBuildingId,
       stripe_customer_id: stripeCustomerId,
       plan: 'trial',
       status: 'trialing',
@@ -148,9 +142,20 @@ export async function POST(request: NextRequest) {
       line_items: [{ price: priceId, quantity: units }],
       subscription_data: {
         trial_period_days: 14,
-        metadata: { building_id: buildingId, plan, unit_count: String(units) }
+        metadata: {
+          workspace_id: context.workspaceId,
+          building_id: context.primaryBuildingId,
+          plan,
+          unit_count: String(units),
+        }
       },
-      metadata: { building_id: buildingId, plan, unit_count: String(units), supabase_user_id: user.id },
+      metadata: {
+        workspace_id: context.workspaceId,
+        building_id: context.primaryBuildingId,
+        plan,
+        unit_count: String(units),
+        supabase_user_id: user.id,
+      },
       success_url: `${appUrl}/billing?session_id={CHECKOUT_SESSION_ID}&building=${buildingId}&success=true`,
       cancel_url: `${appUrl}/billing?building=${buildingId}&cancelled=true`,
       locale: 'hu',

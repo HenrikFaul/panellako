@@ -251,6 +251,7 @@ function ChargeForm({ buildingId, onSuccess }: ChargeFormProps) {
 // ─── Resident Finance View ────────────────────────────────────────────────────
 
 interface ResidentViewProps {
+  workspaceId: string;
   unitId: string;
 }
 
@@ -264,7 +265,7 @@ interface FinanceEntry {
   description: string | null;
 }
 
-function ResidentView({ unitId }: ResidentViewProps) {
+function ResidentView({ workspaceId, unitId }: ResidentViewProps) {
   const [entries, setEntries] = useState<FinanceEntry[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -272,7 +273,7 @@ function ResidentView({ unitId }: ResidentViewProps) {
   async function load() {
     setLoading(true);
     setError(null);
-    const result = await getUnitFinanceHistory(unitId);
+    const result = await getUnitFinanceHistory(workspaceId, unitId);
     if (result.success) {
       setEntries(result.entries as FinanceEntry[]);
     } else {
@@ -512,7 +513,7 @@ export default function FinancialsClient({
             <div>
               <h2 className="mb-4 text-base font-semibold text-slate-100">Saját albetét egyenlege</h2>
               {unitId ? (
-                <ResidentView unitId={unitId} />
+                <ResidentView workspaceId={buildingId} unitId={unitId} />
               ) : (
                 <p className="text-sm text-slate-500">
                   A fiókjához nem tartozik albetét ehhez az épülethez. Kérje az épület kezelőjét a hozzárendelés elvégzéséhez.

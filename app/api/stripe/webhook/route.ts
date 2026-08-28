@@ -60,12 +60,13 @@ export async function POST(request: NextRequest) {
 
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
+        const workspaceId    = session.metadata?.workspace_id;
         const buildingId     = session.metadata?.building_id;
         const plan           = session.metadata?.plan as 'alap' | 'pro';
         const unitCount      = parseInt(session.metadata?.unit_count ?? '0', 10);
         const subscriptionId = session.subscription as string;
 
-        if (!buildingId || !subscriptionId) {
+        if (!workspaceId || !buildingId || !subscriptionId) {
           console.error('[webhook] checkout.session.completed: missing metadata', session.metadata);
           break;
         }
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
 
         await supabase.from('subscriptions').upsert(
           {
+            workspace_id:            workspaceId,
             building_id:             buildingId,
             stripe_customer_id:      session.customer as string,
             stripe_subscription_id:  subscriptionId,
@@ -135,10 +137,11 @@ export async function POST(request: NextRequest) {
           .eq('stripe_subscription_id', subscriptionId);
 
         const { data: sub } = await supabase.from('subscriptions')
-          .select('building_id').eq('stripe_subscription_id', subscriptionId).single();
+          .select('workspace_id, building_id').eq('stripe_subscription_id', subscriptionId).single();
 
         if (sub) {
           await supabase.from('invoice_events').upsert({
+            workspace_id:           sub.workspace_id,
             building_id:            sub.building_id,
             stripe_invoice_id:      invoice.id,
             stripe_subscription_id: subscriptionId,
@@ -163,10 +166,11 @@ export async function POST(request: NextRequest) {
           .eq('status', 'past_due');
 
         const { data: sub } = await supabase.from('subscriptions')
-          .select('building_id').eq('stripe_subscription_id', subscriptionId).single();
+          .select('workspace_id, building_id').eq('stripe_subscription_id', subscriptionId).single();
 
         if (sub) {
           await supabase.from('invoice_events').upsert({
+            workspace_id:           sub.workspace_id,
             building_id:            sub.building_id,
             stripe_invoice_id:      invoice.id,
             stripe_subscription_id: subscriptionId,

@@ -1,3 +1,245 @@
+## v0.10.2 — Production rollout és announcement delivery worker
+**Dátum:** 2026-08-28
+**Branch:** codex/light-workspace-redesign
+
+### Cél
+- A v0.10.1 operatív multitenancy élesíthető release-jelöltté zárása külső
+  közlemény-email workerrel, kontrollált Supabase-migrációval és bizonyítható
+  verziótörténettel.
+- Az éles adatbázis és alkalmazás frissítése úgy, hogy a backup-, migrációs,
+  regressziós és tenant-izolációs kapuk bármely hibánál megállítsák a rolloutot.
+
+### Announcement delivery
+- Új, `CRON_SECRET`-tel hitelesített, korlátozott batch-méretű worker készült a
+  közlemény-outbox feldolgozására.
+- Az adatbázis `FOR UPDATE SKIP LOCKED` claimet, lease-t, claim tokent,
+  exponenciális retry/backoffot, maximális próbálkozást és `DEAD_LETTER`
+  állapotot kezel.
+- A címzett, email-preferencia, leiratkozási token, közlemény és épület
+  szerveroldalon oldódik fel; a napló és a válasz nem tartalmaz PII-t.
+- Hiányzó email transport és lokális stub produkcióban nem számíthat
+  kézbesítésnek; stabil, retryable hibaként marad az outboxban.
+
+### Release-biztonság
+- A production adatbázis-workflow csak a tizenegy, explicit engedélyezett
+  `20260828120000`–`20260828130000` migrációt fogadja el.
+- Minden éles SQL előtt Supabase backup/PITR gate fut.
+- A repository migration timestamp és név ugyanabban a tranzakcióban kerül a
+  `supabase_migrations.schema_migrations` ledgerbe, mint a sémaváltozás.
+- A Vercel lokális projektkapcsolata gitből kizárt; idegen munkafájl nem kerül a
+  release-be.
+
+### Ellenőrzés
+- Teljes Vitest: 37 fájl / 241 teszt — PASS.
+- `npm run typecheck` — PASS.
+- `npm run lint` — PASS, 0 warning és 0 error.
+- `npm run build` — PASS, 73/73 statikus oldal; a cron worker route bekerült a
+  route-gráfba.
+- Izolált PostgreSQL 18: a `120000`–`130000` migrációs lánc apply és a worker
+  reapply — PASS.
+
+### Élesítési bizonyíték
+- A konkrét Supabase workflow-runok, commit SHA, Vercel deployment és hosted
+  tenant-canary eredménye a
+  `versioning/28082603_v0.10.2_production-multitenancy-rollout.md` fájlban kerül
+  lezárásra.
+
+---
+
+## v0.10.1 — Operatív multitenancy lezárás
+**Dátum:** 2026-08-28
+**Branch:** codex/light-workspace-redesign
+
+### Cél
+- A v0.10.0 workspace-alapjának teljes operatív lezárása community activation,
+  biztonságos meghívások, kezelőcéges portfólió, dokumentumközönség,
+  kézbesítési outbox, szavazási integritás és tenant-határolt modulok mellett.
+- A lakó, tulajdonos, közös képviselő, megbízott, agency staff és önkezelt
+  koordinátor eltérő jogalapjának megőrzése, funkcionális regresszió nélkül.
+
+### Adatbázis és authorization
+- Nyolc lezáró migráció készült a v0.10.0 két alapmigrációjához: platform-review
+  és claimant AAL2 activation, staff invitation, content audience, vote
+  integrity, kompozit tenant-integritás, announcement outbox, content command és
+  agency portfolio workflow.
+- Az aktív adminjog csak aktuális, `VERIFIED` mandátumból; a staff és agency
+  projekció csak aktív forrás-authorityből származhat.
+- Közvetlen tenanttábla-írás helyett idempotens, auditált, fixált `search_path`-ú
+  command RPC-k és default-deny/forced RLS működik.
+- Dokumentum–albetét kapcsolatot workspace-oszlop, scope-trigger és kompozit
+  idegen kulcs véd; a láthatóság származtatott és közvetlenül nem írható.
+
+### Felhasználói folyamatok
+- Az új közösség platform-review után csak az eredeti kérelmező friss AAL2
+  munkamenetével aktiválható. Fuzzy címjelölt explicit operátori döntést igényel,
+  automatikus összevonás nincs.
+- Lakói/tulajdonosi és staff invitation emailhez kötött, lejáró, egyszer
+  használható; elfogadáskor a kibocsátó authorityje újraellenőrzött.
+- Új `/agency` portfóliófelület, agency staff meghívás/elfogadás/visszavonás,
+  workspace-hozzárendelés és lezárás készült HU/EN szövegekkel.
+- Az agency-tagság önmagában nem nyit tenantot: ellenőrzött agency-mandátum,
+  explicit portfolio assignment, aktív projekció és capability együtt kell.
+- A login/register megőrzi a sanitizált meghívási visszatérési útvonalat.
+
+### Tartalom, értesítés és közgyűlés
+- A dokumentum, az albetétcélzás, az acknowledgement, a Storage és az
+  announcement outbox közös audience-predikátumot használ.
+- Az outbox profilazonosítókat tárol, PII emailcímet nem; azonos közlemény és
+  címzett ismételt enqueue-ja idempotens.
+- Szavazat csak explicit megnyitott állapotban, profile-bound jelenléttel és
+  `VERIFIED` tulajdonosi entitlementtel adható. Manager kizárólag explicit,
+  jogosult tulajdonos nevében járhat el; ballot után a jelenlét immutable.
+
+### Meglévő modulok hardeningja
+- Ticket, work order, pénzügy/export, mérőóra, meeting, reminder, push, Stripe,
+  utility, storage, zaj, hulladék, környezet és közlekedés központi
+  workspace-contextet, capabilityt és objektumscope-ot használ.
+- Tenant/cache adatot olvasó környezeti és transit route `environment.read`
+  jogot követel; a valóban koordináta-alapú közadat-route-ok publikusak maradtak.
+
+### Ellenőrzés
+- Teljes Vitest: 33 fájl / 219 teszt — PASS.
+- `npm run typecheck` — PASS.
+- `npm run lint` — PASS, 0 warning és 0 error.
+- `npm run build` — PASS, 73/73 statikus oldal.
+- `git diff --check` — PASS; kizárólag LF→CRLF normalizációs figyelmeztetések.
+- Izolált PostgreSQL 18.4 migrációs apply/reapply és community, staff, content,
+  outbox, vote, agency pozitív/negatív runtime canaryk — PASS.
+
+### Dokumentáció
+- Új operatív architektúrafejezet, részletes v0.10.1 verziózási jegyzőkönyv,
+  marketingérték-napló és hét új coding lesson készült.
+- A bizonyított lokális kapuk és a produkciós HOLD-ok külön szerepelnek; live
+  Supabase vagy hosted működés nincs állítva.
+
+### Élesítési határ
+- Live schema drift audit, migráció, SMTP/TOTP/Storage konfiguráció, külső
+  announcement-email worker, hosted két-tenant E2E és produkciós deploy nem
+  történt; ezek a verziózási jegyzőkönyv szerint HOLD tételek.
+
+---
+
+## v0.10.0 — Fail-closed multitenancy foundation
+**Dátum:** 2026-08-28
+**Branch:** codex/light-workspace-redesign
+
+### Cél
+- A v0.9.38 célarchitektúra repository-szintű megvalósítása úgy, hogy a
+  lakóközösségi workspace legyen a tenant-határ, miközben a meglévő demo és
+  `/w/<uuid>` funkciók kompatibilisek maradnak.
+- Email+jelszó regisztráció, lakói/tulajdonosi csatlakozás, képviselői
+  albetét- és tagkezelés, korlátozott delegáció, önkezelt közösségi kérelem és
+  valódi cross-tenant védelem bevezetése.
+
+### Adatbázis és jogosultság
+- Additív foundation és RLS-cutover migráció készült workspace, fizikai épület,
+  kanonikus cím, party/person/organization, agency, membership, mandate,
+  delegation, role, ownership, occupancy, unit relation, billing group,
+  invitation, join request, counter-offer, creation request, audit és
+  idempotency modellel.
+- Az első rollout megőrzi a legacy building UUID-ket; az új commandok ugyanabban
+  a tranzakcióban készítik el a szükséges legacy membership projekciót.
+- Az új és a legacy tenanttáblák fail-closed RLS-t kaptak. A környezeti és
+  közlekedési building-cache olvasása workspace-membership + `environment.read`
+  alapján történik; authenticated írás nincs, service-role ingest megmarad.
+- A permission döntés adatbázis-alapú és időérzékeny; a JWT nem tárolja az összes
+  workspace-jogot. Magas kockázatú role/delegation műveletnél friss AAL2/TOTP
+  step-up szükséges.
+
+### Felhasználói folyamatok
+- Új `/register`, `/forgot-password`, `/reset-password`, `/onboarding`,
+  `/invitations/[token]`, `/account/security` és
+  `/w/[workspaceId]/admin` felületek készültek.
+- A magic link mellett működik az email+jelszó account flow; a fiók önmagában
+  nem ad tenant-hozzáférést.
+- Lakó vagy tulajdonos csak aktív, már rögzített workspace és albetét
+  kiválasztásával kérhet tagságot. A kezelő jóváhagyhat, elutasíthat,
+  bizonyítékot kérhet vagy ellenajánlatot adhat, amelyet a kérelmező elfogadhat.
+- A kezelő albetétet hozhat létre, emailhez/albetéthez kötött meghívást adhat,
+  és aktív taghoz korlátozott megbízotti, bizottsági, könyvelői vagy billing
+  szerepet rendelhet/vonhat vissza.
+- A portfólióválasztó több workspace-et kezel; az összes workspace route és a
+  ticket, dokumentum, pénzügy, mérőóra, közgyűlés, munkalap, reminder, push,
+  Stripe, utility, storage, zaj, hulladék, környezet és közlekedés műveletei
+  központi workspace-contextre álltak át.
+
+### V7 döntések
+- Agency/portfolio modell, kompozit albetétek, `COUNTER_OFFER`, `pg_trgm`
+  címjelöltek és strukturált MFA step-up adaptálva.
+- Automatikus fuzzy címösszevonás, korlátlan workspace JWT claim,
+  ellenőrizetlen „három megerősítés = aktív admin”, app-szintű dual-write és
+  KMS/retention szerződés nélküli ál-crypto-shredding nem került be.
+- Új vagy önkezelt ház ellenőrzési kérelmet adhat be, de platform-review és
+  aktiválás továbbra is HOLD a bizonyíték-, jogalap-, reviewer- és kvórumcontract
+  lezárásáig.
+
+### Akadálymentesség és UI
+- Az aktivitási naptár nap-, dátum-, esemény- és legenda-kontrasztja erősödött;
+  a cellák billentyűzettel megnyitható, fókusz-visszaadó dialógust kaptak.
+- A közösségkezelés és a fiókbiztonság csak megfelelő capability mellett, illetve
+  saját accountból érhető el a sidebarból.
+
+### Ellenőrzés
+- Teljes Vitest: 19 fájl / 124 teszt — PASS.
+- `npm run typecheck` — PASS.
+- `npm run lint` — PASS, 0 warning és 0 error.
+- `npm run build` — PASS, 72/72 statikus oldal.
+- `git diff --check` — PASS; kizárólag CRLF normalizációs figyelmeztetések.
+- Izolált PostgreSQL 18: mindkét migráció első és idempotens második apply
+  `COMMIT`; invitation/relationship, delegate grant+revoke, reminder-idempotencia
+  és cross-tenant cache runtime canaryk — PASS.
+- Helyi `/register` HTTP render — PASS (`200`). Vizuális browser QA — NOT_RUN,
+  mert az in-app webview nem csatlakozott, és Chrome-kapcsolat nem volt elérhető.
+- Live Supabase schema audit, migráció és deploy — NOT_RUN / HOLD.
+
+---
+
+## v0.9.38 — Multitenancy architecture blueprint
+**Dátum:** 2026-08-27
+**Branch:** codex/light-workspace-redesign
+
+### Cél
+- A részben building-scoped demóalap továbbtervezése valódi, fail-closed
+  multitenant architektúrává, implementáció megkezdése nélkül.
+- A lakóközösség, fizikai épület, kanonikus cím, albetét, személy/szervezet,
+  workspace-tagság, tulajdon, bentlakás, képviseleti mandátum és delegálás
+  egymástól független, időben követhető relációinak rögzítése.
+- Email+jelszó regisztráció, meghívás, lakói claim, képviselői onboarding és
+  közös képviselő nélküli kis házak biztonságos self-managed folyamatának terve.
+
+### Dokumentáció
+- Kilencfejezetes célarchitektúra készült a jelenlegi PanelLakó-kód és séma
+  CodeGraph-first auditjával, az Effectime workspace/RLS/invitation mintáinak
+  célzott összevetésével és hivatalos Supabase, PostgreSQL, OWASP, WCAG, EDPB
+  és magyar jogi forrásokkal.
+- Külön résanalízis, domainmodell, authorization/RLS szerződés, onboarding-,
+  cím-duplikáció-, migráció-, teszt- és rolloutterv, Effectime adaptációs mátrix,
+  aktivitásinaptár-kontraszt terv és 19 elemes ADR napló készült.
+- A dokumentáció explicit HOLD kapukat rögzít a live schema drift audit,
+  permisszív demo RLS kivezetése, tenant write-scope, Storage policy, BOLA
+  tesztek és jogi/adatvédelmi döntések lezárásáig, beleértve a Tht. 64/A
+  szerinti 2026. október 31-i átmeneti képviselői szabály hard cutoffját.
+
+### Tervezési döntés
+- A tenant-határ a lakóközösségi workspace, nem a közös képviselő, kezelőcég,
+  felhasználó vagy nyers címszöveg.
+- Workspace-tagság, admin role, tulajdon és bentlakás külön kapcsolat.
+- Képviselő nélküli ház `SELF_MANAGED` governance módban működik; technikai
+  koordinátora nem kap félrevezető közös képviselői jogcímet.
+- Auth-regisztráció önmagában nem ad épület- vagy albetéthozzáférést.
+- Magas kockázatú műveletnél az `aal2` mellett a kvalifikáló MFA
+  `amr.timestamp` frissességét is a szerveroldali command ellenőrzi.
+
+### Hatókör és ellenőrzési állapot
+- Kizárólag dokumentációs változás: nem módosult alkalmazáskód, SQL-migráció, live
+  adatbázis, auth konfiguráció vagy deployment.
+- Repository- és referenciaforrás-audit: PASS.
+- Dokumentum- és linkkonzisztencia, Markdown whitespace: külön validálva.
+- Runtime/build/browser/live Supabase migráció: NOT_RUN, mert ebben a körben a
+  felhasználó kifejezetten tervezést kért és megtiltotta a kódolást.
+
+---
+
 ## v0.9.37 — Daylight workspace redesign
 **Dátum:** 2026-08-27
 **Branch:** codex/light-workspace-redesign

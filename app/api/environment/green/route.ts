@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import {
+  environmentScopeErrorResponse,
+  resolveEnvironmentBuildingScope,
+} from '@/lib/authorization/environment-scope';
 export const dynamic = 'force-dynamic';
 // Match Vercel Pro maxDuration to give Overpass enough time without
 // hitting the default 10s limit (no-op on Hobby plans).
@@ -226,17 +230,24 @@ out geom qt;`;
 
 export async function GET(request: NextRequest) {
   const sp         = request.nextUrl.searchParams;
-  const buildingId = sp.get('buildingId') ?? '';
+  const workspaceId = sp.get('buildingId');
   const lat        = parseFloat(sp.get('lat') ?? '47.5278845');
   const lon        = parseFloat(sp.get('lon') ?? '19.0705657');
 
+  let physicalBuildingId: string | null;
+  try {
+    ({ physicalBuildingId } = await resolveEnvironmentBuildingScope(request, workspaceId));
+  } catch (error) {
+    return environmentScopeErrorResponse(error);
+  }
+
   const supabase = createServiceClient();
 
-  if (supabase && buildingId) {
+  if (supabase && physicalBuildingId) {
     const { data: cached } = await supabase
       .from('building_green_cache')
       .select('*')
-      .eq('building_id', buildingId)
+      .eq('building_id', physicalBuildingId)
       .gt('computed_at', new Date(Date.now() - 7 * 24 * 60 * 60_000).toISOString())
       .maybeSingle();
 
@@ -262,9 +273,9 @@ export async function GET(request: NextRequest) {
   try {
     const green = await fetchFromOverpass(lat, lon);
 
-    if (supabase && buildingId) {
+    if (supabase && physicalBuildingId) {
       await supabase.from('building_green_cache').upsert({
-        building_id:       buildingId,
+        building_id:       physicalBuildingId,
         green_score:       green.greenScore,
         park_area_500m_m2: green.parkAreaM2,
         tree_count_200m:   green.treeCount,
@@ -284,11 +295,11 @@ export async function GET(request: NextRequest) {
     console.warn('[environment/green] all Overpass mirrors failed:', err);
 
     // 1. Try stale cache (no TTL) before giving up
-    if (supabase && buildingId) {
+    if (supabase && physicalBuildingId) {
       const { data: cached } = await supabase
         .from('building_green_cache')
         .select('*')
-        .eq('building_id', buildingId)
+        .eq('building_id', physicalBuildingId)
         .maybeSingle();
       if (cached) {
         const green: GreenData = {

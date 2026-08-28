@@ -6,15 +6,13 @@ import SuperadminDiagnostics from '@/components/superadmin-diagnostics';
 import SuperadminOsmImport from '@/components/superadmin-osm-import';
 import SuperadminUsersTab from '@/components/superadmin-users-tab';
 import SuperadminFeaturesTab from '@/components/superadmin-features-tab';
+import SuperadminCommunityRequests from '@/components/superadmin-community-requests';
 import { MAP_THEMES, MAP_THEME_IDS, DEFAULT_THEME_ID, type MapThemeId } from '@/lib/map-theme';
 import { invalidateMapThemeCache } from '@/hooks/use-map-theme';
+import { useI18n } from '@/src/i18n/useI18n';
 
-type TabId = 'overview' | 'users' | 'features';
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'overview',  label: 'Áttekintés' },
-  { id: 'users',     label: 'Felhasználók' },
-  { id: 'features',  label: 'Funkció & Tier' },
-];
+type TabId = 'overview' | 'users' | 'features' | 'communityRequests';
+const TABS: TabId[] = ['overview', 'users', 'features', 'communityRequests'];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -211,6 +209,7 @@ const STATUS_PILL: Record<string, string> = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function SuperadminClient() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<TabId>('overview');
 
   // Job runners
@@ -379,18 +378,20 @@ export default function SuperadminClient() {
         </div>
 
         {/* Tab nav */}
-        <div className="flex gap-0.5 overflow-x-auto rounded-xl border border-canvas-line bg-canvas-sage p-1">
+        <div role="tablist" aria-label={t('superadmin.navigation.ariaLabel')} className="flex gap-0.5 overflow-x-auto rounded-xl border border-canvas-line bg-canvas-sage p-1">
           {TABS.map(tab => (
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              key={tab}
+              role="tab"
+              aria-selected={activeTab === tab}
+              onClick={() => setActiveTab(tab)}
               className={`min-h-11 min-w-fit flex-1 rounded-lg px-4 py-2 text-sm font-medium ${
-                activeTab === tab.id
+                activeTab === tab
                   ? 'bg-white text-canvas-ink shadow-sm ring-1 ring-canvas-line'
                   : 'text-canvas-muted hover:bg-white/70 hover:text-canvas-ink'
               }`}
             >
-              {tab.label}
+              {t(`superadmin.navigation.${tab}`)}
             </button>
           ))}
         </div>
@@ -406,6 +407,13 @@ export default function SuperadminClient() {
         {activeTab === 'features' && (
           <section className="rounded-2xl border border-canvas-line bg-white p-5 shadow-card">
             <SuperadminFeaturesTab />
+          </section>
+        )}
+
+        {/* Lakóközösség-ellenőrzési kérelmek */}
+        {activeTab === 'communityRequests' && (
+          <section className="rounded-2xl border border-canvas-line bg-white p-5 shadow-card">
+            <SuperadminCommunityRequests />
           </section>
         )}
 

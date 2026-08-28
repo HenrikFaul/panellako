@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getHungarianDateKey } from '../../lib/hungarian-date';
 
 /*
@@ -10,6 +10,8 @@ import { getHungarianDateKey } from '../../lib/hungarian-date';
  */
 
 const HU_MONTHS = ['jan.','feb.','már.','ápr.','máj.','jún.','júl.','aug.','szept.','okt.','nov.','dec.'];
+const HU_MONTH_NAMES = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
+const HU_DAY_NAMES = ['vasárnap','hétfő','kedd','szerda','csütörtök','péntek','szombat'];
 
 type EventScope    = 'building' | 'unit' | 'manager';
 type EventCategory = 'ticket' | 'meeting' | 'meter' | 'vote';
@@ -61,6 +63,41 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit, refer
   const [weekOffset, setWeekOffset] = useState(0);
   const [hovered, setHovered]       = useState<string | null>(null);
   const [mousePos, setMousePos]     = useState({ x: 0, y: 0 });
+  const [selected, setSelected]     = useState<string | null>(null);
+  const selectedTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const closeDetails = useCallback(() => {
+    const trigger = selectedTriggerRef.current;
+    setSelected(null);
+    trigger?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!selected) return;
+
+    closeButtonRef.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeDetails();
+      } else if (event.key === 'Tab') {
+        // The detail sheet deliberately has a single interactive control.
+        // Keeping focus on it prevents keyboard users from moving behind the modal.
+        event.preventDefault();
+        closeButtonRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [closeDetails, selected]);
 
   const todayKey = referenceDate;
   const today = new Date(`${referenceDate}T00:00:00.000Z`);
@@ -110,7 +147,9 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit, refer
   // Group by date
   const eventMap = new Map<string, CalendarEvent[]>();
   for (const ev of allEvents) {
-    eventMap.set(ev.date, [...(eventMap.get(ev.date) ?? []), ev]);
+    const groupedEvents = eventMap.get(ev.date);
+    if (groupedEvents) groupedEvents.push(ev);
+    else eventMap.set(ev.date, [ev]);
   }
 
   // Build 7 weeks × 7 days = 49 cells
@@ -144,8 +183,8 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit, refer
     if (cell.isFuture) {
       // Future: show upcoming events with a soft highlight
       const cat = dominantCat(cell.events);
-      if (!cat) return 'bg-slate-100/70 opacity-60';
-      return 'bg-slate-200/80 opacity-80';
+      if (!cat) return 'bg-slate-50 ring-1 ring-inset ring-slate-200';
+      return 'bg-slate-100 ring-1 ring-inset ring-slate-300';
     }
     if (cell.events.length === 0) return 'bg-slate-100';
     const cat = dominantCat(cell.events);
@@ -165,11 +204,13 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit, refer
 
   // Colored dot indicators per category present on a cell
   function cellDots(cell: typeof cells[0]) {
-    const cats = Array.from(new Set(cell.events.map(e => e.category)));
+    const cats = Array.from(new Set(cell.events.map(e => e.category))).slice(0, 4);
     return cats.map(cat => (
       <span
         key={cat}
-        className="inline-block h-1 w-1 rounded-full shrink-0"
+        data-event-dot={cat}
+        aria-hidden="true"
+        className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
         style={{ backgroundColor: CAT_CFG[cat].color }}
       />
     ));
@@ -189,8 +230,27 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit, refer
     return `${d.getUTCFullYear()}. ${HU_MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}.`;
   }
 
+  function accessibleDateLabel(cell: typeof cells[0]) {
+    const dateLabel = `${cell.date.getUTCFullYear()}. ${HU_MONTH_NAMES[cell.date.getUTCMonth()]} ${cell.date.getUTCDate()}., ${HU_DAY_NAMES[cell.date.getUTCDay()]}`;
+    if (cell.events.length === 0) {
+      return `${dateLabel}. ${cell.isFuture ? 'Nincs tervezett esemény.' : 'Nincs aktivitás ezen a napon.'}`;
+    }
+
+    const categorySummary = CAT_ORDER
+      .map(cat => {
+        const count = cell.events.filter(event => event.category === cat).length;
+        return count > 0 ? `${CAT_CFG[cat].label}: ${count}` : null;
+      })
+      .filter((summary): summary is string => summary !== null)
+      .join(', ');
+
+    return `${dateLabel}. ${cell.events.length} esemény. ${categorySummary}.`;
+  }
+
   const hoveredCell   = hovered ? cells.find(c => c.key === hovered) : undefined;
   const hoveredEvents = hoveredCell?.events ?? [];
+  const selectedCell = selected ? cells.find(cell => cell.key === selected) : undefined;
+  const selectedEvents = selectedCell?.events ?? [];
 
   // Group tooltip events by category for display
   const byCategory = CAT_ORDER.reduce<Partial<Record<EventCategory, CalendarEvent[]>>>((acc, cat) => {
@@ -199,17 +259,31 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit, refer
     return acc;
   }, {});
 
+  const selectedByCategory = CAT_ORDER.reduce<Partial<Record<EventCategory, CalendarEvent[]>>>((acc, cat) => {
+    const evs = selectedEvents.filter(event => event.category === cat);
+    if (evs.length) acc[cat] = evs;
+    return acc;
+  }, {});
+
+  function openDetails(dateKey: string, trigger: HTMLButtonElement) {
+    selectedTriggerRef.current = trigger;
+    setHovered(null);
+    setSelected(dateKey);
+  }
+
   const TT_W = 240;
 
   return (
     <div className="flex flex-col h-full select-none">
       {/* Header */}
       <div className="mb-2 flex items-center justify-between">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Aktivitás naptár</p>
+        <p className="text-[11px] font-bold uppercase tracking-widest text-slate-700">Aktivitás naptár</p>
         <div className="flex items-center gap-1">
           <button
+            type="button"
             onClick={() => setWeekOffset(o => o - 1)}
-            className="flex h-5 w-5 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white hover:text-brand-700 hover:shadow-sm"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-slate-700 transition-colors hover:bg-white hover:text-brand-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            aria-label="Korábbi hét megjelenítése"
             title="Korábbi hetek"
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -218,15 +292,19 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit, refer
           </button>
           {weekOffset !== 0 && (
             <button
+              type="button"
               onClick={() => setWeekOffset(0)}
-              className="rounded-md px-1.5 py-0.5 text-[8px] font-bold text-slate-500 transition-colors hover:bg-white hover:text-brand-700 hover:shadow-sm"
+              className="min-h-8 rounded-md px-2 text-[11px] font-bold text-slate-700 transition-colors hover:bg-white hover:text-brand-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              aria-label="Vissza az aktuális héthez"
             >
               ma
             </button>
           )}
           <button
+            type="button"
             onClick={() => setWeekOffset(o => o + 1)}
-            className="flex h-5 w-5 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white hover:text-brand-700 hover:shadow-sm"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-slate-700 transition-colors hover:bg-white hover:text-brand-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            aria-label="Következő hét megjelenítése"
             title="Következő hetek"
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -238,10 +316,10 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit, refer
 
       <div className="flex gap-2">
         {/* Week row labels */}
-        <div className="flex flex-col gap-1.5 pt-5">
+        <div className="flex flex-col gap-1.5 pt-6">
           {weeks.map((w) => (
-            <div key={w.mon.toISOString()} className="h-7 flex items-center">
-              <span className={`text-[8px] whitespace-nowrap leading-none ${w.isCurrentWeek ? 'font-bold text-slate-400' : 'text-slate-600'}`}>
+            <div key={w.mon.toISOString()} className="h-8 flex items-center">
+              <span data-week-label className={`whitespace-nowrap text-[10px] font-semibold leading-none ${w.isCurrentWeek ? 'text-brand-800' : 'text-slate-700'}`}>
                 {w.label}
               </span>
             </div>
@@ -252,31 +330,50 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit, refer
         <div className="flex-1">
           <div className="mb-1.5 grid grid-cols-7 gap-1.5">
             {DAYS.map((d) => (
-              <span key={d} className="text-center text-[9px] text-slate-600 font-bold">{d}</span>
+              <span key={d} data-weekday-label className="text-center text-[10px] font-bold text-slate-700">{d}</span>
             ))}
           </div>
 
           <div className="grid grid-cols-7 gap-1.5">
             {cells.map((cell) => (
-              <div
+              <button
+                type="button"
                 key={cell.key}
                 data-date={cell.key}
+                aria-label={accessibleDateLabel(cell)}
+                aria-current={cell.isToday ? 'date' : undefined}
+                aria-haspopup="dialog"
+                aria-expanded={selected === cell.key}
+                aria-controls="activity-calendar-details"
+                onClick={(event) => openDetails(cell.key, event.currentTarget)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openDetails(cell.key, event.currentTarget);
+                  }
+                }}
                 onMouseEnter={(e) => { setHovered(cell.key); setMousePos({ x: e.clientX, y: e.clientY }); }}
                 onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}
                 onMouseLeave={() => setHovered(null)}
-                className={`h-7 w-full rounded transition-colors cursor-pointer relative flex flex-col items-center justify-end pb-0.5 gap-px ${cellBg(cell)}`}
+                className={`relative flex h-8 w-full cursor-pointer flex-col items-center justify-end gap-px rounded pb-1 transition-colors hover:ring-2 hover:ring-brand-400 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${cellBg(cell)}`}
               >
+                <span data-day-number className="absolute left-1 top-1 text-[11px] font-bold leading-none text-slate-900">
+                  {cell.date.getUTCDate()}
+                </span>
                 {cell.date.getUTCDate() === 1 && (
-                  <span className="absolute top-0.5 left-0.5 text-[6px] font-bold leading-none text-slate-500">
+                  <span className="absolute right-1 top-1 text-[8px] font-bold leading-none text-slate-700">
                     {HU_MONTHS[cell.date.getUTCMonth()]}
                   </span>
                 )}
                 {cell.events.length > 0 && (
-                  <div className="flex gap-px justify-center flex-wrap px-0.5">
+                  <span className="flex items-center justify-center gap-0.5 px-0.5" aria-hidden="true">
                     {cellDots(cell)}
-                  </div>
+                    <span data-event-count className="ml-0.5 text-[8px] font-extrabold leading-none text-slate-800">
+                      {cell.events.length}
+                    </span>
+                  </span>
                 )}
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -287,7 +384,7 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit, refer
         {(Object.entries(CAT_CFG) as [EventCategory, typeof CAT_CFG[EventCategory]][]).map(([cat, cfg]) => (
           <div key={cat} className="flex items-center gap-1">
             <span className="inline-block h-2 w-2 rounded-sm shrink-0" style={{ backgroundColor: cfg.color }} />
-            <span className="text-[8px] text-slate-500">{cfg.label}</span>
+            <span className="text-[9px] font-medium text-slate-700">{cfg.label}</span>
           </div>
         ))}
       </div>
@@ -295,30 +392,30 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit, refer
       {/* Fixed-position tooltip */}
       {hovered && hoveredCell && (
         <div
-          className="pointer-events-none fixed z-[9999] rounded-xl border border-slate-200 bg-white p-3 shadow-card-lg"
+          className="pointer-events-none fixed z-[9999] hidden rounded-xl border border-slate-200 bg-white p-3 shadow-card-lg lg:block"
           style={{
             width: TT_W,
             left: Math.min(mousePos.x - TT_W / 2, (typeof window !== 'undefined' ? window.innerWidth : 1200) - TT_W - 8),
             top: mousePos.y - 130,
           }}
         >
-          <p className="mb-2 text-[10px] font-bold text-slate-200">{formatDate(hoveredCell.date)}</p>
+          <p className="mb-2 text-[11px] font-bold text-slate-900">{formatDate(hoveredCell.date)}</p>
           {hoveredEvents.length === 0 ? (
             hoveredCell.isFuture
-              ? <p className="text-[9px] italic text-slate-500">Nincs tervezett esemény.</p>
-              : <p className="text-[9px] text-slate-500">Nincs aktivitás ezen a napon.</p>
+              ? <p className="text-[11px] italic text-slate-600">Nincs tervezett esemény.</p>
+              : <p className="text-[11px] text-slate-600">Nincs aktivitás ezen a napon.</p>
           ) : (
             <div className="space-y-2">
               {(Object.entries(byCategory) as [EventCategory, CalendarEvent[]][]).map(([cat, evs]) => (
                 <div key={cat}>
                   <div className="flex items-center gap-1 mb-0.5">
                     <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: CAT_CFG[cat].color }} />
-                    <span className="text-[9px] font-bold" style={{ color: CAT_CFG[cat].color }}>{CAT_CFG[cat].label}</span>
-                    <span className="text-[8px] text-slate-500 ml-auto">{CAT_CFG[cat].scopeLabel}</span>
+                    <span className="text-[10px] font-bold" style={{ color: CAT_CFG[cat].color }}>{CAT_CFG[cat].label}</span>
+                    <span className="ml-auto text-[9px] text-slate-600">{CAT_CFG[cat].scopeLabel}</span>
                   </div>
                   <ul className="space-y-0.5 pl-2.5">
                     {evs.slice(0, 4).map((ev, i) => (
-                      <li key={i} className="flex items-start gap-1 text-[9px] text-slate-300 leading-tight">
+                      <li key={i} className="flex items-start gap-1 text-[10px] leading-tight text-slate-700">
                         <span className="shrink-0 text-slate-600">·</span>
                         <span>
                           {ev.title}
@@ -329,7 +426,7 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit, refer
                       </li>
                     ))}
                     {evs.length > 4 && (
-                      <li className="text-[8px] text-slate-600 pl-2">+ {evs.length - 4} további…</li>
+                      <li className="pl-2 text-[9px] font-semibold text-slate-700">+ {evs.length - 4} további…</li>
                     )}
                   </ul>
                 </div>
@@ -340,8 +437,83 @@ export default function ActivityCalendar({ tickets, meetings, currentUnit, refer
             <p className="mt-1.5 text-[8px] text-slate-600 italic">Közelgő esemény</p>
           )}
           {currentUnit && hoveredEvents.some(e => e.scope === 'unit') && (
-            <p className="mt-1.5 text-[8px] text-slate-500">{SCOPE_LABEL.unit}: {currentUnit}</p>
+            <p className="mt-1.5 text-[9px] text-slate-600">{SCOPE_LABEL.unit}: {currentUnit}</p>
           )}
+        </div>
+      )}
+
+      {/* Click/keyboard details: bottom sheet on mobile, centered dialog on desktop. */}
+      {selected && selectedCell && (
+        <div
+          className="fixed inset-0 z-[10000] flex items-end justify-center bg-slate-950/40 sm:p-4 lg:items-center"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeDetails();
+          }}
+        >
+          <section
+            id="activity-calendar-details"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="activity-calendar-details-title"
+            aria-describedby="activity-calendar-details-summary"
+            className="max-h-[82vh] w-full overflow-y-auto rounded-t-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:max-w-lg sm:rounded-2xl"
+          >
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-300 sm:hidden" aria-hidden="true" />
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 id="activity-calendar-details-title" className="text-base font-bold text-slate-950">
+                  {formatDate(selectedCell.date)}
+                </h2>
+                <p id="activity-calendar-details-summary" className="mt-1 text-sm text-slate-700">
+                  {selectedEvents.length > 0
+                    ? `${selectedEvents.length} esemény ezen a napon.`
+                    : selectedCell.isFuture
+                      ? 'Nincs tervezett esemény.'
+                      : 'Nincs aktivitás ezen a napon.'}
+                </p>
+              </div>
+              <button
+                ref={closeButtonRef}
+                type="button"
+                onClick={closeDetails}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-xl font-semibold text-slate-800 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
+                aria-label="Bezárás"
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+
+            {selectedEvents.length > 0 && (
+              <div className="mt-5 space-y-4">
+                {(Object.entries(selectedByCategory) as [EventCategory, CalendarEvent[]][]).map(([cat, evs]) => (
+                  <div key={cat}>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" aria-hidden="true" style={{ backgroundColor: CAT_CFG[cat].color }} />
+                      <h3 className="text-sm font-bold text-slate-900">{CAT_CFG[cat].label}</h3>
+                      <span className="ml-auto text-xs font-medium text-slate-600">{evs.length} db · {CAT_CFG[cat].scopeLabel}</span>
+                    </div>
+                    <ul className="space-y-2 rounded-xl bg-slate-50 p-3">
+                      {evs.slice(0, 4).map((event, index) => (
+                        <li key={`${event.title}-${index}`} className="text-sm leading-snug text-slate-800">
+                          {event.title}
+                          {event.unitLabel && (
+                            <span className="ml-1 text-xs text-slate-600">({event.unitLabel})</span>
+                          )}
+                        </li>
+                      ))}
+                      {evs.length > 4 && (
+                        <li className="text-xs font-semibold text-slate-700">+ {evs.length - 4} további esemény</li>
+                      )}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {currentUnit && selectedEvents.some(event => event.scope === 'unit') && (
+              <p className="mt-4 text-xs text-slate-700">{SCOPE_LABEL.unit}: {currentUnit}</p>
+            )}
+          </section>
         </div>
       )}
     </div>

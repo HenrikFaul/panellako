@@ -26,12 +26,14 @@ import {
   Wind,
   X,
 } from 'lucide-react';
+import type { WorkspaceCapability } from '@/lib/authorization/capabilities';
 
 interface WorkspaceSidebarProps {
   buildingId: string;
   buildingName: string;
   buildingAddress: string;
   role: string;
+  capabilities?: WorkspaceCapability[];
   collapsed: boolean;
   onCollapse: (v: boolean) => void;
 }
@@ -50,6 +52,7 @@ export default function WorkspaceSidebar({
   buildingName,
   buildingAddress,
   role,
+  capabilities = [],
   collapsed,
   onCollapse,
 }: WorkspaceSidebarProps) {
@@ -58,8 +61,23 @@ export default function WorkspaceSidebar({
   const mobileDialogRef = useRef<HTMLElement>(null);
   const mobileTriggerRef = useRef<HTMLButtonElement>(null);
 
-  const isManager = ['kozos_kepviselo', 'megbizott'].includes(role);
-  const isAdminLike = ['kozos_kepviselo', 'megbizott', 'bizottsag', 'konyvelo'].includes(role);
+  const isManager = capabilities.length > 0
+    ? capabilities.includes('announcement.publish') || capabilities.includes('membership.invite')
+    : ['kozos_kepviselo', 'megbizott'].includes(role);
+  const isAdminLike = capabilities.length > 0
+    ? capabilities.includes('audit.read') || capabilities.includes('finance.workspace.read') || isManager
+    : ['kozos_kepviselo', 'megbizott', 'bizottsag', 'konyvelo'].includes(role);
+  const canManageBilling = capabilities.length > 0
+    ? capabilities.includes('billing.manage')
+    : ['kozos_kepviselo', 'megbizott'].includes(role);
+  const canManageCommunity = capabilities.length > 0
+    ? capabilities.some((capability) => [
+      'unit.manage',
+      'membership.invite',
+      'membership.approve',
+      'role.grant_limited',
+    ].includes(capability))
+    : ['kozos_kepviselo', 'megbizott'].includes(role);
   const base = `/w/${buildingId}`;
 
   const mainNav = [
@@ -68,6 +86,7 @@ export default function WorkspaceSidebar({
     { href: `${base}#knowledge`, label: 'Tudásbázis', icon: BookOpen },
     ...(isAdminLike ? [{ href: `${base}#audit`, label: 'Audit napló', icon: ShieldCheck }] : []),
     ...(isManager ? [{ href: `${base}/ertesitesek`, label: 'Push értesítések', icon: BellRing }] : []),
+    ...(canManageCommunity ? [{ href: `${base}/admin`, label: 'Közösség kezelése', icon: Layers3 }] : []),
   ];
 
   const envNav = [
@@ -208,7 +227,7 @@ export default function WorkspaceSidebar({
         })}
       </nav>
 
-      {isManager && (
+      {canManageBilling && (
         <a
           href={`/billing?building=${buildingId}`}
           onClick={mobile ? () => setMobileOpen(false) : undefined}
@@ -228,6 +247,15 @@ export default function WorkspaceSidebar({
           <p className="text-[11px] font-medium text-slate-500">Aktív szerepkör</p>
           <p className="truncate text-xs font-semibold text-slate-800">{roleLabels[role] ?? role}</p>
         </div>
+        <a
+          href="/account/security"
+          onClick={mobile ? () => setMobileOpen(false) : undefined}
+          className="ml-auto grid h-11 w-11 shrink-0 place-items-center rounded-xl text-slate-500 transition-colors hover:bg-white hover:text-brand-800 hover:shadow-sm"
+          title="Fiókbiztonság és kétlépcsős azonosítás"
+          aria-label="Fiókbiztonság és kétlépcsős azonosítás"
+        >
+          <ShieldCheck size={15} />
+        </a>
       </div>
     </div>
   );
@@ -313,7 +341,7 @@ export default function WorkspaceSidebar({
               );
             })}
           </nav>
-          {isManager && (
+          {canManageBilling && (
             <a
               href={`/billing?building=${buildingId}`}
               title="Előfizetés & Számlázás"
@@ -326,6 +354,14 @@ export default function WorkspaceSidebar({
           <div className="mx-auto mb-3 grid h-9 w-9 place-items-center rounded-xl bg-white text-slate-500 shadow-sm ring-1 ring-slate-200" title={roleLabels[role] ?? role}>
             <UserRound size={14} />
           </div>
+          <a
+            href="/account/security"
+            title="Fiókbiztonság és kétlépcsős azonosítás"
+            aria-label="Fiókbiztonság és kétlépcsős azonosítás"
+            className="mx-2 mb-3 grid h-11 place-items-center rounded-xl text-slate-500 transition-colors hover:bg-white hover:text-brand-800"
+          >
+            <ShieldCheck size={15} />
+          </a>
         </aside>
       ) : (
         <aside className="fixed left-0 top-0 z-40 hidden h-screen w-[248px] flex-col border-r border-slate-200 bg-[#f7faf7] text-slate-700 shadow-[4px_0_24px_-24px_rgba(31,57,45,0.5)] lg:flex">

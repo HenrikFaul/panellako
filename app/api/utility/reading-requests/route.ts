@@ -13,8 +13,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import type { ProviderType } from '@/app/api/utility/announcements/route';
+import { hasWorkspaceCapability } from '@/lib/authorization/capabilities';
+import {
+  authorizationMessage,
+  requireAuthenticatedUser,
+  requireWorkspaceAccess,
+} from '@/lib/authorization/guards';
+import { authorizeUtilityProvider } from '@/lib/utility-provider-auth';
 export const dynamic = 'force-dynamic';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -63,18 +69,8 @@ const METER_LABEL: Record<MeterType, string> = {
   egyeb:   'mérőóra',
 };
 
-// ─── Auth helper ──────────────────────────────────────────────────────────────
-function validateProviderToken(req: NextRequest): boolean {
-  const token = req.headers.get('x-provider-token');
-  return !!(token && token.trim()); // TODO: hash + DB lookup
-}
-
 // ─── POST — provider submits a reading request ───────────────────────────────
 export async function POST(request: NextRequest) {
-  if (!validateProviderToken(request)) {
-    return NextResponse.json({ error: 'Unauthorized: missing or invalid X-Provider-Token' }, { status: 401 });
-  }
-
   let body: ReadingRequestPayload;
   try {
     body = await request.json() as ReadingRequestPayload;
@@ -100,14 +96,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'deadline_at must be in the future' }, { status: 400 });
   }
 
-  const supabase = createClient();
-
-  // Verify building exists
-  const { data: building, error: buildingErr } = await supabase
-    .from('buildings').select('id, name').eq('id', body.building_id).single();
-  if (buildingErr || !building) {
-    return NextResponse.json({ error: 'Building not found' }, { status: 404 });
+  const providerAuth = await authorizeUtilityProvider(
+    request.headers.get('x-provider-token'),
+    body.building_id,
+    body.provider_type,
+  );
+  if (!providerAuth) {
+    return NextResponse.json({ error: 'Unauthorized: missing or invalid X-Provider-Token' }, { status: 401 });
   }
+  const supabase = providerAuth.client;
 
   const deadlineFormatted = new Date(body.deadline_at).toLocaleDateString('hu-HU', {
     year: 'numeric', month: 'long', day: 'numeric',
@@ -121,13 +118,14 @@ export async function POST(request: NextRequest) {
   const { data: announcement, error: annErr } = await supabase
     .from('announcements')
     .insert({
+      workspace_id:      providerAuth.workspaceId,
       building_id:       body.building_id,
       created_by:        null,
       title:             body.title,
       content:           announcementContent,
       target_group:      'Mindenki',
       category:          'Üzemeltetés',
-      source_label:      body.provider_name,
+      source_label:      providerAuth.provider.provider_name,
       provider_type:     body.provider_type,
       announcement_type: 'reading_visit',
       scheduled_at:      null,
@@ -146,7 +144,7 @@ export async function POST(request: NextRequest) {
     .from('utility_reading_requests')
     .insert({
       building_id:     body.building_id,
-      provider_name:   body.provider_name,
+      provider_name:   providerAuth.provider.provider_name,
       provider_type:   body.provider_type,
       meter_type:      body.meter_type,
       title:           body.title,
@@ -188,12 +186,28 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Missing required query param: building_id' }, { status: 400 });
   }
 
-  const supabase = createClient();
+  let auth: Awaited<ReturnType<typeof requireAuthenticatedUser>>;
+  let context: Awaited<ReturnType<typeof requireWorkspaceAccess>>;
+  try {
+    [auth, context] = await Promise.all([
+      requireAuthenticatedUser(),
+      requireWorkspaceAccess(buildingId),
+    ]);
+  } catch (error) {
+    return NextResponse.json({ error: authorizationMessage(error) }, { status: 403 });
+  }
+  if (
+    !hasWorkspaceCapability(context, 'meter.read_own_unit')
+    && !hasWorkspaceCapability(context, 'meter.manage_all')
+  ) {
+    return NextResponse.json({ error: 'A művelet nem engedélyezett.' }, { status: 403 });
+  }
+  const { supabase } = auth;
 
   let q = supabase
     .from('utility_reading_requests')
     .select('*', { count: 'exact' })
-    .eq('building_id', buildingId)
+    .eq('building_id', context.primaryBuildingId)
     .order('deadline_at', { ascending: true })
     .range(offset, offset + limit - 1);
 

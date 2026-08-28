@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import {
+  environmentJobForwardHeaders,
+  environmentScopeErrorResponse,
+  resolveEnvironmentBuildingScope,
+} from '@/lib/authorization/environment-scope';
 export const dynamic = 'force-dynamic';
 
 export interface EnvScore {
@@ -22,18 +27,28 @@ function createServiceClient() {
 
 export async function GET(request: NextRequest) {
   const sp         = request.nextUrl.searchParams;
-  const buildingId = sp.get('buildingId') ?? '';
+  const workspaceId = sp.get('buildingId');
   const lat        = parseFloat(sp.get('lat') ?? '47.5278845');
   const lon        = parseFloat(sp.get('lon') ?? '19.0705657');
 
+  let physicalBuildingId: string | null;
+  try {
+    ({ physicalBuildingId } = await resolveEnvironmentBuildingScope(request, workspaceId));
+  } catch (error) {
+    return environmentScopeErrorResponse(error);
+  }
+
   const base = new URL(request.url);
   base.pathname = '';
+  const forwardedHeaders = environmentJobForwardHeaders(request);
 
   // Fetch AQ and green in parallel
   const [aqRes, greenRes] = await Promise.allSettled([
     fetch(`${base.origin}/api/environment/air-quality?lat=${lat}&lon=${lon}`).then(r => r.json()),
-    buildingId
-      ? fetch(`${base.origin}/api/environment/green?buildingId=${buildingId}&lat=${lat}&lon=${lon}`).then(r => r.json())
+    workspaceId
+      ? fetch(`${base.origin}/api/environment/green?buildingId=${workspaceId}&lat=${lat}&lon=${lon}`, {
+        headers: forwardedHeaders,
+      }).then(r => r.json())
       : Promise.resolve(null),
   ]);
 
@@ -66,9 +81,9 @@ export async function GET(request: NextRequest) {
   };
 
   const supabase = createServiceClient();
-  if (supabase && buildingId) {
+  if (supabase && physicalBuildingId) {
     await supabase.from('building_env_score').upsert({
-      building_id:  buildingId,
+      building_id:  physicalBuildingId,
       total_score:  total,
       air_score:    airScore,
       green_score:  greenScore,

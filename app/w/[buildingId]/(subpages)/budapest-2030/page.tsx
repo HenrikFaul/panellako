@@ -5,43 +5,37 @@
 import { redirect, notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import Budapest2030DashboardClient from '@/components/budapest-2030-dashboard-client';
-
-export const metadata = {
-  title: 'Budapest 2030 — PanelLakó',
-  description:
-    'Mind a 11 EU Zöld Főváros indikátor, Budapest 2030 stratégiai célok, személyes hatás kalkulátor és EU városok összehasonlítása.',
-};
+import { isWorkspaceId, resolveWorkspaceContext } from '@/lib/authorization/workspace-context';
 
 interface PageProps {
   params: { buildingId: string };
 }
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 export default async function Budapest2030Page({ params }: PageProps) {
-  const { buildingId } = params;
+  const { buildingId: workspaceId } = params;
 
-  if (!UUID_REGEX.test(buildingId)) notFound();
+  if (!isWorkspaceId(workspaceId)) notFound();
 
   const supabase = createClient();
 
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) redirect(`/login?next=/w/${buildingId}/budapest-2030`);
+  if (authError || !user) redirect(`/login?next=/w/${workspaceId}/budapest-2030`);
 
-  // Verify building membership
-  const { data: memberships } = await supabase
-    .from('memberships')
-    .select('id')
-    .eq('profile_id', user.id)
-    .eq('building_id', buildingId)
-    .eq('active', true)
-    .limit(1);
-
-  if (!memberships || memberships.length === 0) redirect('/app');
+  const context = await resolveWorkspaceContext(workspaceId);
+  if (!context) redirect('/app');
 
   return (
     <main className="min-h-screen">
-      <Budapest2030DashboardClient buildingId={buildingId} />
+      <Budapest2030DashboardClient buildingId={workspaceId} />
     </main>
   );
+}
+
+export async function generateMetadata({ params }: PageProps) {
+  const context = await resolveWorkspaceContext(params.buildingId);
+  return {
+    title: context ? `Budapest 2030 · ${context.workspaceName} — PanelLakó` : 'Budapest 2030 — PanelLakó',
+    description:
+      'Mind a 11 EU Zöld Főváros indikátor, Budapest 2030 stratégiai célok, személyes hatás kalkulátor és EU városok összehasonlítása.',
+  };
 }

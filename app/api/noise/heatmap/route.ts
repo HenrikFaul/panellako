@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import {
+  authorizationMessage,
+  requireAuthenticatedUser,
+  requireWorkspaceCapability,
+} from '@/lib/authorization/guards';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +15,6 @@ interface HeatmapCell {
 }
 
 export async function GET(request: NextRequest) {
-  const supabase = createClient();
   const { searchParams } = new URL(request.url);
   const workspaceId = searchParams.get('workspace_id');
 
@@ -19,13 +22,25 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'workspace_id kötelező' }, { status: 400 });
   }
 
+  let auth: Awaited<ReturnType<typeof requireAuthenticatedUser>>;
+  let context: Awaited<ReturnType<typeof requireWorkspaceCapability>>;
+  try {
+    [auth, context] = await Promise.all([
+      requireAuthenticatedUser(),
+      requireWorkspaceCapability(workspaceId, 'environment.read'),
+    ]);
+  } catch (error) {
+    return NextResponse.json({ error: authorizationMessage(error) }, { status: 403 });
+  }
+  const { supabase } = auth;
+
   const since = new Date();
   since.setDate(since.getDate() - 90);
 
   const { data, error } = await supabase
     .from('noise_reports')
     .select('occurred_at, period, severity')
-    .eq('workspace_id', workspaceId)
+    .eq('workspace_id', context.workspaceId)
     .gte('occurred_at', since.toISOString());
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

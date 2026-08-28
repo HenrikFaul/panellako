@@ -4,12 +4,11 @@
 import { redirect, notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import ServicesPageClient from '@/components/services-page-client';
+import { isWorkspaceId, resolveWorkspaceContext } from '@/lib/authorization/workspace-context';
 
 interface PageProps {
   params: { buildingId: string };
 }
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
   try {
@@ -31,21 +30,20 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lon: numb
 }
 
 export default async function LakokornyzeSzolgaltatasokPage({ params }: PageProps) {
-  const { buildingId } = params;
-  if (!UUID_REGEX.test(buildingId)) notFound();
+  const { buildingId: workspaceId } = params;
+  if (!isWorkspaceId(workspaceId)) notFound();
 
   const supabase = createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) redirect(`/login?next=/w/${buildingId}/lakokornyzet-szolgaltatasok`);
+  if (authError || !user) redirect(`/login?next=/w/${workspaceId}/lakokornyzet-szolgaltatasok`);
 
-  const { data: memberships } = await supabase
-    .from('memberships').select('id')
-    .eq('profile_id', user.id).eq('building_id', buildingId).eq('active', true).limit(1);
-  if (!memberships || memberships.length === 0) redirect('/app');
+  const context = await resolveWorkspaceContext(workspaceId);
+  if (!context) redirect('/app');
+  const physicalBuildingId = context.primaryBuildingId;
 
   const { data: building } = await supabase
     .from('buildings').select('id, name, address, lat, lon')
-    .eq('id', buildingId).single();
+    .eq('id', physicalBuildingId).single();
   if (!building) redirect('/app');
 
   // Bug fix (v0.9.33): the Budapest-center default used to be applied BEFORE the
@@ -63,7 +61,7 @@ export default async function LakokornyzeSzolgaltatasokPage({ params }: PageProp
       // .is('lat', null) guard: concurrent page loads won't overwrite each other
       await supabase.from('buildings')
         .update({ lat: geo.lat, lon: geo.lon, geocoded_at: new Date().toISOString() })
-        .eq('id', buildingId)
+        .eq('id', physicalBuildingId)
         .is('lat', null);
     }
   }
@@ -76,7 +74,7 @@ export default async function LakokornyzeSzolgaltatasokPage({ params }: PageProp
 
   return (
     <ServicesPageClient
-      buildingId={buildingId}
+      buildingId={workspaceId}
       buildingName={buildingName}
       buildingAddress={building.address}
       buildingLat={lat}
@@ -86,12 +84,9 @@ export default async function LakokornyzeSzolgaltatasokPage({ params }: PageProp
 }
 
 export async function generateMetadata({ params }: PageProps) {
-  const supabase = createClient();
-  const { data: building } = await supabase
-    .from('buildings').select('name, address').eq('id', params.buildingId).maybeSingle();
-  const name = building ? ((building as { name?: string | null }).name ?? building.address) : '';
+  const context = await resolveWorkspaceContext(params.buildingId);
   return {
-    title: building ? `Lakókörnyezet - szolgáltatások · ${name} — PanelLakó` : 'Lakókörnyezet - szolgáltatások — PanelLakó',
+    title: context ? `Lakókörnyezet - szolgáltatások · ${context.workspaceName} — PanelLakó` : 'Lakókörnyezet - szolgáltatások — PanelLakó',
     description: 'Kompakt város, 15 perces élettér, közszolgáltatások, iskolák, óvodák, egészségügy',
   };
 }

@@ -4,12 +4,11 @@
 import { redirect, notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import GreenScoreDashboardClient from '@/components/green-score-dashboard-client';
+import { isWorkspaceId, resolveWorkspaceContext } from '@/lib/authorization/workspace-context';
 
 interface PageProps {
   params: { buildingId: string };
 }
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
   try {
@@ -38,31 +37,23 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lon: numb
 }
 
 export default async function GreenScorePage({ params }: PageProps) {
-  const { buildingId } = params;
+  const { buildingId: workspaceId } = params;
 
-  if (!UUID_REGEX.test(buildingId)) notFound();
+  if (!isWorkspaceId(workspaceId)) notFound();
 
   const supabase = createClient();
 
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) redirect(`/login?next=/w/${buildingId}/green-score`);
+  if (authError || !user) redirect(`/login?next=/w/${workspaceId}/green-score`);
 
-  // Verify membership
-  const { data: memberships } = await supabase
-    .from('memberships')
-    .select('id')
-    .eq('profile_id', user.id)
-    .eq('building_id', buildingId)
-    .eq('active', true)
-    .limit(1);
-
-  if (!memberships || memberships.length === 0) redirect('/app');
+  const context = await resolveWorkspaceContext(workspaceId);
+  if (!context) redirect('/app');
 
   // Fetch building data
   const { data: building } = await supabase
     .from('buildings')
     .select('id, name, address, lat, lon')
-    .eq('id', buildingId)
+    .eq('id', context.primaryBuildingId)
     .single();
 
   if (!building) redirect('/app');
@@ -110,7 +101,7 @@ export default async function GreenScorePage({ params }: PageProps) {
       {/* Main content */}
       <div className="px-4 pb-12 max-w-2xl mx-auto">
         <GreenScoreDashboardClient
-          buildingId={buildingId}
+          buildingId={workspaceId}
           buildingName={buildingName}
           lat={lat}
           lon={lon}
@@ -121,20 +112,11 @@ export default async function GreenScorePage({ params }: PageProps) {
 }
 
 export async function generateMetadata({ params }: PageProps) {
-  const supabase = createClient();
-  const { data: building } = await supabase
-    .from('buildings')
-    .select('name, address')
-    .eq('id', params.buildingId)
-    .maybeSingle();
-
-  const displayName = building
-    ? ((building as { name?: string | null }).name ?? building.address)
-    : null;
+  const context = await resolveWorkspaceContext(params.buildingId);
 
   return {
-    title: displayName
-      ? `Zöld Épület Pontszám · ${displayName} — PanelLakó`
+    title: context
+      ? `Zöld Épület Pontszám · ${context.workspaceName} — PanelLakó`
       : 'Zöld Épület Pontszám — PanelLakó',
     description:
       'Környezeti teljesítmény értékelés: levegőminőség, zöldfelület, közlekedés, kerékpározás, zaj és hősziget 6 kategóriában.',

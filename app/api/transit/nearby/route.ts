@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
+import {
+  environmentScopeErrorResponse,
+  resolveEnvironmentBuildingScope,
+} from '@/lib/authorization/environment-scope';
 import { loadStopsFromCache, saveStopsToCache } from '@/lib/transit-cache';
 import { loadBuildingStops, loadNearbyStops, loadStopsInBbox, upsertBuildingStops } from '@/lib/transit-catalog';
 export const dynamic = 'force-dynamic';
@@ -47,6 +52,17 @@ export interface TransitNearbyResult {
 // ─── Cache ────────────────────────────────────────────────────────────────────
 interface CacheEntry<T> { data: T; lat: number; lon: number; expires: number; }
 let _cache: CacheEntry<TransitNearbyResult> | null = null;
+
+function createTransitCacheClient() {
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '').trim();
+  const key = (
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+    ?? process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY
+    ?? ''
+  ).trim();
+  if (!url || !key) return null;
+  return createAdminClient(url, key, { auth: { persistSession: false } });
+}
 
 function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371000;
@@ -316,19 +332,31 @@ export async function GET(request: NextRequest) {
   const lon        = isNaN(lonRaw) ? 19.0705657 : lonRaw;
   const latSpan    = parseFloat(searchParams.get('latSpan') ?? '0.07');
   const lonSpan    = parseFloat(searchParams.get('lonSpan') ?? '0.10');
-  const buildingId = searchParams.get('buildingId') ?? null;
+  const workspaceId = searchParams.get('buildingId');
   const radiusM    = Math.max(100, Math.min(2000, parseInt(searchParams.get('radiusM') ?? '400', 10) || 400));
 
+  let physicalBuildingId: string | null;
+  try {
+    ({ physicalBuildingId } = await resolveEnvironmentBuildingScope(request, workspaceId));
+  } catch (error) {
+    return environmentScopeErrorResponse(error);
+  }
+
   // 5-min TTL in-memory cache (used when no buildingId is provided)
-  if (!buildingId && _cache && _cache.expires > Date.now() &&
+  if (!physicalBuildingId && _cache && _cache.expires > Date.now() &&
       Math.abs(_cache.lat - lat) < 0.001 && Math.abs(_cache.lon - lon) < 0.001) {
     return NextResponse.json(_cache.data);
   }
 
+  const publicDb = createClient();
+  const buildingCacheDb = physicalBuildingId
+    ? (createTransitCacheClient() ?? publicDb)
+    : null;
+
   // ── DB cache check (only when buildingId is provided) ────────────────────
-  if (buildingId) {
+  if (physicalBuildingId && buildingCacheDb) {
     try {
-      const cached = await loadStopsFromCache(createClient(), buildingId);
+      const cached = await loadStopsFromCache(buildingCacheDb, physicalBuildingId);
       if (cached) {
         const bubi = await fetchBubi(lat, lon).catch(() => []);
         const result: TransitNearbyResult = {
@@ -346,8 +374,8 @@ export async function GET(request: NextRequest) {
   }
 
   // ── DB: building_stops + transit_stops (fastest, no BKK call) ──────────────
-  if (buildingId) {
-    const dbStops = await loadBuildingStops(createClient(), buildingId).catch(() => null);
+  if (physicalBuildingId && buildingCacheDb) {
+    const dbStops = await loadBuildingStops(buildingCacheDb, physicalBuildingId).catch(() => null);
     if (dbStops && dbStops.length > 0) {
       const bubi = await fetchBubi(lat, lon).catch(() => []);
       const result: TransitNearbyResult = { stops: dbStops, bubi, coverage: computeCoverage(dbStops, radiusM), source: 'db', fetchedAt: new Date().toISOString() };
@@ -366,7 +394,7 @@ export async function GET(request: NextRequest) {
     const maxLon = lon + lonSpan / 2;
     // Scale limit with zoom: bigger viewport → more stops (max 400)
     const bboxLimit = Math.min(400, Math.round(200 / (latSpan * lonSpan + 0.001)));
-    const bboxStops = await loadStopsInBbox(createClient(), minLat, maxLat, minLon, maxLon, lat, lon, bboxLimit).catch(() => null);
+    const bboxStops = await loadStopsInBbox(publicDb, minLat, maxLat, minLon, maxLon, lat, lon, bboxLimit).catch(() => null);
     if (bboxStops && bboxStops.length > 0) {
       const bubi = await fetchBubi(lat, lon).catch(() => []);
       const result: TransitNearbyResult = { stops: bboxStops, bubi, coverage: computeCoverage(bboxStops.slice(0, 20), radiusM), source: 'db', fetchedAt: new Date().toISOString() };
@@ -375,9 +403,15 @@ export async function GET(request: NextRequest) {
   }
 
   // ── DB: radius fallback (building context, no explicit viewport span) ────────
-  const catalogStops = await loadNearbyStops(createClient(), lat, lon, 700).catch(() => null);
+  const catalogStops = await loadNearbyStops(publicDb, lat, lon, 700).catch(() => null);
   if (catalogStops && catalogStops.length > 0) {
-    if (buildingId) void upsertBuildingStops(createClient(), buildingId, catalogStops.map(s => ({ stop_id: s.id, distance_m: s.distanceM }))).catch(() => {});
+    if (physicalBuildingId && buildingCacheDb) {
+      void upsertBuildingStops(
+        buildingCacheDb,
+        physicalBuildingId,
+        catalogStops.map(s => ({ stop_id: s.id, distance_m: s.distanceM })),
+      ).catch(() => {});
+    }
     const bubi = await fetchBubi(lat, lon).catch(() => []);
     const result: TransitNearbyResult = { stops: catalogStops, bubi, coverage: computeCoverage(catalogStops, radiusM), source: 'db', fetchedAt: new Date().toISOString() };
     return NextResponse.json(result);
@@ -406,8 +440,8 @@ export async function GET(request: NextRequest) {
   }
 
   // Fire-and-forget: persist stops to DB cache for this building
-  if (buildingId && stops.length > 0) {
-    void saveStopsToCache(createClient(), buildingId, stops)
+  if (physicalBuildingId && buildingCacheDb && stops.length > 0) {
+    void saveStopsToCache(buildingCacheDb, physicalBuildingId, stops)
       .catch(e => console.warn('[transit/nearby] DB cache save failed:', e));
   }
 
@@ -418,7 +452,7 @@ export async function GET(request: NextRequest) {
     fetchedAt: new Date().toISOString(),
   };
 
-  if (!buildingId) {
+  if (!physicalBuildingId) {
     _cache = { data: result, lat, lon, expires: Date.now() + 5 * 60 * 1000 };
   }
   return NextResponse.json(result);

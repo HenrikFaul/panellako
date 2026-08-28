@@ -6,7 +6,8 @@ import { redirect, notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getDashboardData } from '@/lib/data';
 import DashboardClient from '@/components/dashboard-client';
-import type { Role } from '@/lib/types';
+import { legacyRoleFromWorkspaceContext } from '@/lib/authorization/capabilities';
+import { isWorkspaceId, resolveWorkspaceContext } from '@/lib/authorization/workspace-context';
 
 // ─── Server-side geocoding (Nominatim) ────────────────────────────────────────
 async function geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
@@ -35,21 +36,10 @@ interface PageProps {
   params: { buildingId: string };
 }
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-const allowedRoles: Role[] = [
-  'lako',
-  'tulajdonos',
-  'kozos_kepviselo',
-  'megbizott',
-  'bizottsag',
-  'konyvelo'
-];
-
 export default async function BuildingDashboardPage({ params }: PageProps) {
-  const { buildingId } = params;
+  const { buildingId: workspaceId } = params;
 
-  if (!UUID_REGEX.test(buildingId)) {
+  if (!isWorkspaceId(workspaceId)) {
     notFound();
   }
 
@@ -61,47 +51,34 @@ export default async function BuildingDashboardPage({ params }: PageProps) {
   } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    redirect(`/login?next=/w/${buildingId}`);
+    redirect(`/login?next=/w/${workspaceId}`);
   }
 
-  const { data: memberships, error: memberError } = await supabase
-    .from('memberships')
-    .select('role, unit_id')
-    .eq('profile_id', user.id)
-    .eq('building_id', buildingId)
-    .eq('active', true)
-    .limit(1);
+  const context = await resolveWorkspaceContext(workspaceId);
+  if (!context) redirect('/app');
 
-  if (memberError) {
-    console.error('[building-dashboard] membership check failed:', memberError.message);
-  }
-
-  if (!memberships || memberships.length === 0) {
-    redirect('/app');
-  }
-
-  const membership = memberships[0] as { role: string; unit_id: string | null };
-  const role = allowedRoles.includes(membership.role as Role)
-    ? (membership.role as Role)
-    : 'lako';
-  const unitId = membership.unit_id ?? null;
+  const role = legacyRoleFromWorkspaceContext(context.roleKeys, context.relationshipLabels);
+  const unitId = context.primaryUnitId;
+  const physicalBuildingId = context.primaryBuildingId;
 
   const { data: building } = await supabase
     .from('buildings')
     .select('*')
-    .eq('id', buildingId)
-    .single();
+    .eq('id', physicalBuildingId)
+    .maybeSingle();
 
-  if (!building) {
-    redirect('/app');
-  }
+  const buildingRecord = building ?? {
+    id: physicalBuildingId,
+    name: context.buildingName,
+    address: context.address,
+  };
 
   // Geocode the building address if coordinates are not yet stored
-  let buildingLat: number | null = (building as { lat?: number | null }).lat ?? null;
-  let buildingLon: number | null = (building as { lon?: number | null }).lon ?? null;
+  let buildingLat: number | null = (buildingRecord as { lat?: number | null }).lat ?? null;
+  let buildingLon: number | null = (buildingRecord as { lon?: number | null }).lon ?? null;
 
-  if ((buildingLat === null || buildingLon === null) && building.address) {
-    const geo = await geocodeAddress(building.address);
+  if ((buildingLat === null || buildingLon === null) && buildingRecord.address) {
+    const geo = await geocodeAddress(buildingRecord.address);
     if (geo) {
       buildingLat = geo.lat;
       buildingLon = geo.lon;
@@ -109,11 +86,14 @@ export default async function BuildingDashboardPage({ params }: PageProps) {
       await supabase
         .from('buildings')
         .update({ lat: geo.lat, lon: geo.lon, geocoded_at: new Date().toISOString() })
-        .eq('id', buildingId);
+        .eq('id', physicalBuildingId);
     }
   }
 
-  const data = await getDashboardData(role, buildingId);
+  const data = await getDashboardData(role, physicalBuildingId, {
+    workspaceId,
+    relatedUnitIds: context.relatedUnitIds,
+  });
 
   // Fetch subscription state for billing banners (manager roles only)
   let subscriptionStatus: string | null = null;
@@ -122,7 +102,7 @@ export default async function BuildingDashboardPage({ params }: PageProps) {
     const { data: sub } = await supabase
       .from('subscriptions')
       .select('status, trial_end')
-      .eq('building_id', buildingId)
+      .eq('building_id', physicalBuildingId)
       .maybeSingle();
     if (sub) {
       subscriptionStatus = sub.status ?? null;
@@ -132,9 +112,11 @@ export default async function BuildingDashboardPage({ params }: PageProps) {
 
   const enrichedData = {
     ...data,
-    buildingId,
-    buildingName: building.name,
-    buildingAddress: building.address,
+    buildingId: workspaceId,
+    physicalBuildingId,
+    workspaceCapabilities: context.capabilities,
+    buildingName: buildingRecord.name,
+    buildingAddress: buildingRecord.address,
     buildingLat:    buildingLat ?? undefined,
     buildingLon:    buildingLon ?? undefined,
     unitId:         unitId ?? undefined,
@@ -146,15 +128,10 @@ export default async function BuildingDashboardPage({ params }: PageProps) {
 }
 
 export async function generateMetadata({ params }: PageProps) {
-  const supabase = createClient();
-  const { data: building } = await supabase
-    .from('buildings')
-    .select('name, address')
-    .eq('id', params.buildingId)
-    .maybeSingle();
+  const context = await resolveWorkspaceContext(params.buildingId);
 
   return {
-    title: building ? `${building.name} — PanelLakó` : 'Épület — PanelLakó',
-    description: building?.address ?? 'Társasházi kezelőfelület'
+    title: context ? `${context.workspaceName} — PanelLakó` : 'Lakóközösség — PanelLakó',
+    description: context?.address ?? 'Társasházi kezelőfelület'
   };
 }

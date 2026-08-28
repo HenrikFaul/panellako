@@ -7,14 +7,17 @@
  * POST /api/utility/announcements   — provider posts a new announcement
  * GET  /api/utility/announcements   — residents/managers read utility announcements
  *
- * Authentication (POST):
- *   Header: X-Provider-Token: <token>
- *   TODO: validate token against utility_provider_tokens table.
- *         For now, any non-empty token is accepted (skeleton).
+ * Authentication (POST): X-Provider-Token is SHA-256 matched against an active,
+ * physical-building and provider-type scoped utility_provider_tokens row.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { authorizeUtilityProvider } from '@/lib/utility-provider-auth';
+import {
+  authorizationMessage,
+  requireAuthenticatedUser,
+  requireWorkspaceCapability,
+} from '@/lib/authorization/guards';
 export const dynamic = 'force-dynamic';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -61,28 +64,8 @@ const TYPE_LABEL: Record<AnnouncementType, string> = {
   general:        'Tájékoztató',
 };
 
-// ─── Auth helper ──────────────────────────────────────────────────────────────
-function validateProviderToken(req: NextRequest): boolean {
-  const token = req.headers.get('x-provider-token');
-  if (!token || !token.trim()) return false;
-  // TODO: hash the token and look it up in utility_provider_tokens
-  //       const supabase = createClient();
-  //       const { data } = await supabase
-  //         .from('utility_provider_tokens')
-  //         .select('id')
-  //         .eq('token_hash', sha256(token))
-  //         .eq('active', true)
-  //         .single();
-  //       return data !== null;
-  return true; // skeleton: any non-empty token accepted
-}
-
 // ─── POST — provider pushes an announcement ───────────────────────────────────
 export async function POST(request: NextRequest) {
-  if (!validateProviderToken(request)) {
-    return NextResponse.json({ error: 'Unauthorized: missing or invalid X-Provider-Token' }, { status: 401 });
-  }
-
   let body: UtilityAnnouncementPayload;
   try {
     body = await request.json() as UtilityAnnouncementPayload;
@@ -107,25 +90,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `Invalid announcement_type. Valid: ${validAnnTypes.join(', ')}` }, { status: 400 });
   }
 
-  const supabase = createClient();
-
-  // Verify building exists
-  const { data: building, error: buildingErr } = await supabase
-    .from('buildings').select('id').eq('id', body.building_id).single();
-  if (buildingErr || !building) {
-    return NextResponse.json({ error: 'Building not found' }, { status: 404 });
+  const providerAuth = await authorizeUtilityProvider(
+    request.headers.get('x-provider-token'),
+    body.building_id,
+    body.provider_type,
+  );
+  if (!providerAuth) {
+    return NextResponse.json({ error: 'Unauthorized: missing or invalid X-Provider-Token' }, { status: 401 });
   }
+  const supabase = providerAuth.client;
 
   const { data, error } = await supabase
     .from('announcements')
     .insert({
+      workspace_id:      providerAuth.workspaceId,
       building_id:       body.building_id,
       created_by:        null,        // external provider — no profile
       title:             body.title,
       content:           body.content,
       target_group:      'Mindenki',
       category:          CATEGORY[body.provider_type],
-      source_label:      body.provider_name,
+      source_label:      providerAuth.provider.provider_name,
       // utility-specific columns (added in migration 20260518_utility_provider_api)
       provider_type:     body.provider_type,
       announcement_type: body.announcement_type,
@@ -146,6 +131,7 @@ export async function POST(request: NextRequest) {
     announcement_type: body.announcement_type,
     type_label:       TYPE_LABEL[body.announcement_type],
     building_id:      body.building_id,
+    workspace_id:     providerAuth.workspaceId,
     created_at:       data.created_at,
   }, { status: 201 });
 }
@@ -165,12 +151,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Missing required query param: building_id' }, { status: 400 });
   }
 
-  const supabase = createClient();
+  let auth: Awaited<ReturnType<typeof requireAuthenticatedUser>>;
+  let context: Awaited<ReturnType<typeof requireWorkspaceCapability>>;
+  try {
+    [auth, context] = await Promise.all([
+      requireAuthenticatedUser(),
+      requireWorkspaceCapability(buildingId, 'announcement.read'),
+    ]);
+  } catch (error) {
+    return NextResponse.json({ error: authorizationMessage(error) }, { status: 403 });
+  }
+  const { supabase } = auth;
 
   let q = supabase
     .from('announcements')
     .select('id, title, content, source_label, provider_type, announcement_type, scheduled_at, external_ref, created_at', { count: 'exact' })
-    .eq('building_id', buildingId)
+    .eq('building_id', context.primaryBuildingId)
     .not('provider_type', 'is', null)   // only utility-sourced rows
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);

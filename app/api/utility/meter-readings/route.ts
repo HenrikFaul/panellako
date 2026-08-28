@@ -12,8 +12,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import type { MeterType } from '@/app/api/utility/reading-requests/route';
+import { hasWorkspaceCapability } from '@/lib/authorization/capabilities';
+import {
+  authorizationMessage,
+  requireAuthenticatedUser,
+  requireUnitAccess,
+  requireWorkspaceAccess,
+} from '@/lib/authorization/guards';
 export const dynamic = 'force-dynamic';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -26,8 +32,8 @@ export interface MeterReadingPayload {
    * Used when unit_id is unknown or the resident doesn't know their UUID.
    */
   unit_label:       string;
-  /** UUID of the unit — optional if unit_label is provided */
-  unit_id?:         string | null;
+  /** UUID of an existing unit in the selected workspace */
+  unit_id:          string;
   meter_type:       MeterType;
   /** Numeric meter value */
   value:            number;
@@ -55,14 +61,6 @@ export interface MeterReadingRow {
 
 // ─── POST — resident submits a meter reading ──────────────────────────────────
 export async function POST(request: NextRequest) {
-  const supabase = createClient();
-
-  // Require authenticated session
-  const { data: { user }, error: authErr } = await supabase.auth.getUser();
-  if (authErr || !user) {
-    return NextResponse.json({ error: 'Unauthorized: authentication required' }, { status: 401 });
-  }
-
   let body: MeterReadingPayload;
   try {
     body = await request.json() as MeterReadingPayload;
@@ -71,7 +69,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Validate required fields
-  const required = ['building_id','unit_label','meter_type','value','reading_date'] as const;
+  const required = ['building_id','unit_id','unit_label','meter_type','value','reading_date'] as const;
   for (const field of required) {
     if (body[field] === undefined || body[field] === null || body[field] === '') {
       return NextResponse.json({ error: `Missing required field: ${field}` }, { status: 400 });
@@ -92,17 +90,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'reading_date must be YYYY-MM-DD' }, { status: 400 });
   }
 
-  // Verify building membership
-  const { data: membership } = await supabase
-    .from('memberships')
-    .select('id, role')
-    .eq('building_id', body.building_id)
-    .eq('profile_id', user.id)
-    .eq('active', true)
-    .single();
+  let auth: Awaited<ReturnType<typeof requireAuthenticatedUser>>;
+  let context: Awaited<ReturnType<typeof requireUnitAccess>>;
+  try {
+    [auth, context] = await Promise.all([
+      requireAuthenticatedUser(),
+      requireUnitAccess(body.building_id, body.unit_id, 'meter.manage_all'),
+    ]);
+  } catch (error) {
+    return NextResponse.json({ error: authorizationMessage(error) }, { status: 403 });
+  }
+  const { supabase, user } = auth;
 
-  if (!membership) {
-    return NextResponse.json({ error: 'Forbidden: not a member of this building' }, { status: 403 });
+  const canManageAll = hasWorkspaceCapability(context, 'meter.manage_all');
+  if (!canManageAll && !hasWorkspaceCapability(context, 'meter.submit_own_unit')) {
+    return NextResponse.json({ error: 'A művelet nem engedélyezett.' }, { status: 403 });
+  }
+
+  const { data: unit } = await supabase
+    .from('units')
+    .select('id, unit_label')
+    .eq('id', body.unit_id)
+    .eq('building_id', context.primaryBuildingId)
+    .maybeSingle();
+  if (!unit) {
+    return NextResponse.json({ error: 'A művelet nem engedélyezett.' }, { status: 403 });
   }
 
   // If request_id provided, verify it belongs to this building and is still active
@@ -111,8 +123,8 @@ export async function POST(request: NextRequest) {
       .from('utility_reading_requests')
       .select('id, active, deadline_at')
       .eq('id', body.request_id)
-      .eq('building_id', body.building_id)
-      .single();
+      .eq('building_id', context.primaryBuildingId)
+      .maybeSingle();
 
     if (!readingRequest) {
       return NextResponse.json({ error: 'reading_request not found in this building' }, { status: 404 });
@@ -122,9 +134,10 @@ export async function POST(request: NextRequest) {
   const { data, error } = await supabase
     .from('meter_readings')
     .insert({
-      building_id:      body.building_id,
-      unit_id:          body.unit_id ?? null,
-      unit_label:       body.unit_label,
+      workspace_id:     context.workspaceId,
+      building_id:      context.primaryBuildingId,
+      unit_id:          unit.id,
+      unit_label:       unit.unit_label,
       meter_type:       body.meter_type,
       value:            body.value,
       reading_date:     body.reading_date,
@@ -145,14 +158,6 @@ export async function POST(request: NextRequest) {
 
 // ─── GET — query meter readings ───────────────────────────────────────────────
 export async function GET(request: NextRequest) {
-  const supabase = createClient();
-
-  // Require authenticated session
-  const { data: { user }, error: authErr } = await supabase.auth.getUser();
-  if (authErr || !user) {
-    return NextResponse.json({ error: 'Unauthorized: authentication required' }, { status: 401 });
-  }
-
   const sp         = request.nextUrl.searchParams;
   const buildingId = sp.get('building_id');
   const unitLabel  = sp.get('unit_label');
@@ -168,38 +173,45 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Missing required query param: building_id' }, { status: 400 });
   }
 
-  // Verify building membership; managers can see all, residents see their own unit
-  const { data: membership } = await supabase
-    .from('memberships')
-    .select('role, unit_id')
-    .eq('building_id', buildingId)
-    .eq('profile_id', user.id)
-    .eq('active', true)
-    .single();
-
-  if (!membership) {
-    return NextResponse.json({ error: 'Forbidden: not a member of this building' }, { status: 403 });
+  let auth: Awaited<ReturnType<typeof requireAuthenticatedUser>>;
+  let context: Awaited<ReturnType<typeof requireWorkspaceAccess>>;
+  try {
+    [auth, context] = await Promise.all([
+      requireAuthenticatedUser(),
+      requireWorkspaceAccess(buildingId),
+    ]);
+  } catch (error) {
+    return NextResponse.json({ error: authorizationMessage(error) }, { status: 403 });
   }
+  const { supabase, user } = auth;
 
-  const isManager = ['kozos_kepviselo','megbizott','konyvelo'].includes(membership.role);
+  const canManageAll = hasWorkspaceCapability(context, 'meter.manage_all');
+  if (!canManageAll && !hasWorkspaceCapability(context, 'meter.read_own_unit')) {
+    return NextResponse.json({ error: 'A művelet nem engedélyezett.' }, { status: 403 });
+  }
 
   let q = supabase
     .from('meter_readings')
     .select('*', { count: 'exact' })
-    .eq('building_id', buildingId)
+    .eq('building_id', context.primaryBuildingId)
     .order('reading_date', { ascending: false })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
   // Non-managers can only see their own unit's readings
-  if (!isManager) {
-    if (membership.unit_id) q = q.eq('unit_id', membership.unit_id);
-    else                    q = q.eq('reported_by', user.id);
+  if (!canManageAll) {
+    if (context.relatedUnitIds.length) q = q.in('unit_id', context.relatedUnitIds);
+    else                               q = q.eq('reported_by', user.id);
   }
 
   if (meterType)  q = q.eq('meter_type', meterType);
   if (unitLabel)  q = q.ilike('unit_label', unitLabel);
-  if (unitId)     q = q.eq('unit_id', unitId);
+  if (unitId) {
+    if (!canManageAll && !context.relatedUnitIds.includes(unitId)) {
+      return NextResponse.json({ error: 'A művelet nem engedélyezett.' }, { status: 403 });
+    }
+    q = q.eq('unit_id', unitId);
+  }
   if (requestId)  q = q.eq('request_id', requestId);
   if (from)       q = q.gte('reading_date', from);
   if (to)         q = q.lte('reading_date', to);

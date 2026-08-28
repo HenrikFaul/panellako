@@ -6,9 +6,14 @@ import {
   type ProfileTrialAccess,
   type SubscriptionAccess,
 } from '@/lib/subscription-access';
+import { sanitizeReturnTo } from '@/lib/auth/return-to';
 
-const PROTECTED_PREFIXES = ['/w/', '/app'];
-const AUTH_ROUTES = ['/login'];
+const PROTECTED_ROUTES = ['/w', '/app', '/account', '/onboarding', '/invitations', '/reset-password'];
+const AUTH_ROUTES = ['/login', '/register'];
+
+function matchesRoute(pathname: string, route: string): boolean {
+  return pathname === route || pathname.startsWith(`${route}/`);
+}
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -40,20 +45,29 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // Authenticated users hitting login → redirect to picker
-  if (user && AUTH_ROUTES.some((r) => pathname.startsWith(r))) {
+  if (user && AUTH_ROUTES.some((route) => matchesRoute(pathname, route))) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = '/app';
+    const next = sanitizeReturnTo(request.nextUrl.searchParams.get('next'));
+    const safeDestination = new URL(next, request.nextUrl.origin);
+    redirectUrl.pathname = safeDestination.pathname;
+    redirectUrl.search = safeDestination.search;
+    redirectUrl.hash = safeDestination.hash;
     return NextResponse.redirect(redirectUrl);
   }
 
   // Unauthenticated users hitting protected routes → redirect to login
   if (
     !user &&
-    PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+    PROTECTED_ROUTES.some((route) => matchesRoute(pathname, route))
   ) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = '/login';
-    redirectUrl.searchParams.set('next', pathname);
+    redirectUrl.search = '';
+    redirectUrl.hash = '';
+    redirectUrl.searchParams.set(
+      'next',
+      sanitizeReturnTo(`${pathname}${request.nextUrl.search}`),
+    );
     return NextResponse.redirect(redirectUrl);
   }
 
@@ -71,7 +85,7 @@ export async function middleware(request: NextRequest) {
       adminClient
         .from('subscriptions')
         .select('status, trial_end')
-        .eq('building_id', buildingId)
+        .eq('workspace_id', buildingId)
         .maybeSingle(),
       adminClient
         .from('profiles')

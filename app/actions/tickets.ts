@@ -1,7 +1,14 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import {
+  assertLegacyObjectInWorkspace,
+  authorizationMessage,
+  requireAuthenticatedUser,
+  requireUnitAccess,
+  requireWorkspaceAccess,
+  requireWorkspaceCapability,
+} from '@/lib/authorization/guards';
 
 export type TicketPriority = 'alacsony' | 'kozepes' | 'magas' | 'kritikus';
 export type TicketStatus = 'uj' | 'folyamatban' | 'varakozik' | 'lezarva';
@@ -13,6 +20,7 @@ export interface CreateTicketInput {
   priority: TicketPriority;
   submitted_by?: string;
   unit_label?: string;
+  unit_id?: string;
   building_id?: string;
   buildingId?: string;
 }
@@ -42,61 +50,67 @@ function triggerAiTriage(ticketId: string, title: string, description: string, b
 }
 
 export async function createTicket(input: CreateTicketInput) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const workspaceId = input.buildingId ?? input.building_id;
+  if (!workspaceId) return { success: false, error: 'Lakóközösség megadása kötelező.' };
 
-  const { data, error } = await supabase
-    .from('tickets')
-    .insert({
-      title: input.title,
-      description: input.description,
-      location: input.location,
-      priority: input.priority,
-      submitted_by: input.submitted_by ?? user?.email ?? 'Névtelen',
-      unit_label: input.unit_label,
-      building_id: input.building_id,
-      reporter_id: user?.id ?? null,
-      status: 'uj',
-      ai_triage_at: null,
-      ai_override: false,
-    })
-    .select()
-    .single();
+  try {
+    const [{ supabase, user }, context] = await Promise.all([
+      requireAuthenticatedUser(),
+      input.unit_id
+        ? requireUnitAccess(workspaceId, input.unit_id, 'ticket.manage_all')
+        : requireWorkspaceAccess(workspaceId),
+    ]);
 
-  if (error) {
-    return { success: false, error: error.message };
+    const { data, error } = await supabase
+      .from('tickets')
+      .insert({
+        title: input.title,
+        description: input.description,
+        location: input.location,
+        priority: input.priority,
+        submitted_by: input.submitted_by ?? user.email ?? 'Felhasználó',
+        unit_label: input.unit_label,
+        unit_id: input.unit_id ?? null,
+        building_id: context.primaryBuildingId,
+        reporter_id: user.id,
+        status: 'uj',
+        ai_triage_at: null,
+        ai_override: false,
+      })
+      .select()
+      .single();
+
+    if (error) return { success: false, error: error.message };
+
+    // Fire-and-forget — do NOT await
+    triggerAiTriage(data.id, input.title, input.description, context.primaryBuildingId);
+
+    revalidatePath(`/w/${workspaceId}`);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: authorizationMessage(error) };
   }
-
-  const bid = input.buildingId ?? input.building_id;
-
-  // Fire-and-forget — do NOT await
-  triggerAiTriage(data.id, input.title, input.description, bid);
-
-  revalidatePath(bid ? `/w/${bid}` : '/');
-  return { success: true, data };
 }
 
 export async function updateTicketStatus(ticketId: string, status: TicketStatus, buildingId?: string) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, error: 'Nem vagy bejelentkezve' };
+  if (!buildingId) return { success: false, error: 'Lakóközösség megadása kötelező.' };
+  try {
+    const [context, { supabase }] = await Promise.all([
+      requireWorkspaceCapability(buildingId, 'ticket.manage_all'),
+      requireAuthenticatedUser(),
+    ]);
+    await assertLegacyObjectInWorkspace('tickets', ticketId, buildingId);
+    const { error } = await supabase
+      .from('tickets')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', ticketId)
+      .eq('building_id', context.primaryBuildingId);
+    if (error) return { success: false, error: error.message };
+    revalidatePath(`/w/${buildingId}`);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: authorizationMessage(error) };
   }
-
-  const query = supabase
-    .from('tickets')
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq('id', ticketId);
-
-  const { error } = buildingId ? await query.eq('building_id', buildingId) : await query;
-
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  revalidatePath(buildingId ? `/w/${buildingId}` : '/');
-  return { success: true };
 }
 
 const VALID_AI_CATEGORIES = ['plumbing', 'electrical', 'structural', 'common_area', 'emergency', 'hvac', 'elevator', 'other'];
@@ -106,12 +120,7 @@ export async function updateTicketAiOverride(
   overrides: { ai_category?: string; ai_urgency?: number; ai_vendor_suggestion?: string },
   buildingId?: string
 ) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, error: 'Nem vagy bejelentkezve' };
-  }
+  if (!buildingId) return { success: false, error: 'Lakóközösség megadása kötelező.' };
 
   if (overrides.ai_urgency !== undefined) {
     if (!Number.isInteger(overrides.ai_urgency) || overrides.ai_urgency < 1 || overrides.ai_urgency > 10) {
@@ -123,15 +132,21 @@ export async function updateTicketAiOverride(
     return { success: false, error: `Invalid category. Must be one of: ${VALID_AI_CATEGORIES.join(', ')}` };
   }
 
-  const { error } = await supabase
-    .from('tickets')
-    .update({ ...overrides, ai_override: true, updated_at: new Date().toISOString() })
-    .eq('id', ticketId);
-
-  if (error) {
-    return { success: false, error: error.message };
+  try {
+    const [context, { supabase }] = await Promise.all([
+      requireWorkspaceCapability(buildingId, 'ticket.manage_all'),
+      requireAuthenticatedUser(),
+    ]);
+    await assertLegacyObjectInWorkspace('tickets', ticketId, buildingId);
+    const { error } = await supabase
+      .from('tickets')
+      .update({ ...overrides, ai_override: true, updated_at: new Date().toISOString() })
+      .eq('id', ticketId)
+      .eq('building_id', context.primaryBuildingId);
+    if (error) return { success: false, error: error.message };
+    revalidatePath(`/w/${buildingId}`);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: authorizationMessage(error) };
   }
-
-  revalidatePath(buildingId ? `/w/${buildingId}` : '/');
-  return { success: true };
 }
