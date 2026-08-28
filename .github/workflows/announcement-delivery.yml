@@ -1,0 +1,60 @@
+name: Announcement Delivery
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: announcement-delivery-production
+  cancel-in-progress: false
+
+jobs:
+  deliver:
+    name: Deliver announcement email outbox
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+
+    steps:
+      - name: Invoke the production delivery worker
+        env:
+          DELIVERY_SECRET: ${{ secrets.ANNOUNCEMENT_DELIVERY_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ "${#DELIVERY_SECRET}" -lt 32 ]; then
+            echo "❌ Announcement delivery secret is missing or too short."
+            exit 1
+          fi
+
+          RESPONSE_FILE=$(mktemp)
+          trap 'rm -f "$RESPONSE_FILE"' EXIT
+
+          HTTP_CODE=$(curl --silent --show-error \
+            --output "$RESPONSE_FILE" \
+            --write-out "%{http_code}" \
+            --request POST \
+            --header "Authorization: Bearer $DELIVERY_SECRET" \
+            --header "Content-Type: application/json" \
+            --max-time 240 \
+            https://panellako.hu/api/cron/announcement-delivery)
+
+          jq . "$RESPONSE_FILE"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Announcement delivery worker returned HTTP $HTTP_CODE."
+            exit 1
+          fi
+
+          jq -e '
+            .ok == true and
+            (.claimed | numbers) >= 0 and
+            (.delivered | numbers) >= 0 and
+            (.retried | numbers) >= 0 and
+            (.deadLettered | numbers) >= 0 and
+            (.cancelled | numbers) >= 0
+          ' "$RESPONSE_FILE" > /dev/null
+
+          echo "✅ Announcement delivery worker completed successfully."

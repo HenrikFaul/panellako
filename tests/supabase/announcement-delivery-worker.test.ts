@@ -15,6 +15,11 @@ const worker = readFileSync(
   join(root, 'lib/announcement-delivery-worker.ts'),
   'utf8',
 );
+const scheduler = readFileSync(
+  join(root, '.github/workflows/announcement-delivery.yml'),
+  'utf8',
+);
+const vercelConfig = readFileSync(join(root, 'vercel.json'), 'utf8');
 
 describe('announcement delivery worker database closure', () => {
   it('claims a bounded batch atomically with skip-locked leases', () => {
@@ -68,5 +73,14 @@ describe('announcement delivery worker database closure', () => {
     expect(worker).not.toContain('console.');
     expect(route).not.toContain('console.');
     expect(worker).not.toMatch(/console\.(?:log|error|warn)[\s\S]*recipient/i);
+  });
+
+  it('uses a bounded external scheduler when the hosting plan cannot run a two-minute cron', () => {
+    expect(scheduler).toContain("cron: '*/5 * * * *'");
+    expect(scheduler).toContain('secrets.ANNOUNCEMENT_DELIVERY_CRON_SECRET');
+    expect(scheduler).toContain('--max-time 240');
+    expect(scheduler).toContain('Authorization: Bearer $DELIVERY_SECRET');
+    expect(scheduler).toContain('.ok == true');
+    expect(vercelConfig).not.toContain('/api/cron/announcement-delivery');
   });
 });

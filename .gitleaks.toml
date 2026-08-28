@@ -37,7 +37,7 @@ tags = ["stripe"]
 [[rules]]
 id = "resend-api-key"
 description = "Resend API key"
-regex = '''re_[A-Za-z0-9_-]{24,}'''
+regex = '''(?:^|[^A-Za-z0-9_])re_[A-Za-z0-9_-]{24,}'''
 tags = ["resend"]
 
 [[rules]]
