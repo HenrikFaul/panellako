@@ -26,8 +26,8 @@ jobs:
 
       - name: Guard – jóváhagyás ellenőrzése
         run: |
-          if [ "${{ github.event.inputs.confirm }}" != "IGEN" ]; then
-            echo "❌ A futtatást meg kell erősíteni: írd be IGEN a confirm mezőbe."
+          if [[ ! "${{ github.event.inputs.confirm }}" =~ ^IGEN(:[0-9a-f]{64})?$ ]]; then
+            echo "❌ A futtatást IGEN vagy IGEN:<manual-backup-sha256> értékkel kell megerősíteni."
             exit 1
           fi
 
@@ -39,6 +39,7 @@ jobs:
       - name: Backup gate – completed backup or PITR required
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          BACKUP_CONFIRMATION: ${{ github.event.inputs.confirm }}
         run: |
           set -euo pipefail
 
@@ -59,11 +60,15 @@ jobs:
           LATEST_PHYSICAL=$(echo "$BODY" | jq -r '.physical_backup_data.latest_physical_backup_date_unix // 0')
 
           if [ "$COMPLETED_BACKUPS" -lt 1 ] && { [ "$PITR_ENABLED" != "true" ] || [ "$LATEST_PHYSICAL" -le 0 ]; }; then
-            echo "❌ Nincs igazolt, visszaállítható Supabase backup vagy PITR restore point."
-            exit 1
+            MANUAL_BACKUP_SHA=${BACKUP_CONFIRMATION#IGEN:}
+            if [ "$MANUAL_BACKUP_SHA" = "$BACKUP_CONFIRMATION" ] || [[ ! "$MANUAL_BACKUP_SHA" =~ ^[0-9a-f]{64}$ ]]; then
+              echo "❌ Nincs platform-backup/PITR, és nincs érvényes manuális backup SHA-256 bizonyíték."
+              exit 1
+            fi
+            echo "✅ Backup gate PASS (manual encrypted backup SHA-256: $MANUAL_BACKUP_SHA)."
+          else
+            echo "✅ Backup gate PASS (completed=$COMPLETED_BACKUPS, pitr=$PITR_ENABLED)."
           fi
-
-          echo "✅ Backup gate PASS (completed=$COMPLETED_BACKUPS, pitr=$PITR_ENABLED)."
 
       - name: Run SQL via Supabase Management API
         env:
