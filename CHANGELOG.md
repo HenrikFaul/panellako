@@ -1,3 +1,54 @@
+## v0.10.3 — Production multitenancy lezárás
+**Dátum:** 2026-08-29
+**Branch:** codex/light-workspace-redesign
+
+### Cél
+- A v0.10.2 release-jelölt tényleges lezárása éles Supabase-migrációval,
+  production deployjal, külső workerrel, két-tenant hosted canaryval és teljes
+  visszakövethető bizonyítéklánccal.
+
+### Production javítások
+- Új, forward-only `20260829100000_service_role_private_schema_access.sql`
+  migráció engedi a megbízható backend `service_role` számára a `private`
+  tenant-integritási trigger-segédek futtatását anélkül, hogy séma-létrehozási
+  jogot vagy publikus PostgREST-felületet adna.
+- A hosted két-tenant canary a workspace-et előbb
+  `PENDING_VERIFICATION` állapotban építi fel, és csak az épület- és címkötések
+  után aktiválja, így tiszteletben tartja a deferred legacy UUID invariánst.
+- A GitHub Actions announcement scheduler validációja az éles worker tényleges
+  `retryScheduled` és `claimLost` válaszmezőihez igazodott.
+- A production ellenőrzés már a tizenkettedik migráció ledgerét és a
+  `service_role` private helper-hozzáférését is fail-closed módon ellenőrzi.
+
+### Éles bizonyíték
+- PR #258 és #259 mainre merge-elve; végső alkalmazás merge SHA:
+  `358454d6d762c113e24c818a215e7e00fb1e713f`.
+- Supabase: mind a 12 jóváhagyott migráció PASS; végső read-only DB Verify
+  `33217256774` PASS.
+- Vercel production: `dpl_Gao1AtMKLs43mpbZQwxoGyivvPXF` Ready, a
+  `https://panellako.hu` alias aktív; `/`, `/register` és `/login` HTTP 200.
+- Hosted E2E: email+jelszó belépés, kezelői két-tenant láthatóság, lakói
+  tenant-izoláció, közvetlen RLS-tiltás és idegen dashboard-védelem PASS;
+  az izolált fixture automatikus törlése után 0 rekord maradt.
+- Külső GitHub Actions worker: `33217256661` PASS, hitelesített production
+  endpoint és válaszszerződés igazolva. A queue üres volt, ezért ez nem valós
+  címzetthez történt email-kézbesítési bizonyíték.
+
+### Regressziós kapuk
+- Main CI `33217028939`: 38 tesztfájl / 243 teszt, TypeScript, ESLint,
+  Semgrep, gitleaks, Trivy és Next.js build — PASS.
+- Next.js build: 73/73 statikus oldal — PASS.
+- Célzott service-role és multitenancy teszt: 30/30 — PASS.
+- Célzott announcement worker teszt: 20/20 — PASS.
+
+### Dokumentáció
+- Részletes bizonyíték és ismert határok:
+  `versioning/29082601_v0.10.3_production-multitenancy-closure.md`.
+- Felhasználói és piaci érték:
+  `marketing/marketing_values/20260829_v0.10.3_production-multitenancy-closure_marketing_value.md`.
+
+---
+
 ## v0.10.2 — Production rollout és announcement delivery worker
 **Dátum:** 2026-08-28
 **Branch:** codex/light-workspace-redesign

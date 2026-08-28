@@ -1503,3 +1503,25 @@ brand: { 500: 'oklch(0.714 0.145 181 / <alpha-value>)' }
 **Problem**: A kimeneti oszlopnév összeütközött az `ON CONFLICT` oszlophivatkozással, illetve egy `%ROWTYPE` változót skalár mező mellett próbáltunk `SELECT INTO` célként használni.
 **Fix**: Az upsert constraint-névvel hivatkozik az egyediségre, a lekérdezés pedig csak a ténylegesen szükséges skalár mandate mezőket tölti külön változókba.
 **Prevention**: Migrációt mindig valódi támogatott PostgreSQL-verzión apply + reapply + runtime paranccsal ellenőrizz; a puszta stringteszt ezeket nem találja meg.
+
+---
+
+## ➕ APPEND — 2026-08-29 Production multitenancy rollout tanulságok
+
+### [LESSON-POSTGRES-105]: A service role RLS-bypass nem jelent private schema hozzáférést
+**Context**: A hosted canary service-role klienssel hozott létre albetétet, amely tenant-integritási triggert és azon belül `private` segédfüggvényt futtatott.
+**Problem**: A `service_role` megkerülte az RLS-t, de nem rendelkezett `USAGE` joggal a `private` sémán; az éles insert ezért `permission denied for schema private` hibával állt meg.
+**Fix**: Forward-only migráció adott a megbízható backend role-nak séma-`USAGE` és private függvény-`EXECUTE` jogot, `CREATE` jog és PostgREST-expozíció nélkül; a production verifier ezt külön flaggel ellenőrzi.
+**Prevention**: Service-role canaryban ne csak policyt tesztelj: minden trigger által hívott private helper teljes privilege-láncát valódi éles írással is ellenőrizd.
+
+### [LESSON-OPS-106]: A 200-as worker válasz önmagában nem bizonyítja a scheduler szerződését
+**Context**: Az announcement endpoint `ok: true` és érvényes számlálókat adott, miközben a GitHub Actions validátor a régi `retried` mezőt várta az aktuális `retryScheduled` helyett.
+**Problem**: A worker működött, de a külső ütemező helyesen piros maradt; egy csak HTTP-státuszt néző smoke ezt elfedte volna.
+**Fix**: A scheduler az összes aktuális számlálót (`claimed`, `delivered`, `retryScheduled`, `deadLettered`, `cancelled`, `claimLost`) típusosan ellenőrzi, és statikus teszt védi a mezőneveket.
+**Prevention**: Ütemezett endpointnál az auth, HTTP-státusz és JSON-contract három külön release-kapu legyen; production merge után mainről is fusson kézi smoke.
+
+### [LESSON-E2E-107]: Client Component szöveg nem feltétlenül látható az SSR HTML-ben
+**Context**: A `/register` route Suspense fallbackot renderel szerveren, a tényleges email+jelszó űrlap pedig kliensbundle-ból hidratálódik.
+**Problem**: A nyers hosted HTML-ben keresett „Fiók létrehozása” szöveg hamis negatív E2E hibát adott, bár a route 200 volt és a regisztrációs kliensbundle betöltődött.
+**Fix**: A HTTP/session canary az SSR fallbacket és a route-specifikus Next.js chunkot ellenőrzi; teljes vizuális vagy interakciós bizonyítékhoz továbbra is valódi böngészős futás kell.
+**Prevention**: A hosted teszt bizonyítéktípusát nevezd meg pontosan: nyers SSR, hidratált DOM és vizuális browser QA nem csereszabatos.
