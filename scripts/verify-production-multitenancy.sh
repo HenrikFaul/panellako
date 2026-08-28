@@ -21,7 +21,8 @@ expected_versions(version) AS (
     ('20260828127000'),
     ('20260828128000'),
     ('20260828129000'),
-    ('20260828130000')
+    ('20260828130000'),
+    ('20260829100000')
 ),
 required_tables(name) AS (
   VALUES
@@ -143,6 +144,16 @@ SELECT
   NOT EXISTS (SELECT 1 FROM missing_functions) AS required_functions_ok,
   NOT EXISTS (SELECT 1 FROM rls_disabled) AS required_rls_ok,
   NOT EXISTS (SELECT 1 FROM nullable_workspace_rows WHERE row_count > 0) AS workspace_backfill_ok,
+  (
+    has_schema_privilege('service_role', 'private', 'USAGE')
+    AND NOT EXISTS (
+      SELECT 1
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'private'
+        AND NOT has_function_privilege('service_role', p.oid, 'EXECUTE')
+    )
+  ) AS service_role_private_access_ok,
   COALESCE((SELECT json_agg(version ORDER BY version) FROM missing_versions), '[]'::json) AS missing_versions,
   COALESCE((SELECT json_agg(name ORDER BY name) FROM missing_tables), '[]'::json) AS missing_tables,
   COALESCE((SELECT json_agg(name ORDER BY name) FROM missing_functions), '[]'::json) AS missing_functions,
@@ -175,7 +186,8 @@ echo "$BODY" | jq -e '
   .[0].required_tables_ok == true and
   .[0].required_functions_ok == true and
   .[0].required_rls_ok == true and
-  .[0].workspace_backfill_ok == true
+  .[0].workspace_backfill_ok == true and
+  .[0].service_role_private_access_ok == true
 ' > /dev/null
 
 echo "✅ Production multitenancy verification PASS."
