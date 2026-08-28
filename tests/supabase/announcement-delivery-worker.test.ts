@@ -81,6 +81,9 @@ describe('announcement delivery worker database closure', () => {
     expect(scheduler).toContain('--max-time 240');
     expect(scheduler).toContain('Authorization: Bearer $DELIVERY_SECRET');
     expect(scheduler).toContain('.ok == true');
+    expect(scheduler).toContain('(.retryScheduled | numbers) >= 0');
+    expect(scheduler).toContain('(.claimLost | numbers) >= 0');
+    expect(scheduler).not.toContain('(.retried | numbers)');
     expect(vercelConfig).not.toContain('/api/cron/announcement-delivery');
   });
 });

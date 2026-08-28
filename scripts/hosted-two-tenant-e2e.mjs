@@ -275,7 +275,11 @@ async function main() {
 
     const registerPage = await fetchHosted(hostUrl, '/register');
     assert(registerPage.status === 200, `Hosted registration returned ${registerPage.status}`);
-    assert(registerPage.body.includes('Fiók létrehozása'), 'Hosted email/password registration UI is missing');
+    assert(
+      registerPage.body.includes('/_next/static/chunks/app/register/page-')
+        && registerPage.body.includes('Regisztráció betöltése'),
+      'Hosted email/password registration UI is missing',
+    );
 
     const managerPicker = await fetchHosted(hostUrl, '/app', manager.cookieHeader());
     assert(managerPicker.status === 200, `Manager picker returned ${managerPicker.status}`);
