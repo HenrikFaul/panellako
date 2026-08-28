@@ -115,6 +115,8 @@ jobs:
           # history. Insert the exact repository version before the migration's
           # final COMMIT so schema and ledger remain one atomic transaction.
           MIGRATION_SQL=$(mktemp)
+          REQUEST_BODY=$(mktemp)
+          trap 'rm -f "$MIGRATION_SQL" "$REQUEST_BODY"' EXIT
           awk '
             { lines[NR] = $0 }
             END {
@@ -136,14 +138,15 @@ jobs:
 
           echo "✅ SQL fájl: $SQL_FILE ($(wc -l < "$SQL_FILE") sor), verzió: $MIGRATION_VERSION"
 
+          jq -n --rawfile sql "$MIGRATION_SQL" \
+            '{"query": $sql, "read_only": false}' > "$REQUEST_BODY"
+
           # Supabase Management API – SQL végrehajtás
           RESPONSE=$(curl -s -w "\n%{http_code}" \
             -X POST "https://api.supabase.com/v1/projects/wzromwxpjlyrqbdiapep/database/query" \
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "$(jq -n --rawfile sql "$MIGRATION_SQL" '{"query": $sql, "read_only": false}')")
-
-          rm -f "$MIGRATION_SQL"
+            --data-binary "@$REQUEST_BODY")
 
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           BODY=$(echo "$RESPONSE" | head -n -1)
