@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { createClient } from '@/lib/supabase/server';
+import {
+  authorizationMessage,
+  requireAuthenticatedUser,
+  requireWorkspaceCapability,
+} from '@/lib/authorization/guards';
 export const dynamic = 'force-dynamic';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -9,24 +13,35 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 export async function POST(request: NextRequest) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Nem vagy bejelentkezve' }, { status: 401 });
+  let body: { buildingId?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Érvénytelen kérés formátum' }, { status: 400 });
   }
-
-  const { buildingId } = await request.json();
+  const { buildingId } = body;
 
   if (!buildingId) {
-    return NextResponse.json({ error: 'Épület azonosító hiányzik' }, { status: 400 });
+    return NextResponse.json({ error: 'Lakóközösség azonosító hiányzik' }, { status: 400 });
   }
+
+  let auth: Awaited<ReturnType<typeof requireAuthenticatedUser>>;
+  let context: Awaited<ReturnType<typeof requireWorkspaceCapability>>;
+  try {
+    [auth, context] = await Promise.all([
+      requireAuthenticatedUser(),
+      requireWorkspaceCapability(buildingId, 'billing.manage'),
+    ]);
+  } catch (error) {
+    return NextResponse.json({ error: authorizationMessage(error) }, { status: 403 });
+  }
+  const { supabase } = auth;
 
   const { data: subscription } = await supabase
     .from('subscriptions')
     .select('stripe_customer_id')
-    .eq('building_id', buildingId)
-    .single();
+    .eq('workspace_id', context.workspaceId)
+    .maybeSingle();
 
   if (!subscription?.stripe_customer_id) {
     return NextResponse.json({ error: 'Nincs aktív előfizetés ehhez az épülethez' }, { status: 404 });

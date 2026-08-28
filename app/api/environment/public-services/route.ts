@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import {
+  environmentScopeErrorResponse,
+  resolveEnvironmentBuildingScope,
+} from '@/lib/authorization/environment-scope';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
@@ -172,7 +176,7 @@ out center qt;
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
-  const buildingId = searchParams.get('buildingId') ?? '';
+  const workspaceId = searchParams.get('buildingId');
   const lat = parseFloat(searchParams.get('lat') ?? '');
   const lon = parseFloat(searchParams.get('lon') ?? '');
   const force = searchParams.get('force') === '1';
@@ -181,15 +185,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'lat/lon required' }, { status: 400 });
   }
 
+  let physicalBuildingId: string | null;
+  try {
+    ({ physicalBuildingId } = await resolveEnvironmentBuildingScope(req, workspaceId));
+  } catch (error) {
+    return environmentScopeErrorResponse(error);
+  }
+
   // Try DB cache first (skipped when force=1)
-  if (buildingId && !force) {
+  if (physicalBuildingId && !force) {
     try {
       const supabase = createServiceClient();
       if (supabase) {
         const { data: cached } = await supabase
           .from('building_public_services_cache')
           .select('services, fetched_at')
-          .eq('building_id', buildingId)
+          .eq('building_id', physicalBuildingId)
           .maybeSingle();
 
         if (cached) {
@@ -207,12 +218,12 @@ export async function GET(req: NextRequest) {
     const result = await fetchFromOverpass(lat, lon);
 
     // Persist to DB cache (fire-and-forget)
-    if (buildingId) {
+    if (physicalBuildingId) {
       try {
         const supabase = createServiceClient();
         if (supabase) {
           await supabase.from('building_public_services_cache').upsert({
-            building_id: buildingId,
+            building_id: physicalBuildingId,
             services: result,
             fetched_at: result.fetchedAt,
           });

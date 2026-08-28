@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 import webpush from 'web-push';
+import { requireWorkspaceCapability, WorkspaceAuthorizationError } from '@/lib/authorization/guards';
+import { sanitizeReturnTo } from '@/lib/auth/return-to';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +14,12 @@ interface SendBody {
   targetRole?: 'all' | 'lako' | 'manager';
 }
 
-const MANAGER_ROLES = ['kozos_kepviselo', 'megbizott'];
-const LAKO_ROLES = ['lako', 'tulajdonos'];
+const MANAGER_ROLE_KEYS = new Set([
+  'COMMON_REPRESENTATIVE_ADMIN',
+  'BOARD_ADMIN',
+  'SELF_MANAGED_ADMIN',
+  'DELEGATE_OPERATIONS',
+]);
 
 webpush.setVapidDetails(
   'mailto:info@panellako.hu',
@@ -22,13 +28,6 @@ webpush.setVapidDetails(
 );
 
 export async function POST(request: NextRequest) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   let body: SendBody;
   try {
     body = await request.json();
@@ -36,32 +35,37 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { buildingId, title, body: msgBody, url, targetRole = 'all' } = body;
+  const { buildingId: workspaceId, title, body: msgBody, url, targetRole = 'all' } = body;
 
-  if (!buildingId || !title || !msgBody) {
+  if (!workspaceId || !title?.trim() || !msgBody?.trim()) {
     return NextResponse.json({ error: 'buildingId, title, and body are required' }, { status: 400 });
   }
-
-  // Check the caller is a manager of this building
-  const { data: senderMembership } = await supabase
-    .from('memberships')
-    .select('role')
-    .eq('profile_id', user.id)
-    .eq('building_id', buildingId)
-    .eq('active', true)
-    .limit(1)
-    .maybeSingle();
-
-  if (!senderMembership || !MANAGER_ROLES.includes((senderMembership as { role: string }).role)) {
-    return NextResponse.json({ error: 'Forbidden — only managers can send push notifications' }, { status: 403 });
+  if (title.trim().length > 120 || msgBody.trim().length > 1000) {
+    return NextResponse.json({ error: 'Notification content is too long' }, { status: 400 });
   }
 
-  // Get all active members for this building with their role
+  try {
+    await requireWorkspaceCapability(workspaceId, 'announcement.publish');
+  } catch (error) {
+    const status = error instanceof WorkspaceAuthorizationError && error.code === 'AUTH_REQUIRED' ? 401 : 403;
+    return NextResponse.json({ error: status === 401 ? 'Unauthorized' : 'Forbidden' }, { status });
+  }
+
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').trim();
+  const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim();
+  if (!supabaseUrl || !serviceRoleKey) {
+    return NextResponse.json({ error: 'Push delivery service is not configured' }, { status: 503 });
+  }
+  const supabase = createAdminClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  // Recipient expansion happens only after the caller-bound capability check.
   const { data: memberships, error: memberError } = await supabase
-    .from('memberships')
-    .select('profile_id, role')
-    .eq('building_id', buildingId)
-    .eq('active', true);
+    .from('workspace_memberships')
+    .select('id, profile_id')
+    .eq('workspace_id', workspaceId)
+    .eq('status', 'ACTIVE');
 
   if (memberError) {
     console.error('[push/send] memberships query error:', memberError);
@@ -72,15 +76,32 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ sent: 0, failed: 0 });
   }
 
-  // Filter members by targetRole
-  const filteredMembers = (memberships as Array<{ profile_id: string; role: string }>).filter((m) => {
-    if (targetRole === 'all') return true;
-    if (targetRole === 'lako') return LAKO_ROLES.includes(m.role);
-    if (targetRole === 'manager') return MANAGER_ROLES.includes(m.role);
-    return true;
-  });
+  const memberRows = memberships as Array<{ id: string; profile_id: string }>;
+  let profileIds = memberRows.map((member) => member.profile_id);
 
-  const profileIds = filteredMembers.map((m) => m.profile_id);
+  if (targetRole !== 'all') {
+    const membershipIds = memberRows.map((member) => member.id);
+    const { data: assignments, error: assignmentError } = await supabase
+      .from('role_assignments')
+      .select('membership_id, role_key')
+      .eq('workspace_id', workspaceId)
+      .eq('status', 'ACTIVE')
+      .in('membership_id', membershipIds);
+    if (assignmentError) {
+      return NextResponse.json({ error: 'Recipient roles could not be resolved' }, { status: 500 });
+    }
+
+    const managerMembershipIds = new Set(
+      (assignments ?? [])
+        .filter((assignment: { role_key: string }) => MANAGER_ROLE_KEYS.has(assignment.role_key))
+        .map((assignment: { membership_id: string }) => assignment.membership_id),
+    );
+    profileIds = memberRows
+      .filter((member) => targetRole === 'manager'
+        ? managerMembershipIds.has(member.id)
+        : !managerMembershipIds.has(member.id))
+      .map((member) => member.profile_id);
+  }
 
   if (profileIds.length === 0) {
     return NextResponse.json({ sent: 0, failed: 0 });
@@ -102,9 +123,9 @@ export async function POST(request: NextRequest) {
   }
 
   const payload = JSON.stringify({
-    title,
-    body: msgBody,
-    url: url ?? `/${buildingId}`,
+    title: title.trim(),
+    body: msgBody.trim(),
+    url: sanitizeReturnTo(url, `/w/${workspaceId}`),
   });
 
   let sent = 0;

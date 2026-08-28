@@ -1,10 +1,12 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
-import { sendBulkEmail, renderEmailTemplate, isEmailEnabledForProfile } from '@/lib/email';
-import * as React from 'react';
-import { AnnouncementEmail } from '@/lib/email-templates/announcement';
+import {
+  authorizationMessage,
+  requireAuthenticatedUser,
+  requireWorkspaceAccess,
+  requireWorkspaceCapability,
+} from '@/lib/authorization/guards';
 
 export type AnnouncementScope = 'all' | 'owners' | 'residents' | 'specific_units';
 export type AnnouncementPriority = 'low' | 'normal' | 'high' | 'urgent';
@@ -27,13 +29,6 @@ export interface CreateAnnouncementInput {
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-const MANAGER_ROLES = ['kozos_kepviselo', 'megbizott'];
-
-const SCOPE_ROLE_MAP: Record<string, string[]> = {
-  owners:    ['tulajdonos', 'kozos_kepviselo'],
-  residents: ['lako'],
-};
-
 function scopeToTargetGroup(scope: AnnouncementScope, unitLabel?: string): string {
   if (scope === 'all') return 'Mindenki';
   if (scope === 'owners') return 'Tulajdonosok';
@@ -42,223 +37,190 @@ function scopeToTargetGroup(scope: AnnouncementScope, unitLabel?: string): strin
   return 'Mindenki';
 }
 
-async function getRecipientProfileIds(
-  supabase: ReturnType<typeof createClient>,
-  buildingId: string,
-  scope: AnnouncementScope,
-  unitIds?: string[]
-): Promise<string[]> {
-  if (scope === 'specific_units' && unitIds?.length) {
-    const { data } = await supabase
-      .from('memberships')
-      .select('profile_id, unit_id')
-      .eq('building_id', buildingId)
-      .eq('active', true)
-      .in('unit_id', unitIds);
-    return (data ?? []).map((m: { profile_id: string }) => m.profile_id);
-  }
-
-  const query = supabase
-    .from('memberships')
-    .select('profile_id, role')
-    .eq('building_id', buildingId)
-    .eq('active', true);
-
-  if (scope in SCOPE_ROLE_MAP) {
-    query.in('role', SCOPE_ROLE_MAP[scope]);
-  }
-
-  const { data } = await query;
-  return (data ?? []).map((m: { profile_id: string }) => m.profile_id);
-}
-
-// ─── email sending ────────────────────────────────────────────────────────────
-
-async function sendAnnouncementEmails(
-  supabase: ReturnType<typeof createClient>,
-  buildingId: string | null,
-  title: string,
-  content: string,
-  category: string,
-  senderName: string,
-  scope: AnnouncementScope = 'all',
-  unitIds?: string[]
-): Promise<void> {
-  let profileIds: string[] | null = null;
-
-  if (buildingId) {
-    profileIds = await getRecipientProfileIds(supabase, buildingId, scope, unitIds);
-    if (!profileIds.length) return;
-  }
-
-  const query = supabase
-    .from('profiles')
-    .select('id, email, full_name, unsubscribe_token, notifications_email');
-
-  if (profileIds) {
-    query.in('id', profileIds);
-  }
-
-  const { data: recipients, error } = await query;
-  if (error || !recipients?.length) return;
-
-  let buildingName = 'PanelLakó';
-  let buildingAddress = '';
-  if (buildingId) {
-    const { data: building } = await supabase
-      .from('buildings').select('name, address').eq('id', buildingId).single();
-    if (building) { buildingName = building.name; buildingAddress = building.address; }
-  }
-
-  const emailable = recipients.filter(isEmailEnabledForProfile);
-  if (!emailable.length) return;
-
-  const html = await renderEmailTemplate(
-    React.createElement(AnnouncementEmail, {
-      buildingName, buildingAddress,
-      announcementTitle: title, announcementContent: content,
-      category, senderName,
-      unsubscribeUrl: 'PLACEHOLDER',
-      dashboardUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.panellako.hu',
-    })
-  );
-
-  const emails = emailable.flatMap((r: { email?: string }) => r.email ? [r.email] : []);
-  if (!emails.length) return;
-
-  await sendBulkEmail({
-    recipients: emails,
-    subject: `[${buildingName}] ${title}`,
-    html,
-    tags: [{ name: 'type', value: 'announcement' }],
-  });
-}
-
 // ─── createAnnouncement ───────────────────────────────────────────────────────
 
 export async function createAnnouncement(input: CreateAnnouncementInput) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Nem vagy bejelentkezve' };
+  if (!input.building_id) return { success: false, error: 'Lakóközösség megadása kötelező.' };
+  try {
+    const [{ supabase, user }, context] = await Promise.all([
+      requireAuthenticatedUser(),
+      requireWorkspaceCapability(input.building_id, 'announcement.publish'),
+    ]);
 
-  const scope: AnnouncementScope = input.scope ?? 'all';
-  const priority: AnnouncementPriority = input.priority ?? 'normal';
+    const scope: AnnouncementScope = input.scope ?? 'all';
+    const priority: AnnouncementPriority = input.priority ?? 'normal';
 
-  // Derive readable target_group label for display
-  let unitLabels: string | undefined;
-  if (scope === 'specific_units' && input.unit_ids?.length && input.building_id) {
-    const { data: units } = await supabase
-      .from('units').select('unit_label').in('id', input.unit_ids);
-    unitLabels = (units ?? []).map((u: { unit_label: string }) => u.unit_label).join(', ');
+    // Derive readable target_group label for display
+    let unitLabels: string | undefined;
+    if (scope === 'specific_units' && input.unit_ids?.length) {
+      const { data: units } = await supabase
+        .from('units')
+        .select('id, unit_label')
+        .eq('building_id', context.primaryBuildingId)
+        .in('id', input.unit_ids);
+      if ((units ?? []).length !== input.unit_ids.length) {
+        return { success: false, error: 'A művelet nem engedélyezett.' };
+      }
+      unitLabels = (units ?? []).map((u: { unit_label: string }) => u.unit_label).join(', ');
+    }
+    const targetGroup = input.target_group ?? scopeToTargetGroup(scope, unitLabels);
+
+    // Insert announcement
+    const { data: ann, error } = await supabase
+      .from('announcements')
+      .insert({
+        workspace_id: context.workspaceId,
+        title: input.title,
+        content: input.content,
+        target_group: targetGroup,
+        category: input.category ?? 'egyeb',
+        building_id: context.primaryBuildingId,
+        created_by: user.id,
+        scope,
+        priority,
+        deadline: input.deadline ?? null,
+        requires_acknowledgement: input.requires_acknowledgement ?? false,
+      })
+      .select()
+      .single();
+
+    if (error || !ann) return { success: false, error: 'A közleményt most nem sikerült létrehozni.' };
+
+    const rollbackAnnouncement = async () => {
+      await supabase
+        .from('reminder_rules')
+        .delete()
+        .eq('building_id', context.primaryBuildingId)
+        .eq('activity_type', 'announcement_ack')
+        .eq('activity_id', ann.id);
+      await supabase
+        .from('announcements')
+        .delete()
+        .eq('id', ann.id)
+        .eq('workspace_id', context.workspaceId);
+    };
+
+    // Insert per-unit targeting rows
+    if (scope === 'specific_units' && input.unit_ids?.length) {
+      const { error: unitTargetError } = await supabase.from('announcement_units').insert(
+        input.unit_ids.map((uid) => ({ announcement_id: ann.id, unit_id: uid })),
+      );
+      if (unitTargetError) {
+        await rollbackAnnouncement();
+        return { success: false, error: 'A célzott albetétek rögzítése nem sikerült.' };
+      }
+    }
+
+    // Create reminder rule if deadline + reminder_days provided
+    if (input.deadline && input.reminder_days?.length) {
+      const { error: reminderError } = await supabase.from('reminder_rules').insert({
+        workspace_id: context.workspaceId,
+        building_id: context.primaryBuildingId,
+        activity_type: 'announcement_ack',
+        activity_id: ann.id,
+        deadline: input.deadline,
+        reminder_days: input.reminder_days,
+        channels: ['app'],
+        created_by: user.id,
+      });
+      if (reminderError) {
+        await rollbackAnnouncement();
+        return { success: false, error: 'A közlemény emlékeztetőjét nem sikerült biztonságosan rögzíteni.' };
+      }
+    }
+
+    let emailDelivery: 'DISABLED' | 'QUEUED' | 'EXISTING' = 'DISABLED';
+    if (input.send_email !== false) {
+      const { data: queueResult, error: queueError } = await supabase.rpc('enqueue_announcement_delivery', {
+        p_workspace_id: context.workspaceId,
+        p_announcement_id: ann.id,
+        p_idempotency_key: ann.id,
+      });
+      if (queueError) {
+        await rollbackAnnouncement();
+        return { success: false, error: 'A közlemény címzettlistáját nem sikerült biztonságosan rögzíteni.' };
+      }
+      const queueRow = Array.isArray(queueResult) ? queueResult[0] : queueResult;
+      emailDelivery = queueRow?.queue_status === 'EXISTING' ? 'EXISTING' : 'QUEUED';
+    }
+
+    revalidatePath(`/w/${input.building_id}`);
+    return { success: true, data: ann, emailDelivery };
+  } catch (error) {
+    return { success: false, error: authorizationMessage(error) };
   }
-  const targetGroup = input.target_group ?? scopeToTargetGroup(scope, unitLabels);
-
-  // Insert announcement
-  const { data: ann, error } = await supabase
-    .from('announcements')
-    .insert({
-      title:                    input.title,
-      content:                  input.content,
-      target_group:             targetGroup,
-      category:                 input.category ?? 'egyeb',
-      building_id:              input.building_id ?? null,
-      created_by:               user.id,
-      scope,
-      priority,
-      deadline:                 input.deadline ?? null,
-      requires_acknowledgement: input.requires_acknowledgement ?? false,
-    })
-    .select()
-    .single();
-
-  if (error) return { success: false, error: error.message };
-
-  // Insert per-unit targeting rows
-  if (scope === 'specific_units' && input.unit_ids?.length) {
-    await supabase.from('announcement_units').insert(
-      input.unit_ids.map((uid) => ({ announcement_id: ann.id, unit_id: uid }))
-    );
-  }
-
-  // Create reminder rule if deadline + reminder_days provided
-  if (input.deadline && input.reminder_days?.length && input.building_id) {
-    await supabase.from('reminder_rules').insert({
-      building_id:   input.building_id,
-      activity_type: 'announcement_ack',
-      activity_id:   ann.id,
-      deadline:      input.deadline,
-      reminder_days: input.reminder_days,
-      channels:      ['app'],
-      created_by:    user.id,
-    });
-  }
-
-  // Fire-and-forget email
-  if (input.send_email !== false && input.building_id) {
-    const { data: profile } = await supabase
-      .from('profiles').select('full_name').eq('id', user.id).single();
-    const senderName = profile?.full_name ?? user.email ?? 'Kezelő';
-
-    sendAnnouncementEmails(
-      supabase, input.building_id, input.title, input.content,
-      input.category ?? 'egyeb', senderName, scope, input.unit_ids
-    ).catch((err) => console.error('[createAnnouncement] Email failed:', err));
-  }
-
-  revalidatePath(input.building_id ? `/w/${input.building_id}` : '/');
-  return { success: true, data: ann };
 }
 
 // ─── acknowledgeAnnouncement ──────────────────────────────────────────────────
 
 export async function acknowledgeAnnouncement(announcementId: string, buildingId?: string) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Nem vagy bejelentkezve' };
+  if (!buildingId) return { success: false, error: 'Lakóközösség megadása kötelező.' };
+  try {
+    const [{ supabase, user }, context] = await Promise.all([
+      requireAuthenticatedUser(),
+      requireWorkspaceAccess(buildingId),
+    ]);
+    const { data: announcement } = await supabase
+      .from('announcements')
+      .select('id')
+      .eq('id', announcementId)
+      .eq('building_id', context.primaryBuildingId)
+      .maybeSingle();
+    if (!announcement) return { success: false, error: 'A művelet nem engedélyezett.' };
 
-  const { error } = await supabase
-    .from('announcement_reads')
-    .upsert(
-      { announcement_id: announcementId, profile_id: user.id, read_at: new Date().toISOString() },
-      { onConflict: 'announcement_id,profile_id' }
-    );
+    const { error } = await supabase
+      .from('announcement_reads')
+      .upsert(
+        { announcement_id: announcementId, profile_id: user.id, read_at: new Date().toISOString() },
+        { onConflict: 'announcement_id,profile_id' },
+      );
 
-  if (error) return { success: false, error: error.message };
+    if (error) return { success: false, error: error.message };
 
-  revalidatePath(buildingId ? `/w/${buildingId}` : '/');
-  return { success: true };
+    revalidatePath(`/w/${buildingId}`);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: authorizationMessage(error) };
+  }
 }
 
 // ─── getAnnouncementReads (manager view) ──────────────────────────────────────
 
-export async function getAnnouncementReads(announcementId: string) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Nem vagy bejelentkezve', data: null };
+export async function getAnnouncementReads(announcementId: string, buildingId?: string) {
+  if (!buildingId) return { success: false, error: 'Lakóközösség megadása kötelező.', data: null };
+  try {
+    const [{ supabase }, context] = await Promise.all([
+      requireAuthenticatedUser(),
+      requireWorkspaceCapability(buildingId, 'member.directory.read_minimal'),
+    ]);
+    const { data: announcement } = await supabase
+      .from('announcements')
+      .select('id')
+      .eq('id', announcementId)
+      .eq('building_id', context.primaryBuildingId)
+      .maybeSingle();
+    if (!announcement) return { success: false, error: 'A művelet nem engedélyezett.', data: null };
 
-  const { data, error } = await supabase
-    .from('announcement_reads')
-    .select('profile_id, read_at, profiles(full_name)')
-    .eq('announcement_id', announcementId)
-    .order('read_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('announcement_reads')
+      .select('profile_id, read_at, profiles(full_name)')
+      .eq('announcement_id', announcementId)
+      .order('read_at', { ascending: false });
 
-  if (error) return { success: false, error: error.message, data: null };
-  return { success: true, data };
+    if (error) return { success: false, error: error.message, data: null };
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: authorizationMessage(error), data: null };
+  }
 }
 
 // ─── assertManagerRole (shared helper) ───────────────────────────────────────
 
 export async function checkManagerRole(buildingId: string): Promise<boolean> {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return false;
-
-  const { data: mem } = await supabase
-    .from('memberships')
-    .select('role')
-    .eq('profile_id', user.id)
-    .eq('building_id', buildingId)
-    .maybeSingle();
-
-  return mem ? MANAGER_ROLES.includes((mem as { role: string }).role) : false;
+  try {
+    await requireWorkspaceCapability(buildingId, 'announcement.publish');
+    return true;
+  } catch {
+    return false;
+  }
 }

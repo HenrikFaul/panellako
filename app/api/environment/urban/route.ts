@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import {
+  environmentScopeErrorResponse,
+  resolveEnvironmentBuildingScope,
+} from '@/lib/authorization/environment-scope';
 
 export const dynamic = 'force-dynamic';
 // Match Vercel Pro maxDuration to give Overpass enough time without
@@ -392,7 +396,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const lat        = parseFloat(searchParams.get('lat') ?? '47.5278845');
   const lon        = parseFloat(searchParams.get('lon') ?? '19.0705657');
-  const buildingId = searchParams.get('buildingId') ?? null;
+  const workspaceId = searchParams.get('buildingId');
   // ?withPois=1 forces a live Overpass query (cache bypass) so the response
   // includes the `pois` array required by the map view.
   const withPois   = searchParams.get('withPois') === '1';
@@ -401,21 +405,28 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid coords' }, { status: 400 });
   }
 
-  const supabase = buildingId ? supabaseClient() : null;
+  let physicalBuildingId: string | null;
+  try {
+    ({ physicalBuildingId } = await resolveEnvironmentBuildingScope(request, workspaceId));
+  } catch (error) {
+    return environmentScopeErrorResponse(error);
+  }
+
+  const supabase = physicalBuildingId ? supabaseClient() : null;
 
   // ── 1. Check DB cache (30-day TTL) — skipped when withPois=1 ──────────────
-  if (!withPois && supabase && buildingId) {
+  if (!withPois && supabase && physicalBuildingId) {
     const [{ data: cc }, { data: lc }] = await Promise.all([
       supabase
         .from('building_compact_city_cache')
         .select('*')
-        .eq('building_id', buildingId)
+        .eq('building_id', physicalBuildingId)
         .gt('computed_at', new Date(Date.now() - 30 * 24 * 3600_000).toISOString())
         .maybeSingle(),
       supabase
         .from('building_liveability_cache')
         .select('*')
-        .eq('building_id', buildingId)
+        .eq('building_id', physicalBuildingId)
         .gt('computed_at', new Date(Date.now() - 30 * 24 * 3600_000).toISOString())
         .maybeSingle(),
     ]);
@@ -469,10 +480,10 @@ export async function GET(request: NextRequest) {
     console.warn('[environment/urban] all Overpass mirrors failed:', err);
 
     // Try stale cache (any age) before giving up
-    if (supabase && buildingId) {
+    if (supabase && physicalBuildingId) {
       const [{ data: cc }, { data: lc }] = await Promise.all([
-        supabase.from('building_compact_city_cache').select('*').eq('building_id', buildingId).maybeSingle(),
-        supabase.from('building_liveability_cache') .select('*').eq('building_id', buildingId).maybeSingle(),
+        supabase.from('building_compact_city_cache').select('*').eq('building_id', physicalBuildingId).maybeSingle(),
+        supabase.from('building_liveability_cache') .select('*').eq('building_id', physicalBuildingId).maybeSingle(),
       ]);
       if (cc && lc) {
         const lvLabel = liveabilityLabel(lc.total_score as number);
@@ -534,10 +545,10 @@ export async function GET(request: NextRequest) {
 
   // ── 4. Get green/AQ scores from existing caches (best-effort) ─────────────
   let greenAirScore = 50;
-  if (supabase && buildingId) {
+  if (supabase && physicalBuildingId) {
     const [{ data: gc }, { data: sc }] = await Promise.all([
-      supabase.from('building_green_cache').select('green_score').eq('building_id', buildingId).maybeSingle(),
-      supabase.from('building_env_score').select('air_score').eq('building_id', buildingId).maybeSingle(),
+      supabase.from('building_green_cache').select('green_score').eq('building_id', physicalBuildingId).maybeSingle(),
+      supabase.from('building_env_score').select('air_score').eq('building_id', physicalBuildingId).maybeSingle(),
     ]);
     const greenS = (gc?.green_score as number | null) ?? 50;
     const airS   = (sc?.air_score   as number | null) ?? 50;
@@ -558,10 +569,10 @@ export async function GET(request: NextRequest) {
   const lvLabel = liveabilityLabel(lvTotal);
 
   // ── 6. Upsert both caches ─────────────────────────────────────────────────
-  if (supabase && buildingId) {
+  if (supabase && physicalBuildingId) {
     await Promise.all([
       supabase.from('building_compact_city_cache').upsert({
-        building_id:           buildingId,
+        building_id:           physicalBuildingId,
         walkability_score:     s.walkabilityScore,
         transit_score:         s.transitScore,
         mixed_use_score:       s.mixedUseScore,
@@ -578,7 +589,7 @@ export async function GET(request: NextRequest) {
         computed_at:           new Date().toISOString(),
       }, { onConflict: 'building_id' }),
       supabase.from('building_liveability_cache').upsert({
-        building_id:      buildingId,
+        building_id:      physicalBuildingId,
         total_score:      lvTotal,
         green_air_score:  greenAirScore,
         healthcare_score: s.healthScore,

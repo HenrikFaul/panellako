@@ -4,12 +4,11 @@
 import { redirect, notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import EnvironmentPageClient from '@/components/environment-page-client';
+import { isWorkspaceId, resolveWorkspaceContext } from '@/lib/authorization/workspace-context';
 
 interface PageProps {
   params: { buildingId: string };
 }
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Server-side geocoding — same helper as the main dashboard page
 async function geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
@@ -32,31 +31,23 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lon: numb
 }
 
 export default async function KornyezetPage({ params }: PageProps) {
-  const { buildingId } = params;
+  const { buildingId: workspaceId } = params;
 
-  if (!UUID_REGEX.test(buildingId)) notFound();
+  if (!isWorkspaceId(workspaceId)) notFound();
 
   const supabase = createClient();
 
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) redirect(`/login?next=/w/${buildingId}/kornyezet`);
+  if (authError || !user) redirect(`/login?next=/w/${workspaceId}/kornyezet`);
 
-  // Verify membership
-  const { data: memberships } = await supabase
-    .from('memberships')
-    .select('id')
-    .eq('profile_id', user.id)
-    .eq('building_id', buildingId)
-    .eq('active', true)
-    .limit(1);
-
-  if (!memberships || memberships.length === 0) redirect('/app');
+  const context = await resolveWorkspaceContext(workspaceId);
+  if (!context) redirect('/app');
 
   // Fetch building info
   const { data: building } = await supabase
     .from('buildings')
     .select('id, name, address, lat, lon')
-    .eq('id', buildingId)
+    .eq('id', context.primaryBuildingId)
     .single();
 
   if (!building) redirect('/app');
@@ -93,7 +84,7 @@ export default async function KornyezetPage({ params }: PageProps) {
 
   return (
     <EnvironmentPageClient
-      buildingId={buildingId}
+      buildingId={workspaceId}
       buildingName={(building as { name?: string | null }).name ?? building.address}
       buildingAddress={displayAddress}
       buildingLat={lat}
@@ -104,15 +95,10 @@ export default async function KornyezetPage({ params }: PageProps) {
 }
 
 export async function generateMetadata({ params }: PageProps) {
-  const supabase = createClient();
-  const { data: building } = await supabase
-    .from('buildings')
-    .select('name, address')
-    .eq('id', params.buildingId)
-    .maybeSingle();
+  const context = await resolveWorkspaceContext(params.buildingId);
 
   return {
-    title: building ? `Környezet · ${(building as { name?: string | null }).name ?? ''} — PanelLakó` : 'Környezet — PanelLakó',
+    title: context ? `Környezet · ${context.workspaceName} — PanelLakó` : 'Környezet — PanelLakó',
     description: 'Levegőminőség, kerékpáros infrastruktúra és lokális környezeti adatok',
   };
 }

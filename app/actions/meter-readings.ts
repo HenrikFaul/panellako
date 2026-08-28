@@ -1,7 +1,11 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import {
+  authorizationMessage,
+  requireAuthenticatedUser,
+  requireUnitAccess,
+} from '@/lib/authorization/guards';
 
 export type MeterType = 'viz' | 'gaz' | 'villany';
 
@@ -15,27 +19,35 @@ export interface SubmitMeterReadingInput {
 }
 
 export async function submitMeterReading(input: SubmitMeterReadingInput) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const { data, error } = await supabase
-    .from('meter_readings')
-    .insert({
-      meter_type: input.meter_type,
-      value: input.value,
-      reading_date: input.reading_date,
-      unit_id: input.unit_id ?? null,
-      unit_label: input.unit_label ?? null,
-      building_id: input.building_id ?? null,
-      reported_by: user?.id ?? null
-    })
-    .select()
-    .single();
-
-  if (error) {
-    return { success: false, error: error.message };
+  if (!input.building_id || !input.unit_id || !input.unit_label) {
+    return { success: false, error: 'Lakóközösség és albetét megadása kötelező.' };
   }
 
-  revalidatePath(input.building_id ? `/w/${input.building_id}` : '/');
-  return { success: true, data };
+  try {
+    const [{ supabase, user }, context] = await Promise.all([
+      requireAuthenticatedUser(),
+      requireUnitAccess(input.building_id, input.unit_id, 'meter.manage_all'),
+    ]);
+
+    const { data, error } = await supabase
+      .from('meter_readings')
+      .insert({
+        meter_type: input.meter_type,
+        value: input.value,
+        reading_date: input.reading_date,
+        unit_id: input.unit_id,
+        unit_label: input.unit_label,
+        building_id: context.primaryBuildingId,
+        reported_by: user.id,
+      })
+      .select()
+      .single();
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath(`/w/${input.building_id}`);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: authorizationMessage(error) };
+  }
 }

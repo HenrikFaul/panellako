@@ -7,6 +7,7 @@
     { "path": "/api/transit/sync?action=stops-routes&cell=4", "schedule": "4 3 * * *" },
     { "path": "/api/transit/sync?action=stops-routes&cell=5", "schedule": "5 3 * * *" },
     { "path": "/api/transit/sync?action=building-stops",      "schedule": "0 4 * * *" },
-    { "path": "/api/transit/sync?action=alerts",              "schedule": "0 6 * * *" }
+    { "path": "/api/transit/sync?action=alerts",              "schedule": "0 6 * * *" },
+    { "path": "/api/cron/announcement-delivery",              "schedule": "*/2 * * * *" }
   ]
 }

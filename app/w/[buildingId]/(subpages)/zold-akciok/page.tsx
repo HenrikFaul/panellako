@@ -4,59 +4,46 @@
 import { redirect, notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import GreenActionsClient from '@/components/green-actions-client';
+import { isWorkspaceId, resolveWorkspaceContext } from '@/lib/authorization/workspace-context';
 
 interface PageProps {
   params: { buildingId: string };
 }
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 export default async function ZoldAkciokPage({ params }: PageProps) {
-  const { buildingId } = params;
+  const { buildingId: workspaceId } = params;
 
-  if (!UUID_REGEX.test(buildingId)) notFound();
+  if (!isWorkspaceId(workspaceId)) notFound();
 
   const supabase = createClient();
 
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) redirect(`/login?next=/w/${buildingId}/zold-akciok`);
+  if (authError || !user) redirect(`/login?next=/w/${workspaceId}/zold-akciok`);
 
-  const { data: memberships } = await supabase
-    .from('memberships')
-    .select('id')
-    .eq('profile_id', user.id)
-    .eq('building_id', buildingId)
-    .eq('active', true)
-    .limit(1);
-
-  if (!memberships || memberships.length === 0) redirect('/app');
+  const context = await resolveWorkspaceContext(workspaceId);
+  if (!context) redirect('/app');
 
   const { data: building } = await supabase
     .from('buildings')
     .select('id, name, address')
-    .eq('id', buildingId)
+    .eq('id', context.primaryBuildingId)
     .single();
 
   if (!building) redirect('/app');
 
   return (
     <GreenActionsClient
-      buildingId={buildingId}
+      buildingId={workspaceId}
       buildingName={(building as { name?: string | null }).name ?? building.address}
     />
   );
 }
 
 export async function generateMetadata({ params }: PageProps) {
-  const supabase = createClient();
-  const { data: building } = await supabase
-    .from('buildings')
-    .select('name')
-    .eq('id', params.buildingId)
-    .maybeSingle();
+  const context = await resolveWorkspaceContext(params.buildingId);
 
   return {
-    title: building ? `Zöld Akciók · ${(building as { name?: string | null }).name ?? ''} — PanelLakó` : 'Zöld Akciók — PanelLakó',
+    title: context ? `Zöld Akciók · ${context.workspaceName} — PanelLakó` : 'Zöld Akciók — PanelLakó',
     description: 'Közösségi zöld akciók, CO₂ megtakarítás kalkulátor és épületi környezeti kezdeményezések',
   };
 }

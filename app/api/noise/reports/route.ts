@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import {
+  authorizationMessage,
+  requireAuthenticatedUser,
+  requireWorkspaceAccess,
+  requireWorkspaceCapability,
+} from '@/lib/authorization/guards';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  const supabase = createClient();
   let body: Record<string, unknown>;
   try {
     body = await request.json();
@@ -33,11 +37,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'A súlyosság 1 és 5 között kell legyen' }, { status: 400 });
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  let auth: Awaited<ReturnType<typeof requireAuthenticatedUser>>;
+  let context: Awaited<ReturnType<typeof requireWorkspaceAccess>>;
+  try {
+    [auth, context] = await Promise.all([
+      requireAuthenticatedUser(),
+      requireWorkspaceAccess(workspace_id),
+    ]);
+  } catch (error) {
+    return NextResponse.json({ error: authorizationMessage(error) }, { status: 403 });
+  }
+  const { supabase, user } = auth;
 
   const payload = {
-    workspace_id,
-    reporter_id: user?.id ?? null,
+    workspace_id: context.workspaceId,
+    reporter_id: user.id,
     category,
     severity,
     period,
@@ -60,7 +74,6 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const supabase = createClient();
   const { searchParams } = new URL(request.url);
   const workspaceId = searchParams.get('workspace_id');
 
@@ -68,13 +81,25 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'workspace_id kötelező' }, { status: 400 });
   }
 
+  let auth: Awaited<ReturnType<typeof requireAuthenticatedUser>>;
+  let context: Awaited<ReturnType<typeof requireWorkspaceCapability>>;
+  try {
+    [auth, context] = await Promise.all([
+      requireAuthenticatedUser(),
+      requireWorkspaceCapability(workspaceId, 'environment.read'),
+    ]);
+  } catch (error) {
+    return NextResponse.json({ error: authorizationMessage(error) }, { status: 403 });
+  }
+  const { supabase } = auth;
+
   const since = new Date();
   since.setDate(since.getDate() - 90);
 
   const { data, error } = await supabase
     .from('noise_reports')
     .select('*')
-    .eq('workspace_id', workspaceId)
+    .eq('workspace_id', context.workspaceId)
     .gte('occurred_at', since.toISOString())
     .order('occurred_at', { ascending: false });
 

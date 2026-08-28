@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { requireWorkspaceCapability, WorkspaceAuthorizationError } from '@/lib/authorization/guards';
 
 export const dynamic = 'force-dynamic';
 
@@ -314,36 +315,27 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: { buildingId: string } }
 ): Promise<NextResponse> {
-  const { buildingId } = params;
+  const { buildingId: workspaceId } = params;
 
-  if (!UUID_REGEX.test(buildingId)) {
-    return NextResponse.json({ error: 'Invalid buildingId' }, { status: 400 });
+  if (!UUID_REGEX.test(workspaceId)) {
+    return NextResponse.json({ error: 'Invalid workspaceId' }, { status: 400 });
   }
 
-  // Auth + membership check
+  let physicalBuildingId: string;
+  try {
+    const context = await requireWorkspaceCapability(workspaceId, 'environment.read');
+    physicalBuildingId = context.primaryBuildingId;
+  } catch (error) {
+    const status = error instanceof WorkspaceAuthorizationError && error.code === 'AUTH_REQUIRED' ? 401 : 403;
+    return NextResponse.json({ error: status === 401 ? 'Unauthorized' : 'Forbidden' }, { status });
+  }
+
   const supabase = createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const { data: memberships } = await supabase
-    .from('memberships')
-    .select('id')
-    .eq('profile_id', user.id)
-    .eq('building_id', buildingId)
-    .eq('active', true)
-    .limit(1);
-
-  if (!memberships || memberships.length === 0) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
   // Fetch building coordinates
   const { data: building } = await supabase
     .from('buildings')
     .select('id, address, lat, lon')
-    .eq('id', buildingId)
+    .eq('id', physicalBuildingId)
     .single();
 
   if (!building) {

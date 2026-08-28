@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
 import { createClient } from '@supabase/supabase-js';
+import { ENVIRONMENT_JOB_SECRET_HEADER } from '@/lib/authorization/environment-scope';
 import {
   HU_BBOX,
   renderHungaryNdviTiled,
@@ -84,6 +85,15 @@ function createServiceClient() {
   const key = serviceKey.startsWith('eyJ') ? serviceKey : (anonKey || serviceKey);
   if (!url || !key) return null;
   return createClient(url, key, { auth: { persistSession: false } });
+}
+
+function environmentRefreshHeaders(): HeadersInit {
+  const secret = (
+    process.env.ENVIRONMENT_REFRESH_SECRET
+    ?? process.env.CRON_SECRET
+    ?? ''
+  ).trim();
+  return secret ? { [ENVIRONMENT_JOB_SECRET_HEADER]: secret } : {};
 }
 
 async function logStart(jobId: string): Promise<string | null> {
@@ -516,7 +526,7 @@ export async function POST(request: NextRequest) {
         }
         try {
           const url = `${appBase}/api/environment/satellite?lat=${coords.lat}&lon=${coords.lon}&buildingId=${building.id}`;
-          const res = await fetch(url, { cache: 'no-store' });
+          const res = await fetch(url, { cache: 'no-store', headers: environmentRefreshHeaders() });
           if (res.ok) refreshed++; else errors++;
         } catch { errors++; }
         await new Promise(r => setTimeout(r, 3000));
@@ -562,7 +572,7 @@ export async function POST(request: NextRequest) {
         }
         try {
           const url = `${appBase}/api/environment/urban?lat=${coords.lat}&lon=${coords.lon}&buildingId=${building.id}`;
-          const res = await fetch(url, { cache: 'no-store' });
+          const res = await fetch(url, { cache: 'no-store', headers: environmentRefreshHeaders() });
           if (res.ok) refreshed++; else errors++;
         } catch { errors++; }
         await new Promise(r => setTimeout(r, 2000));
@@ -610,7 +620,7 @@ export async function POST(request: NextRequest) {
         }
         try {
           const url = `${appBase}/api/environment/green?lat=${coords.lat}&lon=${coords.lon}&buildingId=${building.id}`;
-          const res = await fetch(url, { cache: 'no-store' });
+          const res = await fetch(url, { cache: 'no-store', headers: environmentRefreshHeaders() });
           if (res.ok) refreshed++; else errors++;
         } catch { errors++; }
         await new Promise(r => setTimeout(r, 2000));
@@ -657,7 +667,7 @@ export async function POST(request: NextRequest) {
         }
         try {
           const url = `${appBase}/api/environment/urban-atlas?lat=${coords.lat}&lon=${coords.lon}&buildingId=${building.id}`;
-          const res = await fetch(url, { cache: 'no-store' });
+          const res = await fetch(url, { cache: 'no-store', headers: environmentRefreshHeaders() });
           if (res.ok) refreshed++; else errors++;
         } catch { errors++; }
         await new Promise(r => setTimeout(r, 2000));

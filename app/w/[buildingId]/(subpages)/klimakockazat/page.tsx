@@ -5,12 +5,11 @@
 import { redirect, notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import HeatIslandDashboardClient from '@/components/heat-island-dashboard-client';
+import { isWorkspaceId, resolveWorkspaceContext } from '@/lib/authorization/workspace-context';
 
 interface PageProps {
   params: { buildingId: string };
 }
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
   try {
@@ -39,31 +38,23 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lon: numb
 }
 
 export default async function KlimakockazatPage({ params }: PageProps) {
-  const { buildingId } = params;
+  const { buildingId: workspaceId } = params;
 
-  if (!UUID_REGEX.test(buildingId)) notFound();
+  if (!isWorkspaceId(workspaceId)) notFound();
 
   const supabase = createClient();
 
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) redirect(`/login?next=/w/${buildingId}/klimakockazat`);
+  if (authError || !user) redirect(`/login?next=/w/${workspaceId}/klimakockazat`);
 
-  // Verify membership
-  const { data: memberships } = await supabase
-    .from('memberships')
-    .select('id')
-    .eq('profile_id', user.id)
-    .eq('building_id', buildingId)
-    .eq('active', true)
-    .limit(1);
-
-  if (!memberships || memberships.length === 0) redirect('/app');
+  const context = await resolveWorkspaceContext(workspaceId);
+  if (!context) redirect('/app');
 
   // Fetch building lat/lon
   const { data: building } = await supabase
     .from('buildings')
     .select('id, name, address, lat, lon')
-    .eq('id', buildingId)
+    .eq('id', context.primaryBuildingId)
     .single();
 
   if (!building) redirect('/app');
@@ -106,7 +97,7 @@ export default async function KlimakockazatPage({ params }: PageProps) {
         <HeatIslandDashboardClient
           lat={lat}
           lon={lon}
-          buildingId={buildingId}
+          buildingId={workspaceId}
         />
       </div>
     </div>
@@ -114,16 +105,11 @@ export default async function KlimakockazatPage({ params }: PageProps) {
 }
 
 export async function generateMetadata({ params }: PageProps) {
-  const supabase = createClient();
-  const { data: building } = await supabase
-    .from('buildings')
-    .select('name, address')
-    .eq('id', params.buildingId)
-    .maybeSingle();
+  const context = await resolveWorkspaceContext(params.buildingId);
 
   return {
-    title: building
-      ? `Klímakockázat · ${building.name} — PanelLakó`
+    title: context
+      ? `Klímakockázat · ${context.workspaceName} — PanelLakó`
       : 'Klímakockázat — PanelLakó',
     description:
       'Hőszigat hatás becslése, KlímaScore és klímaadaptációs cselekvési terv a lakóépületre.',

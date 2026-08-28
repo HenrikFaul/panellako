@@ -4,9 +4,7 @@
 import type { ReactElement } from 'react';
 
 const BREVO_BASE = 'https://api.brevo.com/v3/smtp/email';
-
-const brevoApiKey = process.env.BREVO_API_KEY;
-const isEmailEnabled = Boolean(brevoApiKey);
+const EMAIL_REQUEST_TIMEOUT_MS = 15_000;
 
 export const EMAIL_FROM_DISPLAY = 'PanelLakó <no-reply@panellako.hu>';
 export const EMAIL_REPLY_TO = 'support@panellako.hu';
@@ -27,6 +25,9 @@ export interface SendEmailResult {
   success: boolean;
   id?: string;
   error?: string;
+  errorCode?: string;
+  retryable?: boolean;
+  providerStatus?: number;
 }
 
 export interface BulkSendResult {
@@ -44,15 +45,23 @@ function parseFrom(from: string): { name: string; email: string } {
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
-  if (!isEmailEnabled) {
-    const toMasked = Array.isArray(options.to)
-      ? options.to.map(e => `***@${e.split('@')[1] ?? '?'}`)
-      : `***@${String(options.to).split('@')[1] ?? '?'}`;
-    console.log('[EMAIL STUB — no BREVO_API_KEY]', {
-      to: toMasked,
-      subject: options.subject,
+  const brevoApiKey = process.env.BREVO_API_KEY?.trim();
+  if (!brevoApiKey) {
+    // Keep local template previews useful without logging recipient or subject
+    // PII. Production callers receive a hard failure, never a fake delivery.
+    console.warn('[sendEmail] transport is not configured', {
+      recipientCount: Array.isArray(options.to) ? options.to.length : 1,
       htmlLength: options.html.length,
+      production: process.env.NODE_ENV === 'production',
     });
+    if (process.env.NODE_ENV === 'production') {
+      return {
+        success: false,
+        error: 'Email transport is not configured',
+        errorCode: 'EMAIL_TRANSPORT_UNCONFIGURED',
+        retryable: true,
+      };
+    }
     return { success: true, id: 'stub_' + Math.random().toString(36).slice(2) };
   }
 
@@ -77,32 +86,70 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     const res = await fetch(BREVO_BASE, {
       method: 'POST',
       headers: {
-        'api-key': brevoApiKey!,
+        'api-key': brevoApiKey,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(EMAIL_REQUEST_TIMEOUT_MS),
     });
 
     if (!res.ok) {
       const text = await res.text().catch(() => res.statusText);
-      console.error('[sendEmail] Brevo API error:', res.status, text);
-      // Surface a human-readable hint for the most common failure modes
+      const retryable = res.status === 408 || res.status === 425 || res.status === 429 || res.status >= 500;
+      let errorCode = 'BREVO_REJECTED';
       let hint = `Brevo ${res.status}`;
-      if (res.status === 401) hint = 'Brevo 401: invalid or missing BREVO_API_KEY';
-      if (res.status === 400 && text.includes('sender')) hint = 'Brevo 400: sender address not verified — verify no-reply@panellako.hu in Brevo dashboard → Senders & IP';
-      if (res.status === 403) hint = 'Brevo 403: account blocked or plan limit reached';
-      console.error('[sendEmail] hint:', hint, '| body:', text);
-      return { success: false, error: hint };
+      if (res.status === 400) {
+        errorCode = 'BREVO_BAD_REQUEST';
+        hint = text.toLowerCase().includes('sender')
+          ? 'Brevo rejected the configured sender'
+          : 'Brevo rejected the email request';
+      } else if (res.status === 401) {
+        errorCode = 'BREVO_AUTH_INVALID';
+        hint = 'Brevo authentication failed';
+      } else if (res.status === 403) {
+        errorCode = 'BREVO_ACCOUNT_BLOCKED';
+        hint = 'Brevo account or plan rejected the request';
+      } else if (res.status === 429) {
+        errorCode = 'BREVO_RATE_LIMITED';
+        hint = 'Brevo rate limit reached';
+      } else if (res.status >= 500) {
+        errorCode = 'BREVO_UNAVAILABLE';
+        hint = 'Brevo is temporarily unavailable';
+      }
+      // Provider bodies can echo message content or recipient data. Log only
+      // the stable classification and numeric status.
+      console.error('[sendEmail] provider request failed', { status: res.status, errorCode, retryable });
+      return { success: false, error: hint, errorCode, retryable, providerStatus: res.status };
     }
 
-    const data = await res.json();
+    const data = await res.json() as { messageId?: unknown };
+    if (typeof data.messageId !== 'string' || data.messageId.trim() === '') {
+      console.error('[sendEmail] provider response did not contain a message id');
+      return {
+        success: false,
+        error: 'Brevo returned an invalid response',
+        errorCode: 'BREVO_RESPONSE_INVALID',
+        retryable: true,
+        providerStatus: res.status,
+      };
+    }
     return { success: true, id: data.messageId };
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    console.error('[sendEmail] Unexpected error:', message);
-    return { success: false, error: message };
+  } catch {
+    // Do not log exception strings: fetch/runtime errors can include request
+    // details. The worker needs only a stable retry classification.
+    console.error('[sendEmail] provider request failed', { errorCode: 'EMAIL_NETWORK_ERROR', retryable: true });
+    return {
+      success: false,
+      error: 'Email provider request failed',
+      errorCode: 'EMAIL_NETWORK_ERROR',
+      retryable: true,
+    };
   }
+}
+
+export function isEmailTransportConfigured(): boolean {
+  return Boolean(process.env.BREVO_API_KEY?.trim());
 }
 
 export async function sendBulkEmail({

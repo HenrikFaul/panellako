@@ -51,6 +51,7 @@ import {
   VendorItem,
   WorkOrderItem
 } from '@/lib/types';
+import type { WorkspaceCapability } from '@/lib/authorization/capabilities';
 import { createClient, hasSupabaseConfig } from '@/lib/supabase/browser';
 import { createTicket as createTicketAction, updateTicketStatus as updateTicketStatusAction, updateTicketAiOverride as updateTicketAiOverrideAction } from '@/app/actions/tickets';
 import { submitMeterReading as submitMeterReadingAction } from '@/app/actions/meter-readings';
@@ -107,6 +108,8 @@ type DashboardData = {
   renderedAt: string;
   calendarDate: string;
   buildingId?: string;
+  physicalBuildingId?: string;
+  workspaceCapabilities?: WorkspaceCapability[];
   buildingName?: string;
   buildingAddress?: string;
   buildingLat?: number;
@@ -282,8 +285,18 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [overrideCategory, setOverrideCategory] = useState<string>('other');
   const [overrideSaving, setOverrideSaving] = useState(false);
 
-  const isManager = useMemo(() => ['kozos_kepviselo', 'megbizott'].includes(data.currentUser.role), [data.currentUser.role]);
-  const isAdminLike = useMemo(() => ['kozos_kepviselo', 'megbizott', 'bizottsag', 'konyvelo'].includes(data.currentUser.role), [data.currentUser.role]);
+  const isManager = useMemo(
+    () => data.workspaceCapabilities?.length
+      ? data.workspaceCapabilities.includes('ticket.manage_all') || data.workspaceCapabilities.includes('document.publish')
+      : ['kozos_kepviselo', 'megbizott'].includes(data.currentUser.role),
+    [data.currentUser.role, data.workspaceCapabilities],
+  );
+  const isAdminLike = useMemo(
+    () => data.workspaceCapabilities?.length
+      ? data.workspaceCapabilities.includes('finance.workspace.read') || data.workspaceCapabilities.includes('audit.read') || isManager
+      : ['kozos_kepviselo', 'megbizott', 'bizottsag', 'konyvelo'].includes(data.currentUser.role),
+    [data.currentUser.role, data.workspaceCapabilities, isManager],
+  );
   const isResident = useMemo(() => ['lako', 'tulajdonos'].includes(data.currentUser.role), [data.currentUser.role]);
 
   const totalDue = data.finances.reduce((acc, item) => acc + numberOrZero(item.expected_amount), 0);
@@ -308,16 +321,26 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const handleOpenMeeting = async (meeting: MeetingItem) => {
     setSelectedMeeting(meeting);
     setMeetingPanelLoading(true);
-    const details = await getMeetingWithDetails(meeting.id);
-    setMeetingPanelData(details);
+    const details = await getMeetingWithDetails(meeting.id, data.buildingId ?? '');
+    if (!details.success || !details.meeting) {
+      setMeetingError(details.error ?? 'A közgyűlés részletei nem tölthetők be.');
+      setSelectedMeeting(null);
+      setMeetingPanelData(null);
+    } else {
+      setMeetingPanelData(details);
+    }
     setMeetingPanelLoading(false);
   };
 
   const handleRefreshMeetingPanel = async () => {
     if (!selectedMeeting) return;
-    const details = await getMeetingWithDetails(selectedMeeting.id);
+    const details = await getMeetingWithDetails(selectedMeeting.id, data.buildingId ?? '');
+    if (!details.success || !details.meeting) {
+      setMeetingError(details.error ?? 'A közgyűlés részletei nem tölthetők be.');
+      return;
+    }
     setMeetingPanelData(details);
-    setMeetings((prev) => prev.map((m) => m.id === selectedMeeting.id && details.meeting ? { ...m, ...details.meeting } : m));
+    setMeetings((prev) => prev.map((m) => m.id === selectedMeeting.id ? { ...m, ...details.meeting } : m));
   };
 
   // === HEADER SEARCH items (expanded set) ===
@@ -559,7 +582,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       location: ticketLocation,
       priority: ticketPriority,
       submitted_by: name,
-      unit_label: myUnit?.unit_label || undefined
+      unit_label: myUnit?.unit_label || undefined,
+      unit_id: myUnit?.id,
+      buildingId: data.buildingId,
+      building_id: data.buildingId,
     });
 
     if (result.success) {
@@ -584,7 +610,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       )
     );
 
-    const result = await updateTicketStatusAction(ticketId, nextStatus);
+    const result = await updateTicketStatusAction(ticketId, nextStatus, data.buildingId);
     if (!result.success) {
       setTickets(previousTickets);
     }
@@ -605,7 +631,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       const result = await updateTicketAiOverrideAction(overrideTicketId, {
         ai_category: overrideCategory as AiCategory,
         ai_urgency: overrideUrgency,
-      });
+      }, data.buildingId);
       if (result.success) {
         setTickets((prev) =>
           prev.map((t) =>
@@ -644,7 +670,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             buildingId={data.buildingId ?? ''}
             subscriptionStatus={data.subscriptionStatus as SubscriptionStatus}
             trialEnd={data.trialEnd}
-            isManager={isManager}
+            isManager={data.workspaceCapabilities?.length
+              ? data.workspaceCapabilities.includes('meeting.manage')
+              : isManager}
             hasPermanentAccess={data.currentUser.free_trial_never_expires}
           />
 
@@ -1208,6 +1236,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     setUploadStatus('uploading');
                     setUploadError('');
                     const fd = new FormData(e.currentTarget);
+                    fd.set('workspace_id', data.buildingId ?? '');
                     const result = await uploadDocumentAction(fd);
                     if (result.success) {
                       setUploadStatus('done');
@@ -1361,7 +1390,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                             className="rounded-lg bg-white/[0.08] px-3 py-2 text-xs font-semibold text-slate-100 ring-1 ring-white/10 hover:bg-white/[0.14]"
                             type="button"
                             onClick={async () => {
-                              const result = await getDocumentSignedUrlAction(item.file_url);
+                              const result = await getDocumentSignedUrlAction(item.id, item.file_url, data.buildingId);
                               if (result.success && result.url) {
                                 window.open(result.url, '_blank', 'noopener,noreferrer');
                               } else {
@@ -1375,7 +1404,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                             <button
                               className="rounded-lg bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-300 ring-1 ring-emerald-500/30 hover:bg-emerald-500/25"
                               type="button"
-                              onClick={() => acknowledgeDocumentAction(item.id)}
+                              onClick={() => acknowledgeDocumentAction(item.id, data.buildingId)}
                             >
                               Elolvasva
                             </button>
@@ -1483,7 +1512,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     setChargeStatus('saving');
                     setChargeError('');
                     const result = await createChargeAction({
-                      buildingId: (fd.get('building_id') as string) || 'global',
+                      buildingId: (fd.get('building_id') as string) || data.buildingId || '',
                       period: fd.get('period') as string,
                       chargePerUnit: parseFloat(fd.get('charge_per_unit') as string),
                       dueDate: fd.get('due_date') as string,
@@ -1507,7 +1536,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     <input name="due_date" type="date" required className="input-base" />
                     <input name="description" className="input-base" placeholder="Leírás (opcionális)" />
                   </div>
-                  <input name="building_id" type="hidden" value="" />
+                  <input name="building_id" type="hidden" value={data.buildingId ?? ''} />
                   <button type="submit" disabled={chargeStatus === 'saving'} className="btn-primary disabled:opacity-50">
                     {chargeStatus === 'saving' ? 'Rögzítés...' : 'Terhelés rögzítése'}
                   </button>
@@ -1550,7 +1579,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 saved={meterSaved}
                 defaultReadingDate={data.calendarDate}
                 onSubmit={async (type, value, date) => {
-                  await submitMeterReadingAction({ meter_type: type, value, reading_date: date, unit_label: myUnit?.unit_label || undefined });
+                  await submitMeterReadingAction({
+                    meter_type: type,
+                    value,
+                    reading_date: date,
+                    unit_id: myUnit?.id,
+                    unit_label: myUnit?.unit_label || undefined,
+                    building_id: data.buildingId,
+                  });
                   setMeterSaved(true);
                   setTimeout(() => setMeterSaved(false), 3000);
                 }}
@@ -1583,7 +1619,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     setMeetingStatus('saving');
                     setMeetingError('');
                     const result = await createMeetingAction({
-                      building_id: (fd.get('building_id') as string) || 'global',
+                      workspaceId: data.buildingId ?? '',
                       title: fd.get('title') as string,
                       scheduled_at: fd.get('scheduled_at') as string,
                       location: fd.get('location') as string,
@@ -1612,7 +1648,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     <input name="secretary" className="input-base" placeholder="Jegyzőkönyvvezető neve" />
                   </div>
                   <textarea name="agenda" required rows={4} className="input-base" placeholder="Napirendi pontok (soronként egy)" />
-                  <input name="building_id" type="hidden" value="" />
+                  <input name="building_id" type="hidden" value={data.buildingId ?? ''} />
                   <button type="submit" disabled={meetingStatus === 'saving'} className="btn-primary disabled:opacity-50">
                     {meetingStatus === 'saving' ? 'Létrehozás...' : 'Közgyűlés létrehozása'}
                   </button>
@@ -1668,7 +1704,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                               type="button"
                               className="rounded-lg bg-brand-500/10 px-3 py-2 text-brand-300 ring-1 ring-brand-500/25 hover:bg-brand-500/20"
                               onClick={async () => {
-                                const result = await sendInvitationAction(meeting.id);
+                                const result = await sendInvitationAction(meeting.id, data.buildingId ?? '');
                                 if (!result.success) alert(result.error);
                                 else alert(`Meghívó kiküldési rekord rögzítve (${result.days_until_meeting} nap múlva a közgyűlés).`);
                               }}
@@ -1721,7 +1757,12 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       <select
                         defaultValue={workOrder.status}
                         onChange={async (e) => {
-                          await updateWorkOrderStatusAction(workOrder.id, e.target.value as WorkOrderItem['status']);
+                          if (!data.buildingId) return;
+                          await updateWorkOrderStatusAction(
+                            workOrder.id,
+                            e.target.value as WorkOrderItem['status'],
+                            data.buildingId,
+                          );
                         }}
                         className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-xs font-medium text-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
                       >
@@ -1990,6 +2031,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 setPaymentStatus('saving');
                 const entry = data.finances.find((f) => f.id === showPaymentForm);
                 const result = await recordPaymentAction({
+                  workspaceId: data.buildingId ?? '',
                   unitId: entry?.unit_id ?? '',
                   amount: parseFloat(fd.get('amount') as string),
                   paymentDate: fd.get('payment_date') as string,
@@ -2086,16 +2128,17 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
             <div className="rounded-2xl border border-white/10 bg-ink-panel px-8 py-6 text-sm font-semibold text-slate-200 shadow-overlay">Betöltés...</div>
           </div>
-        ) : meetingPanelData ? (
+        ) : meetingPanelData?.success && meetingPanelData.meeting ? (
           <MeetingDetailPanel
             meeting={{ ...selectedMeeting, ...meetingPanelData.meeting }}
-            buildingId={data.buildingId ?? ''}
+            workspaceId={data.buildingId ?? ''}
             units={data.units}
             attendances={meetingPanelData.attendances}
+            eligibleVoters={meetingPanelData.eligible_voters}
             agendaItems={meetingPanelData.agenda_items}
             resolutions={meetingPanelData.resolutions}
             isManager={isManager}
-            supabaseUrl={process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}
+            canVote={data.workspaceCapabilities?.includes('vote.cast') ?? false}
             onClose={() => { setSelectedMeeting(null); setMeetingPanelData(null); }}
             onRefresh={handleRefreshMeetingPanel}
           />

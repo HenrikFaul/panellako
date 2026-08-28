@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Download, Send, UserCheck, UserX, Vote, CheckCircle, XCircle, Clock, FileText } from 'lucide-react';
+import { X, Download, Send, UserCheck, UserX, Vote, CheckCircle, XCircle, Clock, FileText, PlayCircle } from 'lucide-react';
 import {
   closeMeeting,
+  openMeetingVoting,
   sendAssemblyInvitation,
   recordAttendance,
   removeAttendance,
@@ -22,8 +23,15 @@ interface Unit {
 interface Attendance {
   unit_id: string;
   ownership_share: number;
+  profile_id?: string | null;
   proxy_name?: string;
   units?: { unit_label: string; owner_name: string };
+}
+
+interface EligibleVoter {
+  unit_id: string;
+  profile_id: string;
+  display_name: string;
 }
 
 interface AgendaItem {
@@ -67,13 +75,14 @@ interface Meeting {
 
 interface Props {
   meeting: Meeting;
-  buildingId: string;
+  workspaceId: string;
   units: Unit[];
   attendances: Attendance[];
+  eligibleVoters: EligibleVoter[];
   agendaItems: AgendaItem[];
   resolutions: Resolution[];
   isManager: boolean;
-  supabaseUrl: string;
+  canVote: boolean;
   onClose: () => void;
   onRefresh: () => void;
 }
@@ -92,13 +101,14 @@ const voteLabels: Record<string, { label: string; color: string }> = {
 
 export default function MeetingDetailPanel({
   meeting,
-  buildingId,
+  workspaceId,
   units,
   attendances,
+  eligibleVoters,
   agendaItems,
   resolutions,
   isManager,
-  supabaseUrl,
+  canVote,
   onClose,
   onRefresh,
 }: Props) {
@@ -106,11 +116,14 @@ export default function MeetingDetailPanel({
   const [msg, setMsg] = useState('');
   const [protocolUrl, setProtocolUrl] = useState(meeting.protocol_url);
   const [generatingProtocol, setGeneratingProtocol] = useState(false);
+  const [selectedVoterByUnit, setSelectedVoterByUnit] = useState<Record<string, string>>({});
 
   const attendedUnitIds = new Set(attendances.map((a) => a.unit_id));
+  const attendanceByUnit = new Map(attendances.map((attendance) => [attendance.unit_id, attendance]));
   const scheduledDate = new Date(meeting.scheduled_at);
   const daysUntil = Math.ceil((scheduledDate.getTime() - Date.now()) / 86_400_000);
   const isLocked = meeting.status === 'lezart' || meeting.status_detail === 'lezarva';
+  const isVotingOpen = meeting.status === 'tervezett' && meeting.status_detail === 'szavazas_folyamatban';
 
   const totalShare = units.reduce((s, u) => s + u.ownership_share, 0);
   const attendingShare = attendances.reduce((s, a) => s + a.ownership_share, 0);
@@ -134,15 +147,24 @@ export default function MeetingDetailPanel({
     if (isLocked) return;
     if (attendedUnitIds.has(unit.id)) {
       await act(
-        () => removeAttendance(meeting.id, unit.id),
+        () => removeAttendance(meeting.id, unit.id, workspaceId),
         `${unit.unit_label} eltávolítva.`
       );
     } else {
+      const unitVoters = eligibleVoters.filter((voter) => voter.unit_id === unit.id);
+      const voterProfileId = isManager
+        ? selectedVoterByUnit[unit.id]
+        : unitVoters[0]?.profile_id;
+      if (!voterProfileId) {
+        setMsg('Hiba: A jelenléthez ellenőrzött tulajdonost kell kiválasztani.');
+        return;
+      }
       await act(
         () => recordAttendance({
+          workspaceId,
           meeting_id: meeting.id,
           unit_id: unit.id,
-          ownership_share: unit.ownership_share,
+          profile_id: voterProfileId,
         }),
         `${unit.unit_label} rögzítve.`
       );
@@ -152,15 +174,23 @@ export default function MeetingDetailPanel({
   const handleClose = async () => {
     if (!confirm('Lezárod a közgyűlést? Ez után nem módosítható a jelenlét.')) return;
     await act(
-      () => closeMeeting(meeting.id, buildingId),
+      () => closeMeeting(meeting.id, workspaceId),
       'Közgyűlés lezárva. Jegyzőkönyv generálás folyamatban...'
+    );
+  };
+
+  const handleOpenVoting = async () => {
+    if (!confirm('Megnyitod a szavazást? Ettől kezdve csak profilhoz kötött, ellenőrzött tulajdonosi szavazat rögzíthető.')) return;
+    await act(
+      () => openMeetingVoting(meeting.id, workspaceId),
+      'A szavazás megnyílt.'
     );
   };
 
   const handleGenerateProtocol = async () => {
     setGeneratingProtocol(true);
     setMsg('');
-    const res = await generateProtocolManually(meeting.id, buildingId);
+    const res = await generateProtocolManually(meeting.id, workspaceId);
     setGeneratingProtocol(false);
     if (res.success) {
       setProtocolUrl(res.protocol_url ?? '');
@@ -174,29 +204,47 @@ export default function MeetingDetailPanel({
   const handleDownloadProtocol = async () => {
     if (!protocolUrl) return;
     // Try signed URL via API route first (works for private buckets)
-    const res = await fetch(`/api/storage-signed-url?path=${encodeURIComponent(protocolUrl)}&bucket=documents`);
+    const params = new URLSearchParams({
+      path: protocolUrl,
+      workspace_id: workspaceId,
+      meeting_id: meeting.id,
+    });
+    const res = await fetch(`/api/storage-signed-url?${params.toString()}`);
     if (res.ok) {
       const { url } = await res.json() as { url: string };
-      window.open(url, '_blank');
-    } else if (supabaseUrl) {
-      // Fallback: direct public URL (works if documents bucket is public)
-      window.open(`${supabaseUrl}/storage/v1/object/public/documents/${protocolUrl}`, '_blank');
+      window.open(url, '_blank', 'noopener,noreferrer');
     } else {
       setMsg('Letöltési link generálása sikertelen.');
     }
   };
 
   const handleSendInvitation = () =>
-    act(() => sendAssemblyInvitation(meeting.id), 'Meghívó elküldve (naplózva).');
+    act(() => sendAssemblyInvitation(meeting.id, workspaceId), 'Meghívó elküldve (naplózva).');
 
-  const handleVote = (resolutionId: string, unitId: string, voteValue: 'igen' | 'nem' | 'tartozkodas', weight: number) =>
-    act(
-      () => recordVote({ resolution_id: resolutionId, unit_id: unitId, vote_value: voteValue, weight }),
+  const handleVote = (
+    resolutionId: string,
+    unitId: string,
+    voteValue: 'igen' | 'nem' | 'tartozkodas',
+  ) => {
+    const attendeeProfileId = attendanceByUnit.get(unitId)?.profile_id;
+    if (!attendeeProfileId) {
+      setMsg('Hiba: A szavazathoz profilhoz kötött jelenlét szükséges.');
+      return Promise.resolve();
+    }
+    return act(
+      () => recordVote({
+        workspaceId,
+        resolution_id: resolutionId,
+        unit_id: unitId,
+        vote_value: voteValue,
+        attendee_profile_id: attendeeProfileId,
+      }),
       'Szavazat rögzítve.'
     );
+  };
 
   const handleOutcome = (resolutionId: string, outcome: 'elfogadva' | 'elutasitva') =>
-    act(() => updateResolutionOutcome(resolutionId, outcome), 'Határozat eredménye rögzítve.');
+    act(() => updateResolutionOutcome(resolutionId, outcome, workspaceId), 'Határozat eredménye rögzítve.');
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/30 backdrop-blur-sm" onClick={onClose}>
@@ -265,6 +313,21 @@ export default function MeetingDetailPanel({
                 </button>
               )}
               {!isLocked && (
+                !isVotingOpen ? (
+                  <button
+                    disabled={busy}
+                    onClick={handleOpenVoting}
+                    className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 ring-1 ring-emerald-500/25 hover:bg-emerald-500/20 disabled:opacity-50"
+                  >
+                    <PlayCircle size={13} /> Szavazás megnyitása
+                  </button>
+                ) : (
+                  <span className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 ring-1 ring-emerald-500/25">
+                    <PlayCircle size={13} /> Szavazás megnyitva
+                  </span>
+                )
+              )}
+              {!isLocked && (
                 <button
                   disabled={busy}
                   onClick={handleClose}
@@ -298,19 +361,50 @@ export default function MeetingDetailPanel({
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Jelenlét rögzítése</h3>
             <div className="space-y-1.5">
               {units.map((unit) => {
-                const attended = attendedUnitIds.has(unit.id);
+                const attendance = attendanceByUnit.get(unit.id);
+                const attended = Boolean(attendance);
+                const unitVoters = eligibleVoters.filter((voter) => voter.unit_id === unit.id);
+                const attendee = unitVoters.find((voter) => voter.profile_id === attendance?.profile_id);
+                const canEditAttendance = !isLocked && (isManager || (canVote && unitVoters.length > 0));
                 return (
                   <div
                     key={unit.id}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${attended ? 'border border-emerald-500/20 bg-emerald-500/[0.07]' : 'border border-white/[0.05] bg-white/[0.03]'} ${!isLocked && isManager ? 'cursor-pointer hover:opacity-80' : ''}`}
-                    onClick={() => isManager && !isLocked && handleToggleAttendance(unit)}
+                    className={`flex flex-wrap items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${attended ? 'border border-emerald-500/20 bg-emerald-500/[0.07]' : 'border border-white/[0.05] bg-white/[0.03]'}`}
                   >
                     {attended
                       ? <UserCheck size={15} className="shrink-0 text-emerald-400" />
                       : <UserX size={15} className="shrink-0 text-slate-500" />}
                     <span className="font-semibold text-slate-200 w-12">{unit.unit_label}</span>
-                    <span className="flex-1 text-slate-400 truncate">{unit.owner_name}</span>
+                    <span className="min-w-0 flex-1 text-slate-400 truncate">
+                      {attendee?.display_name ?? unit.owner_name}
+                    </span>
                     <span className="text-xs text-slate-500 tabular-nums">{(unit.ownership_share * 100).toFixed(2)}%</span>
+                    {!attended && isManager && !isLocked && (
+                      <select
+                        aria-label={`${unit.unit_label} jogosult tulajdonosa`}
+                        value={selectedVoterByUnit[unit.id] ?? ''}
+                        onChange={(event) => setSelectedVoterByUnit((current) => ({
+                          ...current,
+                          [unit.id]: event.target.value,
+                        }))}
+                        className="min-w-44 rounded-md border border-white/10 bg-ink-base px-2 py-1 text-xs text-slate-200"
+                      >
+                        <option value="">Tulajdonos kiválasztása</option>
+                        {unitVoters.map((voter) => (
+                          <option key={voter.profile_id} value={voter.profile_id}>{voter.display_name}</option>
+                        ))}
+                      </select>
+                    )}
+                    {canEditAttendance && (
+                      <button
+                        type="button"
+                        disabled={busy || (!attended && isManager && !selectedVoterByUnit[unit.id])}
+                        onClick={() => handleToggleAttendance(unit)}
+                        className="rounded-md border border-white/10 px-2 py-1 text-xs font-semibold text-slate-300 hover:bg-white/[0.08] disabled:opacity-50"
+                      >
+                        {attended ? 'Eltávolítás' : isManager ? 'Rögzítés' : 'Jelen vagyok'}
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -344,7 +438,7 @@ export default function MeetingDetailPanel({
                               {/* Outcome label + manager outcome buttons */}
                               <div className="mt-2 flex flex-wrap items-center gap-2">
                                 <span className={`text-xs font-bold ${oc.color}`}>{oc.label}</span>
-                                {isManager && !isLocked && res.outcome === 'folyamatban' && (
+                                {isManager && isVotingOpen && res.outcome === 'folyamatban' && (
                                   <>
                                     <button
                                       onClick={() => handleOutcome(res.id, 'elfogadva')}
@@ -381,7 +475,7 @@ export default function MeetingDetailPanel({
                               )}
 
                               {/* Vote buttons for attending units that haven't voted yet */}
-                              {!isLocked && res.outcome === 'folyamatban' && unvotedAttendingUnits.length > 0 && (
+                              {(isManager || canVote) && isVotingOpen && res.outcome === 'folyamatban' && unvotedAttendingUnits.length > 0 && (
                                 <div className="mt-2 space-y-1.5 border-t border-white/10 pt-2">
                                   <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Szavazás</p>
                                   {unvotedAttendingUnits.map((unit) => (
@@ -389,21 +483,21 @@ export default function MeetingDetailPanel({
                                       <span className="w-12 text-xs font-semibold text-slate-300">{unit.unit_label}</span>
                                       <button
                                         disabled={busy}
-                                        onClick={() => handleVote(res.id, unit.id, 'igen', unit.ownership_share)}
+                                        onClick={() => handleVote(res.id, unit.id, 'igen')}
                                         className="rounded-md bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-300 ring-1 ring-emerald-500/30 hover:bg-emerald-500/25 disabled:opacity-50"
                                       >
                                         Igen
                                       </button>
                                       <button
                                         disabled={busy}
-                                        onClick={() => handleVote(res.id, unit.id, 'nem', unit.ownership_share)}
+                                        onClick={() => handleVote(res.id, unit.id, 'nem')}
                                         className="rounded-md bg-rose-500/15 px-2 py-0.5 text-xs font-semibold text-rose-300 ring-1 ring-rose-500/30 hover:bg-rose-500/25 disabled:opacity-50"
                                       >
                                         Nem
                                       </button>
                                       <button
                                         disabled={busy}
-                                        onClick={() => handleVote(res.id, unit.id, 'tartozkodas', unit.ownership_share)}
+                                        onClick={() => handleVote(res.id, unit.id, 'tartozkodas')}
                                         className="rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30 hover:bg-amber-500/25 disabled:opacity-50"
                                       >
                                         Tartózkodik

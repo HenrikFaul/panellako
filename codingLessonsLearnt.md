@@ -1457,3 +1457,49 @@ brand: { 500: 'oklch(0.714 0.145 181 / <alpha-value>)' }
 **Problem**: A demo működött, mégis „0 nap hátra” és lejárati figyelmeztetés jelent meg, ami bemutatón hibának látszott.
 **Fix**: A billing szerveroldal lekéri és átadja a profil permanens hozzáférési jelzőjét; a kliens ilyenkor lejárat nélküli demoállapotot mutat, és elrejti a téves trial-warningot és a múltbeli következő számlázási dátumot.
 **Prevention**: A hozzáférési döntés minden felületén ugyanazokat a bemeneteket kell használni, és forrás-invariáns teszttel kell védeni a kommunikált állapotot is, nem csak a middleware engedélyét.
+
+---
+
+## ➕ APPEND — 2026-08-28 Multitenancy operatív lezárási tanulságok
+
+### [LESSON-AUTHORITY-098]: Aktív admin role csak aktuális, ellenőrzött jogalapból származhat
+**Context**: Workspace-admin, community activation és agency-portfólió projekció.
+**Problem**: Egy `ACTIVE` role assignment önmagában látszólag érvényes lehetett volna akkor is, ha a forrásmandátum csak `CLAIMED`, lejárt vagy visszavont.
+**Fix**: Az effektív capability számítás a role mellett a forrásmandátum vagy delegáció státuszát, `VERIFIED` állapotát és időbeli érvényességét is megköveteli.
+**Prevention**: Jogosultságot ne materializált role labelből, hanem az aktuális authority teljes provenance-láncából számolj.
+
+### [LESSON-INVITATION-099]: A meghívó kibocsátáskori authorityje nem elegendő az elfogadáshoz
+**Context**: Lakói, tulajdonosi, staff- és agency-munkatársi meghívások.
+**Problem**: Egy érvényes tokennel akkor is létrejöhetett volna hozzáférés, ha a kibocsátó adminjoga időközben megszűnt, vagy az albetét/workspace állapota megváltozott.
+**Fix**: Az elfogadó command újraellenőrzi az emailt, a token lejáratát és egyszer használhatóságát, az objektumscope-ot, valamint a kibocsátó aktuális authorityjét.
+**Prevention**: Minden késleltetetten beváltható jogosultsági artefaktumnál külön issuance-time és redemption-time authorization kapu kell.
+
+### [LESSON-CONTENT-100]: Metaadat, kapcsolótábla, Storage és kézbesítés ugyanazt az audience-predikátumot használja
+**Context**: Dokumentumok, közlemények, olvasási visszaigazolás és announcement outbox.
+**Problem**: Ha a UI-címke, a `document_units`, a Storage policy és az email-címzettképzés külön logikát használ, egy láthatóságváltás adatot szivárogtathat vagy rossz címzettnek küldhet.
+**Fix**: A láthatóság származtatott mező lett, a dokumentumcélok tranzakcionális RPC-ben cserélődnek, a policyk és az outbox ugyanazon caller-bound olvasási predikátumra épülnek.
+**Prevention**: Egy üzleti közönséghez egyetlen kanonikus authorization-függvény tartozzon; minden downstream fogyasztó azt hívja.
+
+### [LESSON-VOTE-101]: Szavazati jogot és súlyt nem szabad a kliensből elfogadni
+**Context**: Közgyűlési jelenlét és albetétenkénti tulajdonosi ballot.
+**Problem**: A manager szerep, a kliens által küldött voter vagy a módosítható jelenléti sor önmagában szavazatot legitimálhatott volna.
+**Fix**: A szerver az aktív, `VERIFIED` tulajdonosi kapcsolatból származtatja a jogosultat; manager csak explicit jogosult nevében járhat el, és ballot után a jelenlét immutable.
+**Prevention**: Pénzügyi és szavazati súly minden esetben szerver által számított entitlement legyen, pozitív és negatív PostgreSQL runtime canaryval.
+
+### [LESSON-SCOPE-102]: Tenantkapcsolatot kompozit idegen kulcs is védjen
+**Context**: `document_units`, workspace–document és workspace–unit kapcsolatok.
+**Problem**: Külön-külön érvényes document és unit UUID alkalmazáskódból véletlenül vagy támadó kérésből másik workspace-en keresztül összekapcsolható.
+**Fix**: A kapcsolótábla saját `workspace_id` mezőt, származtató/ellenőrző triggert és mindkét oldalra kompozit idegen kulcsot kapott.
+**Prevention**: A route- és action-scope ellenőrzés mellett a reláció maga is hordozza és kényszerítse ki a tenantazonosságot.
+
+### [LESSON-TRANSACTION-103]: Többlépéses biztonsági állapotváltás adatbázis-command, nem egymás utáni klienshívás
+**Context**: Dokumentumközönség cseréje, community activation, staff/agency projekció és kézbesítési outbox.
+**Problem**: Több külön HTTP/SDK írás részleges állapotot, split-brain helyzetet és nem ismételhető hibajavítást hagyhat.
+**Fix**: A kapcsolódó sorok egy tranzakcionális, idempotens RPC-ben változnak; külső mellékhatás előtt outbox készül, amely külön workerrel dolgozható fel.
+**Prevention**: Ha egy üzleti művelet sikere több tábla konzisztens változását jelenti, egyetlen adatbázis-parancs legyen a commit-határ.
+
+### [LESSON-PLPGSQL-104]: `RETURNS TABLE` nevei és sorváltozók könnyen kétértelmű SQL-t okoznak
+**Context**: Vote upsert és agency-mandátum kiválasztás PostgreSQL 18 alatt.
+**Problem**: A kimeneti oszlopnév összeütközött az `ON CONFLICT` oszlophivatkozással, illetve egy `%ROWTYPE` változót skalár mező mellett próbáltunk `SELECT INTO` célként használni.
+**Fix**: Az upsert constraint-névvel hivatkozik az egyediségre, a lekérdezés pedig csak a ténylegesen szükséges skalár mandate mezőket tölti külön változókba.
+**Prevention**: Migrációt mindig valódi támogatott PostgreSQL-verzión apply + reapply + runtime paranccsal ellenőrizz; a puszta stringteszt ezeket nem találja meg.

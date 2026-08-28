@@ -3,32 +3,30 @@
 // On card click: navigate to /w/[buildingId] (always Link push, never replace).
 
 import type { Metadata } from 'next';
+import type { Route } from 'next';
 import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 import Link from 'next/link';
+import { AgencyPortfolioEntryLink } from '@/components/agency-portfolio-client';
 import { createClient } from '@/lib/supabase/server';
+import { listMyWorkspaces } from '@/lib/authorization/workspace-context';
+import {
+  legacyRoleFromWorkspaceContext,
+  type WorkspaceSummary,
+} from '@/lib/authorization/capabilities';
 import {
   AlertTriangle,
   ArrowRight,
   Building2,
+  CirclePlus,
   Layers3,
   LogOut,
   MapPin,
   TicketCheck
 } from 'lucide-react';
-
-interface BuildingPickerRow {
-  building_id:   string;
-  building_name: string;
-  address:       string;
-  user_role:     string;
-  unit_count:    number;
-  open_tickets:  number;
-  member_since:  string;
-}
 
 const roleLabels: Record<string, string> = {
   lako:            'Lakó',
@@ -66,10 +64,9 @@ export default async function BuildingPickerPage() {
     .eq('id', user.id)
     .single();
 
-  const { data: buildings, error: buildingsError } = await supabase
-    .rpc('get_my_buildings');
+  const { workspaces, error: buildingsError } = await listMyWorkspaces();
 
-  const hasBuildings = Array.isArray(buildings) && buildings.length > 0;
+  const hasBuildings = workspaces.length > 0;
   const displayName = profile?.full_name ?? profile?.email ?? user.email ?? '';
   const initials = displayName
     .split(' ')
@@ -117,18 +114,27 @@ export default async function BuildingPickerPage() {
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
 
         {/* Page title */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold tracking-tight text-canvas-ink sm:text-3xl">Épületeim</h1>
-          <p className="mt-1.5 text-sm text-canvas-muted">
-            Válassz épületet a kezelőfelület megnyitásához.
-          </p>
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-canvas-ink sm:text-3xl">Lakóközösségeim</h1>
+            <p className="mt-1.5 text-sm text-canvas-muted">
+              Válassz közösséget, vagy kezdeményezz új csatlakozást.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <AgencyPortfolioEntryLink />
+            <Link href={'/onboarding' as Route} className="btn-primary inline-flex min-h-11 items-center justify-center gap-2 px-4 text-sm">
+              <CirclePlus size={16} />
+              Csatlakozás vagy új ház
+            </Link>
+          </div>
         </div>
 
         {/* Error banner */}
         {buildingsError && (
           <div className="mb-6 flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3.5 text-sm text-rose-800">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            <span>Nem sikerült betölteni az épületlistát: {buildingsError.message}</span>
+            <span>Nem sikerült betölteni a lakóközösségeket: {buildingsError}</span>
           </div>
         )}
 
@@ -138,21 +144,25 @@ export default async function BuildingPickerPage() {
             <div className="mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-canvas-sage text-brand-800 ring-1 ring-canvas-line">
               <Building2 className="h-8 w-8" />
             </div>
-            <h2 className="mb-2 text-lg font-semibold text-canvas-ink">Még nincs épületed</h2>
-            <p className="max-w-xs text-sm leading-relaxed text-canvas-muted">
-              A rendszergazda adhat hozzá épületet a fiókodhoz. Vedd fel a kapcsolatot
-              az épület közös képviselőjével.
+            <h2 className="mb-2 text-lg font-semibold text-canvas-ink">Még nincs aktív lakóközösségi hozzáférésed</h2>
+            <p className="max-w-md text-sm leading-relaxed text-canvas-muted">
+              Csatlakozási kérelmet adhatsz be egy már regisztrált házhoz, vagy elindíthatod
+              egy új, képviselővel működő vagy önkezelt közösség ellenőrzését.
             </p>
+            <Link href={'/onboarding' as Route} className="btn-primary mt-6 inline-flex min-h-11 items-center gap-2 px-5 text-sm">
+              <CirclePlus size={16} />
+              Onboarding megnyitása
+            </Link>
           </div>
         )}
 
         {/* ── Portfolio stats summary bar ── */}
         {hasBuildings && (() => {
-          const bList = buildings as BuildingPickerRow[];
+          const bList = workspaces;
           const totalBuildings  = bList.length;
-          const totalUnits      = bList.reduce((sum, b) => sum + (b.unit_count ?? 0), 0);
-          const totalOpenTickets = bList.reduce((sum, b) => sum + (b.open_tickets ?? 0), 0);
-          const needsAttention  = bList.filter((b) => b.open_tickets > 0).length;
+          const totalUnits      = bList.reduce((sum, b) => sum + (b.unitCount ?? 0), 0);
+          const totalOpenTickets = bList.reduce((sum, b) => sum + (b.openTickets ?? 0), 0);
+          const needsAttention  = bList.filter((b) => b.openTickets > 0).length;
           return (
             <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="flex flex-col gap-0.5 rounded-xl border border-canvas-line bg-white px-4 py-3.5 shadow-card">
@@ -178,8 +188,8 @@ export default async function BuildingPickerPage() {
         {/* Building grid */}
         {hasBuildings && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {(buildings as BuildingPickerRow[]).map((b, i) => (
-              <BuildingCard key={b.building_id} building={b} index={i} />
+            {workspaces.map((workspace, i) => (
+              <BuildingCard key={workspace.workspaceId} workspace={workspace} index={i} />
             ))}
           </div>
         )}
@@ -188,15 +198,16 @@ export default async function BuildingPickerPage() {
   );
 }
 
-function BuildingCard({ building, index }: { building: BuildingPickerRow; index: number }) {
-  const roleLabel = roleLabels[building.user_role]  ?? building.user_role;
-  const badge     = roleBadgeStyle[building.user_role] ?? roleBadgeStyle.lako;
-  const hasAlerts = building.open_tickets > 0;
+function BuildingCard({ workspace, index }: { workspace: WorkspaceSummary; index: number }) {
+  const legacyRole = legacyRoleFromWorkspaceContext(workspace.roleKeys, workspace.relationshipLabels);
+  const roleLabel = roleLabels[legacyRole] ?? legacyRole;
+  const badge = roleBadgeStyle[legacyRole] ?? roleBadgeStyle.lako;
+  const hasAlerts = workspace.openTickets > 0;
   const delay     = `${index * 40}ms`;
 
   return (
     <Link
-      href={`/w/${building.building_id}`}
+      href={`/w/${workspace.workspaceId}`}
       style={{ animationDelay: delay, animationName: 'none' }}
       className={`group relative flex flex-col overflow-hidden rounded-2xl border bg-white p-5 shadow-card transition-[border-color,box-shadow] ${
         hasAlerts
@@ -219,12 +230,12 @@ function BuildingCard({ building, index }: { building: BuildingPickerRow; index:
 
       {/* Name + address */}
       <h2 className="mb-0.5 text-base font-semibold leading-snug text-canvas-ink transition-colors group-hover:text-brand-800">
-        {building.building_name}
+        {workspace.workspaceName}
       </h2>
-      {building.address && (
+      {workspace.address && (
         <p className="mb-4 flex items-start gap-1 text-xs leading-relaxed text-canvas-muted">
           <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
-          <span className="line-clamp-2">{building.address}</span>
+          <span className="line-clamp-2">{workspace.address}</span>
         </p>
       )}
 
@@ -232,11 +243,11 @@ function BuildingCard({ building, index }: { building: BuildingPickerRow; index:
       <div className="mt-auto flex items-center gap-4 text-xs text-canvas-muted">
         <span className="flex items-center gap-1.5">
           <Layers3 className="h-3.5 w-3.5 text-canvas-muted" />
-          <span className="font-medium">{building.unit_count}</span> albetét
+          <span className="font-medium">{workspace.unitCount}</span> albetét
         </span>
         <span className={`flex items-center gap-1.5 ${hasAlerts ? 'font-semibold text-rose-700' : ''}`}>
           <TicketCheck className={`h-3.5 w-3.5 ${hasAlerts ? 'text-rose-700' : 'text-canvas-muted'}`} />
-          <span className="font-medium">{building.open_tickets}</span> nyitott ügy
+          <span className="font-medium">{workspace.openTickets}</span> nyitott ügy
         </span>
       </div>
 

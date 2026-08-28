@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import WorkspaceSidebar from '@/components/workspace-sidebar';
+import type { WorkspaceCapability } from '@/lib/authorization/capabilities';
 
 interface WorkspaceShellProps {
   buildingId: string;
   buildingName: string;
   buildingAddress: string;
   role: string;
+  capabilities?: WorkspaceCapability[];
   children: React.ReactNode;
 }
 
@@ -16,6 +18,7 @@ export default function WorkspaceShell({
   buildingName,
   buildingAddress,
   role,
+  capabilities = [],
   children,
 }: WorkspaceShellProps) {
   const [collapsed, setCollapsed] = useState(false);
@@ -27,6 +30,7 @@ export default function WorkspaceShell({
         buildingName={buildingName}
         buildingAddress={buildingAddress}
         role={role}
+        capabilities={capabilities}
         collapsed={collapsed}
         onCollapse={setCollapsed}
       />

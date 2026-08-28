@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import {
+  environmentScopeErrorResponse,
+  resolveEnvironmentBuildingScope,
+} from '@/lib/authorization/environment-scope';
 export const dynamic = 'force-dynamic';
 
 export interface SolarMonthly { month: number; e: number; }
@@ -60,18 +64,25 @@ async function fetchPvgis(lat: number, lon: number): Promise<SolarData> {
 
 export async function GET(request: NextRequest) {
   const sp         = request.nextUrl.searchParams;
-  const buildingId = sp.get('buildingId') ?? '';
+  const workspaceId = sp.get('buildingId');
   const lat        = parseFloat(sp.get('lat') ?? '47.5278845');
   const lon        = parseFloat(sp.get('lon') ?? '19.0705657');
+
+  let physicalBuildingId: string | null;
+  try {
+    ({ physicalBuildingId } = await resolveEnvironmentBuildingScope(request, workspaceId));
+  } catch (error) {
+    return environmentScopeErrorResponse(error);
+  }
 
   const supabase = createServiceClient();
 
   // Check cache (30-day TTL)
-  if (supabase && buildingId) {
+  if (supabase && physicalBuildingId) {
     const { data: cached } = await supabase
       .from('building_solar_cache')
       .select('*')
-      .eq('building_id', buildingId)
+      .eq('building_id', physicalBuildingId)
       .gt('computed_at', new Date(Date.now() - 30 * 24 * 60 * 60_000).toISOString())
       .maybeSingle();
 
@@ -95,9 +106,9 @@ export async function GET(request: NextRequest) {
   try {
     const solar = await fetchPvgis(lat, lon);
 
-    if (supabase && buildingId) {
+    if (supabase && physicalBuildingId) {
       await supabase.from('building_solar_cache').upsert({
-        building_id:  buildingId,
+        building_id:  physicalBuildingId,
         e_y_kwh_kwp:  solar.eYearKwhKwp,
         h_i_opt:      solar.hOptKwhM2,
         e_d_kwh_kwp:  solar.eDayKwhKwp,
