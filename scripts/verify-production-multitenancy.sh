@@ -119,6 +119,9 @@ rls_disabled AS (
   JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
   WHERE NOT c.relrowsecurity
 ),
+-- Legacy audit rows are deliberately excluded from the backfill gate. The
+-- cutover policy makes NULL-scoped rows invisible and the table is append-only
+-- for authenticated users, so guessing a tenant would corrupt audit history.
 nullable_workspace_rows AS (
   SELECT 'announcements' AS table_name, count(*) AS row_count FROM public.announcements WHERE workspace_id IS NULL
   UNION ALL SELECT 'notifications', count(*) FROM public.notifications WHERE workspace_id IS NULL
@@ -130,7 +133,6 @@ nullable_workspace_rows AS (
   UNION ALL SELECT 'vendors', count(*) FROM public.vendors WHERE workspace_id IS NULL
   UNION ALL SELECT 'work_orders', count(*) FROM public.work_orders WHERE workspace_id IS NULL
   UNION ALL SELECT 'knowledge_base_articles', count(*) FROM public.knowledge_base_articles WHERE workspace_id IS NULL
-  UNION ALL SELECT 'audit_logs', count(*) FROM public.audit_logs WHERE workspace_id IS NULL
   UNION ALL SELECT 'subscriptions', count(*) FROM public.subscriptions WHERE workspace_id IS NULL
   UNION ALL SELECT 'invoice_events', count(*) FROM public.invoice_events WHERE workspace_id IS NULL
   UNION ALL SELECT 'reminder_rules', count(*) FROM public.reminder_rules WHERE workspace_id IS NULL
@@ -146,7 +148,8 @@ SELECT
   COALESCE((SELECT json_agg(name ORDER BY name) FROM missing_functions), '[]'::json) AS missing_functions,
   COALESCE((SELECT json_agg(name ORDER BY name) FROM rls_disabled), '[]'::json) AS rls_disabled,
   COALESCE((SELECT json_agg(json_build_object('table', table_name, 'rows', row_count))
-            FROM nullable_workspace_rows WHERE row_count > 0), '[]'::json) AS nullable_workspace_rows;
+            FROM nullable_workspace_rows WHERE row_count > 0), '[]'::json) AS nullable_workspace_rows,
+  (SELECT count(*) FROM public.audit_logs WHERE workspace_id IS NULL) AS legacy_unscoped_audit_rows;
 SQL
 
 jq -n --rawfile sql "$QUERY_FILE" \
