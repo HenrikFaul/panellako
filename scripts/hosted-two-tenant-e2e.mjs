@@ -163,7 +163,7 @@ async function main() {
       legal_form: 'CONDOMINIUM',
       governance_mode: 'SELF_MANAGED',
       governance_legal_basis: 'HOSTED_E2E_VERIFIED_FIXTURE',
-      status: 'ACTIVE',
+      status: 'PENDING_VERIFICATION',
       created_by_profile_id: managerUser.id,
     }), 'Workspace fixture insert');
 
@@ -181,6 +181,13 @@ async function main() {
       source: 'HOSTED_E2E',
       created_by_profile_id: managerUser.id,
     }), 'Building/address binding insert');
+
+    // ACTIVE is a deferred legacy-compatibility invariant: the physical
+    // building and primary workspace binding must exist before activation.
+    assertNoError(
+      await service.from('workspaces').update({ status: 'ACTIVE' }).eq('id', workspaceId),
+      'Workspace fixture activation',
+    );
 
     assertNoError(await service.from('units').insert({
       id: unitId,

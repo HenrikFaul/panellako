@@ -93,10 +93,11 @@ jobs:
             supabase/migrations/20260828127000_announcement_delivery_outbox.sql|\
             supabase/migrations/20260828128000_content_command_closure.sql|\
             supabase/migrations/20260828129000_agency_portfolio_workflow.sql|\
-            supabase/migrations/20260828130000_announcement_delivery_worker.sql)
+            supabase/migrations/20260828130000_announcement_delivery_worker.sql|\
+            supabase/migrations/20260829100000_service_role_private_schema_access.sql)
               ;;
             *)
-              echo "❌ Ez a production workflow csak a jóváhagyott 20260828 multitenancy migrációkat futtatja."
+              echo "❌ Ez a production workflow csak a jóváhagyott multitenancy migrációkat futtatja."
               exit 1
               ;;
           esac
