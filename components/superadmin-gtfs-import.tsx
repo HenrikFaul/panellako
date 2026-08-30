@@ -2,6 +2,11 @@
 
 import { useRef, useState } from 'react';
 import { unzip } from 'fflate';
+import {
+  acquireAdminRequestKey,
+  isTerminalAdminCommandResponse,
+  releaseAdminRequestKey,
+} from '@/lib/superadmin/idempotency-client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -110,6 +115,18 @@ async function streamLinesFromFile(
 
 // ─── Batch API sender ─────────────────────────────────────────────────────────
 
+function shortBatchFingerprint(value: string): string {
+  let first = 0x811c9dc5;
+  let second = 0x9e3779b9;
+  for (let index = 0; index < value.length; index++) {
+    const code = value.charCodeAt(index);
+    first = Math.imul(first ^ code, 0x01000193);
+    second = Math.imul(second ^ code, 0x85ebca6b);
+    second ^= second >>> 13;
+  }
+  return `${(first >>> 0).toString(16).padStart(8, '0')}${(second >>> 0).toString(16).padStart(8, '0')}`;
+}
+
 async function sendBatches(
   fileType: FileType,
   rows: Record<string, string>[],
@@ -120,18 +137,61 @@ async function sendBatches(
 
   for (let i = 0; i < rows.length; i += BATCH) {
     const batch = rows.slice(i, i + BATCH);
-    const res = await fetch('/api/superadmin/gtfs/import', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ fileType, rows: batch }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({})) as { error?: string };
-      throw new Error(body.error ?? `HTTP ${res.status}`);
+    // Each 500-row batch is its own globally coordinated command. The short,
+    // deterministic content scope retains both UUIDs across transport failure
+    // and a later retry in this browser tab. This is not a file-wide lock.
+    const batchIndex = Math.floor(i / BATCH);
+    const fingerprint = shortBatchFingerprint(JSON.stringify({
+      fileType,
+      batchIndex,
+      totalRows: rows.length,
+      rows: batch,
+    }));
+    const batchScope = `gtfs-batch:${fileType}:${batchIndex}:${fingerprint}`;
+    const batchIdScope = `${batchScope}:batch-id`;
+    const requestKeyScope = `${batchScope}:request`;
+    const batchId = acquireAdminRequestKey(batchIdScope);
+    const idempotencyKey = acquireAdminRequestKey(requestKeyScope);
+    const requestBody = JSON.stringify({ fileType, rows: batch, batchId, idempotencyKey });
+    let res: Response | null = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        res = await fetch('/api/superadmin/gtfs/import', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    requestBody,
+        });
+        break;
+      } catch {
+        if (attempt === 1) throw new Error('GTFS_IMPORT_REQUEST_FAILED');
+      }
     }
-    const body = await res.json() as { imported: number; skipped: number };
-    imported += body.imported;
-    skipped  += body.skipped;
+    if (!res) throw new Error('GTFS_IMPORT_REQUEST_FAILED');
+    const parsedBody = await res.json().catch(() => null) as unknown;
+    const knownJson = parsedBody && typeof parsedBody === 'object' && !Array.isArray(parsedBody)
+      ? parsedBody as Record<string, unknown>
+      : null;
+    const terminalBatchResponse = knownJson && (
+      isTerminalAdminCommandResponse(knownJson)
+      || (Number.isSafeInteger(knownJson.imported) && Number.isSafeInteger(knownJson.skipped))
+    );
+    if (terminalBatchResponse) {
+      releaseAdminRequestKey(batchIdScope);
+      releaseAdminRequestKey(requestKeyScope);
+    }
+    if (!knownJson) throw new Error('GTFS_IMPORT_REQUEST_FAILED');
+    if (!res.ok) {
+      throw new Error(
+        typeof knownJson.error === 'string'
+          ? knownJson.error
+          : 'GTFS_IMPORT_REQUEST_FAILED',
+      );
+    }
+    if (!Number.isSafeInteger(knownJson.imported) || !Number.isSafeInteger(knownJson.skipped)) {
+      throw new Error('GTFS_IMPORT_REQUEST_FAILED');
+    }
+    imported += Number(knownJson.imported);
+    skipped  += Number(knownJson.skipped);
     onProgress(Math.min(i + BATCH, rows.length), rows.length);
   }
   return { imported, skipped };
@@ -153,6 +213,7 @@ export default function SuperadminGtfsImport() {
   const [tripsMsg,    setTripsMsg]    = useState('');
   const [chainStatus, setChainStatus] = useState<string>('');
   const [chainRunning,setChainRunning]= useState(false);
+  const [chainArmed,  setChainArmed]  = useState(false);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   function setState(id: string, patch: Partial<ImportState>) {
@@ -161,35 +222,54 @@ export default function SuperadminGtfsImport() {
 
   // ── Run post-import chain: derive refs → building stops ──────────────────
 
-  async function runPostImportChain() {
+  async function runPostImportChain(): Promise<boolean> {
+    setChainArmed(false);
     setChainRunning(true);
     try {
       setChainStatus('⏳ Megálló járatreferenciák levezetése…');
+      const refsScope = 'job:gtfs_derive_refs';
       const r1 = await fetch('/api/superadmin/jobs/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job: 'gtfs_derive_refs' }),
+        body: JSON.stringify({ job: 'gtfs_derive_refs', idempotencyKey: acquireAdminRequestKey(refsScope) }),
       });
-      const d1 = await r1.json() as { ok: boolean; result?: { updated?: number; note?: string }; error?: string };
-      if (!d1.ok) {
-        setChainStatus(`✗ Járatrefs hiba: ${d1.result?.note ?? d1.error ?? 'ismeretlen hiba'}`);
-        setChainRunning(false);
-        return;
+      const d1 = await r1.json().catch(() => null) as {
+        ok?: boolean;
+        result?: { updated?: number; note?: string };
+        error?: string;
+      } | null;
+      if (isTerminalAdminCommandResponse(d1)) releaseAdminRequestKey(refsScope);
+      if (!r1.ok || d1?.ok !== true) {
+        setChainStatus(`✗ Járatrefs hiba: ${d1?.result?.note ?? d1?.error ?? 'JOB_REQUEST_FAILED'}`);
+        return false;
       }
       setChainStatus(`✓ ${d1.result?.updated ?? 0} megálló frissítve — épület–megálló párok számítása…`);
 
+      const buildingStopsScope = 'job:bkk_building_stops';
       const r2 = await fetch('/api/superadmin/jobs/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job: 'bkk_building_stops' }),
+        body: JSON.stringify({ job: 'bkk_building_stops', idempotencyKey: acquireAdminRequestKey(buildingStopsScope) }),
       });
-      const d2 = await r2.json() as { ok: boolean; result?: { body?: { buildingsProcessed?: number } } };
+      const d2 = await r2.json().catch(() => null) as {
+        ok?: boolean;
+        result?: { body?: { buildingsProcessed?: number }; note?: string };
+        error?: string;
+      } | null;
+      if (isTerminalAdminCommandResponse(d2)) releaseAdminRequestKey(buildingStopsScope);
+      if (!r2.ok || d2?.ok !== true) {
+        setChainStatus(`✗ Épület–megálló hiba: ${d2?.result?.note ?? d2?.error ?? 'JOB_REQUEST_FAILED'}`);
+        return false;
+      }
       const processed = d2.result?.body?.buildingsProcessed ?? 0;
       setChainStatus(`✅ Kész! Járatrefs ✓ · Épület–megálló párok: ${processed} épület feldolgozva`);
-    } catch (err) {
-      setChainStatus(`✗ Hiba: ${err instanceof Error ? err.message : String(err)}`);
+      return true;
+    } catch {
+      setChainStatus('✗ Hiba: JOB_REQUEST_FAILED');
+      return false;
+    } finally {
+      setChainRunning(false);
     }
-    setChainRunning(false);
   }
 
   // ── Generic file import ───────────────────────────────────────────────────
@@ -469,10 +549,15 @@ export default function SuperadminGtfsImport() {
         }
       }
 
-      setZipStatus('done');
       setZipMessage('✅ ZIP importálva — automatikus levezetés indul…');
-      await runPostImportChain();
-      setZipMessage('✅ ZIP import kész, chain lefutott.');
+      const chainCompleted = await runPostImportChain();
+      if (!chainCompleted) {
+        setZipStatus('error');
+        setZipMessage('✗ A ZIP adatai importálva, de az automatikus levezetés sikertelen.');
+        return;
+      }
+      setZipStatus('done');
+      setZipMessage('✅ ZIP import kész, az automatikus levezetés lefutott.');
     } catch (err) {
       setZipStatus('error');
       setZipMessage(`✗ ZIP hiba: ${err instanceof Error ? err.message : String(err)}`);
@@ -567,11 +652,11 @@ export default function SuperadminGtfsImport() {
             </p>
           </div>
           <button
-            onClick={runPostImportChain}
+            onClick={() => chainArmed ? runPostImportChain() : setChainArmed(true)}
             disabled={chainRunning}
             className="shrink-0 rounded-lg bg-brand-500 px-4 py-2 text-xs font-semibold text-ink-base hover:bg-brand-400 disabled:opacity-50"
           >
-            {chainRunning ? 'Fut…' : 'Automatikus befejezés'}
+            {chainRunning ? 'Fut…' : chainArmed ? 'Megerősítés: befejezés' : 'Automatikus befejezés'}
           </button>
         </div>
         {chainStatus && (

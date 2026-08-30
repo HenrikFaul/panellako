@@ -1,3 +1,95 @@
+## v0.10.7 — Platformadmin Control Center és privilegizált route-hardening
+**Dátum:** 2026-08-30
+**Branch:** codex/platform-admin-control-center
+
+### Cél
+- A PanelLakó teljes platformjának technikai és adminisztratív állapotát egy
+  biztonságos, könnyen áttekinthető, világos `/superadmin` kezdőlapon összefogni.
+- A Macrovia, Effectime, Expericentre és API Workbench bevált adminmintáit a
+  PanelLakó tenant-, privacy- és release-határaihoz igazítani úgy, hogy egyetlen
+  meglévő adminfunkció se vesszen el.
+
+### Változások
+- Új, alapértelmezett platformáttekintés készült KPI-, attention-, integráció-,
+  audit- és release-panelekkel; az egyes adatforrások hibája fail-isolated,
+  részleges állapotként jelenik meg.
+- A meglévő felhasználó-, feature-, közösségikérelem-, import-, job-, setting-
+  és diagnosztikai funkciók változatlanul elérhetők; a nehéz legacy lekérések
+  csak a technikai áttekintés megnyitásakor indulnak.
+- A tabválasztás query-paraméteres deep linket, `pushState` alapú felhasználói
+  navigációt, rendszerkorrekciónál `replaceState`-et és böngésző Back/Forward
+  szinkront kapott.
+- A frontend és a backend közös schema-verziót és determinisztikus
+  manifest-fingerprintet használ; hiányzó vagy eltérő release identity nem
+  minősül automatikusan egészségesnek.
+- Új `GET /api/superadmin/control-center` és minimalizált audit read endpoint
+  készült; egyik DTO sem ad át secretet, secret-karakterisztikát, nyers SQL-t,
+  audit metadata dumpot vagy nyers providerhibát.
+- A health és stats route-ok kizárólag hitelesített service-role admin klienssel
+  olvasnak, anon fallback nélkül; a konfiguráció csak értékmentes
+  állapotjelzésként látható.
+- A settings, job és migration command route-ok same-origin, content-type,
+  bounded payload és allowlist kapukat kaptak. A settings írás auditált és
+  audit-hibánál visszagörgethető; a migration UI kétlépcsős megerősítést kér és
+  nem jelenít meg nyers SQL-t.
+- Új forward-only adatbázis-migráció készült
+  (`20260830130000_platform_admin_job_commands.sql`). A kézi jobok és a
+  migrációfuttatás közös `platform:mutations` single-flight zárat, legfeljebb
+  15 perces lease-t és atomikus `begin`/`complete`/`expire` RPC életciklust
+  használnak; a command, a partícionált jobnapló és az audit együtt zárul.
+- A böngészőlap munkamenetében stabil idempotency key védi a transport retryt
+  és az oldalfrissítést. A kulcs csak terminális, biztonságosan értelmezhető
+  válasznál szabadul fel; bizonytalan transportkimenetnél és nem terminális
+  command-/audit-/guard-hibánál ugyanaz a kulcs marad az újrapróbáláshoz.
+- A command contract `20260830130000-v2` receipt replayt ad: az idempotency key
+  mellett a normalizált `request_payload`-nak is egyeznie kell. Azonos,
+  befejezett kérés a tárolt `status` + redaktált `safe_result` receiptet kapja
+  vissza új végrehajtás nélkül; azonos kulcs és eltérő payload stabil
+  idempotency conflict.
+- A command-migráció a `service_role` auditjogát `SELECT` + `INSERT` műveletre
+  szűkíti, az `UPDATE`, `DELETE` és `TRUNCATE` jogot explicit visszavonja.
+- A job napló projekciója érzékeny és hibamezőket redaktál; az elavult
+  `running` futás külön, magas prioritású attention állapotot kap.
+- A GTFS utófeldolgozási lánc mindkét job HTTP- és szerződéses sikerét
+  ellenőrzi; a második lépés hibája többé nem jelenhet meg hamis teljes
+  sikerként a manuális vagy ZIP-import folyamatban.
+- A GTFS import route same-origin, bounded JSON, strict mező-/típuskorlát,
+  canonical service-role kliens és command-v2 replay védelmet kapott. Egy
+  command pontosan egy, legfeljebb 500 soros batch globális lockja; egy teljes
+  fájl több külön batchből áll, ezért nincs teljes fájlra kiterjedő lock vagy
+  atomi fájlimport-állítás.
+- A teljes új felület HU/EN nyelvi erőforrásból épül, világos, 375/1440 célú és
+  billentyűzetes tabnavigációra felkészített.
+
+### Bizonyítási állapot
+- Célzott admin command/GTFS Vitest: **PASS — 7 fájl, 36/36 teszt**.
+- TypeScript (`npx tsc --noEmit`): **PASS**.
+- Izolált PostgreSQL 18.4 migráció, kétszeres teljes reapply, v2 receipt replay,
+  payload-conflict, globális lock, kompozit logfrissítés és audit least-privilege
+  canary: **PASS**.
+- Teljes Vitest: **PASS — 73 fájl, 478/478 teszt**.
+- TypeScript és ESLint: **PASS — 0 warning, 0 error**.
+- Production build: **PASS — 73/73 statikus oldal**.
+- `git diff --check` és tiltott admin UI-copy scan: **PASS**.
+- Helyi hitelesített browser QA: **NOT_RUN / HOLD** a végleges körben, mert az
+  in-app Browser webview nem tudott csatlakozni; a korábbi vizuális smoke nem
+  helyettesíti a jelenlegi build hitelesített ellenőrzését.
+- Hosted read-only admin smoke, release identity, production deploy és
+  production alias: **NOT_RUN / HOLD**.
+- A forward-only Supabase migráció forrása elkészült és izolált PostgreSQL-ben
+  igazolt; a production Supabase projektre alkalmazás: **NOT_RUN / HOLD**.
+- Commit és feature-branch push: **PENDING**.
+
+### Dokumentáció
+- Architektúra és biztonsági határ:
+  `docs/architecture/admin-control-center/README.md`.
+- Implementációs jegyzőkönyv:
+  `versioning/30082603_v0.10.7_platform-admin-control-center.md`.
+- Piaci érték és állításhatár:
+  `marketing/marketing_values/20260830_v0.10.7_platform-admin-control-center_marketing_value.md`.
+
+---
+
 ## v0.10.6 — Shared GeoData Address Registry és biztonságos cím-onboarding
 **Dátum:** 2026-08-30
 **Branch:** codex/shared-geodata-address

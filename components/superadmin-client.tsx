@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
+import SuperadminControlCenter, { type SuperadminDestination } from '@/components/superadmin-control-center';
 import SuperadminGtfsImport from '@/components/superadmin-gtfs-import';
 import SuperadminDiagnostics from '@/components/superadmin-diagnostics';
 import SuperadminOsmImport from '@/components/superadmin-osm-import';
@@ -10,9 +11,18 @@ import SuperadminCommunityRequests from '@/components/superadmin-community-reque
 import { MAP_THEMES, MAP_THEME_IDS, DEFAULT_THEME_ID, type MapThemeId } from '@/lib/map-theme';
 import { invalidateMapThemeCache } from '@/hooks/use-map-theme';
 import { useI18n } from '@/src/i18n/useI18n';
+import {
+  acquireAdminRequestKey,
+  isTerminalAdminCommandResponse,
+  releaseAdminRequestKey,
+} from '@/lib/superadmin/idempotency-client';
 
-type TabId = 'overview' | 'users' | 'features' | 'communityRequests';
-const TABS: TabId[] = ['overview', 'users', 'features', 'communityRequests'];
+export type SuperadminTabId = 'controlCenter' | 'operations' | 'users' | 'features' | 'communityRequests';
+const TABS: SuperadminTabId[] = ['controlCenter', 'operations', 'users', 'features', 'communityRequests'];
+
+function isTabId(value: string | null): value is SuperadminTabId {
+  return value !== null && TABS.includes(value as SuperadminTabId);
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -143,15 +153,14 @@ interface BkkRateLimits {
 }
 
 interface EnvHealth {
-  envVars: Record<string, { set: boolean; length: number; prefix: string }>;
+  envVars: Record<string, { set: boolean }>;
   keyAnalysis: {
-    serviceKeyIsJwt: boolean;
-    anonKeyIsJwt: boolean;
-    serviceKeyHasWhitespace: boolean;
-    urlHasWhitespace: boolean;
-    effectiveKeyUsed: string;
+    serviceConfigured: boolean;
+    anonConfigured: boolean;
+    serviceOnly: boolean;
+    noWhitespace: boolean;
   };
-  supabaseTests: Array<{ label: string; ok: boolean; count: number | null; error: string | null }>;
+  supabaseTests: Array<{ label: string; ok: boolean; count: number | null }>;
   checkedAt: string;
 }
 
@@ -210,10 +219,55 @@ const STATUS_PILL: Record<string, string> = {
 
 export default function SuperadminClient() {
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [activeTab, setActiveTab] = useState<SuperadminTabId>('controlCenter');
+
+  const selectTab = useCallback((tab: SuperadminTabId) => {
+    setActiveTab(tab);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tab);
+    window.history.pushState({ superadminTab: tab }, '', url);
+  }, []);
+
+  useEffect(() => {
+    function syncTabFromUrl() {
+      const url = new URL(window.location.href);
+      const requestedTab = url.searchParams.get('tab');
+      if (requestedTab === null) {
+        setActiveTab('controlCenter');
+        return;
+      }
+      if (isTabId(requestedTab)) {
+        setActiveTab(requestedTab);
+        return;
+      }
+
+      url.searchParams.set('tab', 'controlCenter');
+      window.history.replaceState({ superadminTab: 'controlCenter' }, '', url);
+      setActiveTab('controlCenter');
+    }
+
+    syncTabFromUrl();
+    window.addEventListener('popstate', syncTabFromUrl);
+    return () => window.removeEventListener('popstate', syncTabFromUrl);
+  }, []);
+
+  function handleTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, index: number) {
+    let nextIndex: number | null = null;
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % TABS.length;
+    if (event.key === 'ArrowLeft') nextIndex = (index - 1 + TABS.length) % TABS.length;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = TABS.length - 1;
+    if (nextIndex === null) return;
+
+    event.preventDefault();
+    const nextTab = TABS[nextIndex];
+    selectTab(nextTab);
+    document.getElementById(`superadmin-tab-${nextTab}`)?.focus();
+  }
 
   // Job runners
   const [running, setRunning]   = useState<string | null>(null);
+  const [armedJob, setArmedJob] = useState<string | null>(null);
   const [results, setResults]   = useState<Record<string, unknown>>({});
 
   // Map theme settings
@@ -234,6 +288,7 @@ export default function SuperadminClient() {
   // Health check
   const [health, setHealth]           = useState<EnvHealth | null>(null);
   const [healthLoading, setHealthLoading] = useState(false);
+  const [healthError, setHealthError] = useState(false);
 
   // Job logs
   const [logs, setLogs]           = useState<JobLog[]>([]);
@@ -242,15 +297,17 @@ export default function SuperadminClient() {
 
   // DB migrations
   const [migrRunning, setMigrRunning] = useState(false);
+  const [migrArmed, setMigrArmed] = useState(false);
   const [migrResult, setMigrResult]   = useState<{
     ok: boolean;
     results: Array<{ name: string; ok: boolean; status: 'already_applied' | 'applied' | 'failed'; method?: string; error?: string }>;
-    manualSqlIfFailed?: string;
+    error?: string;
   } | null>(null);
 
   // ── Load on mount ────────────────────────────────────────────────────────
 
   useEffect(() => {
+    if (activeTab !== 'operations') return;
     fetch('/api/superadmin/settings')
       .then(r => r.json())
       .then((data: { settings?: Array<{ key: string; value: unknown }> }) => {
@@ -265,14 +322,21 @@ export default function SuperadminClient() {
         }
       })
       .catch(() => { /* keep defaults */ });
-  }, []);
+  }, [activeTab]);
 
   const loadHealth = useCallback(() => {
     setHealthLoading(true);
+    setHealthError(false);
     fetch('/api/superadmin/health')
-      .then(r => r.json())
+      .then(async r => {
+        if (!r.ok) throw new Error('HEALTH_LOAD_FAILED');
+        return r.json() as Promise<EnvHealth>;
+      })
       .then((data: EnvHealth) => setHealth(data))
-      .catch(() => { /* ignore */ })
+      .catch(() => {
+        setHealth(null);
+        setHealthError(true);
+      })
       .finally(() => setHealthLoading(false));
   }, []);
 
@@ -297,7 +361,12 @@ export default function SuperadminClient() {
       .finally(() => setLogsLoading(false));
   }, []);
 
-  useEffect(() => { loadStats(); loadLogs(); loadHealth(); }, [loadStats, loadLogs, loadHealth]);
+  useEffect(() => {
+    if (activeTab !== 'operations') return;
+    loadStats();
+    loadLogs();
+    loadHealth();
+  }, [activeTab, loadStats, loadLogs, loadHealth]);
 
   // ── Actions ──────────────────────────────────────────────────────────────
 
@@ -335,26 +404,58 @@ export default function SuperadminClient() {
   }
 
   async function runJob(jobId: string) {
+    setArmedJob(null);
     setRunning(jobId);
-    const res = await fetch('/api/superadmin/jobs/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ job: jobId }),
-    });
-    const body = await res.json().catch(() => ({}));
-    setResults(prev => ({ ...prev, [jobId]: { status: res.status, body } }));
-    setRunning(null);
-    // Refresh logs + stats after a job finishes
-    setTimeout(() => { loadLogs(); loadStats(); }, 800);
+    const requestScope = `job:${jobId}`;
+    const idempotencyKey = acquireAdminRequestKey(requestScope);
+    try {
+      const res = await fetch('/api/superadmin/jobs/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job: jobId, idempotencyKey }),
+      });
+      const body = await res.json();
+      if (isTerminalAdminCommandResponse(body)) releaseAdminRequestKey(requestScope);
+      setResults(prev => ({ ...prev, [jobId]: { status: res.status, body } }));
+    } catch {
+      setResults(prev => ({
+        ...prev,
+        [jobId]: { status: 0, body: { ok: false, error: 'JOB_REQUEST_FAILED' } },
+      }));
+    } finally {
+      setRunning(null);
+      // Refresh logs + stats after a job finishes or fails at transport level.
+      setTimeout(() => { loadLogs(); loadStats(); }, 800);
+    }
   }
 
   async function applyMigrations() {
     setMigrRunning(true);
+    setMigrArmed(false);
     setMigrResult(null);
-    const res = await fetch('/api/superadmin/apply-migrations', { method: 'POST' });
-    const body = await res.json().catch(() => ({ ok: false, results: [] }));
-    setMigrResult(body);
-    setMigrRunning(false);
+    const requestScope = 'migration:apply-pending';
+    const idempotencyKey = acquireAdminRequestKey(requestScope);
+    try {
+      const res = await fetch('/api/superadmin/apply-migrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          confirmation: 'APPLY_PENDING_MIGRATIONS',
+          idempotencyKey,
+        }),
+      });
+      const body = await res.json();
+      if (isTerminalAdminCommandResponse(body)) releaseAdminRequestKey(requestScope);
+      setMigrResult({
+        ok: body?.ok === true,
+        results: Array.isArray(body?.results) ? body.results : [],
+        ...(typeof body?.error === 'string' ? { error: body.error } : {}),
+      });
+    } catch {
+      setMigrResult({ ok: false, error: 'MIGRATION_REQUEST_FAILED', results: [] });
+    } finally {
+      setMigrRunning(false);
+    }
   }
 
   async function logout() {
@@ -365,26 +466,34 @@ export default function SuperadminClient() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <main className="app-surface min-h-screen p-4 sm:p-6" style={{ backgroundImage: 'none' }}>
-      <div className="mx-auto max-w-6xl space-y-6">
+    <main id="superadmin-main-content" className="app-surface min-h-screen p-4 sm:p-6" style={{ backgroundImage: 'none' }}>
+      <a href="#superadmin-navigation" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-brand-700 focus:px-4 focus:py-2 focus:text-white">
+        {t('superadmin.header.skipToNavigation')}
+      </a>
+      <div className="mx-auto max-w-[1480px] space-y-6">
 
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold text-canvas-ink">Platform Vezérlőpult</h1>
-            <p className="text-sm text-canvas-muted">Integrációk állapota és manuális job indítások</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-800">{t('superadmin.header.eyebrow')}</p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-canvas-ink">{t('superadmin.header.title')}</h1>
+            <p className="mt-1 text-sm text-canvas-muted">{t('superadmin.header.subtitle')}</p>
           </div>
-          <button onClick={logout} className="btn-secondary px-4 py-2">Kijelentkezés</button>
+          <button type="button" onClick={logout} className="btn-secondary min-h-11 px-4 py-2">{t('superadmin.header.logout')}</button>
         </div>
 
         {/* Tab nav */}
-        <div role="tablist" aria-label={t('superadmin.navigation.ariaLabel')} className="flex gap-0.5 overflow-x-auto rounded-xl border border-canvas-line bg-canvas-sage p-1">
-          {TABS.map(tab => (
+        <div id="superadmin-navigation" role="tablist" aria-label={t('superadmin.navigation.ariaLabel')} className="thin-scroll flex gap-0.5 overflow-x-auto rounded-xl border border-canvas-line bg-canvas-sage p-1">
+          {TABS.map((tab, index) => (
             <button
               key={tab}
+              id={`superadmin-tab-${tab}`}
               role="tab"
               aria-selected={activeTab === tab}
-              onClick={() => setActiveTab(tab)}
+              aria-controls={`superadmin-panel-${tab}`}
+              tabIndex={activeTab === tab ? 0 : -1}
+              onClick={() => selectTab(tab)}
+              onKeyDown={event => handleTabKeyDown(event, index)}
               className={`min-h-11 min-w-fit flex-1 rounded-lg px-4 py-2 text-sm font-medium ${
                 activeTab === tab
                   ? 'bg-white text-canvas-ink shadow-sm ring-1 ring-canvas-line'
@@ -396,29 +505,35 @@ export default function SuperadminClient() {
           ))}
         </div>
 
+        {activeTab === 'controlCenter' && (
+          <section id="superadmin-panel-controlCenter" role="tabpanel" aria-labelledby="superadmin-tab-controlCenter">
+            <SuperadminControlCenter onOpenTab={(tab: SuperadminDestination) => selectTab(tab)} />
+          </section>
+        )}
+
         {/* Felhasználók tab */}
         {activeTab === 'users' && (
-          <section className="rounded-2xl border border-canvas-line bg-white p-5 shadow-card">
+          <section id="superadmin-panel-users" role="tabpanel" aria-labelledby="superadmin-tab-users" className="rounded-2xl border border-canvas-line bg-white p-5 shadow-card">
             <SuperadminUsersTab />
           </section>
         )}
 
         {/* Funkció & Tier tab */}
         {activeTab === 'features' && (
-          <section className="rounded-2xl border border-canvas-line bg-white p-5 shadow-card">
+          <section id="superadmin-panel-features" role="tabpanel" aria-labelledby="superadmin-tab-features" className="rounded-2xl border border-canvas-line bg-white p-5 shadow-card">
             <SuperadminFeaturesTab />
           </section>
         )}
 
         {/* Lakóközösség-ellenőrzési kérelmek */}
         {activeTab === 'communityRequests' && (
-          <section className="rounded-2xl border border-canvas-line bg-white p-5 shadow-card">
+          <section id="superadmin-panel-communityRequests" role="tabpanel" aria-labelledby="superadmin-tab-communityRequests" className="rounded-2xl border border-canvas-line bg-white p-5 shadow-card">
             <SuperadminCommunityRequests />
           </section>
         )}
 
-        {/* Áttekintés tab — existing content below */}
-        {activeTab === 'overview' && (<>
+        {/* Existing technical controls stay available without behavior changes. */}
+        {activeTab === 'operations' && (<div id="superadmin-panel-operations" role="tabpanel" aria-labelledby="superadmin-tab-operations" className="space-y-6">
 
         {/* Integration status cards */}
         <section className="grid gap-4 md:grid-cols-3">
@@ -426,14 +541,29 @@ export default function SuperadminClient() {
             { name: 'BKK Futár',   key: 'BKKFUTAR_API_KEY',        note: 'LIMIT_EXCEEDED esetén várj éjfélig (UTC reset)' },
             { name: 'Supabase',    key: 'NEXT_PUBLIC_SUPABASE_URL', note: '' },
             { name: 'Air Quality', key: 'AQICN_API_TOKEN',          note: 'Ha Sanghaj jelenik meg, a demo token aktív — regisztrálj valódi kulcsot: aqicn.org/data-platform/token' },
-          ].map(({ name, key, note }) => (
-            <div key={name} className="rounded-2xl border border-canvas-line bg-white p-4 shadow-card">
-              <h3 className="text-sm font-semibold text-slate-700">{name}</h3>
-              <p className="mt-2 text-lg font-semibold text-emerald-800">Aktív (env kulcs alapján)</p>
-              <p className="mt-1 text-xs text-canvas-muted">Kulcs: {key}</p>
-              {note && <p className="mt-2 text-[11px] text-amber-900">{note}</p>}
-            </div>
-          ))}
+          ].map(({ name, key, note }) => {
+            const configured = health?.envVars[key]?.set;
+            return (
+              <div key={name} className="rounded-2xl border border-canvas-line bg-white p-4 shadow-card">
+                <h3 className="text-sm font-semibold text-slate-700">{name}</h3>
+                <p className={`mt-2 text-lg font-semibold ${
+                  configured === true
+                    ? 'text-emerald-800'
+                    : configured === false
+                      ? 'text-rose-800'
+                      : 'text-canvas-muted'
+                }`}>
+                  {configured === true
+                    ? t('superadmin.operationsHealth.configured')
+                    : configured === false
+                      ? t('superadmin.operationsHealth.missing')
+                      : t('superadmin.operationsHealth.checking')}
+                </p>
+                <p className="mt-1 text-xs text-canvas-muted">{t('superadmin.operationsHealth.envKey')}: {key}</p>
+                {note && <p className="mt-2 text-[11px] text-amber-900">{note}</p>}
+              </div>
+            );
+          })}
         </section>
 
         {/* Env / connectivity health */}
@@ -449,7 +579,9 @@ export default function SuperadminClient() {
             </button>
           </div>
           {!health ? (
-            <p className="text-sm text-canvas-muted">Töltés…</p>
+            <p role={healthError ? 'alert' : 'status'} className={`text-sm ${healthError ? 'text-rose-800' : 'text-canvas-muted'}`}>
+              {healthError ? t('superadmin.operationsHealth.unavailable') : t('superadmin.operationsHealth.loading')}
+            </p>
           ) : (
             <div className="space-y-4">
               {/* Env vars table */}
@@ -459,8 +591,6 @@ export default function SuperadminClient() {
                     <tr className="border-b border-canvas-line text-left text-[10px] font-semibold uppercase tracking-wider text-canvas-muted">
                       <th className="pb-1.5 pr-4">Változó</th>
                       <th className="pb-1.5 pr-3">Be van állítva?</th>
-                      <th className="pb-1.5 pr-3">Hossz</th>
-                      <th className="pb-1.5">Eleje</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -472,8 +602,6 @@ export default function SuperadminClient() {
                             {v.set ? '✓ igen' : '✗ hiányzik'}
                           </span>
                         </td>
-                        <td className="py-1.5 pr-3 font-mono tabular-nums text-canvas-muted">{v.length || '—'}</td>
-                        <td className="py-1.5 font-mono text-canvas-muted">{v.prefix || '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -482,27 +610,24 @@ export default function SuperadminClient() {
               {/* Key analysis */}
               <div className="flex flex-wrap gap-2">
                 {[
-                  { label: 'Service role JWT?',       ok: health.keyAnalysis.serviceKeyIsJwt },
-                  { label: 'Anon key JWT?',            ok: health.keyAnalysis.anonKeyIsJwt },
-                  { label: 'Service key whitespace?',  ok: !health.keyAnalysis.serviceKeyHasWhitespace },
-                  { label: 'URL whitespace?',          ok: !health.keyAnalysis.urlHasWhitespace },
+                  { label: t('superadmin.operationsHealth.serviceConfigured'), ok: health.keyAnalysis.serviceConfigured },
+                  { label: t('superadmin.operationsHealth.anonConfigured'), ok: health.keyAnalysis.anonConfigured },
+                  { label: t('superadmin.operationsHealth.serviceOnly'), ok: health.keyAnalysis.serviceOnly },
+                  { label: t('superadmin.operationsHealth.noWhitespace'), ok: health.keyAnalysis.noWhitespace },
                 ].map(item => (
                   <span key={item.label} className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.ok ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200' : 'bg-rose-50 text-rose-800 ring-1 ring-rose-200'}`}>
                     {item.ok ? '✓' : '✗'} {item.label}
                   </span>
                 ))}
-                <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-800 ring-1 ring-sky-200">
-                  Aktív kulcs: {health.keyAnalysis.effectiveKeyUsed}
-                </span>
               </div>
               {/* Supabase connectivity */}
               <div className="flex flex-wrap gap-3">
-                {health.supabaseTests.map(t => (
-                  <div key={t.label} className={`rounded-xl border px-3 py-2 text-xs ${t.ok ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'}`}>
-                    <p className="font-semibold text-slate-700">{t.label}</p>
-                    {t.ok
-                      ? <p className="text-emerald-800">✓ OK — buildings rekord: {t.count}</p>
-                      : <p className="text-rose-800">✗ {t.error}</p>
+                {health.supabaseTests.map(test => (
+                  <div key={test.label} className={`rounded-xl border px-3 py-2 text-xs ${test.ok ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'}`}>
+                    <p className="font-semibold text-slate-700">{test.label}</p>
+                    {test.ok
+                      ? <p className="text-emerald-800">✓ OK — buildings rekord: {test.count}</p>
+                      : <p className="text-rose-800">✗ {t('superadmin.operationsHealth.connectionFailed')}</p>
                     }
                   </div>
                 ))}
@@ -582,16 +707,38 @@ export default function SuperadminClient() {
               <h2 className="text-lg font-semibold text-canvas-ink">Adatbázis migrációk</h2>
               <p className="text-xs text-canvas-muted">Hiányzó táblák és alapértelmezett adatok létrehozása a Panellako Supabase projektben.</p>
             </div>
-            <button
-              onClick={applyMigrations}
-              disabled={migrRunning}
-              className="min-h-11 rounded-xl border border-brand-200 bg-canvas-sage px-4 py-2 text-sm font-semibold text-brand-900 hover:bg-brand-100 disabled:opacity-50"
-            >
-              {migrRunning ? 'Alkalmazás…' : 'Migrációk alkalmazása'}
-            </button>
+            {!migrArmed && (
+              <button
+                type="button"
+                onClick={() => setMigrArmed(true)}
+                disabled={migrRunning}
+                className="min-h-11 rounded-xl border border-brand-200 bg-canvas-sage px-4 py-2 text-sm font-semibold text-brand-900 hover:bg-brand-100 disabled:opacity-50"
+              >
+                {migrRunning ? 'Alkalmazás…' : 'Migrációk ellenőrzése'}
+              </button>
+            )}
           </div>
+          {migrArmed && (
+            <div role="alert" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+              <p className="font-semibold">Megerősítés szükséges</p>
+              <p className="mt-1 text-xs leading-5">A művelet kizárólag a hiányzó, beépített migrációkat próbálja alkalmazni, és auditbejegyzést készít.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={applyMigrations} className="btn-primary min-h-11 px-4 py-2 text-sm">
+                  Jóváhagyom és alkalmazom
+                </button>
+                <button type="button" onClick={() => setMigrArmed(false)} className="btn-secondary min-h-11 px-4 py-2 text-sm">
+                  Mégse
+                </button>
+              </div>
+            </div>
+          )}
           {migrResult && (
             <div className="space-y-2">
+              {migrResult.error && (
+                <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">
+                  A migráció nem fejeződött be: {migrResult.error}
+                </div>
+              )}
               {migrResult.results.map(r => (
                 <div key={r.name} className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-sm ${r.ok ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'}`}>
                   <span className={`font-semibold ${r.ok ? 'text-emerald-800' : 'text-rose-800'}`}>{r.ok ? '✓' : '✗'}</span>
@@ -601,14 +748,6 @@ export default function SuperadminClient() {
                   {!r.ok && r.error && <span className="text-xs text-rose-800">{r.error}</span>}
                 </div>
               ))}
-              {migrResult.manualSqlIfFailed && (
-                <div className="mt-3 rounded-xl border border-amber-200 bg-canvas-warm p-3">
-                  <p className="mb-1 text-xs font-semibold text-amber-900">Automatikus alkalmazás sikertelen — futtasd manuálisan a Supabase SQL Editorban:</p>
-                  <pre className="max-h-64 overflow-auto rounded-lg bg-slate-950 p-3 text-[11px] text-[#f8fafc]">
-                    {migrResult.manualSqlIfFailed}
-                  </pre>
-                </div>
-              )}
             </div>
           )}
         </section>
@@ -760,8 +899,16 @@ export default function SuperadminClient() {
                       </div>
                     )}
                   </div>
-                  <button onClick={() => runJob(j.id)} disabled={running === j.id} className="btn-primary shrink-0 px-4 py-2 text-sm">
-                    {running === j.id ? 'Fut...' : 'Azonnali indítás'}
+                  <button
+                    onClick={() => armedJob === j.id ? runJob(j.id) : setArmedJob(j.id)}
+                    disabled={running !== null}
+                    className="btn-primary shrink-0 px-4 py-2 text-sm"
+                  >
+                    {running === j.id
+                      ? 'Fut...'
+                      : armedJob === j.id
+                        ? 'Megerősítés: indítás'
+                        : 'Azonnali indítás'}
                   </button>
                 </div>
                 {results[j.id] ? (
@@ -824,7 +971,7 @@ export default function SuperadminClient() {
         {/* ── External-API diagnostics (custom curl runner) ───────────── */}
         <SuperadminDiagnostics />
 
-        </>)} {/* end overview tab */}
+        </div>)} {/* end operations tab */}
 
       </div>
     </main>

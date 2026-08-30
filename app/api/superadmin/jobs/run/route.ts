@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { BoundedJsonError, readBoundedJson } from '@/lib/http/bounded-json';
 import { ENVIRONMENT_JOB_SECRET_HEADER } from '@/lib/authorization/environment-scope';
 import {
   HU_BBOX,
@@ -10,6 +12,86 @@ import {
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const JOB_LEASE_TTL_SECONDS = 15 * 60;
+const PLATFORM_MUTATION_TARGET = 'platform:mutations';
+const SENSITIVE_JOB_FIELD = /(authorization|cookie|secret|token|password|credential|api[_-]?key|recipient|email|phone|command|error|message|detail|reason|sample|sql|query|url|header|attempt)/i;
+const SAFE_JOB_ERROR_CODES = new Set([
+  'UNAUTHORIZED',
+  'ORIGIN_NOT_ALLOWED',
+  'UNSUPPORTED_MEDIA_TYPE',
+  'REQUEST_TOO_LARGE',
+  'INVALID_JSON',
+  'INVALID_JOB_REQUEST',
+  'IDEMPOTENCY_KEY_REQUIRED',
+  'JOB_GUARD_UNAVAILABLE',
+  'JOB_AUDIT_UNAVAILABLE',
+  'JOB_AUDIT_INCOMPLETE',
+  'JOB_ALREADY_RUNNING',
+  'JOB_ALREADY_SUBMITTED',
+  'JOB_IDEMPOTENCY_CONFLICT',
+  'JOB_EXECUTION_FAILED',
+]);
+
+type JobStatus = 'ok' | 'error' | 'partial';
+
+type JobExecutionContext = {
+  actor?: string;
+  idempotencyKey?: string;
+  requestPayload?: Record<string, unknown>;
+  jobId?: string;
+  targetKey?: string;
+  commandId?: string;
+  logId?: string;
+  completed: boolean;
+  completionFailed: boolean;
+};
+
+class JobCommandError extends Error {
+  readonly code:
+    | 'JOB_AUDIT_UNAVAILABLE'
+    | 'JOB_ALREADY_RUNNING'
+    | 'JOB_ALREADY_SUBMITTED'
+    | 'JOB_IDEMPOTENCY_CONFLICT';
+  readonly status: number;
+
+  constructor(
+    code:
+      | 'JOB_AUDIT_UNAVAILABLE'
+      | 'JOB_ALREADY_RUNNING'
+      | 'JOB_ALREADY_SUBMITTED'
+      | 'JOB_IDEMPOTENCY_CONFLICT',
+    status: number,
+  ) {
+    super(code);
+    this.code = code;
+    this.status = status;
+  }
+}
+
+class JobCommandReplay extends Error {
+  readonly jobId: string;
+  readonly commandStatus: JobStatus;
+  readonly safeResult: Record<string, unknown>;
+
+  constructor(jobId: string, commandStatus: JobStatus, safeResult: Record<string, unknown>) {
+    super('JOB_COMMAND_REPLAYED');
+    this.jobId = jobId;
+    this.commandStatus = commandStatus;
+    this.safeResult = safeResult;
+  }
+}
+
+const jobExecutionStorage = new AsyncLocalStorage<JobExecutionContext>();
+
+function jobTargetKey(jobId: string): string {
+  // v1 intentionally serializes every manual platform mutation. A coarse,
+  // fail-safe lock prevents cross-family races (for example OSM index DDL vs.
+  // county import) until a proven resource lock matrix is introduced.
+  void jobId;
+  return PLATFORM_MUTATION_TARGET;
+}
 
 // ─── Geocoder (Nominatim → internal API fallback) ─────────────────────────────
 
@@ -79,12 +161,38 @@ async function geocodeAddress(address: string, appBase: string): Promise<Geocode
 // ─── DB logging ───────────────────────────────────────────────────────────────
 
 function createServiceClient() {
-  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '').trim();
-  const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY ?? '').trim();
-  const anonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim();
-  const key = serviceKey.startsWith('eyJ') ? serviceKey : (anonKey || serviceKey);
-  if (!url || !key) return null;
-  return createClient(url, key, { auth: { persistSession: false } });
+  try {
+    return createAdminClient();
+  } catch {
+    return null;
+  }
+}
+
+function json(body: object, status = 200): NextResponse {
+  return NextResponse.json(body, {
+    status,
+    headers: { 'Cache-Control': 'private, no-store' },
+  });
+}
+
+function isSameOrigin(request: NextRequest): boolean {
+  const origin = request.headers.get('origin');
+  const host = request.headers.get('host')?.trim()
+    || request.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+  const fetchSite = request.headers.get('sec-fetch-site');
+  if (!origin || !host || (fetchSite && fetchSite !== 'same-origin')) return false;
+
+  try {
+    const parsed = new URL(origin);
+    return (
+      (parsed.protocol === 'https:' || parsed.protocol === 'http:')
+      && !parsed.username
+      && !parsed.password
+      && parsed.host.toLowerCase() === host.toLowerCase()
+    );
+  } catch {
+    return false;
+  }
 }
 
 function environmentRefreshHeaders(): HeadersInit {
@@ -96,33 +204,204 @@ function environmentRefreshHeaders(): HeadersInit {
   return secret ? { [ENVIRONMENT_JOB_SECRET_HEADER]: secret } : {};
 }
 
-async function logStart(jobId: string): Promise<string | null> {
-  try {
-    const supabase = createServiceClient();
-    if (!supabase) return null;
-    const { data } = await supabase
-      .from('platform_job_logs')
-      .insert({ job_id: jobId, status: 'running', triggered_by: 'manual' })
-      .select('id')
-      .single();
-    return data?.id ?? null;
-  } catch { return null; }
+function sanitizeNumericShape(value: unknown, depth = 0): unknown {
+  if (depth > 5 || value === null || value === undefined) return undefined;
+  if (typeof value === 'number' || typeof value === 'boolean') return value;
+  if (Array.isArray(value)) {
+    return value
+      .slice(0, 50)
+      .map(item => sanitizeNumericShape(item, depth + 1))
+      .filter(item => item !== undefined);
+  }
+  if (typeof value !== 'object') return undefined;
+
+  const output: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+    if (SENSITIVE_JOB_FIELD.test(key)) continue;
+    const safe = sanitizeNumericShape(nested, depth + 1);
+    if (safe !== undefined) output[key] = safe;
+  }
+  return Object.keys(output).length > 0 ? output : undefined;
+}
+
+function sanitizeJobResult(value: unknown, depth = 0): unknown {
+  if (depth > 5 || value === null || value === undefined) return value ?? undefined;
+  if (typeof value === 'number' || typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    return /^[a-z0-9_.:-]{1,80}$/i.test(value) ? value : undefined;
+  }
+  if (Array.isArray(value)) {
+    return value
+      .slice(0, 50)
+      .map(item => sanitizeJobResult(item, depth + 1))
+      .filter(item => item !== undefined);
+  }
+  if (typeof value !== 'object') return undefined;
+
+  const output: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+    if (/^(body|response)$/i.test(key)) {
+      const safeMetrics = sanitizeNumericShape(nested, depth + 1);
+      if (safeMetrics !== undefined) output[key] = safeMetrics;
+      continue;
+    }
+    if (SENSITIVE_JOB_FIELD.test(key)) {
+      continue;
+    }
+    const safe = sanitizeJobResult(nested, depth + 1);
+    if (safe !== undefined) output[key] = safe;
+  }
+  return output;
+}
+
+async function logStart(jobId: string): Promise<string> {
+  const context = jobExecutionStorage.getStore();
+  if (!context?.idempotencyKey || !context.actor) {
+    throw new JobCommandError('JOB_AUDIT_UNAVAILABLE', 503);
+  }
+  if (context.logId) {
+    if (context.jobId !== jobId) throw new JobCommandError('JOB_AUDIT_UNAVAILABLE', 503);
+    return context.logId;
+  }
+
+  const supabase = createServiceClient();
+  if (!supabase) throw new JobCommandError('JOB_AUDIT_UNAVAILABLE', 503);
+
+  const targetKey = jobTargetKey(jobId);
+  const { data, error } = await supabase.rpc('begin_platform_job_command', {
+    p_command_kind: 'job',
+    p_job_id: jobId,
+    p_target_key: targetKey,
+    p_idempotency_key: context.idempotencyKey,
+    p_actor_id: context.actor,
+    p_lease_seconds: JOB_LEASE_TTL_SECONDS,
+    p_start_payload: context.requestPayload ?? {},
+  });
+  if (error || !data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new JobCommandError('JOB_AUDIT_UNAVAILABLE', 503);
+  }
+
+  const result = data as Record<string, unknown>;
+  if (result.outcome === 'replayed') {
+    const commandStatus = result.status;
+    const sanitizedResult = sanitizeJobResult(result.safe_result);
+    if (
+      (commandStatus !== 'ok' && commandStatus !== 'error' && commandStatus !== 'partial')
+      || !sanitizedResult
+      || typeof sanitizedResult !== 'object'
+      || Array.isArray(sanitizedResult)
+    ) {
+      throw new JobCommandError('JOB_AUDIT_UNAVAILABLE', 503);
+    }
+    throw new JobCommandReplay(
+      jobId,
+      commandStatus,
+      sanitizedResult as Record<string, unknown>,
+    );
+  }
+  if (result.outcome === 'already_submitted') {
+    throw new JobCommandError('JOB_ALREADY_SUBMITTED', 409);
+  }
+  if (result.outcome === 'already_running') {
+    throw new JobCommandError('JOB_ALREADY_RUNNING', 409);
+  }
+  if (result.outcome === 'idempotency_conflict') {
+    throw new JobCommandError('JOB_IDEMPOTENCY_CONFLICT', 409);
+  }
+  if (
+    result.outcome !== 'started'
+    || typeof result.command_id !== 'string'
+    || typeof result.log_id !== 'string'
+  ) {
+    throw new JobCommandError('JOB_AUDIT_UNAVAILABLE', 503);
+  }
+
+  context.commandId = result.command_id;
+  context.jobId = jobId;
+  context.targetKey = targetKey;
+  context.logId = result.log_id;
+  return result.log_id;
 }
 
 async function logEnd(
   logId: string | null,
-  status: 'ok' | 'error' | 'partial',
+  status: JobStatus,
   result: unknown,
 ): Promise<void> {
-  if (!logId) return;
+  const context = jobExecutionStorage.getStore();
+  if (!logId || !context?.commandId || !context.actor || context.logId !== logId) {
+    if (context) context.completionFailed = true;
+    return;
+  }
+  if (context.completed) return;
+
+  const sanitizedResult = sanitizeJobResult(result);
+  const safeResult = sanitizedResult && typeof sanitizedResult === 'object' && !Array.isArray(sanitizedResult)
+    ? sanitizedResult as Record<string, unknown>
+    : { value: sanitizedResult ?? null };
   try {
     const supabase = createServiceClient();
-    if (!supabase) return;
-    await supabase
-      .from('platform_job_logs')
-      .update({ status, result, finished_at: new Date().toISOString() })
-      .eq('id', logId);
-  } catch { /* logging is best-effort */ }
+    if (!supabase) {
+      context.completionFailed = true;
+      return;
+    }
+    const { data, error } = await supabase.rpc('complete_platform_job_command', {
+      p_command_id: context.commandId,
+      p_status: status,
+      p_safe_result: safeResult,
+      p_actor_id: context.actor,
+    });
+    const completed = Boolean(
+      !error
+      && data
+      && typeof data === 'object'
+      && !Array.isArray(data)
+      && (data as Record<string, unknown>).outcome === 'completed',
+    );
+    context.completionFailed = !completed;
+    context.completed = true;
+    if (context.completionFailed) {
+      console.warn('[platform-admin] job completion audit unavailable', { jobId: context.jobId });
+    }
+  } catch {
+    context.completionFailed = true;
+    context.completed = true;
+  }
+}
+
+function safeJobErrorCode(raw: unknown, status: number): string {
+  if (typeof raw === 'string' && SAFE_JOB_ERROR_CODES.has(raw)) return raw;
+  if (status === 401) return 'UNAUTHORIZED';
+  if (status === 403) return 'ORIGIN_NOT_ALLOWED';
+  if (status === 400 || status === 415 || status === 413) return 'INVALID_JOB_REQUEST';
+  if (status === 409) return 'JOB_ALREADY_RUNNING';
+  return 'JOB_EXECUTION_FAILED';
+}
+
+async function sanitizeJobResponse(
+  response: NextResponse,
+  context: JobExecutionContext,
+): Promise<NextResponse> {
+  let raw: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(await response.text()) as unknown;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      raw = parsed as Record<string, unknown>;
+    }
+  } catch {
+    raw = {};
+  }
+
+  const sanitized = sanitizeJobResult(raw);
+  const body = sanitized && typeof sanitized === 'object' && !Array.isArray(sanitized)
+    ? sanitized as Record<string, unknown>
+    : {};
+  body.ok = response.ok && raw.ok !== false;
+  body.requestId = context.idempotencyKey;
+  if (!response.ok || raw.ok === false) {
+    body.error = safeJobErrorCode(raw.error, response.status);
+  }
+  return json(body, response.status);
 }
 
 // ─── Job runners ──────────────────────────────────────────────────────────────
@@ -131,8 +410,11 @@ async function runTransit(action: 'stops-routes' | 'building-stops' | 'alerts', 
   const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const secret = process.env.TRANSIT_SYNC_SECRET || process.env.CRON_SECRET || '';
   const cellParam = cell !== undefined ? `&cell=${cell}` : '';
-  const url = `${base.replace(/\/$/, '')}/api/transit/sync?action=${action}${cellParam}${secret ? `&secret=${encodeURIComponent(secret)}` : ''}`;
-  const res = await fetch(url, { cache: 'no-store' });
+  const url = `${base.replace(/\/$/, '')}/api/transit/sync?action=${action}${cellParam}`;
+  const res = await fetch(url, {
+    cache: 'no-store',
+    headers: secret ? { Authorization: `Bearer ${secret}` } : undefined,
+  });
   const body = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, body };
 }
@@ -158,8 +440,6 @@ async function ensureOsmUniqueIndex(): Promise<{ ok: boolean; method: string; er
   if (!supabase) return { ok: false, method: 'none', error: 'No Supabase client' };
 
   const sql = `
-    DROP INDEX IF EXISTS public.osm_addresses_external_id_unique;
-    DROP INDEX IF EXISTS public.osm_addresses_external_id_idx;
     CREATE UNIQUE INDEX IF NOT EXISTS osm_addresses_external_id_unique ON public.osm_addresses (external_id);
   `.trim();
 
@@ -173,8 +453,6 @@ async function ensureOsmUniqueIndex(): Promise<{ ok: boolean; method: string; er
   const key = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim();
   if (url && key) {
     const stmts = [
-      'DROP INDEX IF EXISTS public.osm_addresses_external_id_unique',
-      'DROP INDEX IF EXISTS public.osm_addresses_external_id_idx',
       'CREATE UNIQUE INDEX IF NOT EXISTS osm_addresses_external_id_unique ON public.osm_addresses (external_id)',
     ];
     for (const query of stmts) {
@@ -307,13 +585,52 @@ out;`;
   return { county, ok: true, imported, total: elements.length, skipped: elements.length - rows.length };
 }
 
-export async function POST(request: NextRequest) {
+async function executeJobRequest(request: NextRequest) {
   if (!(await isSuperadminAuthenticated())) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return json({ error: 'UNAUTHORIZED' }, 401);
   }
 
-  const body = await request.json() as { job?: string; county?: string };
+  if (!isSameOrigin(request)) return json({ error: 'ORIGIN_NOT_ALLOWED' }, 403);
+  if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) {
+    return json({ error: 'UNSUPPORTED_MEDIA_TYPE' }, 415);
+  }
+
+  let parsedBody: unknown;
+  try {
+    parsedBody = await readBoundedJson(request, 8 * 1024);
+  } catch (error) {
+    if (error instanceof BoundedJsonError && error.code === 'REQUEST_TOO_LARGE') {
+      return json({ error: 'REQUEST_TOO_LARGE' }, 413);
+    }
+    return json({ error: 'INVALID_JSON' }, 400);
+  }
+  if (!parsedBody || typeof parsedBody !== 'object' || Array.isArray(parsedBody)) {
+    return json({ error: 'INVALID_JOB_REQUEST' }, 400);
+  }
+
+  const body = parsedBody as { job?: unknown; county?: unknown; idempotencyKey?: unknown };
+  if (Object.keys(body).some(key => !['job', 'county', 'idempotencyKey'].includes(key))) {
+    return json({ error: 'INVALID_JOB_REQUEST' }, 400);
+  }
+  if (typeof body.job !== 'string' || body.job.length > 80) {
+    return json({ error: 'INVALID_JOB_REQUEST' }, 400);
+  }
+  if (body.county !== undefined && (typeof body.county !== 'string' || body.county.length > 80)) {
+    return json({ error: 'INVALID_JOB_REQUEST' }, 400);
+  }
+  if (typeof body.idempotencyKey !== 'string' || !UUID_PATTERN.test(body.idempotencyKey)) {
+    return json({ error: 'IDEMPOTENCY_KEY_REQUIRED' }, 400);
+  }
+
+  const executionContext = jobExecutionStorage.getStore();
+  if (!executionContext) return json({ error: 'JOB_GUARD_UNAVAILABLE' }, 503);
+  executionContext.idempotencyKey = body.idempotencyKey;
+  executionContext.actor = process.env.SUPERADMIN_EMAIL?.trim().toLowerCase() || 'superadmin';
   const { job } = body;
+  executionContext.requestPayload = {
+    job,
+    ...(typeof body.county === 'string' ? { county: body.county } : {}),
+  };
 
   if (job === 'bkk_full_sync') {
     const logId = await logStart(job);
@@ -1769,4 +2086,57 @@ out center 20000;`;
   }
 
   return NextResponse.json({ error: 'Unknown job' }, { status: 400 });
+}
+
+export async function POST(request: NextRequest) {
+  const context: JobExecutionContext = {
+    completed: false,
+    completionFailed: false,
+  };
+
+  return jobExecutionStorage.run(context, async () => {
+    try {
+      const response = await executeJobRequest(request);
+      if (context.logId && !context.completed) {
+        const status: JobStatus = response.status === 207
+          ? 'partial'
+          : (response.ok ? 'ok' : 'error');
+        await logEnd(context.logId, status, { response_status: response.status });
+      }
+      if (context.completionFailed) {
+        return json({
+          ok: false,
+          error: 'JOB_AUDIT_INCOMPLETE',
+          requestId: context.idempotencyKey,
+        }, 500);
+      }
+      return sanitizeJobResponse(response, context);
+    } catch (error) {
+      if (context.logId && !context.completed) {
+        await logEnd(context.logId, 'error', { code: 'JOB_EXECUTION_FAILED' });
+      }
+      if (error instanceof JobCommandReplay) {
+        return json({
+          ok: error.commandStatus !== 'error',
+          replayed: true,
+          job: error.jobId,
+          commandStatus: error.commandStatus,
+          result: error.safeResult,
+          requestId: context.idempotencyKey,
+        }, error.commandStatus === 'ok' ? 200 : error.commandStatus === 'partial' ? 207 : 422);
+      }
+      if (error instanceof JobCommandError) {
+        return json({
+          ok: false,
+          error: error.code,
+          requestId: context.idempotencyKey,
+        }, error.status);
+      }
+      return json({
+        ok: false,
+        error: context.completionFailed ? 'JOB_AUDIT_INCOMPLETE' : 'JOB_EXECUTION_FAILED',
+        requestId: context.idempotencyKey,
+      }, 500);
+    }
+  });
 }

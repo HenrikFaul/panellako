@@ -1,34 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-function createServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Missing Supabase service-role env vars');
-  return createClient(url, key, { auth: { persistSession: false } });
+const SENSITIVE_FIELD = /(authorization|cookie|secret|token|password|credential|api[_-]?key|recipient|email|phone|command|sql|error|message|detail)/i;
+
+function json(body: Record<string, unknown>, status = 200) {
+  return NextResponse.json(body, {
+    status,
+    headers: { 'Cache-Control': 'private, no-store' },
+  });
+}
+
+function safeResult(value: unknown, depth = 0): unknown {
+  if (depth > 4) return '[truncated]';
+  if (value === null || typeof value === 'number' || typeof value === 'boolean') return value;
+  if (typeof value === 'string') return value.length > 240 ? `${value.slice(0, 240)}…` : value;
+  if (Array.isArray(value)) return value.slice(0, 20).map(item => safeResult(item, depth + 1));
+  if (!value || typeof value !== 'object') return null;
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .slice(0, 30)
+      .map(([key, item]) => [
+        key,
+        SENSITIVE_FIELD.test(key) ? '[redacted]' : safeResult(item, depth + 1),
+      ]),
+  );
 }
 
 export async function GET(request: NextRequest) {
   if (!(await isSuperadminAuthenticated())) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return json({ error: 'UNAUTHORIZED' }, 401);
   }
 
-  const limit = Math.min(parseInt(request.nextUrl.searchParams.get('limit') ?? '30', 10), 100);
-  const jobId = request.nextUrl.searchParams.get('job') ?? undefined;
+  const requestedLimit = Number(request.nextUrl.searchParams.get('limit') ?? '30');
+  if (!Number.isSafeInteger(requestedLimit) || requestedLimit < 1) {
+    return json({ error: 'INVALID_LIMIT' }, 400);
+  }
+  const limit = Math.min(requestedLimit, 100);
+  const rawJobId = request.nextUrl.searchParams.get('job')?.trim();
+  if (rawJobId && !/^[a-z0-9_-]{1,80}$/i.test(rawJobId)) {
+    return json({ error: 'INVALID_JOB' }, 400);
+  }
 
-  const supabase = createServiceClient();
-  let query = supabase
-    .from('platform_job_logs')
-    .select('id, job_id, triggered_by, status, result, started_at, finished_at')
-    .order('started_at', { ascending: false })
-    .limit(limit);
+  try {
+    const supabase = createAdminClient();
+    let query = supabase
+      .from('platform_job_logs')
+      .select('id, job_id, triggered_by, status, result, started_at, finished_at')
+      .order('started_at', { ascending: false })
+      .limit(limit);
 
-  if (jobId) query = query.eq('job_id', jobId);
+    if (rawJobId) query = query.eq('job_id', rawJobId);
 
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ logs: data ?? [] });
+    const { data, error } = await query;
+    if (error) return json({ error: 'JOB_LOGS_UNAVAILABLE' }, 503);
+    const logs = (data ?? []).map(row => ({
+      ...row,
+      triggered_by: row.triggered_by ? 'operator' : 'system',
+      result: safeResult(row.result),
+    }));
+    return json({ logs });
+  } catch {
+    return json({ error: 'JOB_LOGS_UNAVAILABLE' }, 503);
+  }
 }

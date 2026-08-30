@@ -1,16 +1,14 @@
 import { NextResponse } from 'next/server';
 import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-function createServiceClient() {
-  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '').trim();
-  const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY ?? '').trim();
-  const anonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim();
-  const key = serviceKey.startsWith('eyJ') ? serviceKey : (anonKey || serviceKey);
-  if (!url || !key) throw new Error('Missing Supabase env vars');
-  return createClient(url, key, { auth: { persistSession: false } });
+function json(body: Record<string, unknown>, status = 200) {
+  return NextResponse.json(body, {
+    status,
+    headers: { 'Cache-Control': 'private, no-store' },
+  });
 }
 
 const TABLE_SPECS: Array<{ name: string; tsCol: string | null; label: string; group?: string }> = [
@@ -43,7 +41,7 @@ const TABLE_SPECS: Array<{ name: string; tsCol: string | null; label: string; gr
 ];
 
 async function getTableStat(
-  supabase: ReturnType<typeof createServiceClient>,
+  supabase: ReturnType<typeof createAdminClient>,
   spec: (typeof TABLE_SPECS)[number],
 ) {
   const { count, error: countErr } = await supabase
@@ -67,27 +65,32 @@ async function getTableStat(
     group:       spec.group ?? null,
     count:       countErr ? null : (count ?? 0),
     lastUpdated,
-    error: countErr?.message ?? null,
+    error: countErr ? 'SOURCE_UNAVAILABLE' : null,
   };
 }
 
 export async function GET() {
   if (!(await isSuperadminAuthenticated())) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return json({ error: 'UNAUTHORIZED' }, 401);
   }
 
-  const supabase = createServiceClient();
+  let supabase: ReturnType<typeof createAdminClient>;
+  try {
+    supabase = createAdminClient();
+  } catch {
+    return json({ error: 'STATS_UNAVAILABLE' }, 503);
+  }
 
   const tables = await Promise.all(
-    TABLE_SPECS.map(spec => getTableStat(supabase, spec).catch(err => ({
+    TABLE_SPECS.map(spec => getTableStat(supabase, spec).catch(() => ({
       name:  spec.name,
       label: spec.label,
       group: spec.group ?? null,
       count: null,
       lastUpdated: null,
-      error: err instanceof Error ? err.message : String(err),
+      error: 'SOURCE_UNAVAILABLE',
     }))),
   );
 
-  return NextResponse.json({ tables, fetchedAt: new Date().toISOString() });
+  return json({ tables, fetchedAt: new Date().toISOString() });
 }
