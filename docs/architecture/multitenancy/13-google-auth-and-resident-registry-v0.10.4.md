@@ -4,7 +4,7 @@
 
 **Branch:** `codex/google-oauth-multitenancy-completion`
 
-**Állapot:** lokálisan validált repository release-jelölt; production rollout folyamatban
+**Állapot:** production adatbázis migrálva és ellenőrizve; alkalmazás- és OAuth-rollout folyamatban
 
 **Előzmény:** [v0.10.1 operatív lezárás](./12-operational-multitenancy-closure-v0.10.1.md) és [v0.10.3 production bizonyíték](../../../versioning/29082601_v0.10.3_production-multitenancy-closure.md)
 
@@ -27,11 +27,12 @@ hiányzó operatív folyamatokat készíti elő repository-szinten:
 - legfeljebb 500 albetét kontrollált CSV-előnézete és atomi importja;
 - a teljes új felületi kiegészítés magyar és angol lokalizációja.
 
-Ez a kör **nem** állítja, hogy az öt új migráció production adatbázison fut,
-vagy hogy a v0.10.4 alkalmazáskód deployolva van. A Google OAuth kliensoldali
-folyamata elkészült, de a production Supabase projektben a Google provider
-jelenleg ki van kapcsolva, és nincs konfigurált Google kliens-ID/kliens-secret.
-Ezért a hosted Google-regisztráció és -belépés állapota **HOLD**.
+Az öt új migráció titkosított backup után a production adatbázison lefutott, a
+ledger és a read-only sémaverifikáció PASS. A v0.10.4 alkalmazáskód mainre
+merge-elése és deployja még folyamatban van. A Google Cloud projekt, External
+OAuth app és web kliens elkészült; a Supabase provider bekötését és a hosted
+böngészős folyamatot külön production kapuk igazolják. Ezek lezárásáig a hosted
+Google-regisztráció és -belépés állapota **HOLD**.
 
 ## 2. Változatlan domainalapelvek
 
@@ -128,10 +129,10 @@ működéshez mindegyik feltétel szükséges:
 6. hosted regisztráció, meglévő fiókos belépés, elutasított consent,
    callback-hiba és invitation-visszatérés böngészős E2E-je.
 
-**Aktuális tényhatár:** a production Supabase Auth settings szerint az email
-provider aktív, a Google provider nem aktív. A repository és az elérhető
-folyamatkörnyezet nem tartalmaz használható Google kliens-ID-t vagy secretet.
-Valódi credentialt nem szabad kitalálni, más projektből átvenni vagy commitolni.
+**Aktuális tényhatár (2026-08-30):** a dedikált Google Cloud projekt és kliens
+elkészült, de a hosted működés csak a Supabase provider read-back és authorize
+canary, majd a böngészős E2E után tekinthető bizonyítottnak. A valódi credential
+nem kerülhet repositoryba, dokumentációba vagy naplóba.
 
 ## 4. Fail-closed workspace authorization
 
@@ -389,23 +390,25 @@ történő implementálásuk gyengítené a már kialakított tenant-határt.
 | Kapu | Állapot | Tényhatár |
 |---|---|---|
 | Célzott migrációs contract Vitest | **PASS – 5 fájl, 37/37 teszt** | Registry, push, invitation lifecycle, bulk import és ownership-share closure. |
-| Teljes Vitest | **PASS – 51 fájl, 319/319 teszt** | A teljes közös repository-diff. |
+| Teljes Vitest | **PASS – 52 fájl, 324/324 teszt** | A teljes közös repository-diff, benne a production OAuth-workflow szerződése. |
 | TypeScript | **PASS** | `npm run typecheck`. |
 | ESLint | **PASS** | `npm run lint`. |
 | Next.js production build | **PASS** | Helyi production build, 73/73 statikus oldal, `BUILD_ID=uNOl2tVsBk-ZtgnVoYD-X`; ez nem hosted proof. |
 | Kombinált migráció apply/reapply/runtime canary | **PASS** | PostgreSQL 18.4; 110000–150000 apply + teljes reapply, mind az 5 canary a reapply után ismét PASS. |
-| Hosted Google OAuth E2E | **HOLD** | Provider disabled; kliens-ID/secret nincs konfigurálva. |
-| Production Supabase migráció | **NOT_RUN** | Ebben a v0.10.4 körben nem történt. |
-| Production deploy | **NOT_RUN** | Ebben a v0.10.4 körben nem történt. |
-| Commit / push | **NOT_RUN** | A dokumentáció nem állít publikálást. |
+| Production backup | **PASS** | AES-256-GCM + DPAPI, SHA-256 és visszafejtési ellenőrzés, 42 tábla/11 Auth user/33 Storage objektum. |
+| Production Supabase migráció | **PASS** | Az öt új migráció külön workflow-runban, ledgerrel. |
+| Production DB Verify | **PASS** | `33297782091`; minden kötelező kapu igaz, hiánylisták üresek. |
+| Google Cloud OAuth projekt/app/kliens | **PASS** | External/public production consent, pontos Supabase callback. |
+| Hosted Google OAuth E2E | **HOLD** | Supabase provider workflow és böngészős bizonyítás folyamatban. |
+| Production alkalmazásdeploy | **PENDING** | Main merge és hosted ellenőrzés szükséges. |
+| Commit / push | **PASS** | `a419c51266c179b98c0aff12ccac6dd3b8a55b84`, PR #261. |
 
 ## 13. Release előtt kötelező következő lépések
 
 1. Két-tenant negatív hosted E2E offline személlyel, több albetétes személlyel,
    felfüggesztett tagsággal és concurrent importtal.
-2. Backup/PITR gate, production migration allowlist és ledger ellenőrzése.
-3. Valódi Google OAuth client biztonságos beállítása Supabase-ben és a Google
-   Cloudban, titokérték repositoryba írása nélkül.
-4. Hosted Google új fiók, meglévő fiók, consent-elutasítás, callback-hiba,
+2. A valódi Google OAuth client biztonságos bekötése Supabase-be, titokérték
+   repositoryba írása nélkül.
+3. Hosted Google új fiók, meglévő fiók, consent-elutasítás, callback-hiba,
    invitation return-to és account-linking E2E.
-5. Kontrollált production migráció/deploy és külön post-deploy canary.
+4. Kontrollált main deploy és külön post-deploy canary.

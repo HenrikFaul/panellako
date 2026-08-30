@@ -1,9 +1,9 @@
 # PanelLakó multitenancy – célarchitektúra és bevezetési terv
 
-**Állapot:** v0.10.3 production baseline; v0.10.4 Google Auth és lakónyilvántartási hardening lokálisan validált repository release-jelölt
-**Dátum:** 2026-08-29
+**Állapot:** v0.10.4 production adatbázis migrálva és ellenőrizve; alkalmazás- és OAuth-rollout folyamatban
+**Dátum:** 2026-08-30
 **Hatókör:** identitás, workspace, fizikai épület, cím, albetét, személyek, tulajdon, bentlakás, képviselet, delegálás, regisztráció, meghívás, RLS és kompatibilis migráció
-**Élesítési határ:** a v0.10.3 tizenkét migrációs production baseline-ja bizonyított; a v0.10.4 öt új, `20260829110000`–`20260829150000` közötti migrációja lokálisan apply/reapply/runtime-canary validált, de productionben még nincs alkalmazva; az alkalmazáskód még nincs deployolva, a hosted Google OAuth provider disabled és nincs kliens-ID/secret
+**Élesítési határ:** a v0.10.4 öt új, `20260829110000`–`20260829150000` közötti migrációja productionben ledgerrel és read-only verifierrel PASS; az alkalmazás main deployja és a Supabase Google provider hosted E2E-je még folyamatban van
 
 ## Vezetői döntés
 
@@ -30,14 +30,12 @@ Ebből következik:
 - **NYITOTT DÖNTÉS:** üzleti, jogi vagy termékdöntést igényel az implementáció előtt.
 - **HOLD:** valódi lakói adatokkal nem biztonságos élesíteni, amíg az adott kapu nem teljesül.
 
-A v0.10.3 production állapotát külön backup-, migrációs ledger-, hosted
-két-tenant és CI-bizonyíték támasztja alá. A jelenlegi v0.10.4 kör auditja a
-repository-diffet és a Supabase Auth provider-beállítás read-only állapotát
-vizsgálta. Az öt új migráció lokális PostgreSQL 18.4 apply/reapply és runtime
-canaryja, a teljes 319 teszt, a TypeScript, lint és production build PASS. A
-production alkalmazás, az alkalmazásdeploy és a hosted Google OAuth E2E még
-nem történt meg; ezeket a v0.10.4 verziózási jegyzőkönyv külön tényhatárként
-kezeli.
+A v0.10.4 öt új migrációját titkosított, visszaellenőrzött backup után a
+production adatbázisra alkalmaztuk; a migrációs ledger és a read-only DB Verify
+PASS. A lokális PostgreSQL 18.4 apply/reapply és runtime canary, a teljes 324
+teszt, a TypeScript, lint és production build szintén PASS. A production
+alkalmazásdeploy és a hosted Google OAuth E2E külön, még folyamatban lévő kapu;
+ezeket a verziózási jegyzőkönyv nem keveri össze az adatbázis-bizonyítékkal.
 
 ## A csomag felépítése
 
@@ -150,13 +148,10 @@ A sorrend szándékos. Új lakói onboardingot nem szabad a jelenlegi nyitott RL
 
 ## Release-kapuk
 
-### v0.10.4 repository-jelölt – kötelező kapuk production előtt
+### v0.10.4 release – fennmaradó production kapuk
 
-- az öt új migráció kombinált PostgreSQL apply, idempotens reapply és pozitív/
-  negatív runtime canaryja;
-- teljes TypeScript, lint, Vitest, build, migration verifier és két-tenant E2E;
-- production backup/PITR és migration allowlist/ledger frissítése;
-- Google OAuth client létrehozása, Supabase provider engedélyezése és redirect
+- hosted két-tenant E2E az új registry-, lifecycle- és importfolyamatokra;
+- Supabase Google provider engedélyezése és redirect
   allowlist konfigurálása titokérték repositoryba írása nélkül;
 - hosted Google új fiók, meglévő fiók, consent-elutasítás, callback-hiba,
   invitation return-to és account-linking E2E.

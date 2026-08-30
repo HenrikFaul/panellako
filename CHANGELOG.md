@@ -64,20 +64,31 @@
 - `20260829150000_ownership_share_join_flow_closure.sql`
 
 ### Lokális release-ellenőrzés
-- Teljes Vitest: **PASS — 51 fájl, 319/319 teszt**.
+- Teljes Vitest: **PASS — 52 fájl, 324/324 teszt**.
 - Célzott migrációs contract Vitest: **PASS — 5 fájl, 37/37 teszt**.
 - TypeScript és ESLint: **PASS**.
 - Next.js production build: **PASS — 73/73 statikus oldal** (`BUILD_ID=uNOl2tVsBk-ZtgnVoYD-X`).
 - Az öt új migráció PostgreSQL 18.4 apply + teljes reapply lánca: **PASS**.
 - Mind az öt runtime canary az első alkalmazás és a teljes reapply után is:
   **PASS**.
-- Production Supabase migráció, deploy, commit és push: **nem történt**.
+- Titkosított production backup és visszafejtési/hash-ellenőrzés: **PASS**;
+  SHA-256 `3cf9b43a1c226a2acad7a2cb24a5773c2ac57ace028741fc01fe74505f6c14a7`.
+- Az öt új production Supabase migráció: **PASS** — workflow-runok
+  `33297672992`, `33297701697`, `33297717005`, `33297737816`, `33297754785`.
+- Végső read-only production DB Verify: **PASS** — `33297782091`.
+- Commit/push: **PASS** — `a419c51266c179b98c0aff12ccac6dd3b8a55b84`, PR #261.
+- Production alkalmazásdeploy: **folyamatban**; csak a main merge és hosted
+  ellenőrzés után tekinthető bizonyítottnak.
 
-### Hosted Google OAuth HOLD
-- A Google OAuth alkalmazáskód elkészült, de a production Supabase provider
-  jelenleg disabled, és nincs konfigurált Google kliens-ID/secret.
-- A production Google-regisztráció és -belépés ezért még nem állítható
-  működőként; provider-konfiguráció és hosted böngészős E2E szükséges.
+### Hosted Google OAuth rollout
+- Dedikált `PanelLako` Google Cloud projekt, külső/public `PanelLakó` OAuth app
+  és web kliens elkészült; a consent screen production státuszú.
+- A kliens titka nem kerül repositoryba vagy naplóba. A production provider
+  bekötését explicit main/repository/actor kapukkal, overwrite-védelemmel,
+  rollbackkal, allowlist-merge-dzsel és hosted authorize canaryval védett
+  workflow végzi.
+- A production Google-regisztráció és -belépés továbbra is **HOLD**, amíg a
+  provider-workflow, a main deploy és a hosted böngészős E2E nem PASS.
 
 ### Dokumentáció
 - Implementáció és döntési határok:

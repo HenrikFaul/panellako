@@ -1,0 +1,253 @@
+name: Google OAuth Provider Configure
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Írd be: IGEN:PANELLAKO-GOOGLE-OAUTH – a production konfiguráció jóváhagyásához'
+        required: true
+        default: ''
+
+concurrency:
+  group: production-google-oauth-config
+  cancel-in-progress: false
+
+jobs:
+  configure:
+    name: Configure PanelLakó production Google OAuth
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    permissions: {}
+
+    steps:
+      - name: Guard – repository, main branch, actor és jóváhagyás
+        env:
+          CONFIRM: ${{ github.event.inputs.confirm }}
+        run: |
+          set -euo pipefail
+
+          if [ "$GITHUB_REPOSITORY" != "HenrikFaul/panellako" ]; then
+            echo "❌ A workflow kizárólag a HenrikFaul/panellako repositoryban futhat."
+            exit 1
+          fi
+
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "❌ A production workflow kizárólag a main ágról futtatható."
+            exit 1
+          fi
+
+          if [ "$GITHUB_ACTOR" != "HenrikFaul" ]; then
+            echo "❌ A production workflow csak a repository tulajdonosa által futtatható."
+            exit 1
+          fi
+
+          if [ "$CONFIRM" != "IGEN:PANELLAKO-GOOGLE-OAUTH" ]; then
+            echo "❌ A production konfigurációhoz a projekt-specifikus jóváhagyás szükséges."
+            exit 1
+          fi
+
+          echo "✅ Repository-, branch-, actor- és jóváhagyási kapu PASS."
+
+      - name: Configure Google provider through Supabase Management API
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.PANELLAKO_GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.PANELLAKO_GOOGLE_OAUTH_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          umask 077
+
+          for required_value in \
+            "$SUPABASE_ACCESS_TOKEN" \
+            "$GOOGLE_OAUTH_CLIENT_ID" \
+            "$GOOGLE_OAUTH_CLIENT_SECRET"; do
+            if [ -z "$required_value" ]; then
+              echo "❌ Hiányzik egy kötelező production secret."
+              exit 1
+            fi
+            echo "::add-mask::$required_value"
+          done
+
+          API_URL="https://api.supabase.com/v1/projects/wzromwxpjlyrqbdiapep/config/auth"
+          REQUIRED_SITE_URL="https://panellako.hu"
+          REQUIRED_REDIRECT="https://panellako.hu/auth/callback"
+          BEFORE_BODY=$(mktemp)
+          REQUEST_BODY=$(mktemp)
+          PATCH_BODY=$(mktemp)
+          VERIFY_BODY=$(mktemp)
+          ROLLBACK_BODY=$(mktemp)
+          ROLLBACK_RESPONSE=$(mktemp)
+          ROLLBACK_ARMED=false
+
+          cleanup() {
+            STATUS=$?
+            trap - EXIT
+
+            if [ "$STATUS" -ne 0 ] && [ "$ROLLBACK_ARMED" = "true" ]; then
+              jq -n \
+                --arg uri_allow_list "$CURRENT_ALLOW_LIST" \
+                --argjson email_optional "$CURRENT_EMAIL_OPTIONAL" \
+                --argjson skip_nonce "$CURRENT_SKIP_NONCE" \
+                '{
+                  external_google_enabled: false,
+                  external_google_email_optional: $email_optional,
+                  external_google_skip_nonce_check: $skip_nonce,
+                  uri_allow_list: $uri_allow_list
+                }' > "$ROLLBACK_BODY"
+
+              ROLLBACK_STATUS=$(curl --silent --show-error \
+                --request PATCH \
+                --output "$ROLLBACK_RESPONSE" \
+                --write-out "%{http_code}" \
+                "$API_URL" \
+                -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+                -H "Content-Type: application/json" \
+                --data-binary "@$ROLLBACK_BODY" || true)
+
+              if [ "$ROLLBACK_STATUS" = "200" ]; then
+                echo "✅ Sikertelen utóellenőrzés után a Google provider letiltása és az Auth allowlist visszaállítása PASS."
+              else
+                echo "❌ A fail-closed rollback nem igazolható (HTTP ${ROLLBACK_STATUS:-unknown})."
+              fi
+            fi
+
+            rm -f \
+              "$BEFORE_BODY" "$REQUEST_BODY" "$PATCH_BODY" "$VERIFY_BODY" \
+              "$ROLLBACK_BODY" "$ROLLBACK_RESPONSE"
+            exit "$STATUS"
+          }
+          trap cleanup EXIT
+
+          BEFORE_STATUS=$(curl --silent --show-error \
+            --output "$BEFORE_BODY" \
+            --write-out "%{http_code}" \
+            "$API_URL" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN")
+
+          if [ "$BEFORE_STATUS" != "200" ]; then
+            echo "❌ A production Auth konfiguráció nem olvasható (HTTP $BEFORE_STATUS)."
+            exit 1
+          fi
+
+          if ! jq -e 'type == "object"' "$BEFORE_BODY" >/dev/null; then
+            echo "❌ A production Auth konfiguráció válasza nem érvényes JSON objektum."
+            exit 1
+          fi
+
+          CURRENT_SITE_URL=$(jq -r '.site_url // ""' "$BEFORE_BODY")
+          CURRENT_GOOGLE_ENABLED=$(jq -r '.external_google_enabled // false' "$BEFORE_BODY")
+          CURRENT_GOOGLE_CLIENT_ID=$(jq -r '.external_google_client_id // ""' "$BEFORE_BODY")
+          CURRENT_EMAIL_OPTIONAL=$(jq -r '.external_google_email_optional // false' "$BEFORE_BODY")
+          CURRENT_SKIP_NONCE=$(jq -r '.external_google_skip_nonce_check // false' "$BEFORE_BODY")
+          CURRENT_ALLOW_LIST=$(jq -r '.uri_allow_list // ""' "$BEFORE_BODY")
+
+          if [[ ! "$CURRENT_SITE_URL" =~ ^https://panellako\.hu/?$ ]]; then
+            echo "❌ A production site URL nem a várt PanelLakó domain; automatikus átírás tiltott."
+            exit 1
+          fi
+
+          if [ "$CURRENT_GOOGLE_ENABLED" != "false" ]; then
+            echo "❌ A Google provider már aktív; az élő konfiguráció automatikus felülírása tiltott."
+            exit 1
+          fi
+
+          if [ -n "$CURRENT_GOOGLE_CLIENT_ID" ] && [ "$CURRENT_GOOGLE_CLIENT_ID" != "$GOOGLE_OAUTH_CLIENT_ID" ]; then
+            echo "❌ Eltérő Google kliens-ID található; az élő credential automatikus felülírása tiltott."
+            exit 1
+          fi
+
+          NEW_ALLOW_LIST=$(jq -nr \
+            --arg current "$CURRENT_ALLOW_LIST" \
+            --arg required "$REQUIRED_REDIRECT" '
+              ($current
+                | split(",")
+                | map(gsub("^\\s+|\\s+$"; ""))
+                | map(select(length > 0))) as $existing
+              | reduce ($existing + [$required])[] as $url
+                  ([]; if index($url) == null then . + [$url] else . end)
+              | join(",")
+            ')
+
+          jq -n \
+            --arg client_id "$GOOGLE_OAUTH_CLIENT_ID" \
+            --arg client_secret "$GOOGLE_OAUTH_CLIENT_SECRET" \
+            --arg uri_allow_list "$NEW_ALLOW_LIST" \
+            '{
+              external_google_enabled: true,
+              external_google_client_id: $client_id,
+              external_google_secret: $client_secret,
+              external_google_email_optional: false,
+              external_google_skip_nonce_check: false,
+              uri_allow_list: $uri_allow_list
+            }' > "$REQUEST_BODY"
+
+          PATCH_STATUS=$(curl --silent --show-error \
+            --request PATCH \
+            --output "$PATCH_BODY" \
+            --write-out "%{http_code}" \
+            "$API_URL" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary "@$REQUEST_BODY")
+
+          if [ "$PATCH_STATUS" != "200" ]; then
+            echo "❌ A Google provider konfiguráció sikertelen (HTTP $PATCH_STATUS)."
+            exit 1
+          fi
+
+          ROLLBACK_ARMED=true
+
+          VERIFY_STATUS=$(curl --silent --show-error \
+            --output "$VERIFY_BODY" \
+            --write-out "%{http_code}" \
+            "$API_URL" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN")
+
+          if [ "$VERIFY_STATUS" != "200" ]; then
+            echo "❌ A Google provider utóellenőrzése sikertelen (HTTP $VERIFY_STATUS)."
+            exit 1
+          fi
+
+          if ! jq -e \
+            --arg expected_client_id "$GOOGLE_OAUTH_CLIENT_ID" \
+            --arg required_redirect "$REQUIRED_REDIRECT" '
+              .external_google_enabled == true
+              and .external_google_client_id == $expected_client_id
+              and .external_google_email_optional == false
+              and .external_google_skip_nonce_check == false
+              and (
+                ((.uri_allow_list // "")
+                  | split(",")
+                  | map(gsub("^\\s+|\\s+$"; ""))
+                  | index($required_redirect)) != null
+              )
+            ' \
+            "$VERIFY_BODY" >/dev/null; then
+            echo "❌ A Google provider utóellenőrzése eltérést talált."
+            exit 1
+          fi
+
+          ENCODED_REDIRECT=$(REQUIRED_REDIRECT="$REQUIRED_REDIRECT" python3 -c \
+            'import os, urllib.parse; print(urllib.parse.quote(os.environ["REQUIRED_REDIRECT"], safe=""))')
+          AUTHORIZE_RESULT=$(curl --silent --show-error \
+            --output /dev/null \
+            --write-out "%{http_code}\n%{redirect_url}" \
+            "https://wzromwxpjlyrqbdiapep.supabase.co/auth/v1/authorize?provider=google&redirect_to=$ENCODED_REDIRECT")
+          AUTHORIZE_STATUS=$(echo "$AUTHORIZE_RESULT" | head -1)
+          AUTHORIZE_REDIRECT=$(echo "$AUTHORIZE_RESULT" | tail -1)
+          AUTHORIZE_HOST=$(AUTHORIZE_REDIRECT="$AUTHORIZE_REDIRECT" python3 -c \
+            'import os, urllib.parse; print(urllib.parse.urlparse(os.environ["AUTHORIZE_REDIRECT"]).hostname or "")')
+
+          if [ "$AUTHORIZE_STATUS" != "302" ] && [ "$AUTHORIZE_STATUS" != "303" ]; then
+            echo "❌ A hosted Google authorize canary nem adott várt átirányítást (HTTP $AUTHORIZE_STATUS)."
+            exit 1
+          fi
+
+          if [ "$AUTHORIZE_HOST" != "accounts.google.com" ]; then
+            echo "❌ A hosted Google authorize canary nem a Google hitelesítési domainre irányított."
+            exit 1
+          fi
+
+          ROLLBACK_ARMED=false
+          echo "✅ Production Google OAuth provider, redirect allowlist, read-back és hosted authorize canary PASS."
