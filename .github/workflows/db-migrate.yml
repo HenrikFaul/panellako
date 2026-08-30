@@ -94,7 +94,21 @@ jobs:
             supabase/migrations/20260828128000_content_command_closure.sql|\
             supabase/migrations/20260828129000_agency_portfolio_workflow.sql|\
             supabase/migrations/20260828130000_announcement_delivery_worker.sql|\
-            supabase/migrations/20260829100000_service_role_private_schema_access.sql)
+            supabase/migrations/20260829100000_service_role_private_schema_access.sql|\
+            supabase/migrations/20260829110000_workspace_relationship_registry.sql)
+              EXPECTED_SQL_SHA256="d9c17507ca29727563d167846541e32e6b32cebe5d7c6b0a577bccb9e1289369"
+              ;;
+            supabase/migrations/20260829120000_authorization_push_recipient_closure.sql)
+              EXPECTED_SQL_SHA256="7fc3e8be055e068a71b28e5694c610f262d8060cc009bedf4d74574bc0d9e00a"
+              ;;
+            supabase/migrations/20260829130000_invitation_join_lifecycle.sql)
+              EXPECTED_SQL_SHA256="c798152672064ec809bc223665c11f6128bbbd02868e1cccdb00b5c9718f23fc"
+              ;;
+            supabase/migrations/20260829140000_workspace_unit_bulk_import.sql)
+              EXPECTED_SQL_SHA256="f012ddec8a6c3de57e3096db8258e85d7c4665a473bc9d04576620f3986a5a94"
+              ;;
+            supabase/migrations/20260829150000_ownership_share_join_flow_closure.sql)
+              EXPECTED_SQL_SHA256="62c6c0baa5bd46b745f0dc995050a4aa54dc44f9521b31c23be10b0bf9cbb70a"
               ;;
             *)
               echo "❌ Ez a production workflow csak a jóváhagyott multitenancy migrációkat futtatja."
@@ -102,9 +116,23 @@ jobs:
               ;;
           esac
 
+          if [ -n "${EXPECTED_SQL_SHA256:-}" ]; then
+            ACTUAL_SQL_SHA256=$(sha256sum "$SQL_FILE" | awk '{print $1}')
+            if [ "$ACTUAL_SQL_SHA256" != "$EXPECTED_SQL_SHA256" ]; then
+              echo "❌ A migráció tartalma eltér a lokálisan validált release-artifacttól."
+              exit 1
+            fi
+            echo "✅ Migrációs SHA-256 allowlist PASS."
+          fi
+
           MIGRATION_BASENAME=$(basename "$SQL_FILE" .sql)
           MIGRATION_VERSION=${MIGRATION_BASENAME%%_*}
           MIGRATION_NAME=${MIGRATION_BASENAME#*_}
+          if [[ ! "$MIGRATION_VERSION" =~ ^[0-9]{14}$ ]]; then
+            echo "❌ A migráció verziója nem 14 számjegyű timestamp."
+            exit 1
+          fi
+          echo "EXPECTED_MIGRATION_VERSION=$MIGRATION_VERSION" >> "$GITHUB_ENV"
           LAST_STATEMENT=$(awk 'NF && $1 !~ /^--/ { last=$0 } END { gsub(/^[[:space:]]+|[[:space:]]+$/, "", last); print last }' "$SQL_FILE")
 
           if [ "$LAST_STATEMENT" != "COMMIT;" ]; then

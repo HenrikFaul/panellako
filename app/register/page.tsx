@@ -5,13 +5,17 @@ import type { Route } from 'next';
 import { useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useState } from 'react';
 import { ShieldCheck, UserPlus } from 'lucide-react';
+import GoogleAccountButton from '@/components/google-account-button';
 import Logo from '@/components/logo';
+import { requestGoogleOAuth } from '@/lib/auth/oauth';
 import { sanitizeReturnTo } from '@/lib/auth/return-to';
 import { createClient, hasSupabaseConfig } from '@/lib/supabase/browser';
+import { useI18n } from '@/src/i18n/useI18n';
 
 type Notice = { tone: 'error' | 'success'; message: string };
 
 function RegisterForm() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const returnTo = sanitizeReturnTo(searchParams.get('next'), '/onboarding');
   const loginHref = `/login?next=${encodeURIComponent(returnTo)}` as Route;
@@ -21,6 +25,34 @@ function RegisterForm() {
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [notice, setNotice] = useState<Notice | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const continueWithGoogle = async () => {
+    setNotice(null);
+
+    if (!hasSupabaseConfig) {
+      setNotice({ tone: 'error', message: t('auth.google.unavailable') });
+      return;
+    }
+
+    setGoogleLoading(true);
+    try {
+      const supabase = createClient();
+      const { error } = await requestGoogleOAuth(supabase, {
+        origin: window.location.origin,
+        returnTo,
+        fallback: '/onboarding',
+      });
+
+      if (error) {
+        setNotice({ tone: 'error', message: t('auth.google.failed') });
+        setGoogleLoading(false);
+      }
+    } catch {
+      setNotice({ tone: 'error', message: t('auth.google.failed') });
+      setGoogleLoading(false);
+    }
+  };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -99,7 +131,21 @@ function RegisterForm() {
           </div>
         </div>
 
-        <form className="space-y-4" onSubmit={submit} aria-busy={loading}>
+        <GoogleAccountButton
+          label={t('auth.google.register')}
+          pendingLabel={t('auth.google.redirecting')}
+          pending={googleLoading}
+          disabled={loading}
+          onClick={continueWithGoogle}
+        />
+
+        <div className="my-5 flex items-center gap-3" role="separator" aria-label={t('auth.orUseEmail')}>
+          <span className="h-px flex-1 bg-canvas-line" aria-hidden="true" />
+          <span className="text-xs font-medium text-canvas-muted">{t('auth.orUseEmail')}</span>
+          <span className="h-px flex-1 bg-canvas-line" aria-hidden="true" />
+        </div>
+
+        <form className="space-y-4" onSubmit={submit} aria-busy={loading || googleLoading}>
           <div>
             <label htmlFor="register-name" className="mb-1.5 block text-sm font-semibold text-slate-700">Teljes név</label>
             <input
@@ -168,7 +214,7 @@ function RegisterForm() {
             </p>
           </div>
 
-          <button type="submit" disabled={loading} className="btn-primary min-h-11 w-full">
+          <button type="submit" disabled={loading || googleLoading} className="btn-primary min-h-11 w-full">
             <UserPlus className="h-4 w-4" aria-hidden="true" />
             {loading ? 'Fiók létrehozása…' : 'Regisztráció'}
           </button>

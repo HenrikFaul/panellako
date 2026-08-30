@@ -1,3 +1,105 @@
+## v0.10.4 — Google OAuth és lakónyilvántartási hardening
+**Dátum:** 2026-08-29
+**Branch:** codex/google-oauth-multitenancy-completion
+
+### Cél
+- Google-fiókos regisztráció és belépés előkészítése a meglévő email+jelszó és
+  magic-link folyamatok regressziója nélkül.
+- A multitenancy terv hiányzó, valós társasházkezelési életciklusainak
+  repository-szintű lezárása.
+- Egy P0 authority-regresszió javítása, hogy aktív role ne adhasson capabilityt
+  érvénytelen, lejárt vagy nem ellenőrzött forrásmandátumból.
+
+### Auth
+- Közös, akadálymentes Google account gomb készült a `/register` és `/login`
+  oldalra, magyar és angol szövegekkel.
+- Az OAuth callback kizárólag sanitizált relatív `next` célra tér vissza;
+  regisztrációnál az alapcél `/onboarding`, belépésnél `/app`.
+- A Google identity nem ad workspace-, albetét-, role- vagy mandátumjogot; a
+  meghívási/onboarding return-to folyamat megmarad.
+
+### Authorization és tenantizoláció
+- A workspace-context most kizárólag `get_my_workspaces` és
+  `get_workspace_context` RPC-ből származhat; a legacy role/capability fallback
+  eltávolítva, hiba esetén a feloldás fail-closed.
+- Új forward-only closure megköveteli az aktív workspace-et, aktív tagságot,
+  nyitott membership periodot és az admin/delegált role teljes, aktív,
+  `VERIFIED` mandátum-provenance láncát.
+- A push címzettlistát service-role-only, tenant-szűrt adatbázis-RPC oldja fel;
+  a manager/lakó besorolás effektív authorityből származik.
+
+### Lakónyilvántartás és életciklusok
+- Auth-fiók nélküli személy is felvehető, majd több albetéthez kapcsolható
+  tulajdonosként, tulajdonos-bentlakóként, bérlőként/lakóként,
+  háztartástagként vagy meghatalmazott bentlakóként.
+- A tulajdonosi és occupancy kapcsolat külön történettel ellenőrizhető,
+  vitatható vagy lezárható; a tagság ettől külön suspend/end/reactivate
+  életciklust kapott utolsó-admin védelemmel.
+- Függő lakói meghívó visszavonható; a kérelmező saját join requestjét
+  visszavonhatja, vagy `NEEDS_EVIDENCE` állapotban verziózott, immutable
+  bizonyítékpótlást küldhet.
+- A tulajdonosi hányad kötelezően, explicit számláló/nevezőként végigmegy a
+  meghívás, csatlakozási kérelem, ellenajánlat, elfogadás és jóváhagyás teljes
+  láncán; a rendszer többé nem feltételez automatikus `1/1` tulajdont.
+- Régi, felülírt, lejárt vagy terminális kérelemhez tartozó ellenajánlat nem
+  nyithat újra join requestet; az elfogadás a legújabb feloldatlan ajánlatot
+  sorzár alatt ellenőrzi.
+- Minden új magas kockázatú command scope-olt, idempotens, auditált és ahol kell
+  friss AAL2-t követel.
+
+### Albetét bulk import
+- Új magyar/angol fejléc-aliasokat kezelő CSV parser és adminfelület készült.
+- 1–500 soros, read-only szerveroldali előnézet jelzi a duplikáció-, kategória-,
+  parent- és ciklushibákat.
+- Az apply ugyanazzal a validátorral, workspace lockkal, friss AAL2-vel és egy
+  adatbázis-tranzakcióban fut; konfliktusnál nincs részleges albetétírás.
+- A normalizált és legacy kompatibilitási mezők együtt íródnak, immutable import
+  receipt, request fingerprint, idempotencia és audit mellett.
+
+### Migrációk
+- `20260829110000_workspace_relationship_registry.sql`
+- `20260829120000_authorization_push_recipient_closure.sql`
+- `20260829130000_invitation_join_lifecycle.sql`
+- `20260829140000_workspace_unit_bulk_import.sql`
+- `20260829150000_ownership_share_join_flow_closure.sql`
+
+### Lokális release-ellenőrzés
+- Teljes Vitest: **PASS — 52 fájl, 324/324 teszt**.
+- Célzott migrációs contract Vitest: **PASS — 5 fájl, 37/37 teszt**.
+- TypeScript és ESLint: **PASS**.
+- Next.js production build: **PASS — 73/73 statikus oldal** (`BUILD_ID=uNOl2tVsBk-ZtgnVoYD-X`).
+- Az öt új migráció PostgreSQL 18.4 apply + teljes reapply lánca: **PASS**.
+- Mind az öt runtime canary az első alkalmazás és a teljes reapply után is:
+  **PASS**.
+- Titkosított production backup és visszafejtési/hash-ellenőrzés: **PASS**;
+  SHA-256 `3cf9b43a1c226a2acad7a2cb24a5773c2ac57ace028741fc01fe74505f6c14a7`.
+- Az öt új production Supabase migráció: **PASS** — workflow-runok
+  `33297672992`, `33297701697`, `33297717005`, `33297737816`, `33297754785`.
+- Végső read-only production DB Verify: **PASS** — `33297782091`.
+- Commit/push: **PASS** — `a419c51266c179b98c0aff12ccac6dd3b8a55b84`, PR #261.
+- Production alkalmazásdeploy: **folyamatban**; csak a main merge és hosted
+  ellenőrzés után tekinthető bizonyítottnak.
+
+### Hosted Google OAuth rollout
+- Dedikált `PanelLako` Google Cloud projekt, külső/public `PanelLakó` OAuth app
+  és web kliens elkészült; a consent screen production státuszú.
+- A kliens titka nem kerül repositoryba vagy naplóba. A production provider
+  bekötését explicit main/repository/actor kapukkal, overwrite-védelemmel,
+  rollbackkal, allowlist-merge-dzsel és hosted authorize canaryval védett
+  workflow végzi.
+- A production Google-regisztráció és -belépés továbbra is **HOLD**, amíg a
+  provider-workflow, a main deploy és a hosted böngészős E2E nem PASS.
+
+### Dokumentáció
+- Implementáció és döntési határok:
+  `docs/architecture/multitenancy/13-google-auth-and-resident-registry-v0.10.4.md`.
+- Részletes verziójegyzőkönyv:
+  `versioning/29082602_v0.10.4_google-oauth-resident-registry-hardening.md`.
+- Felhasználói és piaci érték:
+  `marketing/marketing_values/20260829_v0.10.4_google-oauth-resident-registry_marketing_value.md`.
+
+---
+
 ## v0.10.3 — Production multitenancy lezárás
 **Dátum:** 2026-08-29
 **Branch:** codex/light-workspace-redesign

@@ -10,7 +10,7 @@ import {
   legacyRoleFromWorkspaceContext,
   WORKSPACE_CAPABILITIES,
 } from '@/lib/authorization/capabilities';
-import { isWorkspaceId, resolveWorkspaceContext } from '@/lib/authorization/workspace-context';
+import { isWorkspaceId, listMyWorkspaces, resolveWorkspaceContext } from '@/lib/authorization/workspace-context';
 
 describe('workspace context contracts', () => {
   beforeEach(() => rpcMock.mockReset());
@@ -59,5 +59,31 @@ describe('workspace context contracts', () => {
       source: 'workspace-rpc',
     });
     expect(rpcMock).toHaveBeenCalledWith('get_workspace_context', { p_workspace_id: workspaceId });
+  });
+
+  it('fails closed when the workspace list RPC is missing instead of using legacy roles', async () => {
+    rpcMock.mockResolvedValue({
+      data: null,
+      error: { code: 'PGRST202', message: 'Function get_my_workspaces was not found' },
+    });
+
+    await expect(listMyWorkspaces()).resolves.toEqual({
+      workspaces: [],
+      error: 'Function get_my_workspaces was not found',
+      source: 'workspace-rpc',
+    });
+    expect(rpcMock).toHaveBeenCalledTimes(1);
+    expect(rpcMock).not.toHaveBeenCalledWith('get_my_buildings');
+  });
+
+  it('fails closed when context resolution is unavailable instead of querying legacy membership roles', async () => {
+    const workspaceId = 'bbbbbbbb-0001-4001-8001-000000000001';
+    rpcMock.mockResolvedValue({
+      data: null,
+      error: { code: '42883', message: 'function get_workspace_context does not exist' },
+    });
+
+    await expect(resolveWorkspaceContext(workspaceId)).resolves.toBeNull();
+    expect(rpcMock).toHaveBeenCalledTimes(1);
   });
 });

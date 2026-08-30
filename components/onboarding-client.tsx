@@ -13,7 +13,11 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-react';
-import { acceptJoinRequestCounterOffer } from '@/app/actions/workspace-admin';
+import {
+  acceptJoinRequestCounterOffer,
+  cancelMyJoinRequest,
+  resubmitMyJoinRequestEvidence,
+} from '@/app/actions/workspace-admin';
 import { useI18n } from '@/src/i18n/useI18n';
 import { createClient, hasSupabaseConfig } from '@/lib/supabase/browser';
 
@@ -49,14 +53,19 @@ interface JoinRequestSummary {
   workspaceName: string;
   status: string;
   requestedRelationshipType: string;
+  requestedShareNumerator: number;
+  requestedShareDenominator: number;
   requestedUnitDesignation: string;
   reviewReason: string;
   submittedAt: string;
   counterOfferId: string;
   counterOfferRelationshipType: string;
+  counterOfferShareNumerator: number;
+  counterOfferShareDenominator: number;
   counterOfferUnitDesignation: string;
   counterOfferReason: string;
   counterOfferAccepted: boolean;
+  version: number;
 }
 
 interface CommunityCreationRequestSummary {
@@ -164,14 +173,19 @@ function normalizeJoinRequests(value: unknown): JoinRequestSummary[] {
       workspaceName: readString(row, ['workspace_name', 'community_name']) || 'Lakóközösség',
       status: readString(row, ['request_status', 'status']) || 'PENDING',
       requestedRelationshipType: readString(row, ['requested_relationship_type']),
+      requestedShareNumerator: readNumber(row, ['requested_share_numerator']),
+      requestedShareDenominator: readNumber(row, ['requested_share_denominator']),
       requestedUnitDesignation: readString(row, ['requested_unit_designation', 'unit_designation']),
       reviewReason: readString(row, ['review_reason']),
       submittedAt: readString(row, ['submitted_at', 'created_at']),
       counterOfferId: readString(row, ['latest_counter_offer_id', 'latest_offer_id']),
       counterOfferRelationshipType: readString(row, ['latest_counter_offer_relationship_type', 'latest_offer_relationship_type']),
+      counterOfferShareNumerator: readNumber(row, ['latest_counter_offer_share_numerator', 'latest_offer_share_numerator']),
+      counterOfferShareDenominator: readNumber(row, ['latest_counter_offer_share_denominator', 'latest_offer_share_denominator']),
       counterOfferUnitDesignation: readString(row, ['latest_counter_offer_unit_designation', 'latest_offer_unit_designation']),
       counterOfferReason: readString(row, ['latest_counter_offer_reason', 'latest_offer_reason']),
       counterOfferAccepted: readBoolean(row, ['latest_counter_offer_accepted', 'latest_offer_accepted']),
+      version: readNumber(row, ['request_version', 'version']) || 1,
     }];
   });
 }
@@ -277,6 +291,144 @@ function NoticeBox({ notice }: { notice: Notice | null }) {
   );
 }
 
+function JoinRequestLifecycleControls({
+  request,
+  onChanged,
+}: {
+  request: JoinRequestSummary;
+  onChanged: () => Promise<void>;
+}) {
+  const { t } = useI18n();
+  const [cancelReason, setCancelReason] = useState('');
+  const [evidenceReason, setEvidenceReason] = useState('');
+  const [evidenceText, setEvidenceText] = useState('');
+  const [pendingAction, setPendingAction] = useState<'cancel' | 'evidence' | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const cancelAttempt = useRef<Attempt | null>(null);
+  const evidenceAttempt = useRef<Attempt | null>(null);
+  const cancellable = ['DRAFT', 'PENDING', 'NEEDS_EVIDENCE'].includes(request.status);
+  const hasUnresolvedCounterOffer = Boolean(request.counterOfferId && !request.counterOfferAccepted);
+
+  async function cancel(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setNotice(null);
+    const payload = {
+      requestId: request.requestId,
+      expectedVersion: request.version,
+      reason: cancelReason.trim(),
+    };
+    const idempotencyKey = keyForAttempt(cancelAttempt, JSON.stringify(payload));
+    setPendingAction('cancel');
+    const result = await cancelMyJoinRequest({ ...payload, idempotencyKey });
+    setPendingAction(null);
+    if (!result.success) {
+      setNotice({ tone: 'error', message: result.error ?? t('onboarding.joinLifecycle.cancelFailed') });
+      return;
+    }
+    cancelAttempt.current = null;
+    setCancelReason('');
+    setNotice({ tone: 'success', message: t('onboarding.joinLifecycle.cancelSuccess') });
+    await onChanged();
+  }
+
+  async function resubmitEvidence(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setNotice(null);
+    const evidenceReferences = evidenceText
+      .split(/\r?\n/)
+      .map((reference) => reference.trim())
+      .filter(Boolean);
+    const payload = {
+      requestId: request.requestId,
+      expectedVersion: request.version,
+      evidenceReferences,
+      reason: evidenceReason.trim(),
+    };
+    const idempotencyKey = keyForAttempt(evidenceAttempt, JSON.stringify(payload));
+    setPendingAction('evidence');
+    const result = await resubmitMyJoinRequestEvidence({ ...payload, idempotencyKey });
+    setPendingAction(null);
+    if (!result.success) {
+      setNotice({ tone: 'error', message: result.error ?? t('onboarding.joinLifecycle.evidenceFailed') });
+      return;
+    }
+    evidenceAttempt.current = null;
+    setEvidenceReason('');
+    setEvidenceText('');
+    setNotice({ tone: 'success', message: t('onboarding.joinLifecycle.evidenceSuccess') });
+    await onChanged();
+  }
+
+  if (!cancellable) return null;
+
+  return (
+    <div className="mt-3 border-t border-canvas-line pt-3">
+      <NoticeBox notice={notice} />
+      {request.status === 'NEEDS_EVIDENCE' ? (
+        hasUnresolvedCounterOffer ? (
+          <p className="mt-2 text-xs leading-relaxed text-canvas-muted">
+            {t('onboarding.joinLifecycle.counterOfferFirst')}
+          </p>
+        ) : (
+          <form onSubmit={resubmitEvidence} className="mt-2 space-y-2 rounded-xl border border-brand-100 bg-white p-3">
+            <p className="text-xs font-semibold text-canvas-ink">{t('onboarding.joinLifecycle.evidenceTitle')}</p>
+            <label className="block text-xs font-medium text-canvas-muted">
+              {t('onboarding.joinLifecycle.evidenceReferences')}
+              <textarea
+                className="input-base mt-1 min-h-24 resize-y font-mono text-xs"
+                value={evidenceText}
+                onChange={(event) => setEvidenceText(event.target.value)}
+                required
+                placeholder={'document:internal-reference\nattestation:internal-reference'}
+              />
+            </label>
+            <label className="block text-xs font-medium text-canvas-muted">
+              {t('onboarding.joinLifecycle.evidenceReason')}
+              <input
+                className="input-base mt-1 min-h-10"
+                value={evidenceReason}
+                onChange={(event) => setEvidenceReason(event.target.value)}
+                minLength={3}
+                maxLength={500}
+                required
+              />
+            </label>
+            <p className="text-[11px] leading-relaxed text-canvas-subtle">
+              {t('onboarding.joinLifecycle.evidenceHelp')}
+            </p>
+            <button type="submit" disabled={pendingAction !== null} className="btn-primary min-h-10 px-3 text-sm">
+              {pendingAction === 'evidence'
+                ? t('onboarding.joinLifecycle.evidenceSaving')
+                : t('onboarding.joinLifecycle.evidenceSubmit')}
+            </button>
+          </form>
+        )
+      ) : null}
+
+      <form onSubmit={cancel} className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+        <label className="sr-only" htmlFor={`cancel-join-${request.requestId}`}>
+          {t('onboarding.joinLifecycle.cancelReason')}
+        </label>
+        <input
+          id={`cancel-join-${request.requestId}`}
+          className="input-base min-h-10"
+          value={cancelReason}
+          onChange={(event) => setCancelReason(event.target.value)}
+          minLength={3}
+          maxLength={500}
+          required
+          placeholder={t('onboarding.joinLifecycle.cancelReason')}
+        />
+        <button type="submit" disabled={pendingAction !== null} className="btn-secondary min-h-10 px-3 text-sm">
+          {pendingAction === 'cancel'
+            ? t('onboarding.joinLifecycle.cancelling')
+            : t('onboarding.joinLifecycle.cancel')}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 export default function OnboardingClient() {
   const { t } = useI18n();
   const [branch, setBranch] = useState<Branch>('join');
@@ -287,6 +439,8 @@ export default function OnboardingClient() {
   const [units, setUnits] = useState<UnitOption[]>([]);
   const [selectedUnitId, setSelectedUnitId] = useState('');
   const [relationshipType, setRelationshipType] = useState<RelationshipType>('TENANT');
+  const [ownershipShareNumerator, setOwnershipShareNumerator] = useState('');
+  const [ownershipShareDenominator, setOwnershipShareDenominator] = useState('');
   const [joinMessage, setJoinMessage] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const [unitsLoading, setUnitsLoading] = useState(false);
@@ -553,6 +707,8 @@ export default function OnboardingClient() {
       workspaceId: selectedCommunity.id,
       unitId: selectedUnitId,
       relationshipType,
+      shareNumerator: relationshipType === 'OWNER' ? Number(ownershipShareNumerator) : null,
+      shareDenominator: relationshipType === 'OWNER' ? Number(ownershipShareDenominator) : null,
       message: joinMessage.trim(),
     };
     const idempotencyKey = keyForAttempt(joinAttempt, JSON.stringify(payload));
@@ -563,6 +719,8 @@ export default function OnboardingClient() {
         p_workspace_id: payload.workspaceId,
         p_unit_id: payload.unitId,
         p_relationship_type: payload.relationshipType,
+        p_share_numerator: payload.shareNumerator,
+        p_share_denominator: payload.shareDenominator,
         p_message: payload.message || null,
         p_idempotency_key: idempotencyKey,
       });
@@ -581,6 +739,8 @@ export default function OnboardingClient() {
         message: 'A csatlakozási kérelmet beküldtük. A hozzáférés csak külön ellenőrzés és jóváhagyás után válik aktívvá.',
       });
       setJoinMessage('');
+      setOwnershipShareNumerator('');
+      setOwnershipShareDenominator('');
       await loadMyJoinRequests();
     } catch {
       setJoinNotice({
@@ -718,6 +878,9 @@ export default function OnboardingClient() {
                         <h3 className="text-sm font-semibold text-canvas-ink">{request.workspaceName}</h3>
                         <p className="mt-1 text-xs text-canvas-muted">
                           {request.requestedUnitDesignation || 'Kiválasztott albetét'} · {relationshipLabel(request.requestedRelationshipType)}
+                          {request.requestedShareNumerator && request.requestedShareDenominator
+                            ? ` · ${request.requestedShareNumerator}/${request.requestedShareDenominator}`
+                            : ''}
                         </p>
                       </div>
                       <span className="w-fit rounded-full border border-brand-200 bg-white px-2.5 py-1 text-xs font-semibold text-brand-800">
@@ -730,6 +893,9 @@ export default function OnboardingClient() {
                         <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">Kezelői ellenajánlat</p>
                         <p className="mt-1 text-sm text-slate-800">
                           {request.counterOfferUnitDesignation || 'Pontosított albetét'} · {relationshipLabel(request.counterOfferRelationshipType)}
+                          {request.counterOfferShareNumerator && request.counterOfferShareDenominator
+                            ? ` · ${request.counterOfferShareNumerator}/${request.counterOfferShareDenominator}`
+                            : ''}
                         </p>
                         {request.counterOfferReason && <p className="mt-1 text-xs leading-relaxed text-slate-600">{request.counterOfferReason}</p>}
                         {request.counterOfferAccepted ? (
@@ -746,6 +912,7 @@ export default function OnboardingClient() {
                         )}
                       </div>
                     )}
+                    <JoinRequestLifecycleControls request={request} onChanged={loadMyJoinRequests} />
                   </article>
                 ))}
               </div>
@@ -837,6 +1004,18 @@ export default function OnboardingClient() {
                   ))}
                 </div>
               </fieldset>
+
+              {relationshipType === 'OWNER' ? (
+                <fieldset>
+                  <legend className="mb-1.5 text-sm font-semibold text-slate-700">Pontos tulajdoni hányad</legend>
+                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                    <input aria-label="Tulajdoni hányad számlálója" className="input-base min-h-11" type="number" min={1} step={1} value={ownershipShareNumerator} onChange={(event) => setOwnershipShareNumerator(event.target.value)} required />
+                    <span aria-hidden="true" className="text-canvas-muted">/</span>
+                    <input aria-label="Tulajdoni hányad nevezője" className="input-base min-h-11" type="number" min={1} step={1} value={ownershipShareDenominator} onChange={(event) => setOwnershipShareDenominator(event.target.value)} required />
+                  </div>
+                  <p className="mt-1.5 text-xs leading-relaxed text-canvas-muted">A tulajdoni lap szerinti törtet add meg; a rendszer nem feltételez automatikusan 1/1 tulajdont.</p>
+                </fieldset>
+              ) : null}
 
               <div>
                 <label htmlFor="join-message" className="mb-1.5 block text-sm font-semibold text-slate-700">Megjegyzés <span className="font-normal text-canvas-muted">(opcionális)</span></label>

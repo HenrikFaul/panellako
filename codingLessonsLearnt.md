@@ -1525,3 +1525,55 @@ brand: { 500: 'oklch(0.714 0.145 181 / <alpha-value>)' }
 **Problem**: A nyers hosted HTML-ben keresett „Fiók létrehozása” szöveg hamis negatív E2E hibát adott, bár a route 200 volt és a regisztrációs kliensbundle betöltődött.
 **Fix**: A HTTP/session canary az SSR fallbacket és a route-specifikus Next.js chunkot ellenőrzi; teljes vizuális vagy interakciós bizonyítékhoz továbbra is valódi böngészős futás kell.
 **Prevention**: A hosted teszt bizonyítéktípusát nevezd meg pontosan: nyers SSR, hidratált DOM és vizuális browser QA nem csereszabatos.
+
+---
+
+## ➕ APPEND — 2026-08-29 Google Auth és lakónyilvántartási hardening tanulságok
+
+### [LESSON-AUTH-108]: Az identity provider nem tenant-authority
+**Context**: Google OAuth került az email+jelszó és magic-link belépés mellé.
+**Problem**: Kényelmes lenne provider metadata, kliens `next` paraméter vagy új Auth user alapján rögtön workspace-, role- vagy albetétjogot kiosztani, de ezek egyike sem bizonyít társasházi jogviszonyt.
+**Fix**: A Google flow kizárólag Supabase Auth identityt hoz létre vagy hitelesít. A callback sanitizált célútvonalat használ; tenantjog továbbra is külön, ellenőrzött invitation/join/membership/relationship folyamatból származik.
+**Prevention**: Minden új SSO/OIDC providernél külön teszteld, hogy a sikeres login után sincs implicit workspace, role, ownership vagy occupancy grant.
+
+### [LESSON-AUTHORITY-109]: Egy központi helper későbbi `CREATE OR REPLACE` migrációja visszacsempészhet authorization regressziót
+**Context**: A `private.has_workspace_capability` egy későbbi migrációs változata elveszítette a korábban bevezetett `VERIFIED` forrásmandátum-kapukat.
+**Problem**: A függvény neve és legtöbb tesztje változatlan maradhat, miközben egy aktív role assignment érvénytelen authorityből is capabilityt ad.
+**Fix**: Forward-only closure visszaállította az aktív workspace, membership period, role, mandate és delegation teljes provenance-láncát; az effektív capability projekció is ugyanazt a helpert hívja.
+**Prevention**: Központi authorization függvény minden újradefiniálása után futtass időbeli, státusz-, mandate- és delegation-negatív runtime canaryt, ne csak a függvény jelenlétét ellenőrizd.
+
+### [LESSON-IDENTITY-110]: A természetes személy nyilvántartása nem függhet az auth-fióktól
+**Context**: Közös képviselőnek olyan tulajdonost vagy lakót is rögzítenie kell, aki még nem használja a PanelLakót.
+**Problem**: Ha a személy és az Auth user ugyanaz az entitás, a ház nyilvántartása hiányos lesz, vagy fiktív accountokat kell létrehozni; több albetétes tulajdon és későbbi account-linkelés is törékennyé válik.
+**Fix**: Az offline `party/person`, a `person_account_links`, a workspace-tagság és a unit ownership/occupancy külön entitás és kapcsolat marad. A személy több albetéthez kapcsolható hozzáférés automatikus kiosztása nélkül.
+**Prevention**: Domainmodellben mindig válaszd szét a valós személyt, a digitális identityt, a tenant-tagságot és az erőforrás-jogviszonyt.
+
+### [LESSON-LIFECYCLE-111]: Biztonsági kapcsolatot állapotgéppel és immutable eseménnyel zárj, ne törléssel
+**Context**: Tulajdon, bentlakás, workspace-tagság, invitation és join request változása.
+**Problem**: Egy sor felülírása vagy törlése elveszíti, ki, mikor és milyen indokkal változtatott; ugyanakkor egy kontrollálatlan reaktiválás korábbi jogokat nyithat újra.
+**Fix**: Explicit verify/dispute/end, suspend/reactivate/end, revoke/cancel/resubmit commandok készültek idempotency keyjel, indokkal, audit eseménnyel, verzióellenőrzéssel és szükség esetén AAL2-vel. `ENDED` tagság nem reaktiválható, az utolsó admin védett.
+**Prevention**: Jogosultságot érintő életciklus minden terminális és visszafordítható átmenetét előre definiált state machine és append-only evidence védje.
+
+### [LESSON-IMPORT-112]: A preview és apply ugyanazt az adatbázis-validátort használja
+**Context**: Legfeljebb 500 albetét CSV-ből történő tömeges felvitele.
+**Problem**: Ha az előnézet csak kliensoldali, a közben megváltozó adat, párhuzamos import vagy eltérő normalizálás részleges írást és hamis „minden rendben” állapotot okozhat.
+**Fix**: A preview és az AAL2-es apply ugyanazt a tenant-szűrt SQL-validátort futtatja. Az apply workspace lock után újraellenőriz, egy tranzakcióban ír, unique race esetén subtransaction rollback után konfliktust ad, és immutable receiptet tárol.
+**Prevention**: Tömeges importnál a kliens parser csak UX; a végső döntés közös szervervalidátor, újraellenőrzés, atomi commit és idempotens receipt legyen.
+
+### [LESSON-RECIPIENT-113]: A célcsoport-feloldás ugyanabból az authorityből származzon, mint a hozzáférés
+**Context**: Workspace push értesítések `all`, `lako` és `manager` célzása.
+**Problem**: Legacy role-stringből vagy kliensoldali profile listából képzett címzettek felfüggesztett tagot, lejárt mandátumú kezelőt vagy idegen tenant profilt is bevonhatnak.
+**Fix**: A küldő `announcement.publish` capabilityt igazol, a címzettlistát pedig service-role-only, aktív workspace/tagság és effektív mandate/delegation authority alapján működő SQL RPC adja.
+**Prevention**: Értesítés, export és háttérmunka címzett-/objektumhalmaza ne külön üzleti logika legyen; ugyanazt a kanonikus tenant-authorization predikátumot használja.
+
+### [LESSON-OWNERSHIP-114]: Ellenőrzött tulajdonosi rekordhoz tilos 1/1 hányadot kitalálni
+**Context**: A meghívás, join request, ellenajánlat és közvetlen adminisztrátori relationship review ugyanabba a `unit_ownerships` domainbe érkezik.
+**Problem**: Ha a bemeneti folyamat nem hordoz tulajdoni hányadot, a későbbi trigger vagy approval csak hamis `1/1` feltételezéssel tudna verified rekordot létrehozni; ez szavazási, közös-költség és jogi hibát okoz.
+**Fix**: Tulajdonosi típusnál minden belépési pont explicit pozitív számlálót és nevezőt követel, végigviszi az adatot a request/invitation/offer rekordokon, és ugyanazt a törtet írja a verified ownershipba. Nem tulajdonosi típusnál a hányad tiltott.
+**Prevention**: Jogi vagy pénzügyi jelentésű adatot ne szintetizálj kényelmi defaultból; a teljes command-lánc szerződésében és runtime canaryjában bizonyítsd az adat változatlan továbbítását.
+
+### [LESSON-LIFECYCLE-115]: Append-only ellenajánlat csak aktuális request-state mellett fogadható el
+**Context**: Egy join requesthez több immutable counter-offer is tartozhat, miközben a kérelem lejárhat vagy terminális állapotba kerülhet.
+**Problem**: Pusztán az offer és requester kapcsolatának ellenőrzése lehetővé teszi, hogy egy régi vagy felülírt ajánlat lezárt kérelmet ismét `PENDING` állapotba nyisson.
+**Fix**: Az elfogadás a requestet zárolja, megköveteli a friss `NEEDS_EVIDENCE` állapotot, az érvényes lejáratot és a legújabb feloldatlan offert; külön hibakód védi a stale, expired és terminal útvonalakat, a már sikeres azonos retry pedig idempotens.
+**Prevention**: Append-only event elfogadásakor ne csak az event tulajdonosát vizsgáld; mindig ellenőrizd az aggregate aktuális state-jét, verzióját, lejáratát és azt, hogy az event továbbra is a kanonikus legújabb döntési pont.

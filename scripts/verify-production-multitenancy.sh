@@ -2,15 +2,21 @@
 set -euo pipefail
 
 : "${SUPABASE_ACCESS_TOKEN:?SUPABASE_ACCESS_TOKEN is required}"
+EXPECTED_MIGRATION_VERSION="${EXPECTED_MIGRATION_VERSION:-20260829150000}"
+if [[ ! "$EXPECTED_MIGRATION_VERSION" =~ ^[0-9]{14}$ ]]; then
+  echo "❌ EXPECTED_MIGRATION_VERSION must be a 14-digit migration timestamp."
+  exit 1
+fi
 
 QUERY_FILE=$(mktemp)
 REQUEST_BODY=$(mktemp)
 trap 'rm -f "$QUERY_FILE" "$REQUEST_BODY"' EXIT
 
-cat > "$QUERY_FILE" <<'SQL'
+cat > "$QUERY_FILE" <<SQL
 WITH
 expected_versions(version) AS (
-  VALUES
+  SELECT expected.version
+  FROM (VALUES
     ('20260828120000'),
     ('20260828121000'),
     ('20260828122000'),
@@ -22,75 +28,103 @@ expected_versions(version) AS (
     ('20260828128000'),
     ('20260828129000'),
     ('20260828130000'),
-    ('20260829100000')
+    ('20260829100000'),
+    ('20260829110000'),
+    ('20260829120000'),
+    ('20260829130000'),
+    ('20260829140000'),
+    ('20260829150000')
+  ) AS expected(version)
+  WHERE expected.version <= '${EXPECTED_MIGRATION_VERSION}'
 ),
 required_tables(name) AS (
-  VALUES
-    ('workspaces'),
-    ('addresses'),
-    ('physical_buildings'),
-    ('building_address_assignments'),
-    ('workspace_buildings'),
-    ('parties'),
-    ('people'),
-    ('organizations'),
-    ('person_account_links'),
-    ('management_agency_details'),
-    ('organization_memberships'),
-    ('workspace_memberships'),
-    ('membership_periods'),
-    ('role_templates'),
-    ('role_capabilities'),
-    ('capability_key_map'),
-    ('management_mandates'),
-    ('delegations'),
-    ('role_assignments'),
-    ('unit_relations'),
-    ('billing_groups'),
-    ('billing_group_members'),
-    ('unit_ownerships'),
-    ('unit_legal_rights'),
-    ('unit_occupancies'),
-    ('membership_invitations'),
-    ('join_requests'),
-    ('join_request_offers'),
-    ('community_creation_requests'),
-    ('community_creation_attestations'),
-    ('authorization_audit_events'),
-    ('command_idempotency_keys'),
-    ('community_creation_reviews'),
-    ('community_address_duplicate_resolutions'),
-    ('workspace_staff_invitations'),
-    ('document_units'),
-    ('announcement_delivery_outbox'),
-    ('agency_staff_invitations'),
-    ('agency_portfolio_assignments'),
-    ('agency_workspace_grants')
+  SELECT required.name
+  FROM (VALUES
+    ('workspaces', '20260828120000'),
+    ('addresses', '20260828120000'),
+    ('physical_buildings', '20260828120000'),
+    ('building_address_assignments', '20260828120000'),
+    ('workspace_buildings', '20260828120000'),
+    ('parties', '20260828120000'),
+    ('people', '20260828120000'),
+    ('organizations', '20260828120000'),
+    ('person_account_links', '20260828120000'),
+    ('management_agency_details', '20260828120000'),
+    ('organization_memberships', '20260828120000'),
+    ('workspace_memberships', '20260828120000'),
+    ('membership_periods', '20260828120000'),
+    ('role_templates', '20260828120000'),
+    ('role_capabilities', '20260828120000'),
+    ('capability_key_map', '20260828120000'),
+    ('management_mandates', '20260828120000'),
+    ('delegations', '20260828120000'),
+    ('role_assignments', '20260828120000'),
+    ('unit_relations', '20260828120000'),
+    ('billing_groups', '20260828120000'),
+    ('billing_group_members', '20260828120000'),
+    ('unit_ownerships', '20260828120000'),
+    ('unit_legal_rights', '20260828120000'),
+    ('unit_occupancies', '20260828120000'),
+    ('membership_invitations', '20260828120000'),
+    ('join_requests', '20260828120000'),
+    ('join_request_offers', '20260828120000'),
+    ('community_creation_requests', '20260828120000'),
+    ('community_creation_attestations', '20260828120000'),
+    ('authorization_audit_events', '20260828120000'),
+    ('command_idempotency_keys', '20260828120000'),
+    ('community_creation_reviews', '20260828122000'),
+    ('community_address_duplicate_resolutions', '20260828122000'),
+    ('workspace_staff_invitations', '20260828123000'),
+    ('document_units', '20260828124000'),
+    ('announcement_delivery_outbox', '20260828127000'),
+    ('agency_staff_invitations', '20260828129000'),
+    ('agency_portfolio_assignments', '20260828129000'),
+    ('agency_workspace_grants', '20260828129000'),
+    ('workspace_person_relationship_commands', '20260829110000'),
+    ('unit_relationship_status_events', '20260829110000'),
+    ('workspace_membership_status_events', '20260829110000'),
+    ('join_request_evidence_events', '20260829130000'),
+    ('workspace_unit_imports', '20260829140000')
+  ) AS required(name, min_version)
+  WHERE required.min_version <= '${EXPECTED_MIGRATION_VERSION}'
 ),
 required_functions(name) AS (
-  VALUES
-    ('search_address_candidates'),
-    ('search_joinable_communities'),
-    ('list_joinable_units'),
-    ('get_my_workspaces'),
-    ('get_workspace_context'),
-    ('submit_join_request'),
-    ('accept_join_request_offer'),
-    ('create_community_creation_request'),
-    ('create_workspace_unit'),
-    ('issue_membership_invitation'),
-    ('accept_membership_invitation'),
-    ('review_join_request'),
-    ('grant_workspace_role'),
-    ('revoke_workspace_role'),
-    ('create_management_agency'),
-    ('issue_agency_staff_invitation'),
-    ('accept_agency_staff_invitation'),
-    ('assign_agency_to_workspace'),
-    ('claim_announcement_delivery_batch'),
-    ('complete_announcement_delivery'),
-    ('fail_announcement_delivery'),
-    ('cancel_announcement_delivery')
+  SELECT required.name
+  FROM (VALUES
+    ('search_address_candidates', '20260828120000'),
+    ('search_joinable_communities', '20260828120000'),
+    ('list_joinable_units', '20260828120000'),
+    ('get_my_workspaces', '20260828120000'),
+    ('get_workspace_context', '20260828120000'),
+    ('submit_join_request', '20260828120000'),
+    ('accept_join_request_offer', '20260828120000'),
+    ('create_community_creation_request', '20260828120000'),
+    ('create_workspace_unit', '20260828120000'),
+    ('issue_membership_invitation', '20260828120000'),
+    ('accept_membership_invitation', '20260828120000'),
+    ('review_join_request', '20260828120000'),
+    ('grant_workspace_role', '20260828120000'),
+    ('revoke_workspace_role', '20260828120000'),
+    ('create_management_agency', '20260828129000'),
+    ('issue_agency_staff_invitation', '20260828129000'),
+    ('accept_agency_staff_invitation', '20260828129000'),
+    ('assign_agency_to_workspace', '20260828129000'),
+    ('claim_announcement_delivery_batch', '20260828130000'),
+    ('complete_announcement_delivery', '20260828130000'),
+    ('fail_announcement_delivery', '20260828130000'),
+    ('cancel_announcement_delivery', '20260828130000'),
+    ('create_workspace_person_relationship', '20260829110000'),
+    ('list_workspace_unit_relationships', '20260829110000'),
+    ('review_workspace_unit_relationship', '20260829110000'),
+    ('change_workspace_membership_status', '20260829110000'),
+    ('resolve_workspace_push_recipients', '20260829120000'),
+    ('revoke_membership_invitation', '20260829130000'),
+    ('cancel_join_request', '20260829130000'),
+    ('resubmit_join_request_evidence', '20260829130000'),
+    ('preview_workspace_unit_import', '20260829140000'),
+    ('apply_workspace_unit_import', '20260829140000')
+  ) AS required(name, min_version)
+  WHERE required.min_version <= '${EXPECTED_MIGRATION_VERSION}'
 ),
 missing_versions AS (
   SELECT e.version
