@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-04-22.dahlia',
-  typescript: true
-});
+import { getStripeClient } from '@/lib/stripe/server';
 
 const getAdminClient = () => createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,12 +36,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing Stripe signature' }, { status: 400 });
   }
 
+  const stripe = getStripeClient();
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+  if (!stripe || !webhookSecret) {
+    return NextResponse.json(
+      { error: 'Payment webhook service is unavailable' },
+      { status: 503 },
+    );
+  }
+
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(
       rawBody,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
+      webhookSecret
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
