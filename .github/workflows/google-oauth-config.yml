@@ -143,15 +143,7 @@ jobs:
           CURRENT_ALLOW_LIST=$(jq -r '.uri_allow_list // ""' "$BEFORE_BODY")
 
           if [[ ! "$CURRENT_SITE_URL" =~ ^https://panellako\.hu/?$ ]]; then
-            CURRENT_SITE_ORIGIN=$(CURRENT_SITE_URL="$CURRENT_SITE_URL" python3 -c '
-              import os, urllib.parse
-              parsed = urllib.parse.urlparse(os.environ["CURRENT_SITE_URL"])
-              if parsed.scheme in {"http", "https"} and parsed.hostname:
-                  port = f":{parsed.port}" if parsed.port else ""
-                  print(f"{parsed.scheme}://{parsed.hostname}{port}")
-              else:
-                  print("invalid")
-            ')
+            CURRENT_SITE_ORIGIN=$(CURRENT_SITE_URL="$CURRENT_SITE_URL" python3 -c 'import os, urllib.parse; parsed = urllib.parse.urlparse(os.environ["CURRENT_SITE_URL"]); port = f":{parsed.port}" if parsed.port else ""; print(f"{parsed.scheme}://{parsed.hostname}{port}" if parsed.scheme in {"http", "https"} and parsed.hostname else "invalid")')
             echo "ℹ️  A jelenlegi production Auth site origin: $CURRENT_SITE_ORIGIN"
             echo "❌ A production site URL nem a várt PanelLakó domain; automatikus átírás tiltott."
             exit 1
