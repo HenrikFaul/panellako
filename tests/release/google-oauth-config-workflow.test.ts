@@ -33,6 +33,7 @@ describe('production Google OAuth provider workflow contract', () => {
     expect(workflow).toContain('A Google provider már aktív');
     expect(workflow).toContain('Eltérő Google kliens-ID található');
     expect(workflow).toContain('automatikus átírás tiltott');
+    expect(workflow).toContain('panellako\\.vercel\\.app');
     expect(workflow).toContain('A jelenlegi production Auth site origin');
     expect(workflow).toContain(
       "python3 -c 'import os, urllib.parse; parsed = urllib.parse.urlparse",
