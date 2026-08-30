@@ -34,6 +34,13 @@
 - WebTools tesztek: **PASS — 38/38**; TypeScript és production build: **PASS**.
 - WebTools PostgreSQL 18 apply/reapply: **PASS**; `anon` csak a három bounded
   read RPC-t futtathatja, `PUBLIC` és `authenticated` nem.
+- GitHub branch publikálás: **PASS** — PanelLakó `fdf9714`, WebTools `62d2265`.
+- Vercel konfiguráció: **PASS** — a shared Address Registry URL/token és a
+  provider read/admin változónevei titkosított Preview + Production értékként
+  jelen vannak; alkalmazásdeploy nem történt.
+- GitHub production migration audit: **HOLD** — a fail-closed workflow
+  `33314153183` még adatbázis-művelet előtt megállt, mert a production
+  `SUPABASE_DB_PASSWORD` secret hiányzik.
 - Production corpus/p95, Supabase migration/rebuild, hosted deploy/smoke és
   történeti credential-rotáció: **HOLD**, külön release-bizonyítékig.
 
