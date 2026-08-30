@@ -78,7 +78,8 @@
   production alias: **NOT_RUN / HOLD**.
 - A forward-only Supabase migráció forrása elkészült és izolált PostgreSQL-ben
   igazolt; a production Supabase projektre alkalmazás: **NOT_RUN / HOLD**.
-- Commit és feature-branch push: **PENDING**.
+- Commit és feature-branch push: **PASS** —
+  `codex/platform-admin-control-center`, implementációs commit `62f9ddd`.
 
 ### Dokumentáció
 - Architektúra és biztonsági határ:
