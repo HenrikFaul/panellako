@@ -33,6 +33,9 @@ describe('production Google OAuth provider workflow contract', () => {
     expect(workflow).toContain('A Google provider már aktív');
     expect(workflow).toContain('Eltérő Google kliens-ID található');
     expect(workflow).toContain('automatikus átírás tiltott');
+    expect(workflow).toContain('A jelenlegi production Auth site origin');
+    expect(workflow).toContain('urllib.parse.urlparse');
+    expect(workflow).not.toContain('echo "$CURRENT_SITE_URL"');
     expect(workflow).toContain('ROLLBACK_ARMED=true');
     expect(workflow).toContain('external_google_enabled: false');
     expect(workflow).toContain('CURRENT_ALLOW_LIST');
