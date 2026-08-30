@@ -76,8 +76,10 @@ jobs:
           REQUEST_BODY=$(mktemp)
           PATCH_BODY=$(mktemp)
           VERIFY_BODY=$(mktemp)
+          AUTHORIZE_BODY=$(mktemp)
           ROLLBACK_BODY=$(mktemp)
           ROLLBACK_RESPONSE=$(mktemp)
+          ROLLBACK_VERIFY_RESPONSE=$(mktemp)
           ROLLBACK_ARMED=false
 
           cleanup() {
@@ -86,10 +88,12 @@ jobs:
 
             if [ "$STATUS" -ne 0 ] && [ "$ROLLBACK_ARMED" = "true" ]; then
               jq -n \
+                --arg site_url "$CURRENT_SITE_URL" \
                 --arg uri_allow_list "$CURRENT_ALLOW_LIST" \
                 --argjson email_optional "$CURRENT_EMAIL_OPTIONAL" \
                 --argjson skip_nonce "$CURRENT_SKIP_NONCE" \
                 '{
+                  site_url: $site_url,
                   external_google_enabled: false,
                   external_google_email_optional: $email_optional,
                   external_google_skip_nonce_check: $skip_nonce,
@@ -105,16 +109,31 @@ jobs:
                 -H "Content-Type: application/json" \
                 --data-binary "@$ROLLBACK_BODY" || true)
 
-              if [ "$ROLLBACK_STATUS" = "200" ]; then
-                echo "✅ Sikertelen utóellenőrzés után a Google provider letiltása és az Auth allowlist visszaállítása PASS."
+              ROLLBACK_VERIFY_STATUS=$(curl --silent --show-error \
+                --output "$ROLLBACK_VERIFY_RESPONSE" \
+                --write-out "%{http_code}" \
+                "$API_URL" \
+                -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" || true)
+
+              if [ "$ROLLBACK_STATUS" = "200" ] \
+                && [ "$ROLLBACK_VERIFY_STATUS" = "200" ] \
+                && jq -e \
+                  --arg expected_site_url "$CURRENT_SITE_URL" \
+                  --arg expected_allow_list "$CURRENT_ALLOW_LIST" '
+                    .external_google_enabled == false
+                    and .site_url == $expected_site_url
+                    and (.uri_allow_list // "") == $expected_allow_list
+                  ' "$ROLLBACK_VERIFY_RESPONSE" >/dev/null; then
+                echo "✅ Sikertelen utóellenőrzés után a Google provider letiltása, valamint a Site URL és az Auth allowlist visszaállítása read-back alapján PASS."
               else
-                echo "❌ A fail-closed rollback nem igazolható (HTTP ${ROLLBACK_STATUS:-unknown})."
+                echo "❌ A fail-closed rollback nem igazolható (PATCH HTTP ${ROLLBACK_STATUS:-unknown}, read-back HTTP ${ROLLBACK_VERIFY_STATUS:-unknown})."
               fi
             fi
 
             rm -f \
               "$BEFORE_BODY" "$REQUEST_BODY" "$PATCH_BODY" "$VERIFY_BODY" \
-              "$ROLLBACK_BODY" "$ROLLBACK_RESPONSE"
+              "$AUTHORIZE_BODY" "$ROLLBACK_BODY" "$ROLLBACK_RESPONSE" \
+              "$ROLLBACK_VERIFY_RESPONSE"
             exit "$STATUS"
           }
           trap cleanup EXIT
@@ -172,10 +191,12 @@ jobs:
             ')
 
           jq -n \
+            --arg site_url "$REQUIRED_SITE_URL" \
             --arg client_id "$GOOGLE_OAUTH_CLIENT_ID" \
             --arg client_secret "$GOOGLE_OAUTH_CLIENT_SECRET" \
             --arg uri_allow_list "$NEW_ALLOW_LIST" \
             '{
+              site_url: $site_url,
               external_google_enabled: true,
               external_google_client_id: $client_id,
               external_google_secret: $client_secret,
@@ -213,8 +234,10 @@ jobs:
 
           if ! jq -e \
             --arg expected_client_id "$GOOGLE_OAUTH_CLIENT_ID" \
+            --arg required_site_url "$REQUIRED_SITE_URL" \
             --arg required_redirect "$REQUIRED_REDIRECT" '
-              .external_google_enabled == true
+              (.site_url | rtrimstr("/")) == $required_site_url
+              and .external_google_enabled == true
               and .external_google_client_id == $expected_client_id
               and .external_google_email_optional == false
               and .external_google_skip_nonce_check == false
@@ -230,24 +253,66 @@ jobs:
             exit 1
           fi
 
-          ENCODED_REDIRECT=$(REQUIRED_REDIRECT="$REQUIRED_REDIRECT" python3 -c \
-            'import os, urllib.parse; print(urllib.parse.quote(os.environ["REQUIRED_REDIRECT"], safe=""))')
-          AUTHORIZE_RESULT=$(curl --silent --show-error \
-            --output /dev/null \
-            --write-out "%{http_code}\n%{redirect_url}" \
-            "https://wzromwxpjlyrqbdiapep.supabase.co/auth/v1/authorize?provider=google&redirect_to=$ENCODED_REDIRECT")
-          AUTHORIZE_STATUS=$(echo "$AUTHORIZE_RESULT" | head -1)
-          AUTHORIZE_REDIRECT=$(echo "$AUTHORIZE_RESULT" | tail -1)
-          AUTHORIZE_HOST=$(AUTHORIZE_REDIRECT="$AUTHORIZE_REDIRECT" python3 -c \
-            'import os, urllib.parse; print(urllib.parse.urlparse(os.environ["AUTHORIZE_REDIRECT"]).hostname or "")')
+          RUNTIME_REDIRECT="${REQUIRED_REDIRECT}?next=%2Fapp"
+          ENCODED_REDIRECT=$(RUNTIME_REDIRECT="$RUNTIME_REDIRECT" python3 -c \
+            'import os, urllib.parse; print(urllib.parse.quote(os.environ["RUNTIME_REDIRECT"], safe=""))')
+          PKCE_CHALLENGE="dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+          AUTHORIZE_URL="https://wzromwxpjlyrqbdiapep.supabase.co/auth/v1/authorize?provider=google&redirect_to=$ENCODED_REDIRECT&scopes=openid&code_challenge=$PKCE_CHALLENGE&code_challenge_method=s256"
+          AUTHORIZE_READY=false
 
-          if [ "$AUTHORIZE_STATUS" != "302" ] && [ "$AUTHORIZE_STATUS" != "303" ]; then
-            echo "❌ A hosted Google authorize canary nem adott várt átirányítást (HTTP $AUTHORIZE_STATUS)."
+          # A Management API read-back hamarabb láthatja az új értéket, mint az
+          # Auth runtime. Csak ezt az egy, pontosan azonosított átmeneti állapotot
+          # próbáljuk újra; minden más hiba azonnal fail-closed marad.
+          for ATTEMPT in $(seq 1 12); do
+            AUTHORIZE_RESULT=$(curl --silent --show-error \
+              --connect-timeout 10 \
+              --max-time 20 \
+              --output "$AUTHORIZE_BODY" \
+              --write-out "%{http_code}\n%{redirect_url}" \
+              "$AUTHORIZE_URL")
+            AUTHORIZE_STATUS=$(echo "$AUTHORIZE_RESULT" | head -1)
+            AUTHORIZE_REDIRECT=$(echo "$AUTHORIZE_RESULT" | tail -1)
+            AUTHORIZE_HOST=$(AUTHORIZE_REDIRECT="$AUTHORIZE_REDIRECT" python3 -c \
+              'import os, urllib.parse; print(urllib.parse.urlparse(os.environ["AUTHORIZE_REDIRECT"]).hostname or "")')
+            AUTHORIZE_SCOPES_OK=$(AUTHORIZE_REDIRECT="$AUTHORIZE_REDIRECT" python3 -c \
+              'import os, urllib.parse; query = urllib.parse.parse_qs(urllib.parse.urlparse(os.environ["AUTHORIZE_REDIRECT"]).query); scopes = set(query.get("scope", [""])[0].split()); print("true" if {"openid", "email", "profile"}.issubset(scopes) else "false")')
+
+            if { [ "$AUTHORIZE_STATUS" = "302" ] || [ "$AUTHORIZE_STATUS" = "303" ]; } \
+              && [ "$AUTHORIZE_HOST" = "accounts.google.com" ] \
+              && [ "$AUTHORIZE_SCOPES_OK" = "true" ]; then
+              AUTHORIZE_READY=true
+              break
+            fi
+
+            if { [ "$AUTHORIZE_STATUS" = "302" ] || [ "$AUTHORIZE_STATUS" = "303" ]; } \
+              && [ "$AUTHORIZE_HOST" != "accounts.google.com" ]; then
+              echo "❌ A hosted Google authorize canary nem a Google hitelesítési domainre irányított."
+              exit 1
+            fi
+
+            if { [ "$AUTHORIZE_STATUS" = "302" ] || [ "$AUTHORIZE_STATUS" = "303" ]; } \
+              && [ "$AUTHORIZE_SCOPES_OK" != "true" ]; then
+              echo "❌ A hosted Google authorize canary nem igazolta az openid, email és profile scope-okat."
+              exit 1
+            fi
+
+            AUTHORIZE_ERROR_CODE=$(jq -r '.error_code // ""' "$AUTHORIZE_BODY" 2>/dev/null || true)
+            AUTHORIZE_ERROR_MESSAGE=$(jq -r '.msg // ""' "$AUTHORIZE_BODY" 2>/dev/null || true)
+            if [ "$AUTHORIZE_STATUS" = "400" ] \
+              && [ "$AUTHORIZE_ERROR_CODE" = "validation_failed" ] \
+              && [ "$AUTHORIZE_ERROR_MESSAGE" = "Unsupported provider: provider is not enabled" ] \
+              && [ "$ATTEMPT" -lt 12 ]; then
+              echo "ℹ️  Az Auth runtime konfigurációja még terjed; újrapróbálás ($ATTEMPT/12)."
+              sleep 5
+              continue
+            fi
+
+            echo "❌ A hosted Google authorize canary nem adott elfogadható választ (HTTP $AUTHORIZE_STATUS, error_code=${AUTHORIZE_ERROR_CODE:-none})."
             exit 1
-          fi
+          done
 
-          if [ "$AUTHORIZE_HOST" != "accounts.google.com" ]; then
-            echo "❌ A hosted Google authorize canary nem a Google hitelesítési domainre irányított."
+          if [ "$AUTHORIZE_READY" != "true" ]; then
+            echo "❌ A hosted Google authorize canary 60 másodpercen belül sem vált aktívvá."
             exit 1
           fi
 

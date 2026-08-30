@@ -1,3 +1,46 @@
+## v0.10.5 — Google OAuth production runtime hardening
+**Dátum:** 2026-08-30
+**Branch:** codex/google-oauth-production-closure
+
+### Cél
+- A production Google provider biztonságos bekapcsolásának lezárása anélkül,
+  hogy egy control-plane read-back és az Auth runtime késleltetett frissülése
+  téves hibát és szükségtelen rollbacket okozzon.
+- A hosted canary igazítása az alkalmazás valós PKCE callbackjéhez és az
+  engedélyezett `openid`, `email`, `profile` scope-khoz.
+
+### Változások
+- Az Auth authorize canary legfeljebb 60 másodpercig, öt másodperces
+  időközökkel kizárólag a pontosan azonosított `provider is not enabled`
+  propagációs állapotot próbálja újra; minden más válasz továbbra is azonnal
+  fail-closed.
+- A production Auth Site URL a bizonyítottan élő `https://panellako.hu`
+  kanonikus címre áll, a callback allowlist megőrzése mellett.
+- A canary a valós `?next=%2Fapp` callbacket, PKCE-paramétereket, a Google
+  domaint és az `openid`, `email`, `profile` scope-hármast ellenőrzi.
+- A rollback már a provider letiltását, a korábbi Site URL-t és az allowlistet
+  külön Management API read-backkel igazolja.
+- Az alkalmazás Google OAuth kérése explicit `openid` scope-pal egészül ki;
+  a Supabase Google provider alapértelmezett `email` és `profile` scope-jai
+  változatlanok.
+
+### Bizonyítási állapot
+- Célzott Vitest: **PASS — 2 fájl, 9/9 teszt**.
+- TypeScript: **PASS**.
+- GitHub Actions workflow lint: **PASS**.
+- `git diff --check`: **PASS**.
+- Production provider-konfiguráció és hosted OAuth E2E: **folyamatban**; csak
+  a main merge, a védett workflow PASS és a hosted ellenőrzés után tekinthető
+  lezártnak.
+
+### Dokumentáció
+- Részletes jegyzőkönyv:
+  `versioning/30082601_v0.10.5_google-oauth-runtime-propagation-hardening.md`.
+- Piaci érték és állításhatár:
+  `marketing/marketing_values/20260830_v0.10.5_google-oauth-runtime-propagation-hardening_marketing_value.md`.
+
+---
+
 ## v0.10.4 — Google OAuth és lakónyilvántartási hardening
 **Dátum:** 2026-08-29
 **Branch:** codex/google-oauth-multitenancy-completion
