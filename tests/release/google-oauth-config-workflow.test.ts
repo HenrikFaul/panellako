@@ -25,6 +25,7 @@ describe('production Google OAuth provider workflow contract', () => {
     expect(workflow).toContain('external_google_secret: $client_secret');
     expect(workflow).toContain('external_google_email_optional: false');
     expect(workflow).toContain('external_google_skip_nonce_check: false');
+    expect(workflow).toContain('site_url: $site_url');
     expect(workflow).toContain('uri_allow_list: $uri_allow_list');
     expect(workflow).toContain('--request PATCH');
   });
@@ -42,13 +43,30 @@ describe('production Google OAuth provider workflow contract', () => {
     expect(workflow).toContain('ROLLBACK_ARMED=true');
     expect(workflow).toContain('external_google_enabled: false');
     expect(workflow).toContain('CURRENT_ALLOW_LIST');
+    expect(workflow).toContain('ROLLBACK_VERIFY_RESPONSE');
+    expect(workflow).toContain('.site_url == $expected_site_url');
+    expect(workflow).toContain('(.uri_allow_list // "") == $expected_allow_list');
   });
 
   it('reads the state back and proves the hosted redirect without printing bodies or credentials', () => {
     expect(workflow).toContain('.external_google_enabled == true');
     expect(workflow).toContain('.external_google_client_id == $expected_client_id');
     expect(workflow).toContain('https://panellako.hu/auth/callback');
+    expect(workflow).toContain('RUNTIME_REDIRECT="${REQUIRED_REDIRECT}?next=%2Fapp"');
+    expect(workflow).toContain('code_challenge=$PKCE_CHALLENGE');
+    expect(workflow).toContain('code_challenge_method=s256');
+    expect(workflow).toContain('scopes=openid');
+    expect(workflow).toContain('{"openid", "email", "profile"}.issubset(scopes)');
+    expect(workflow).toContain('(.site_url | rtrimstr("/")) == $required_site_url');
     expect(workflow).toContain('accounts.google.com');
+    expect(workflow).toContain('for ATTEMPT in $(seq 1 12)');
+    expect(workflow).toContain('Unsupported provider: provider is not enabled');
+    expect(workflow).toContain('sleep 5');
+    expect(workflow).toContain('AUTHORIZE_READY=true');
+    expect(workflow).toContain('--connect-timeout 10');
+    expect(workflow).toContain('--max-time 20');
+    expect(workflow).not.toContain('cat "$AUTHORIZE_BODY"');
+    expect(workflow).not.toContain('echo "$AUTHORIZE_ERROR_MESSAGE"');
     expect(workflow).not.toMatch(
       /echo\s+["']?\$(?:BEFORE_BODY|PATCH_BODY|VERIFY_BODY|REQUEST_BODY|ROLLBACK_BODY)/,
     );

@@ -4,6 +4,7 @@ type GoogleOAuthRequest = {
   provider: 'google';
   options: {
     redirectTo: string;
+    scopes: 'openid';
   };
 };
 
@@ -42,6 +43,7 @@ export function requestGoogleOAuth(
     provider: 'google',
     options: {
       redirectTo: buildOAuthCallbackUrl(options),
+      scopes: 'openid',
     },
   });
 }

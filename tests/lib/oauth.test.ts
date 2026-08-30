@@ -45,6 +45,7 @@ describe('Google OAuth request safety', () => {
       provider: 'google',
       options: {
         redirectTo: 'https://panellako.hu/auth/callback?next=%2Fapp',
+        scopes: 'openid',
       },
     });
     expect(JSON.stringify(signInWithOAuth.mock.calls[0]?.[0])).not.toMatch(/role|workspace|tenant|membership/);
