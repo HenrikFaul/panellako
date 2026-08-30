@@ -14,13 +14,6 @@ interface SendBody {
   targetRole?: 'all' | 'lako' | 'manager';
 }
 
-const MANAGER_ROLE_KEYS = new Set([
-  'COMMON_REPRESENTATIVE_ADMIN',
-  'BOARD_ADMIN',
-  'SELF_MANAGED_ADMIN',
-  'DELEGATE_OPERATIONS',
-]);
-
 webpush.setVapidDetails(
   'mailto:info@panellako.hu',
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '',
@@ -39,6 +32,9 @@ export async function POST(request: NextRequest) {
 
   if (!workspaceId || !title?.trim() || !msgBody?.trim()) {
     return NextResponse.json({ error: 'buildingId, title, and body are required' }, { status: 400 });
+  }
+  if (!['all', 'lako', 'manager'].includes(targetRole)) {
+    return NextResponse.json({ error: 'targetRole is invalid' }, { status: 400 });
   }
   if (title.trim().length > 120 || msgBody.trim().length > 1000) {
     return NextResponse.json({ error: 'Notification content is too long' }, { status: 400 });
@@ -60,48 +56,23 @@ export async function POST(request: NextRequest) {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  // Recipient expansion happens only after the caller-bound capability check.
-  const { data: memberships, error: memberError } = await supabase
-    .from('workspace_memberships')
-    .select('id, profile_id')
-    .eq('workspace_id', workspaceId)
-    .eq('status', 'ACTIVE');
-
-  if (memberError) {
-    console.error('[push/send] memberships query error:', memberError);
-    return NextResponse.json({ error: memberError.message }, { status: 500 });
+  // Recipient expansion is service-role-only and derives manager classification
+  // from the canonical mandate/delegation authority chain in PostgreSQL.
+  const { data: recipients, error: recipientError } = await supabase.rpc(
+    'resolve_workspace_push_recipients',
+    {
+      p_workspace_id: workspaceId,
+      p_target_role: targetRole,
+    },
+  );
+  if (recipientError) {
+    console.error('[push/send] recipient resolver error:', recipientError.code ?? 'RPC_FAILED');
+    return NextResponse.json({ error: 'Push recipients could not be resolved' }, { status: 500 });
   }
 
-  if (!memberships || memberships.length === 0) {
-    return NextResponse.json({ sent: 0, failed: 0 });
-  }
-
-  const memberRows = memberships as Array<{ id: string; profile_id: string }>;
-  let profileIds = memberRows.map((member) => member.profile_id);
-
-  if (targetRole !== 'all') {
-    const membershipIds = memberRows.map((member) => member.id);
-    const { data: assignments, error: assignmentError } = await supabase
-      .from('role_assignments')
-      .select('membership_id, role_key')
-      .eq('workspace_id', workspaceId)
-      .eq('status', 'ACTIVE')
-      .in('membership_id', membershipIds);
-    if (assignmentError) {
-      return NextResponse.json({ error: 'Recipient roles could not be resolved' }, { status: 500 });
-    }
-
-    const managerMembershipIds = new Set(
-      (assignments ?? [])
-        .filter((assignment: { role_key: string }) => MANAGER_ROLE_KEYS.has(assignment.role_key))
-        .map((assignment: { membership_id: string }) => assignment.membership_id),
-    );
-    profileIds = memberRows
-      .filter((member) => targetRole === 'manager'
-        ? managerMembershipIds.has(member.id)
-        : !managerMembershipIds.has(member.id))
-      .map((member) => member.profile_id);
-  }
+  const profileIds = (recipients ?? [])
+    .map((recipient: { profile_id?: unknown }) => recipient.profile_id)
+    .filter((profileId: unknown): profileId is string => typeof profileId === 'string');
 
   if (profileIds.length === 0) {
     return NextResponse.json({ sent: 0, failed: 0 });

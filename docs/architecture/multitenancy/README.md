@@ -1,9 +1,9 @@
 # PanelLakó multitenancy – célarchitektúra és bevezetési terv
 
-**Állapot:** részletes célarchitektúra és v0.10.1 repository-szintű implementációs jelölt
-**Dátum:** 2026-08-28
+**Állapot:** v0.10.3 production baseline; v0.10.4 Google Auth és lakónyilvántartási hardening lokálisan validált repository release-jelölt
+**Dátum:** 2026-08-29
 **Hatókör:** identitás, workspace, fizikai épület, cím, albetét, személyek, tulajdon, bentlakás, képviselet, delegálás, regisztráció, meghívás, RLS és kompatibilis migráció
-**Élesítési határ:** alkalmazáskód és tíz, `20260828120000`–`20260828129000` közötti SQL-migráció már készült; live schema drift audit, éles adatbázis-módosítás és deploy még nem történt
+**Élesítési határ:** a v0.10.3 tizenkét migrációs production baseline-ja bizonyított; a v0.10.4 öt új, `20260829110000`–`20260829150000` közötti migrációja lokálisan apply/reapply/runtime-canary validált, de productionben még nincs alkalmazva; az alkalmazáskód még nincs deployolva, a hosted Google OAuth provider disabled és nincs kliens-ID/secret
 
 ## Vezetői döntés
 
@@ -20,7 +20,8 @@ Ebből következik:
 - egy személy tetszőleges számú albetét tulajdonosa és/vagy lakója lehet, akár több workspace-ben;
 - jogilag alkalmas, igazolt közös képviselő nélküli kis ház ugyanazt a modellt használja `SELF_MANAGED` irányítási móddal; a puszta képviselőhiány önmagában nem elég;
 - a technikai `SELF_MANAGED_ADMIN` role (felületi neve: „Közösségi koordinátor”) nem állít jogi értelemben vett közös képviselői státuszt;
-- az email+jelszó regisztráció csak identitást hoz létre, hozzáférést önmagában nem.
+- bármely account flow — Google, email+jelszó vagy magic link — csak identitást
+  hitelesít; hozzáférést önmagában nem ad.
 
 ## Bizonyossági jelölések
 
@@ -29,7 +30,14 @@ Ebből következik:
 - **NYITOTT DÖNTÉS:** üzleti, jogi vagy termékdöntést igényel az implementáció előtt.
 - **HOLD:** valódi lakói adatokkal nem biztonságos élesíteni, amíg az adott kapu nem teljesül.
 
-Az audit a verziókezelt repository állapotát vizsgálta. Az éles Supabase-séma és az adatok aktuális állapota ebben a dokumentációs körben nem lett lekérdezve, ezért a migráció előtt kötelező a live-schema drift audit.
+A v0.10.3 production állapotát külön backup-, migrációs ledger-, hosted
+két-tenant és CI-bizonyíték támasztja alá. A jelenlegi v0.10.4 kör auditja a
+repository-diffet és a Supabase Auth provider-beállítás read-only állapotát
+vizsgálta. Az öt új migráció lokális PostgreSQL 18.4 apply/reapply és runtime
+canaryja, a teljes 319 teszt, a TypeScript, lint és production build PASS. A
+production alkalmazás, az alkalmazásdeploy és a hosted Google OAuth E2E még
+nem történt meg; ezeket a v0.10.4 verziózási jegyzőkönyv külön tényhatárként
+kezeli.
 
 ## A csomag felépítése
 
@@ -45,6 +53,7 @@ Az audit a verziókezelt repository állapotát vizsgálta. Az éles Supabase-s�
 10. [v0.10.0 implementációs állapot és V7 döntési mátrix](./10-implementation-status-v0.10.0.md)
 11. [v0.10.1 platform-review és kérelmezői MFA-aktiválás](./11-community-review-and-activation-v0.10.1.md)
 12. [v0.10.1 operatív multitenancy-lezárás](./12-operational-multitenancy-closure-v0.10.1.md)
+13. [v0.10.4 Google Auth, lakónyilvántartás és authorization hardening](./13-google-auth-and-resident-registry-v0.10.4.md)
 
 ## A három külön rendszerhatár
 
@@ -141,21 +150,31 @@ A sorrend szándékos. Új lakói onboardingot nem szabad a jelenlegi nyitott RL
 
 ## Release-kapuk
 
-### HOLD – valódi multitenant pilot előtt
+### v0.10.4 repository-jelölt – kötelező kapuk production előtt
 
-- az éles séma összevetése a repository sémával;
-- minden permisszív `USING (true)` / `WITH CHECK (true)` tenant-policy eltávolítása;
-- minden tenant write kötelező workspace-scope-ja;
-- unit/building/workspace összetett integritás;
-- mock fallback eltávolítása az autentikált éles útvonalakról;
-- központi capability-ellenőrzés és BOLA tesztmátrix;
-- Storage tenant-scope;
-- auditálható meghívás/claim/jóváhagyás;
-- tagság előtti onboarding külön, subject-scoped authorization síkja;
+- az öt új migráció kombinált PostgreSQL apply, idempotens reapply és pozitív/
+  negatív runtime canaryja;
+- teljes TypeScript, lint, Vitest, build, migration verifier és két-tenant E2E;
+- production backup/PITR és migration allowlist/ledger frissítése;
+- Google OAuth client létrehozása, Supabase provider engedélyezése és redirect
+  allowlist konfigurálása titokérték repositoryba írása nélkül;
+- hosted Google új fiók, meglévő fiók, consent-elutasítás, callback-hiba,
+  invitation return-to és account-linking E2E.
+
+### PRECONDITIONED / HOLD – külön döntés nélkül nem implementálható tervrészek
+
+Ezek nem blokkolják a v0.10.4 elkészült funkcióinak kontrollált rolloutját, de
+nem állíthatók a multitenancy terv teljesített részeként, amíg a saját
+előfeltételük nincs lezárva:
+
 - identity/person merge és alias folyamat tenantadat-szivárgás nélkül;
-- fuzzy címjelöltek operátori összevonási/dispute folyamata;
-- névre szóló, visszavonható és AAL2-es platform-reviewer identity a jelenlegi env-backed superadmin munkamenet helyett;
-- hivatalos nyilvántartási bizonyíték operatív beszerzési/megőrzési folyamata és 2026. szeptember 30-i kötelező jogi source re-check;
+- fuzzy címjelöltek operátori merge/split/dispute folyamata;
+- névre szóló, visszavonható és AAL2-es platform-operator identity a jelenlegi
+  env-backed superadmin munkamenet helyett;
+- KMS/DEK, backup, retention és helyreállítási szerződés a
+  crypto-shreddinghez;
+- hivatalos nyilvántartási bizonyíték operatív beszerzési/megőrzési folyamata és
+  2026. szeptember 30-i kötelező jogi source re-check;
 - export, archiválás és mandátumátadás folyamatának elfogadása.
 
 ### Későbbi, nem blokkoló bővítés

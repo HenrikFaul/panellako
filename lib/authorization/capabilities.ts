@@ -95,7 +95,7 @@ export interface WorkspaceContext {
   capabilities: WorkspaceCapability[];
   relatedUnitIds: string[];
   primaryUnitId: string | null;
-  source: 'workspace-rpc' | 'legacy-compatibility';
+  source: 'workspace-rpc';
 }
 
 const LEGACY_ROLE_PRIORITY: Array<{ role: Role; roleKeys?: WorkspaceRoleKey[]; relationships?: string[] }> = [

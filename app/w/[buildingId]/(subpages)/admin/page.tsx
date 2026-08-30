@@ -24,6 +24,8 @@ export default async function WorkspaceAdminPage({ params }: PageProps) {
     'unit.manage',
     'membership.invite',
     'membership.approve',
+    'membership.suspend',
+    'unit_relation.verify',
     'role.grant_limited',
   ] as const;
   const canOpenAdmin = adminCapabilities.some((capability) => hasWorkspaceCapability(context, capability));

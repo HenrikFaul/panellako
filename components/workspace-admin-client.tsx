@@ -21,11 +21,13 @@ import {
   grantWorkspaceRole,
   issueWorkspaceMembershipInvitation,
   issueWorkspaceStaffInvitation,
+  revokeWorkspaceMembershipInvitation,
   reviewWorkspaceJoinRequest,
   revokeWorkspaceRole,
   type AssignableWorkspaceRole,
   type JoinReviewDecision,
   type WorkspaceAdminActionResult,
+  type WorkspaceAdminInvitation,
   type WorkspaceAdminRoleAssignment,
   type WorkspaceAdminSnapshot,
   type WorkspaceAdminUnit,
@@ -34,6 +36,8 @@ import {
   type WorkspaceUnitCategory,
 } from '@/app/actions/workspace-admin';
 import { useI18n } from '@/src/i18n/useI18n';
+import WorkspaceRelationshipRegistry from '@/components/workspace-relationship-registry';
+import WorkspaceUnitBulkImport from '@/components/workspace-unit-bulk-import';
 
 interface WorkspaceAdminClientProps {
   initialSnapshot: WorkspaceAdminSnapshot;
@@ -75,6 +79,8 @@ const DELEGATE_CAPABILITY_OPTIONS = [
   { value: 'member.directory.read_minimal', label: 'Minimális tagjegyzék' },
   { value: 'membership.invite', label: 'Lakók meghívása' },
   { value: 'membership.approve', label: 'Csatlakozási kérelmek kezelése' },
+  { value: 'membership.suspend', label: 'Tagság felfüggesztése és lezárása' },
+  { value: 'unit_relation.verify', label: 'Lakói és tulajdonosi jogviszonyok kezelése' },
   { value: 'ticket.manage_all', label: 'Hibajegyek kezelése' },
   { value: 'document.publish', label: 'Dokumentumok publikálása' },
   { value: 'announcement.publish', label: 'Közlemények publikálása' },
@@ -93,6 +99,8 @@ const STAFF_CAPABILITY_TRANSLATION_KEYS: Record<(typeof DELEGATE_CAPABILITY_OPTI
   'member.directory.read_minimal': 'workspaceAdmin.staff.capabilityMemberDirectory',
   'membership.invite': 'workspaceAdmin.staff.capabilityMembershipInvite',
   'membership.approve': 'workspaceAdmin.staff.capabilityMembershipApprove',
+  'membership.suspend': 'workspaceAdmin.staff.capabilityMembershipSuspend',
+  'unit_relation.verify': 'workspaceAdmin.staff.capabilityUnitRelationVerify',
   'ticket.manage_all': 'workspaceAdmin.staff.capabilityTicketManage',
   'document.publish': 'workspaceAdmin.staff.capabilityDocumentPublish',
   'announcement.publish': 'workspaceAdmin.staff.capabilityAnnouncementPublish',
@@ -189,6 +197,75 @@ function Panel({
   );
 }
 
+function MembershipInvitationCard({
+  invitation,
+  units,
+  workspaceId,
+  onChanged,
+}: {
+  invitation: WorkspaceAdminInvitation;
+  units: WorkspaceAdminUnit[];
+  workspaceId: string;
+  onChanged: () => void;
+}) {
+  const { t } = useI18n();
+  const [reason, setReason] = useState('');
+  const [pending, setPending] = useState(false);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const attempt = useRef<Attempt | null>(null);
+
+  async function revoke(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setNotice(null);
+    const payload = { workspaceId, invitationId: invitation.id, reason: reason.trim() };
+    const fingerprint = JSON.stringify(payload);
+    if (attempt.current?.fingerprint !== fingerprint) {
+      attempt.current = { fingerprint, key: window.crypto.randomUUID() };
+    }
+    setPending(true);
+    const result = await revokeWorkspaceMembershipInvitation({ ...payload, idempotencyKey: attempt.current.key });
+    setPending(false);
+    setNotice(noticeFromResult(result, t('workspaceAdmin.invitation.revokeSuccess')));
+    if (result.success) {
+      attempt.current = null;
+      setReason('');
+      onChanged();
+    }
+  }
+
+  return (
+    <li className="rounded-xl bg-canvas-fog px-3 py-2 text-xs">
+      <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
+        <span className="font-medium text-canvas-ink">
+          {invitation.email} · {units.find((unit) => unit.id === invitation.unitId)?.designation ?? t('workspaceAdmin.invitation.unitFallback')}
+        </span>
+        <span className="text-canvas-muted">{invitation.status} · {formatDate(invitation.expiresAt)}</span>
+      </div>
+      {invitation.status === 'PENDING' ? (
+        <form onSubmit={revoke} className="mt-2 grid gap-2 border-t border-canvas-line pt-2 sm:grid-cols-[1fr_auto]">
+          <label className="sr-only" htmlFor={`revoke-invitation-${invitation.id}`}>
+            {t('workspaceAdmin.invitation.revokeReason')}
+          </label>
+          <input
+            id={`revoke-invitation-${invitation.id}`}
+            className="input-base min-h-10"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            minLength={3}
+            maxLength={500}
+            required
+            placeholder={t('workspaceAdmin.invitation.revokeReason')}
+          />
+          <button type="submit" disabled={pending} className="btn-secondary min-h-10 px-3 text-xs">
+            {pending ? t('workspaceAdmin.invitation.revoking') : t('workspaceAdmin.invitation.revoke')}
+          </button>
+          <div className="sm:col-span-2"><NoticeBox notice={notice} /></div>
+        </form>
+      ) : null}
+    </li>
+  );
+}
+
 function JoinRequestReviewCard({
   request,
   units,
@@ -204,6 +281,12 @@ function JoinRequestReviewCard({
   const [reason, setReason] = useState('');
   const [offeredUnitId, setOfferedUnitId] = useState(request.unitId);
   const [offeredRelationshipType, setOfferedRelationshipType] = useState<WorkspaceRelationshipType>(request.relationshipType);
+  const [offeredShareNumerator, setOfferedShareNumerator] = useState(
+    request.shareNumerator == null ? '' : String(request.shareNumerator),
+  );
+  const [offeredShareDenominator, setOfferedShareDenominator] = useState(
+    request.shareDenominator == null ? '' : String(request.shareDenominator),
+  );
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   const attempt = useRef<Attempt | null>(null);
@@ -211,7 +294,17 @@ function JoinRequestReviewCard({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setNotice(null);
-    const payload = { workspaceId, requestId: request.id, decision, offeredUnitId, offeredRelationshipType, reason: reason.trim() };
+    const offeredOwnership = offeredRelationshipType === 'OWNER' || offeredRelationshipType === 'OWNER_OCCUPANT';
+    const payload = {
+      workspaceId,
+      requestId: request.id,
+      decision,
+      offeredUnitId,
+      offeredRelationshipType,
+      offeredShareNumerator: decision === 'COUNTER_OFFER' && offeredOwnership ? Number(offeredShareNumerator) : null,
+      offeredShareDenominator: decision === 'COUNTER_OFFER' && offeredOwnership ? Number(offeredShareDenominator) : null,
+      reason: reason.trim(),
+    };
     const fingerprint = JSON.stringify(payload);
     if (attempt.current?.fingerprint !== fingerprint) attempt.current = { fingerprint, key: window.crypto.randomUUID() };
     setPending(true);
@@ -231,6 +324,7 @@ function JoinRequestReviewCard({
           <h3 className="font-semibold text-canvas-ink">{request.requesterDisplayName}</h3>
           <p className="mt-1 text-sm text-canvas-muted">
             {request.unitDesignation} · {relationshipLabel(request.relationshipType)}
+            {request.shareNumerator && request.shareDenominator ? ` · ${request.shareNumerator}/${request.shareDenominator}` : ''}
           </p>
           <p className="mt-1 text-xs text-canvas-subtle">Beküldve: {formatDate(request.submittedAt)}</p>
         </div>
@@ -243,6 +337,9 @@ function JoinRequestReviewCard({
         <p className="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs leading-relaxed text-sky-900">
           Legutóbbi ellenajánlat: {relationshipLabel(request.latestOfferRelationshipType ?? '')}
           {request.latestOfferUnitId ? ` · ${units.find((unit) => unit.id === request.latestOfferUnitId)?.designation ?? 'másik albetét'}` : ''}.
+          {request.latestOfferShareNumerator && request.latestOfferShareDenominator
+            ? ` Tulajdoni hányad: ${request.latestOfferShareNumerator}/${request.latestOfferShareDenominator}.`
+            : ''}
           A lakónak kell elfogadnia, mielőtt a kérelem újra jóváhagyható.
         </p>
       ) : null}
@@ -285,6 +382,17 @@ function JoinRequestReviewCard({
                 {RELATIONSHIP_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
             </label>
+            {(offeredRelationshipType === 'OWNER' || offeredRelationshipType === 'OWNER_OCCUPANT') ? (
+              <fieldset className="sm:col-span-2">
+                <legend className="text-xs font-semibold text-sky-950">Pontos tulajdoni hányad</legend>
+                <div className="mt-1 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                  <input aria-label="Tulajdoni hányad számlálója" className="input-base min-h-11" type="number" min={1} step={1} value={offeredShareNumerator} onChange={(event) => setOfferedShareNumerator(event.target.value)} required />
+                  <span aria-hidden="true" className="text-canvas-muted">/</span>
+                  <input aria-label="Tulajdoni hányad nevezője" className="input-base min-h-11" type="number" min={1} step={1} value={offeredShareDenominator} onChange={(event) => setOfferedShareDenominator(event.target.value)} required />
+                </div>
+                <p className="mt-1 text-[11px] text-canvas-subtle">Nem becslés: a nyilvántartásban szereplő pontos törtet add meg.</p>
+              </fieldset>
+            ) : null}
           </div>
         ) : null}
 
@@ -363,6 +471,7 @@ export default function WorkspaceAdminClient({ initialSnapshot }: WorkspaceAdmin
   const router = useRouter();
   const { t } = useI18n();
   const { workspaceId, permissions, units } = initialSnapshot;
+  const activeMembers = initialSnapshot.members.filter((member) => member.status === 'ACTIVE');
   const attempts = useRef<Record<string, Attempt>>({});
 
   const [unitDesignation, setUnitDesignation] = useState('');
@@ -374,6 +483,8 @@ export default function WorkspaceAdminClient({ initialSnapshot }: WorkspaceAdmin
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteUnitId, setInviteUnitId] = useState(units[0]?.id ?? '');
   const [inviteRelationship, setInviteRelationship] = useState<WorkspaceRelationshipType>('TENANT');
+  const [inviteShareNumerator, setInviteShareNumerator] = useState('');
+  const [inviteShareDenominator, setInviteShareDenominator] = useState('');
   const [inviteExpiry, setInviteExpiry] = useState(defaultInvitationExpiry());
   const [invitePending, setInvitePending] = useState(false);
   const [inviteNotice, setInviteNotice] = useState<Notice | null>(null);
@@ -390,7 +501,7 @@ export default function WorkspaceAdminClient({ initialSnapshot }: WorkspaceAdmin
   const [staffInvitationUrl, setStaffInvitationUrl] = useState('');
   const [staffCopied, setStaffCopied] = useState(false);
 
-  const [roleProfileId, setRoleProfileId] = useState(initialSnapshot.members[0]?.profileId ?? '');
+  const [roleProfileId, setRoleProfileId] = useState(activeMembers[0]?.profileId ?? '');
   const [roleKey, setRoleKey] = useState<AssignableWorkspaceRole>('DELEGATE_OPERATIONS');
   const [roleCapabilities, setRoleCapabilities] = useState<string[]>([]);
   const [roleValidTo, setRoleValidTo] = useState('');
@@ -438,6 +549,12 @@ export default function WorkspaceAdminClient({ initialSnapshot }: WorkspaceAdmin
       email: inviteEmail.trim(),
       unitId: inviteUnitId,
       relationshipType: inviteRelationship,
+      shareNumerator: inviteRelationship === 'OWNER' || inviteRelationship === 'OWNER_OCCUPANT'
+        ? Number(inviteShareNumerator)
+        : null,
+      shareDenominator: inviteRelationship === 'OWNER' || inviteRelationship === 'OWNER_OCCUPANT'
+        ? Number(inviteShareDenominator)
+        : null,
       expiresAt: toIsoOrEmpty(inviteExpiry),
     };
     setInvitePending(true);
@@ -446,6 +563,8 @@ export default function WorkspaceAdminClient({ initialSnapshot }: WorkspaceAdmin
     if (result.success && result.data) {
       clearAttempt('invitation');
       setInviteEmail('');
+      setInviteShareNumerator('');
+      setInviteShareDenominator('');
       if (result.data.token) {
         setInvitationUrl(`${window.location.origin}/invitations/${encodeURIComponent(result.data.token)}`);
         setInviteNotice({ tone: 'success', message: 'A meghívás elkészült. A hivatkozás csak most látható; másold ki és biztonságos csatornán küldd el.' });
@@ -466,9 +585,20 @@ export default function WorkspaceAdminClient({ initialSnapshot }: WorkspaceAdmin
   }
 
   function toggleStaffCapability(capability: string) {
-    setStaffCapabilities((current) => current.includes(capability)
-      ? current.filter((item) => item !== capability)
-      : [...current, capability]);
+    setStaffCapabilities((current) => {
+      if (current.includes(capability)) {
+        if (
+          capability === 'member.directory.read_minimal'
+          && current.some((item) => item === 'membership.suspend' || item === 'unit_relation.verify')
+        ) return current;
+        return current.filter((item) => item !== capability);
+      }
+      const next = new Set([...current, capability]);
+      if (capability === 'membership.suspend' || capability === 'unit_relation.verify') {
+        next.add('member.directory.read_minimal');
+      }
+      return Array.from(next);
+    });
   }
 
   async function submitStaffInvitation(event: FormEvent<HTMLFormElement>) {
@@ -513,9 +643,20 @@ export default function WorkspaceAdminClient({ initialSnapshot }: WorkspaceAdmin
   }
 
   function toggleCapability(capability: string) {
-    setRoleCapabilities((current) => current.includes(capability)
-      ? current.filter((item) => item !== capability)
-      : [...current, capability]);
+    setRoleCapabilities((current) => {
+      if (current.includes(capability)) {
+        if (
+          capability === 'member.directory.read_minimal'
+          && current.some((item) => item === 'membership.suspend' || item === 'unit_relation.verify')
+        ) return current;
+        return current.filter((item) => item !== capability);
+      }
+      const next = new Set([...current, capability]);
+      if (capability === 'membership.suspend' || capability === 'unit_relation.verify') {
+        next.add('member.directory.read_minimal');
+      }
+      return Array.from(next);
+    });
   }
 
   async function submitRole(event: FormEvent<HTMLFormElement>) {
@@ -581,6 +722,8 @@ export default function WorkspaceAdminClient({ initialSnapshot }: WorkspaceAdmin
           ))}
         </section>
 
+        <WorkspaceRelationshipRegistry snapshot={initialSnapshot} />
+
         <div className="mt-5 grid items-start gap-5 xl:grid-cols-2">
           {permissions.canManageUnits ? (
             <Panel
@@ -625,6 +768,7 @@ export default function WorkspaceAdminClient({ initialSnapshot }: WorkspaceAdmin
                   )) : <p className="text-sm text-canvas-muted">Még nincs aktív albetét.</p>}
                 </div>
               </div>
+              <WorkspaceUnitBulkImport workspaceId={workspaceId} />
             </Panel>
           ) : null}
 
@@ -657,6 +801,17 @@ export default function WorkspaceAdminClient({ initialSnapshot }: WorkspaceAdmin
                       </select>
                     </label>
                   </div>
+                  {(inviteRelationship === 'OWNER' || inviteRelationship === 'OWNER_OCCUPANT') ? (
+                    <fieldset>
+                      <legend className="text-xs font-semibold text-canvas-muted">Pontos tulajdoni hányad</legend>
+                      <div className="mt-1 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                        <input aria-label="Tulajdoni hányad számlálója" className="input-base min-h-11" type="number" min={1} step={1} value={inviteShareNumerator} onChange={(event) => setInviteShareNumerator(event.target.value)} required />
+                        <span aria-hidden="true" className="text-canvas-muted">/</span>
+                        <input aria-label="Tulajdoni hányad nevezője" className="input-base min-h-11" type="number" min={1} step={1} value={inviteShareDenominator} onChange={(event) => setInviteShareDenominator(event.target.value)} required />
+                      </div>
+                      <p className="mt-1 text-[11px] text-canvas-subtle">A rendszer ellenőrzi, hogy az igazolt tulajdoni hányadok összege ne haladja meg az 1/1-et.</p>
+                    </fieldset>
+                  ) : null}
                   <label className="block text-xs font-semibold text-canvas-muted">
                     Lejárat
                     <input className="input-base mt-1 min-h-11" type="datetime-local" value={inviteExpiry} onChange={(event) => setInviteExpiry(event.target.value)} required />
@@ -685,10 +840,13 @@ export default function WorkspaceAdminClient({ initialSnapshot }: WorkspaceAdmin
                   <p className="text-xs font-semibold uppercase tracking-wider text-canvas-subtle">Legutóbbi meghívások</p>
                   <ul className="mt-2 space-y-2">
                     {initialSnapshot.invitations.slice(0, 6).map((invitation) => (
-                      <li key={invitation.id} className="flex flex-col justify-between gap-1 rounded-xl bg-canvas-fog px-3 py-2 text-xs sm:flex-row sm:items-center">
-                        <span className="font-medium text-canvas-ink">{invitation.email} · {units.find((unit) => unit.id === invitation.unitId)?.designation ?? 'albetét'}</span>
-                        <span className="text-canvas-muted">{invitation.status} · {formatDate(invitation.expiresAt)}</span>
-                      </li>
+                      <MembershipInvitationCard
+                        key={invitation.id}
+                        invitation={invitation}
+                        units={units}
+                        workspaceId={workspaceId}
+                        onChanged={refresh}
+                      />
                     ))}
                   </ul>
                 </div>
@@ -869,7 +1027,7 @@ export default function WorkspaceAdminClient({ initialSnapshot }: WorkspaceAdmin
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-canvas-subtle">
                   {t('workspaceAdmin.staff.existingMemberTitle')}
                 </p>
-                {initialSnapshot.members.length === 0 ? (
+                {activeMembers.length === 0 ? (
                   <NoticeBox notice={{ tone: 'info', message: 'Nincs kiválasztható aktív közösségi tag.' }} />
                 ) : (
                   <form onSubmit={submitRole} className="space-y-4 rounded-2xl border border-canvas-line bg-canvas-fog/55 p-4">
@@ -877,7 +1035,7 @@ export default function WorkspaceAdminClient({ initialSnapshot }: WorkspaceAdmin
                       <label className="text-xs font-semibold text-canvas-muted">
                         Közösségi tag
                         <select className="input-base mt-1 min-h-11 font-mono text-xs" value={roleProfileId} onChange={(event) => setRoleProfileId(event.target.value)} required>
-                          {initialSnapshot.members.map((member) => (
+                          {activeMembers.map((member) => (
                             <option key={member.membershipId} value={member.profileId}>
                               {member.displayName}{member.primaryUnitDesignation ? ` · ${member.primaryUnitDesignation}` : ''}
                             </option>

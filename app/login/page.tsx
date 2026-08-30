@@ -5,14 +5,18 @@ import type { Route } from 'next';
 import { useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useEffect, useState } from 'react';
 import { KeyRound, Link2, ShieldCheck } from 'lucide-react';
+import GoogleAccountButton from '@/components/google-account-button';
 import Logo from '@/components/logo';
+import { requestGoogleOAuth } from '@/lib/auth/oauth';
 import { sanitizeReturnTo } from '@/lib/auth/return-to';
 import { createClient, hasSupabaseConfig } from '@/lib/supabase/browser';
+import { useI18n } from '@/src/i18n/useI18n';
 
 type Mode = 'magic' | 'password';
 type Notice = { tone: 'error' | 'success'; message: string };
 
 function LoginForm() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const returnTo = sanitizeReturnTo(searchParams.get('next'));
   const registerHref = `/register?next=${encodeURIComponent(returnTo)}` as Route;
@@ -21,15 +25,42 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [notice, setNotice] = useState<Notice | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const continueWithGoogle = async () => {
+    setNotice(null);
+
+    if (!hasSupabaseConfig) {
+      setNotice({ tone: 'error', message: t('auth.google.unavailable') });
+      return;
+    }
+
+    setGoogleLoading(true);
+    try {
+      const supabase = createClient();
+      const { error } = await requestGoogleOAuth(supabase, {
+        origin: window.location.origin,
+        returnTo,
+      });
+
+      if (error) {
+        setNotice({ tone: 'error', message: t('auth.google.failed') });
+        setGoogleLoading(false);
+      }
+    } catch {
+      setNotice({ tone: 'error', message: t('auth.google.failed') });
+      setGoogleLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (searchParams.get('error') === 'auth_callback_error') {
       setNotice({
         tone: 'error',
-        message: 'A belépési hivatkozás érvénytelen vagy lejárt. Kérj egy új hivatkozást.',
+        message: t('auth.callbackFailed'),
       });
     }
-  }, [searchParams]);
+  }, [searchParams, t]);
 
   const submitMagic = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -113,6 +144,20 @@ function LoginForm() {
           </div>
         </div>
 
+        <GoogleAccountButton
+          label={t('auth.google.continue')}
+          pendingLabel={t('auth.google.redirecting')}
+          pending={googleLoading}
+          disabled={loading}
+          onClick={continueWithGoogle}
+        />
+
+        <div className="my-5 flex items-center gap-3" role="separator" aria-label={t('auth.orUseEmail')}>
+          <span className="h-px flex-1 bg-canvas-line" aria-hidden="true" />
+          <span className="text-xs font-medium text-canvas-muted">{t('auth.orUseEmail')}</span>
+          <span className="h-px flex-1 bg-canvas-line" aria-hidden="true" />
+        </div>
+
         <div className="mb-5 grid grid-cols-2 rounded-xl border border-canvas-line bg-canvas-sage p-1" role="tablist" aria-label="Belépési mód">
           <button
             type="button"
@@ -136,7 +181,7 @@ function LoginForm() {
           </button>
         </div>
 
-        <form className="space-y-4" onSubmit={mode === 'magic' ? submitMagic : submitPassword} aria-busy={loading}>
+        <form className="space-y-4" onSubmit={mode === 'magic' ? submitMagic : submitPassword} aria-busy={loading || googleLoading}>
           <div>
             <label htmlFor="login-email" className="mb-1.5 block text-sm font-semibold text-slate-700">E-mail</label>
             <input
@@ -170,7 +215,7 @@ function LoginForm() {
             </div>
           )}
 
-          <button type="submit" disabled={loading} className="btn-primary min-h-11 w-full">
+          <button type="submit" disabled={loading || googleLoading} className="btn-primary min-h-11 w-full">
             {loading ? 'Folyamatban…' : mode === 'magic' ? 'Belépési link küldése' : 'Belépés'}
           </button>
         </form>
