@@ -1,9 +1,9 @@
 # PanelLakó multitenancy – célarchitektúra és bevezetési terv
 
-**Állapot:** v0.10.4 production adatbázis migrálva és ellenőrizve; alkalmazás- és OAuth-rollout folyamatban
+**Állapot:** v0.10.5 production rollout lezárva; adatbázis-, alkalmazás-, OAuth provider- és tenant-izolációs kapuk PASS
 **Dátum:** 2026-08-30
 **Hatókör:** identitás, workspace, fizikai épület, cím, albetét, személyek, tulajdon, bentlakás, képviselet, delegálás, regisztráció, meghívás, RLS és kompatibilis migráció
-**Élesítési határ:** a v0.10.4 öt új, `20260829110000`–`20260829150000` közötti migrációja productionben ledgerrel és read-only verifierrel PASS; az alkalmazás main deployja és a Supabase Google provider hosted E2E-je még folyamatban van
+**Élesítési határ:** a v0.10.4 öt új, `20260829110000`–`20260829150000` közötti migrációja productionben ledgerrel és read-only verifierrel PASS; a v0.10.5 alkalmazás main deployja, Supabase Google provider canaryja és hosted két-tenant E2E-je szintén PASS. Dedikált teszt Google-identitással végigvitt consent/callback/account-linking E2E nem futott
 
 ## Vezetői döntés
 
@@ -33,9 +33,10 @@ Ebből következik:
 A v0.10.4 öt új migrációját titkosított, visszaellenőrzött backup után a
 production adatbázisra alkalmaztuk; a migrációs ledger és a read-only DB Verify
 PASS. A lokális PostgreSQL 18.4 apply/reapply és runtime canary, a teljes 324
-teszt, a TypeScript, lint és production build szintén PASS. A production
-alkalmazásdeploy és a hosted Google OAuth E2E külön, még folyamatban lévő kapu;
-ezeket a verziózási jegyzőkönyv nem keveri össze az adatbázis-bizonyítékkal.
+teszt, a TypeScript, lint és production build szintén PASS. A v0.10.5 main CI,
+Vercel production deploy, provider-workflow, független Google authorize canary,
+renderelt auth UI és hosted két-tenant negatív próba külön production
+bizonyítékkal zárult; a részleteket a v0.10.5 verziójegyzőkönyv tartalmazza.
 
 ## A csomag felépítése
 
@@ -148,13 +149,20 @@ A sorrend szándékos. Új lakói onboardingot nem szabad a jelenlegi nyitott RL
 
 ## Release-kapuk
 
-### v0.10.4 release – fennmaradó production kapuk
+### v0.10.5 production closure
 
-- hosted két-tenant E2E az új registry-, lifecycle- és importfolyamatokra;
-- Supabase Google provider engedélyezése és redirect
-  allowlist konfigurálása titokérték repositoryba írása nélkül;
-- hosted Google új fiók, meglévő fiók, consent-elutasítás, callback-hiba,
-  invitation return-to és account-linking E2E.
+- **PASS:** Supabase Google provider, kanonikus Site URL és redirect allowlist;
+- **PASS:** public authorize canary Google célhosttal, S256 PKCE-vel és
+  `openid`, `email`, `profile` scope-okkal;
+- **PASS:** main CI, Vercel production deploy, valamint a renderelt `/login` és
+  `/register` Google-gomb;
+- **PASS:** post-rollout read-only DB Verify;
+- **PASS:** valódi manager/resident sessionnel futó hosted két-tenant negatív
+  próba és 0 rekordos fixture-cleanup;
+- **NOT_RUN bizonyítási határ:** dedikált Google tesztidentitással végigvitt új
+  fiók, consent-elutasítás, callback-hiba, invitation return-to és
+  account-linking böngészős E2E. Személyes Google-fiók nem használható release-
+  fixture-ként.
 
 ### PRECONDITIONED / HOLD – külön döntés nélkül nem implementálható tervrészek
 

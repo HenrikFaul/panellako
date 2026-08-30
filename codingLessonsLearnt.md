@@ -1577,3 +1577,13 @@ brand: { 500: 'oklch(0.714 0.145 181 / <alpha-value>)' }
 **Problem**: Pusztán az offer és requester kapcsolatának ellenőrzése lehetővé teszi, hogy egy régi vagy felülírt ajánlat lezárt kérelmet ismét `PENDING` állapotba nyisson.
 **Fix**: Az elfogadás a requestet zárolja, megköveteli a friss `NEEDS_EVIDENCE` állapotot, az érvényes lejáratot és a legújabb feloldatlan offert; külön hibakód védi a stale, expired és terminal útvonalakat, a már sikeres azonos retry pedig idempotens.
 **Prevention**: Append-only event elfogadásakor ne csak az event tulajdonosát vizsgáld; mindig ellenőrizd az aggregate aktuális state-jét, verzióját, lejáratát és azt, hogy az event továbbra is a kanonikus legújabb döntési pont.
+
+---
+
+## ➕ APPEND — 2026-08-30 Google OAuth production rollout tanulságok
+
+### [LESSON-OAUTH-116]: A control-plane read-back megelőzheti az Auth runtime újratöltését
+**Context**: A Supabase Management API már visszaadta az engedélyezett Google providert, miközben az ezt azonnal követő publikus authorize kérés még a korábbi, letiltott runtime állapotot látta.
+**Problem**: Egyetlen azonnali canary hamis negatív release-eredményt és szükségtelen rollbacket okozott volna, noha a konfiguráció helyes volt és néhány másodpercen belül propagálódott.
+**Fix**: Kizárólag a pontos `400` + `validation_failed` + `Unsupported provider: provider is not enabled` átmeneti válasz kapott legfeljebb 12, öt másodperces próbát. Minden más státusz, hibakód, célhost- vagy scope-eltérés továbbra is azonnal fail-closed; a sikeres production futás az első retry után PASS lett.
+**Prevention**: Control-plane változás után a runtime-canary legyen időben korlátos és hibaalakra szűkített; általános retry soha ne fedjen el hibás credentialt, redirectet, scope-ot vagy idegen célhostot.

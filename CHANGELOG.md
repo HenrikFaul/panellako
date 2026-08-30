@@ -23,15 +23,43 @@
 - Az alkalmazás Google OAuth kérése explicit `openid` scope-pal egészül ki;
   a Supabase Google provider alapértelmezett `email` és `profile` scope-jai
   változatlanok.
+- A hosted két-tenant canary csak a teljes fixture-takarítás és mind a 11
+  érintett tábla exact nulla darabszámú utóellenőrzése után közölhet PASS-t;
+  a szerződést külön release-teszt védi.
 
 ### Bizonyítási állapot
 - Célzott Vitest: **PASS — 2 fájl, 9/9 teszt**.
-- TypeScript: **PASS**.
+- Hosted E2E cleanup contract: **PASS — 1 fájl, 2/2 teszt**.
+- Teljes Vitest: **PASS — 53 fájl, 326/326 teszt**.
+- TypeScript, ESLint és Next.js production build: **PASS**; a build 73/73
+  statikus oldalt elkészített.
 - GitHub Actions workflow lint: **PASS**.
 - `git diff --check`: **PASS**.
-- Production provider-konfiguráció és hosted OAuth E2E: **folyamatban**; csak
-  a main merge, a védett workflow PASS és a hosted ellenőrzés után tekinthető
-  lezártnak.
+- PR #265 CI: **PASS**; merge SHA:
+  `74c19280d4b793026764758fbb4ff18208a7208d`.
+- Main CI `33301111087`: **PASS — mind a 7 job**.
+- Production Google provider workflow `33301124824`: **PASS**. Az Auth runtime
+  egyetlen, pontosan azonosított propagációs retry után 302-vel a
+  `accounts.google.com` hostra irányított, az `openid`, `email`, `profile`
+  scope-okkal.
+- Független public authorize canary: **PASS — HTTP 302**, Google célhost és
+  mindhárom minimális scope igazolva.
+- Vercel production deployment `dpl_qjC3ao2gKt8q73bmWnNXRbshuZLb`:
+  **READY**; a `panellako.hu` alias erre a kiadásra mutat, `/`, `/login` és
+  `/register` HTTP 200.
+- Renderelt hosted auth UI: **PASS**; a regisztrációs és belépési Google-gomb
+  látható és engedélyezett.
+- Post-rollout DB Verify `33301298898`: **PASS**; minden kötelező migration,
+  tábla, függvény, RLS, backfill és service-role/private-access kapu igaz.
+- Hosted két-tenant E2E `443d35c7-f43b-419e-a1a4-87b3b907c11d`:
+  **PASS**; kezelő 2 tenant, lakó 1 tenant, idegen RPC/RLS/dashboard hozzáférés
+  tiltva. A canary csak a teljes, 11 táblás exact-count cleanup után írhat
+  sikert; `cleanupVerified=true`.
+- Az ideiglenes GitHub OAuth-secretek és a letöltött Google credential JSON:
+  **eltávolítva, maradvány 0**.
+- Tényhatár: dedikált teszt Google-identitással végzett teljes
+  account-választás/consent/callback/account-linking kör **NOT_RUN**; személyes
+  Google-fiókot nem használtunk release-canaryként.
 
 ### Dokumentáció
 - Részletes jegyzőkönyv:

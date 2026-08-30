@@ -122,9 +122,24 @@ async function main() {
       if (error) failures.push(`${table}: ${error.message}`);
     }
     if (failures.length > 0) throw new Error(`Fixture cleanup failed: ${failures.join(' | ')}`);
+
+    const residue = [];
+    for (const [table, column, value] of steps) {
+      const { count, error } = await service
+        .from(table)
+        .select('*', { head: true, count: 'exact' })
+        .eq(column, value);
+      if (error) {
+        residue.push(`${table}: verification failed: ${error.message}`);
+      } else if ((count ?? 0) !== 0) {
+        residue.push(`${table}: ${count} row(s) remain`);
+      }
+    }
+    if (residue.length > 0) throw new Error(`Fixture residue detected: ${residue.join(' | ')}`);
   };
 
   let primaryError;
+  let proof;
   try {
     assertNoError(await service.from('addresses').insert({
       id: addressId,
@@ -303,7 +318,7 @@ async function main() {
     const unauthenticatedWorker = await fetchHosted(hostUrl, '/api/cron/announcement-delivery');
     assert(unauthenticatedWorker.status === 401, `Unauthenticated worker returned ${unauthenticatedWorker.status}`);
 
-    console.log(JSON.stringify({
+    proof = {
       ok: true,
       runId,
       workspaceId,
@@ -319,7 +334,7 @@ async function main() {
         databaseRlsIsolation: true,
         workerRejectsAnonymous: true,
       },
-    }, null, 2));
+    };
   } catch (error) {
     primaryError = error;
   } finally {
@@ -334,6 +349,8 @@ async function main() {
   }
 
   if (primaryError) throw primaryError;
+  assert(proof, 'Hosted E2E completed without proof');
+  console.log(JSON.stringify({ ...proof, cleanupVerified: true }, null, 2));
 }
 
 main().catch((error) => {
