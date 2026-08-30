@@ -218,7 +218,10 @@ SELECT
     SELECT
       commands.legacy_community_request IS NOT NULL
       AND NOT has_function_privilege('anon', commands.legacy_community_request, 'EXECUTE')
-      AND NOT has_function_privilege('authenticated', commands.legacy_community_request, 'EXECUTE')
+      -- Phase 1 is deliberately backward-compatible with the currently
+      -- deployed client. A later closure migration flips this assertion only
+      -- after the v2 hosted onboarding smoke passes.
+      AND has_function_privilege('authenticated', commands.legacy_community_request, 'EXECUTE')
       AND commands.reference_address_v2 IS NOT NULL
       AND NOT has_function_privilege('anon', commands.reference_address_v2, 'EXECUTE')
       AND NOT has_function_privilege('authenticated', commands.reference_address_v2, 'EXECUTE')

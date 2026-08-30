@@ -506,12 +506,16 @@ WHERE request_id IS NOT NULL
     OR request_id ~* '(authorization|apikey|cookie|bearer[[:space:]])'
   );
 
--- Community onboarding now crosses the trusted address-registry boundary only
--- through the actor-bound v2 command below. The legacy browser-callable RPC
--- cannot preserve that provenance, so close its inherited/direct API grants.
+-- Phase-1 compatibility: the currently deployed client still invokes the
+-- legacy command directly. Keep that authenticated-only path available until
+-- the v2 application deployment and hosted onboarding smoke both pass. The
+-- separate closure migration must revoke authenticated only after that proof.
 REVOKE EXECUTE ON FUNCTION public.create_community_creation_request(
   text, text, text, integer, text, uuid
-) FROM PUBLIC, anon, authenticated;
+) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.create_community_creation_request(
+  text, text, text, integer, text, uuid
+) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.upsert_user_reference_address_v2(
   p_actor_profile_id uuid,

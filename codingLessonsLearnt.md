@@ -1388,6 +1388,13 @@ brand: { 500: 'oklch(0.714 0.145 181 / <alpha-value>)' }
 **Problem**: `let lat = building.lat ?? 47.5278845;` után az `if (!lat) { geocode... }` ág SOHA nem fut le (a default truthy), így a koordináta nélküli épületek némán Budapest-középpont adatait kapták.
 **Fix**: A default fallbackot csak a geokódolási kísérlet UTÁN szabad alkalmazni; DB-író ágon `.is('lat', null)` guard a konkurens felülírás ellen.
 
+### [LESSON-RELEASE-005] DB-first/app-first RPC cutoverhez kompatibilitási fázis kell
+- **Dátum**: 2026-08-30
+- **Érintett fájlok**: `supabase/migrations/20260830120000_shared_geodata_address_registry.sql`, `app/api/onboarding/community-requests/route.ts`, `components/onboarding-client.tsx`
+- **Gyökérok**: A régi éles kliens a browser-callable v1 RPC-t használja, az új kliens pedig egy csak service-role számára elérhető v2 RPC-t. Ha ugyanaz a migráció létrehozza a v2 parancsot és azonnal visszavonja a v1 authenticated jogát, DB-first esetén a régi kliens, app-first esetén az új kliens áll le.
+- **Javítás**: Három fázis: kompatibilis séma ideiglenes authenticated v1 granttal; v2 alkalmazás + hosted smoke; külön closure migráció a v1 jog végleges visszavonására.
+- **Megelőzés**: Jogosultság- vagy API-signature cutovernél mindig készíts N/N+1 kompatibilitási mátrixot. Az add és a remove lépés nem kerülhet ugyanabba a production pending suffixbe, ha az alkalmazásdeploy külön tranzakció.
+
 ---
 
 ## ➕ APPEND — 2026-08-27 Demo hozzáférés megbízhatósági tanulságok

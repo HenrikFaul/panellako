@@ -53,8 +53,14 @@ describe('shared GeoData address registry database contract', () => {
     );
   });
 
-  it('closes direct browser execution of the legacy community request command', () => {
+  it('keeps only the authenticated legacy command during the phase-1 compatibility window', () => {
     expect(migration).toMatch(
+      /REVOKE EXECUTE ON FUNCTION public\.create_community_creation_request\(\s*text, text, text, integer, text, uuid\s*\) FROM PUBLIC, anon;/,
+    );
+    expect(migration).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.create_community_creation_request\(\s*text, text, text, integer, text, uuid\s*\) TO authenticated;/,
+    );
+    expect(migration).not.toMatch(
       /REVOKE EXECUTE ON FUNCTION public\.create_community_creation_request\(\s*text, text, text, integer, text, uuid\s*\) FROM PUBLIC, anon, authenticated;/,
     );
   });

@@ -117,9 +117,11 @@ BEGIN
   IF v_legacy_command IS NULL THEN
     RAISE EXCEPTION 'legacy community request command signature is missing';
   END IF;
-  IF has_function_privilege('anon', v_legacy_command, 'EXECUTE')
-     OR has_function_privilege('authenticated', v_legacy_command, 'EXECUTE') THEN
-    RAISE EXCEPTION 'browser roles can execute the legacy community request command';
+  IF has_function_privilege('anon', v_legacy_command, 'EXECUTE') THEN
+    RAISE EXCEPTION 'anonymous role can execute the legacy community request command';
+  END IF;
+  IF NOT has_function_privilege('authenticated', v_legacy_command, 'EXECUTE') THEN
+    RAISE EXCEPTION 'phase-1 authenticated legacy compatibility is missing';
   END IF;
   IF v_reference_command IS NULL THEN
     RAISE EXCEPTION 'trusted reference address command signature is missing';
@@ -147,24 +149,37 @@ SELECT set_config(
   true
 );
 SELECT set_config('request.jwt.claim.role', 'authenticated', true);
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"81111111-1111-4111-8111-111111111111","role":"authenticated","email":"address.registry.canary@example.test","user_metadata":{"full_name":"Address Registry Canary"}}',
+  true
+);
 
-DO $legacy_v1_direct_call_blocked$
+DO $legacy_v1_compatibility_call$
+DECLARE
+  v_request record;
 BEGIN
-  BEGIN
-    PERFORM public.create_community_creation_request(
-      'Legacy direct call must fail',
-      '1135 Budapest, Legacy bypass utca 1.',
-      'CONDOMINIUM',
-      4,
-      'SELF_MANAGED',
-      '82222222-2222-4222-8222-222222222220'
-    );
-    RAISE EXCEPTION 'authenticated client executed the legacy community request command';
-  EXCEPTION WHEN insufficient_privilege THEN
+  SELECT * INTO v_request
+  FROM public.create_community_creation_request(
+    'Legacy phase-1 compatibility probe',
+    '1135 Budapest, Legacy kompatibilitás utca 1.',
+    'CONDOMINIUM',
+    4,
+    'SELF_MANAGED',
+    '82222222-2222-4222-8222-222222222220'
+  );
+  IF v_request.request_id IS NULL THEN
+    RAISE EXCEPTION 'phase-1 authenticated legacy compatibility returned no request';
+  END IF;
+
+  -- Force a handled subtransaction rollback so this compatibility probe does
+  -- not consume an active-request slot used by the remaining canary cases.
+  RAISE EXCEPTION USING
+    ERRCODE = 'PZ001', MESSAGE = 'rollback legacy compatibility probe';
+EXCEPTION WHEN SQLSTATE 'PZ001' THEN
     NULL;
-  END;
 END;
-$legacy_v1_direct_call_blocked$;
+$legacy_v1_compatibility_call$;
 
 DO $quotas$
 DECLARE

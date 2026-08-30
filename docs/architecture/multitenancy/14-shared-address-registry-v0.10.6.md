@@ -194,7 +194,9 @@ API-kontraktus és a PanelLakó tenant-határ nem változik.
 - migration apply és reapply tiszta PostgreSQL 18 adatbázison;
 - `anon` csak a három publikus read RPC-t hajthatja végre;
 - `authenticated` nem örökölhet korábbi explicit consumer grantot;
-- PanelLakó legacy onboarding RPC közvetlen authenticated hívása tiltott;
+- a kompatibilis első fázisban a PanelLakó legacy onboarding RPC `PUBLIC` és
+  `anon` joga tiltott, az `authenticated` jog pedig csak a jelenlegi éles kliens
+  átmeneti kiszolgálására marad meg;
 - route behavior tesztek: 401, 400, 429/503, cache és válaszkontraktus;
 - két külön user kvótája és profiladatai izoláltak;
 - provenance-hamisítás és kereszt-user olvasás tiltott;
@@ -202,6 +204,21 @@ API-kontraktus és a PanelLakó tenant-határ nem változik.
 - a teljes, közel 800 ezer soros corpuson KNN query plan és válaszidő mérve;
 - deployment után hosted suggest/resolve/reverse és PanelLakó onboarding smoke;
 - git historyban korábban szereplő kulcsok rotációja a fogyasztói leltár alapján.
+
+### 10.1. Regressziómentes jogosultság-cutover
+
+Az adatbázis- és alkalmazáskiadás nem cserélhető fel egyetlen lépésben: a régi
+kliens a legacy RPC-t, az új kliens a v2 service-only parancsot használja. A
+kötelező sorrend ezért:
+
+1. a `20260830120000` kompatibilis séma élesítése, `authenticated` legacy granttal;
+2. az új alkalmazás élesítése és hosted v2 onboarding smoke;
+3. külön `20260830130000_shared_geodata_legacy_rpc_closure.sql` migrációban a
+   legacy execute jog visszavonása `PUBLIC`, `anon` és `authenticated` szereptől.
+
+A closure tudatosan nincs a jelenlegi release manifestben. Csak a második fázis
+PASS bizonyítéka után kerülhet új manifestbe; különben a régi vagy az új kliens
+közül az egyik szükségszerűen átmeneti 403/503 hibát kapna.
 
 ## 11. Állításhatár
 

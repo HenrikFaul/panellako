@@ -17,7 +17,10 @@
   profilban; a mentés szerveroldalon újra feloldott kanonikus UUID-ból történik.
 - A címsnapshot, provenance, alias, idempotencia és quota adatbázisban
   auditálható; a cím kiválasztása semmilyen tenant- vagy adminjogot nem ad.
-- A legacy közvetlen community-request RPC browser execute joga lezárva.
+- A legacy community-request RPC a háromfázisú, regressziómentes cutover első
+  szakaszában kizárólag `authenticated` kompatibilitási jogot tart meg;
+  `PUBLIC` és `anon` tiltott. A végleges authenticated revoke külön closure
+  migráció, csak a v2 hosted onboarding smoke után.
 - Canonical UUID-váltáskor a régi registry identity időben lezárul, az új lesz
   aktív ugyanazon helyi címen, az idempotencia pedig a stabil OSM source-lineage
   alapján változatlan marad.
@@ -25,22 +28,30 @@
   Supabase secret-key formátumot Bearer-visszaélés nélkül kezeli.
 - A korábban követett `.env` fájlok kikerülnek az indexből; a history miatt a
   magas jogosultságú credentialek rotációja külön production release-gate.
+- A Stripe- és push-kliensek csak valódi kéréskor inicializálódnak; egy
+  billing/push secret nélküli Preview-környezet ezért már nem állítja le az
+  egész Next.js buildet, az érintett szolgáltatás pedig fail-closed választ ad.
 
 ### Bizonyítási állapot
 - Panel címes céltesztek: **PASS — 9 fájl, 89/89 teszt**.
-- Panel teljes regresszió: **PASS — 61 fájl, 416/416 teszt**.
+- Panel teljes regresszió: **PASS — 63 fájl, 425/425 teszt**.
 - Panel TypeScript és production build: **PASS — 73/73 statikus oldal**.
 - Panel PostgreSQL 18 apply/reapply és két-user runtime canary: **PASS**.
 - WebTools tesztek: **PASS — 38/38**; TypeScript és production build: **PASS**.
 - WebTools PostgreSQL 18 apply/reapply: **PASS**; `anon` csak a három bounded
   read RPC-t futtathatja, `PUBLIC` és `authenticated` nem.
-- GitHub branch publikálás: **PASS** — PanelLakó `fdf9714`, WebTools `62d2265`.
+- GitHub branch publikálás: **PASS** — mindkét implementációs ág originre tolva.
 - Vercel konfiguráció: **PASS** — a shared Address Registry URL/token és a
   provider read/admin változónevei titkosított Preview + Production értékként
-  jelen vannak; alkalmazásdeploy nem történt.
+  jelen vannak.
+- Vercel Preview: **PASS** — PanelLakó `dpl_6M2tsqDmCiZ7wUUgB3T3ABJCfXrn`
+  `Ready`; onboarding auth redirect 307, címproxy anonymous deny 401. A
+  WebTools provider Preview szintén `Ready`.
 - GitHub production migration audit: **HOLD** — a fail-closed workflow
   `33314153183` még adatbázis-művelet előtt megállt, mert a production
   `SUPABASE_DB_PASSWORD` secret hiányzik.
+- Panel cutover closure: **HOLD** — előbb a kompatibilis 3012 séma, utána a v2
+  alkalmazás és hosted smoke, végül külön legacy-RPC closure migráció szükséges.
 - Production corpus/p95, Supabase migration/rebuild, hosted deploy/smoke és
   történeti credential-rotáció: **HOLD**, külön release-bizonyítékig.
 
