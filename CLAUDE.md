@@ -31,6 +31,12 @@
 - `NEXT_PUBLIC_SUPABASE_URL` = panellako — mindig ezt használd
 - `SUPABASE_URL` (GeoData `buuoyyfzincmbxafvihc`) — soha nem használható alkalmazásadathoz
 - Service-role írás: `SUPABASE_SERVICE_ROLE_KEY` + `NEXT_PUBLIC_SUPABASE_URL`
+- Szűk publikus referencia-kivétel: szerveroldali címkeresés használhatja a
+  verziózott közös GeoData Address Registry API-t a
+  `GEODATA_ADDRESS_API_URL` + `GEODATA_ADDRESS_API_TOKEN` változókkal. Ide
+  kizárólag nem személyes címreferencia kerülhet; PanelLakó user/session,
+  workspace, membership, tenantadat vagy PII nem írható és nem küldhető át,
+  GeoData service-role kulcs pedig nem kerülhet a PanelLakóba.
 
 ### Kötelező viselkedés minden fejlesztési kérésnél
 - **ALWAYS fetch + rebase on `origin/main` BEFORE writing code or editing CHANGELOG.md.** Other PRs may have merged into `main` since the feature branch was created — failing to rebase causes CHANGELOG conflicts and version-number collisions. Run `git fetch origin main && git rebase origin/main` (or `git pull --rebase origin main`) at the start of every session, and again before any CHANGELOG edit. Resolve conflicts manually; never force-push without verifying nothing was lost.

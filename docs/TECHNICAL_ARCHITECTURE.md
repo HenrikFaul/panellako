@@ -21,7 +21,7 @@
 | CSS utilities | clsx | ^2.1.1 | `package.json` (verified) |
 | Database | Supabase PostgreSQL | (managed) | `supabase/schema.sql` (verified) |
 | Hosting | Vercel | (managed) | Inferred from Next.js + `middleware.ts` |
-| GeoData / Addresses | Supabase (separate project, OSM data) | — | `app/api/location/autocomplete/route.ts` (verified) |
+| GeoData / Addresses | Versioned shared Address Registry API (OSM/Geofabrik source) | v1 | `app/api/location/autocomplete/route.ts` + `lib/address-registry/` |
 
 ---
 
@@ -146,39 +146,48 @@ Excludes all static assets and images. Applies to all page and API routes.
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — public anon key
 - Both clients (`server.ts`, `browser.ts`) use these env vars
 
-### 4.2 GeoData Supabase (separate project)
-- `SUPABASE_URL` — server-only, different project (OSM address database)
-- `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_ANON_KEY` — for address lookups
-- `SUPABASE_ADDRESS_SCHEMA` (default: `'public'`)
-- `SUPABASE_ADDRESS_TABLE` (default: `'osm_addresses'`)
-- `GEODATA_USE_RPC` — if `'true'`, calls `search_osm_addresses` RPC instead of REST filter
+### 4.2 Shared GeoData Address Registry (separate data plane)
+- `GEODATA_ADDRESS_API_URL` — server-only base URL of the versioned registry API
+- `GEODATA_ADDRESS_API_TOKEN` — server-to-server read credential
+- PanelLakó never receives or uses the GeoData Supabase service-role key
+- only public, non-personal address references cross this boundary
 
-**Important:** The GeoData Supabase project is entirely separate from the application Supabase project. The `NEXT_PUBLIC_SUPABASE_URL` is NOT used by the autocomplete route.
+**Important:** tenant, authentication, workspace, membership and resident data
+remain exclusively in the PanelLakó Supabase project. The external canonical UUID
+is an opaque reference, not a cross-database foreign key. PanelLakó stores a
+structured snapshot so reviews remain auditable during a registry outage.
 
 ---
 
 ## 5. Address Autocomplete Service
 
-**Route:** `GET /api/location/autocomplete?q=<query>[&lat=<lat>&lon=<lon>]`  
+**Route:** `GET /api/location/autocomplete?q=<query>`
 **Mode:** `force-dynamic`  
-**Source:** `app/api/location/autocomplete/route.ts` (353 lines)
+**Source:** `app/api/location/autocomplete/route.ts`, `lib/address-registry/server.ts`
 
 ### 5.1 Capabilities
-- Forward geocoding: text query → ranked address suggestions (max 8)
-- Reverse geocoding: `?lat=&lon=` → nearest addresses (max 8, no query needed)
-- Hungarian diacritic normalization (á→a, é→e, ő→o, etc.)
-- Levenshtein fuzzy matching for typo tolerance
-- City alias expansion: `bp` / `bpe` / `pest` → `budapest`
-- Street type aliases: `u` → `utca`, `krt` → `körút`, etc.
-- Roman numeral district expansion (i→1, ii→2 … xxiii→23)
-- Accent variant expansion (up to 80 variants per search term)
-- OR filter chain against 17 address fields, up to 180 filter conditions
-- Scoring: exact (8000), postcode (1200), city (850), street match (1800), house number (1800)
-- Deduplication of results by normalized label
+- Indexed shared search: text query → at most 8 Hungarian building-level suggestions
+- stable canonical UUID and `osm:<type>:<id>` source identity
+- structured postcode, settlement, street, house number and coordinate snapshot
+- dataset/normalization version plus mandatory OSM attribution
+- explicit `EXACT` / `LINEAGE_REDIRECT` resolve metadata; old canonical IDs
+  are accepted only when requested ID, current ID and OSM source identity agree
+- backward-compatible response adapter for the existing profile address flow
+- no public Nominatim autocomplete fallback
+- fail-closed handling with no database or credential leakage
 
 ### 5.2 Debounce
 - Client-side: 350ms debounce + AbortController for in-flight request cancellation
-- Minimum query length: 3 characters client-side, 2 characters server-side
+- Minimum query length: 3 characters on both client and server
+- Accessible ARIA combobox with keyboard selection and stale-selection invalidation
+
+### 5.3 Community onboarding trust boundary
+- the browser submits only the selected canonical UUID
+- `POST /api/onboarding/community-requests` authenticates the user and resolves
+  that UUID server-to-server before any application-database write
+- `create_community_creation_request_v2` stores the trusted structured snapshot
+  as `SOURCE_MATCHED`, which is not proof of ownership or management authority
+- an explicit manual path remains available, always `UNVERIFIED` and review-only
 
 ---
 
@@ -226,9 +235,6 @@ All mutations use Next.js 14 Server Actions (`'use server'` directive). Each act
 |----------|-------|---------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Public | App Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public | App Supabase anon key |
-| `SUPABASE_URL` | Server-only | GeoData Supabase project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-only | GeoData Supabase service key |
-| `SUPABASE_ANON_KEY` | Server-only | GeoData Supabase anon key (fallback) |
-| `SUPABASE_ADDRESS_SCHEMA` | Server-only | OSM addresses schema (default: `public`) |
-| `SUPABASE_ADDRESS_TABLE` | Server-only | OSM addresses table (default: `osm_addresses`) |
-| `GEODATA_USE_RPC` | Server-only | If `'true'`, use RPC for address search |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only | PanelLakó application admin operations only |
+| `GEODATA_ADDRESS_API_URL` | Server-only | Shared versioned address-registry base URL |
+| `GEODATA_ADDRESS_API_TOKEN` | Server-only | Least-privilege address-registry read credential |

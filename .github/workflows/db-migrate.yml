@@ -1,196 +1,159 @@
-name: DB Migrate
+name: DB Migration Release
+
+run-name: "Production DB migration: ${{ inputs.mode }}"
 
 on:
   workflow_dispatch:
     inputs:
-      sql_file:
-        description: 'SQL fájl útvonala a repo gyökeréhez képest (pl. supabase/seed.sql vagy supabase/migrations/20260516_billing.sql)'
+      mode:
+        description: "Audit performs read-only release checks; deploy applies only the verified pending suffix."
         required: true
-        default: 'supabase/seed.sql'
-      confirm:
-        description: 'Írd be: IGEN – a futtatás jóváhagyásához'
-        required: true
-        default: ''
+        default: audit
+        type: choice
+        options:
+          - audit
+          - deploy
+
+concurrency:
+  group: panellako-production-db-migration
+  cancel-in-progress: false
 
 jobs:
-  migrate:
-    name: Run SQL on PanelLakó DB
+  migration-release:
+    name: Audit or deploy the exact migration release
     runs-on: ubuntu-latest
-    environment: production
+    timeout-minutes: 30
+    environment:
+      name: production
     permissions:
       contents: read
+    env:
+      PANELLAKO_PROJECT_REF: wzromwxpjlyrqbdiapep
+      SUPABASE_PROJECT_ID: wzromwxpjlyrqbdiapep
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_CLI_VERSION: 2.116.0
+      MIGRATION_MANIFEST: .github/migration-manifests/20260830120000_multitenancy-release.sha256
+      EXPECTED_MIGRATION_VERSION: "20260830120000"
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - name: Checkout the requested revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      - name: Guard – jóváhagyás ellenőrzése
-        run: |
-          if [[ ! "${{ github.event.inputs.confirm }}" =~ ^IGEN(:[0-9a-f]{64})?$ ]]; then
-            echo "❌ A futtatást IGEN vagy IGEN:<manual-backup-sha256> értékkel kell megerősíteni."
-            exit 1
-          fi
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-
-      - name: Backup gate – completed backup or PITR required
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          BACKUP_CONFIRMATION: ${{ github.event.inputs.confirm }}
+      - name: Fail closed on mode, target, branch, and secrets
+        shell: bash
         run: |
           set -euo pipefail
-
-          RESPONSE=$(curl --silent --show-error --write-out "\n%{http_code}" \
-            "https://api.supabase.com/v1/projects/wzromwxpjlyrqbdiapep/database/backups" \
-            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN")
-
-          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          BODY=$(echo "$RESPONSE" | head -n -1)
-
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "❌ A Supabase backup állapot nem ellenőrizhető (HTTP $HTTP_CODE)."
-            exit 1
-          fi
-
-          COMPLETED_BACKUPS=$(echo "$BODY" | jq '[.backups[]? | select(.status == "COMPLETED")] | length')
-          PITR_ENABLED=$(echo "$BODY" | jq -r '.pitr_enabled // false')
-          LATEST_PHYSICAL=$(echo "$BODY" | jq -r '.physical_backup_data.latest_physical_backup_date_unix // 0')
-
-          if [ "$COMPLETED_BACKUPS" -lt 1 ] && { [ "$PITR_ENABLED" != "true" ] || [ "$LATEST_PHYSICAL" -le 0 ]; }; then
-            MANUAL_BACKUP_SHA=${BACKUP_CONFIRMATION#IGEN:}
-            if [ "$MANUAL_BACKUP_SHA" = "$BACKUP_CONFIRMATION" ] || [[ ! "$MANUAL_BACKUP_SHA" =~ ^[0-9a-f]{64}$ ]]; then
-              echo "❌ Nincs platform-backup/PITR, és nincs érvényes manuális backup SHA-256 bizonyíték."
-              exit 1
-            fi
-            echo "✅ Backup gate PASS (manual encrypted backup SHA-256: $MANUAL_BACKUP_SHA)."
-          else
-            echo "✅ Backup gate PASS (completed=$COMPLETED_BACKUPS, pitr=$PITR_ENABLED)."
-          fi
-
-      - name: Run SQL via Supabase Management API
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          set -euo pipefail
-          SQL_FILE="${{ github.event.inputs.sql_file }}"
-
-          if [ ! -f "$SQL_FILE" ]; then
-            echo "❌ Fájl nem található: $SQL_FILE"
-            exit 1
-          fi
-
-          case "$SQL_FILE" in
-            supabase/migrations/20260828120000_multitenancy_foundation.sql|\
-            supabase/migrations/20260828121000_multitenancy_rls_cutover.sql|\
-            supabase/migrations/20260828122000_community_activation_review.sql|\
-            supabase/migrations/20260828123000_staff_invitation_closure.sql|\
-            supabase/migrations/20260828124000_content_audience_closure.sql|\
-            supabase/migrations/20260828125000_vote_integrity_closure.sql|\
-            supabase/migrations/20260828126000_multitenancy_integrity_closure.sql|\
-            supabase/migrations/20260828127000_announcement_delivery_outbox.sql|\
-            supabase/migrations/20260828128000_content_command_closure.sql|\
-            supabase/migrations/20260828129000_agency_portfolio_workflow.sql|\
-            supabase/migrations/20260828130000_announcement_delivery_worker.sql|\
-            supabase/migrations/20260829100000_service_role_private_schema_access.sql|\
-            supabase/migrations/20260829110000_workspace_relationship_registry.sql)
-              EXPECTED_SQL_SHA256="d9c17507ca29727563d167846541e32e6b32cebe5d7c6b0a577bccb9e1289369"
-              ;;
-            supabase/migrations/20260829120000_authorization_push_recipient_closure.sql)
-              EXPECTED_SQL_SHA256="7fc3e8be055e068a71b28e5694c610f262d8060cc009bedf4d74574bc0d9e00a"
-              ;;
-            supabase/migrations/20260829130000_invitation_join_lifecycle.sql)
-              EXPECTED_SQL_SHA256="c798152672064ec809bc223665c11f6128bbbd02868e1cccdb00b5c9718f23fc"
-              ;;
-            supabase/migrations/20260829140000_workspace_unit_bulk_import.sql)
-              EXPECTED_SQL_SHA256="f012ddec8a6c3de57e3096db8258e85d7c4665a473bc9d04576620f3986a5a94"
-              ;;
-            supabase/migrations/20260829150000_ownership_share_join_flow_closure.sql)
-              EXPECTED_SQL_SHA256="62c6c0baa5bd46b745f0dc995050a4aa54dc44f9521b31c23be10b0bf9cbb70a"
-              ;;
-            *)
-              echo "❌ Ez a production workflow csak a jóváhagyott multitenancy migrációkat futtatja."
-              exit 1
-              ;;
+          case "${{ inputs.mode }}" in
+            audit|deploy) ;;
+            *) echo "Unsupported release mode." >&2; exit 1 ;;
           esac
-
-          if [ -n "${EXPECTED_SQL_SHA256:-}" ]; then
-            ACTUAL_SQL_SHA256=$(sha256sum "$SQL_FILE" | awk '{print $1}')
-            if [ "$ACTUAL_SQL_SHA256" != "$EXPECTED_SQL_SHA256" ]; then
-              echo "❌ A migráció tartalma eltér a lokálisan validált release-artifacttól."
-              exit 1
-            fi
-            echo "✅ Migrációs SHA-256 allowlist PASS."
-          fi
-
-          MIGRATION_BASENAME=$(basename "$SQL_FILE" .sql)
-          MIGRATION_VERSION=${MIGRATION_BASENAME%%_*}
-          MIGRATION_NAME=${MIGRATION_BASENAME#*_}
-          if [[ ! "$MIGRATION_VERSION" =~ ^[0-9]{14}$ ]]; then
-            echo "❌ A migráció verziója nem 14 számjegyű timestamp."
+          if [ "${{ inputs.mode }}" = "deploy" ] && [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "Production deploy is restricted to refs/heads/main." >&2
             exit 1
           fi
-          echo "EXPECTED_MIGRATION_VERSION=$MIGRATION_VERSION" >> "$GITHUB_ENV"
-          LAST_STATEMENT=$(awk 'NF && $1 !~ /^--/ { last=$0 } END { gsub(/^[[:space:]]+|[[:space:]]+$/, "", last); print last }' "$SQL_FILE")
-
-          if [ "$LAST_STATEMENT" != "COMMIT;" ]; then
-            echo "❌ A migráció nem zárul explicit COMMIT utasítással."
+          if [ "${PANELLAKO_PROJECT_REF}" != "wzromwxpjlyrqbdiapep" ] || [ "${SUPABASE_PROJECT_ID}" != "${PANELLAKO_PROJECT_REF}" ]; then
+            echo "Unexpected Supabase project target." >&2
             exit 1
           fi
+          : "${SUPABASE_ACCESS_TOKEN:?SUPABASE_ACCESS_TOKEN is required}"
+          : "${SUPABASE_DB_PASSWORD:?SUPABASE_DB_PASSWORD is required}"
 
-          # The Management query endpoint does not maintain Supabase migration
-          # history. Insert the exact repository version before the migration's
-          # final COMMIT so schema and ledger remain one atomic transaction.
-          MIGRATION_SQL=$(mktemp)
-          REQUEST_BODY=$(mktemp)
-          trap 'rm -f "$MIGRATION_SQL" "$REQUEST_BODY"' EXIT
-          awk '
-            { lines[NR] = $0 }
-            END {
-              last = NR
-              while (last > 0 && lines[last] ~ /^[[:space:]]*$/) last--
-              if (lines[last] !~ /^[[:space:]]*COMMIT;[[:space:]]*$/) exit 42
-              for (i = 1; i < last; i++) print lines[i]
-            }
-          ' "$SQL_FILE" > "$MIGRATION_SQL"
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
 
-          cat >> "$MIGRATION_SQL" <<SQL
+      - name: Verify the immutable migration manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum -c "${MIGRATION_MANIFEST}"
+          node scripts/validate-migration-release.mjs manifest \
+            --manifest "${MIGRATION_MANIFEST}"
 
-          INSERT INTO supabase_migrations.schema_migrations (version, statements, name)
-          VALUES ('$MIGRATION_VERSION', ARRAY[]::text[], '$MIGRATION_NAME')
-          ON CONFLICT (version) DO UPDATE SET name = EXCLUDED.name;
-
-          COMMIT;
-          SQL
-
-          echo "✅ SQL fájl: $SQL_FILE ($(wc -l < "$SQL_FILE") sor), verzió: $MIGRATION_VERSION"
-
-          jq -n --rawfile sql "$MIGRATION_SQL" \
-            '{"query": $sql, "read_only": false}' > "$REQUEST_BODY"
-
-          # Supabase Management API – SQL végrehajtás
-          RESPONSE=$(curl -s -w "\n%{http_code}" \
-            -X POST "https://api.supabase.com/v1/projects/wzromwxpjlyrqbdiapep/database/query" \
-            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
-            -H "Content-Type: application/json" \
-            --data-binary "@$REQUEST_BODY")
-
-          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          BODY=$(echo "$RESPONSE" | head -n -1)
-
-          echo "HTTP status: $HTTP_CODE"
-          echo "Response: $BODY"
-
-          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
-            echo "❌ SQL futtatás sikertelen (HTTP $HTTP_CODE)"
+      - name: Verify the pinned Supabase CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTUAL_VERSION="$(npx --yes supabase@2.116.0 --version)"
+          if [ "${ACTUAL_VERSION}" != "${SUPABASE_CLI_VERSION}" ]; then
+            echo "Unexpected Supabase CLI version." >&2
             exit 1
           fi
 
-          echo "✅ SQL sikeresen lefutott!"
+      - name: Link the fixed PanelLakó project
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes supabase@2.116.0 link \
+            --project-ref "${PANELLAKO_PROJECT_REF}" \
+            --password "${SUPABASE_DB_PASSWORD}"
 
-      - name: Verify production multitenancy state
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: bash scripts/verify-production-multitenancy.sh
+      - name: Capture and validate the remote migration plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          MIGRATION_LIST="${RUNNER_TEMP}/migration-list.initial.json"
+          DRY_RUN="${RUNNER_TEMP}/db-push-dry-run.initial.json"
+          npx --yes supabase@2.116.0 migration list --linked --output-format json > "${MIGRATION_LIST}"
+          npx --yes supabase@2.116.0 db push --linked --skip-vault --dry-run --output-format json > "${DRY_RUN}"
+          node scripts/validate-migration-release.mjs state \
+            --manifest "${MIGRATION_MANIFEST}" \
+            --migration-list "${MIGRATION_LIST}" \
+            --dry-run "${DRY_RUN}" \
+            --expect suffix
+
+      - name: Require a fresh Supabase platform backup
+        if: inputs.mode == 'deploy'
+        shell: bash
+        run: |
+          set -euo pipefail
+          BACKUP_RESPONSE="${RUNNER_TEMP}/platform-backups.json"
+          trap 'rm -f "${BACKUP_RESPONSE}"' EXIT
+          umask 077
+          HTTP_CODE="$(curl --silent --show-error \
+            --output "${BACKUP_RESPONSE}" \
+            --write-out "%{http_code}" \
+            "https://api.supabase.com/v1/projects/${PANELLAKO_PROJECT_REF}/database/backups" \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}")"
+          if [ "${HTTP_CODE}" != "200" ]; then
+            echo "Supabase platform backup status is unavailable (HTTP ${HTTP_CODE})." >&2
+            exit 1
+          fi
+          node scripts/validate-migration-release.mjs backup \
+            --backup "${BACKUP_RESPONSE}" \
+            --now-epoch "$(date +%s)"
+
+      - name: Recheck the plan and deploy through the migration ledger
+        if: inputs.mode == 'deploy'
+        shell: bash
+        run: |
+          set -euo pipefail
+          MIGRATION_LIST="${RUNNER_TEMP}/migration-list.predeploy.json"
+          DRY_RUN="${RUNNER_TEMP}/db-push-dry-run.predeploy.json"
+          sha256sum -c "${MIGRATION_MANIFEST}"
+          npx --yes supabase@2.116.0 migration list --linked --output-format json > "${MIGRATION_LIST}"
+          npx --yes supabase@2.116.0 db push --linked --skip-vault --dry-run --output-format json > "${DRY_RUN}"
+          node scripts/validate-migration-release.mjs state \
+            --manifest "${MIGRATION_MANIFEST}" \
+            --migration-list "${MIGRATION_LIST}" \
+            --dry-run "${DRY_RUN}" \
+            --expect suffix
+          npx --yes supabase@2.116.0 db push --linked --skip-vault --yes
+
+      - name: Verify the production migration ledger and schema
+        if: inputs.mode == 'deploy'
+        shell: bash
+        run: |
+          set -euo pipefail
+          MIGRATION_LIST="${RUNNER_TEMP}/migration-list.postdeploy.json"
+          DRY_RUN="${RUNNER_TEMP}/db-push-dry-run.postdeploy.json"
+          npx --yes supabase@2.116.0 migration list --linked --output-format json > "${MIGRATION_LIST}"
+          npx --yes supabase@2.116.0 db push --linked --skip-vault --dry-run --output-format json > "${DRY_RUN}"
+          node scripts/validate-migration-release.mjs state \
+            --manifest "${MIGRATION_MANIFEST}" \
+            --migration-list "${MIGRATION_LIST}" \
+            --dry-run "${DRY_RUN}" \
+            --expect clean
+          bash scripts/verify-production-multitenancy.sh

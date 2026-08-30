@@ -2,7 +2,7 @@
 set -euo pipefail
 
 : "${SUPABASE_ACCESS_TOKEN:?SUPABASE_ACCESS_TOKEN is required}"
-EXPECTED_MIGRATION_VERSION="${EXPECTED_MIGRATION_VERSION:-20260829150000}"
+EXPECTED_MIGRATION_VERSION="${EXPECTED_MIGRATION_VERSION:-20260830120000}"
 if [[ ! "$EXPECTED_MIGRATION_VERSION" =~ ^[0-9]{14}$ ]]; then
   echo "❌ EXPECTED_MIGRATION_VERSION must be a 14-digit migration timestamp."
   exit 1
@@ -10,7 +10,8 @@ fi
 
 QUERY_FILE=$(mktemp)
 REQUEST_BODY=$(mktemp)
-trap 'rm -f "$QUERY_FILE" "$REQUEST_BODY"' EXIT
+RESPONSE_BODY=$(mktemp)
+trap 'rm -f "$QUERY_FILE" "$REQUEST_BODY" "$RESPONSE_BODY"' EXIT
 
 cat > "$QUERY_FILE" <<SQL
 WITH
@@ -33,7 +34,8 @@ expected_versions(version) AS (
     ('20260829120000'),
     ('20260829130000'),
     ('20260829140000'),
-    ('20260829150000')
+    ('20260829150000'),
+    ('20260830120000')
   ) AS expected(version)
   WHERE expected.version <= '${EXPECTED_MIGRATION_VERSION}'
 ),
@@ -84,7 +86,9 @@ required_tables(name) AS (
     ('unit_relationship_status_events', '20260829110000'),
     ('workspace_membership_status_events', '20260829110000'),
     ('join_request_evidence_events', '20260829130000'),
-    ('workspace_unit_imports', '20260829140000')
+    ('workspace_unit_imports', '20260829140000'),
+    ('address_registry_identities', '20260830120000'),
+    ('address_source_aliases', '20260830120000')
   ) AS required(name, min_version)
   WHERE required.min_version <= '${EXPECTED_MIGRATION_VERSION}'
 ),
@@ -122,7 +126,11 @@ required_functions(name) AS (
     ('cancel_join_request', '20260829130000'),
     ('resubmit_join_request_evidence', '20260829130000'),
     ('preview_workspace_unit_import', '20260829140000'),
-    ('apply_workspace_unit_import', '20260829140000')
+    ('apply_workspace_unit_import', '20260829140000'),
+    ('consume_address_lookup_quota', '20260830120000'),
+    ('consume_community_request_quota', '20260830120000'),
+    ('upsert_user_reference_address_v2', '20260830120000'),
+    ('create_community_creation_request_v2', '20260830120000')
   ) AS required(name, min_version)
   WHERE required.min_version <= '${EXPECTED_MIGRATION_VERSION}'
 ),
@@ -171,6 +179,18 @@ nullable_workspace_rows AS (
   UNION ALL SELECT 'subscriptions', count(*) FROM public.subscriptions WHERE workspace_id IS NULL
   UNION ALL SELECT 'invoice_events', count(*) FROM public.invoice_events WHERE workspace_id IS NULL
   UNION ALL SELECT 'reminder_rules', count(*) FROM public.reminder_rules WHERE workspace_id IS NULL
+),
+address_command_oids AS (
+  SELECT
+    to_regprocedure(
+      'public.create_community_creation_request(text,text,text,integer,text,uuid)'
+    ) AS legacy_community_request,
+    to_regprocedure(
+      'public.upsert_user_reference_address_v2(uuid,text,double precision,double precision,text,text,text,text,text,text,text,text,text,uuid,text,text,text,text,text,numeric,text,timestamp with time zone)'
+    ) AS reference_address_v2,
+    to_regprocedure(
+      'public.create_community_creation_request_v2(uuid,text,text,text,integer,text,uuid,text,text,text,text,text,text,text,text,text,text,text,text,text,numeric,numeric,uuid,text,text,numeric,text,text,text)'
+    ) AS community_request_v2
 )
 SELECT
   NOT EXISTS (SELECT 1 FROM missing_versions) AS migration_history_ok,
@@ -185,9 +205,30 @@ SELECT
       FROM pg_proc p
       JOIN pg_namespace n ON n.oid = p.pronamespace
       WHERE n.nspname = 'private'
+        -- These v0.10.6 helpers are invoked only by database triggers. Direct
+        -- service-role execution is neither needed nor intentionally granted.
+        AND p.proname NOT IN (
+          'prevent_untrusted_reference_registry_provenance',
+          'prevent_community_address_snapshot_change'
+        )
         AND NOT has_function_privilege('service_role', p.oid, 'EXECUTE')
     )
   ) AS service_role_private_access_ok,
+  (
+    SELECT
+      commands.legacy_community_request IS NOT NULL
+      AND NOT has_function_privilege('anon', commands.legacy_community_request, 'EXECUTE')
+      AND NOT has_function_privilege('authenticated', commands.legacy_community_request, 'EXECUTE')
+      AND commands.reference_address_v2 IS NOT NULL
+      AND NOT has_function_privilege('anon', commands.reference_address_v2, 'EXECUTE')
+      AND NOT has_function_privilege('authenticated', commands.reference_address_v2, 'EXECUTE')
+      AND has_function_privilege('service_role', commands.reference_address_v2, 'EXECUTE')
+      AND commands.community_request_v2 IS NOT NULL
+      AND NOT has_function_privilege('anon', commands.community_request_v2, 'EXECUTE')
+      AND NOT has_function_privilege('authenticated', commands.community_request_v2, 'EXECUTE')
+      AND has_function_privilege('service_role', commands.community_request_v2, 'EXECUTE')
+    FROM address_command_oids commands
+  ) AS address_command_privileges_ok,
   COALESCE((SELECT json_agg(version ORDER BY version) FROM missing_versions), '[]'::json) AS missing_versions,
   COALESCE((SELECT json_agg(name ORDER BY name) FROM missing_tables), '[]'::json) AS missing_tables,
   COALESCE((SELECT json_agg(name ORDER BY name) FROM missing_functions), '[]'::json) AS missing_functions,
@@ -200,28 +241,27 @@ SQL
 jq -n --rawfile sql "$QUERY_FILE" \
   '{"query": $sql, "read_only": true}' > "$REQUEST_BODY"
 
-RESPONSE=$(curl --silent --show-error --write-out "\n%{http_code}" \
+HTTP_CODE=$(curl --silent --show-error \
+  --output "$RESPONSE_BODY" \
+  --write-out "%{http_code}" \
   -X POST "https://api.supabase.com/v1/projects/wzromwxpjlyrqbdiapep/database/query" \
   -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   --data-binary "@$REQUEST_BODY")
-
-HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-BODY=$(echo "$RESPONSE" | head -n -1)
 
 if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
   echo "❌ Production verification query failed (HTTP $HTTP_CODE)."
   exit 1
 fi
 
-echo "$BODY" | jq .
-echo "$BODY" | jq -e '
+jq -e '
   .[0].migration_history_ok == true and
   .[0].required_tables_ok == true and
   .[0].required_functions_ok == true and
   .[0].required_rls_ok == true and
   .[0].workspace_backfill_ok == true and
-  .[0].service_role_private_access_ok == true
-' > /dev/null
+  .[0].service_role_private_access_ok == true and
+  .[0].address_command_privileges_ok == true
+' "$RESPONSE_BODY" > /dev/null
 
 echo "✅ Production multitenancy verification PASS."

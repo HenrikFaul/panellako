@@ -18,6 +18,12 @@ Every change must be production-ready, traceable, regression-free, and aligned w
 - `NEXT_PUBLIC_SUPABASE_URL` = panellako — always use this
 - `SUPABASE_URL` (GeoData `buuoyyfzincmbxafvihc`) is NEVER used for application data
 - Service-role writes: `SUPABASE_SERVICE_ROLE_KEY` + `NEXT_PUBLIC_SUPABASE_URL`
+- **Narrow public-reference exception:** server-side address lookup may call the
+  versioned shared GeoData Address Registry API with
+  `GEODATA_ADDRESS_API_URL` + `GEODATA_ADDRESS_API_TOKEN`. Only public,
+  non-personal address-reference data may cross this boundary. Never send or
+  store PanelLakó users, sessions, workspaces, memberships, tenant data or PII
+  in GeoData; never give the GeoData service-role key to PanelLakó.
 
 ### 2. Branch discipline
 - Current working branch: see session context / CLAUDE.md header

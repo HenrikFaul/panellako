@@ -1,3 +1,52 @@
+## v0.10.6 — Shared GeoData Address Registry és biztonságos cím-onboarding
+**Dátum:** 2026-08-30
+**Branch:** codex/shared-geodata-address
+
+### Cél
+- A már felépített GeoData/OSM címállomány megtartása és verziózott, más
+  alkalmazásokban is használható magyar épületcím-szolgáltatássá alakítása.
+- Az új közösség és a profilcím kiválasztásának autocomplete-os, kanonikus
+  címidentitásra épülő megoldása a tenant-adatbázisok összekeverése nélkül.
+
+### Változások
+- Külön WebTools Address Registry API v1 készült suggest, resolve és reverse
+  műveletekkel, aktuális normalizált UUID-val, append-only OSM source-lineage
+  feloldással, OSM-attribúcióval, bounded KNN-kereséssel, timeouttal és
+  reapply-biztos least-privilege grantokkal.
+- A PanelLakó új, akadálymentes cím-comboboxot használ az onboardingban és a
+  profilban; a mentés szerveroldalon újra feloldott kanonikus UUID-ból történik.
+- A címsnapshot, provenance, alias, idempotencia és quota adatbázisban
+  auditálható; a cím kiválasztása semmilyen tenant- vagy adminjogot nem ad.
+- A legacy közvetlen community-request RPC browser execute joga lezárva.
+- Canonical UUID-váltáskor a régi registry identity időben lezárul, az új lesz
+  aktív ugyanazon helyi címen, az idempotencia pedig a stabil OSM source-lineage
+  alapján változatlan marad.
+- A consumer token current/previous modellel rotálható; az OSM importer az új
+  Supabase secret-key formátumot Bearer-visszaélés nélkül kezeli.
+- A korábban követett `.env` fájlok kikerülnek az indexből; a history miatt a
+  magas jogosultságú credentialek rotációja külön production release-gate.
+
+### Bizonyítási állapot
+- Panel címes céltesztek: **PASS — 9 fájl, 89/89 teszt**.
+- Panel teljes regresszió: **PASS — 61 fájl, 416/416 teszt**.
+- Panel TypeScript és production build: **PASS — 73/73 statikus oldal**.
+- Panel PostgreSQL 18 apply/reapply és két-user runtime canary: **PASS**.
+- WebTools tesztek: **PASS — 38/38**; TypeScript és production build: **PASS**.
+- WebTools PostgreSQL 18 apply/reapply: **PASS**; `anon` csak a három bounded
+  read RPC-t futtathatja, `PUBLIC` és `authenticated` nem.
+- Production corpus/p95, Supabase migration/rebuild, hosted deploy/smoke és
+  történeti credential-rotáció: **HOLD**, külön release-bizonyítékig.
+
+### Dokumentáció
+- Részletes architektúra:
+  `docs/architecture/multitenancy/14-shared-address-registry-v0.10.6.md`.
+- Verziójegyzőkönyv:
+  `versioning/30082602_v0.10.6_shared-geodata-address-registry.md`.
+- Piaci érték és állításhatár:
+  `marketing/marketing_values/20260830_v0.10.6_shared-geodata-address-registry_marketing_value.md`.
+
+---
+
 ## v0.10.5 — Google OAuth production runtime hardening
 **Dátum:** 2026-08-30
 **Branch:** codex/google-oauth-production-closure

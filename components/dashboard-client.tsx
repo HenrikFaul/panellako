@@ -78,6 +78,9 @@ import ResidentBottomNav from '@/components/resident-bottom-nav';
 import SectionCard from '@/components/ui/section-card';
 import StatCard from '@/components/ui/stat-card';
 import ActivityCalendar from '@/components/dashboard/activity-calendar';
+import AddressAutocomplete, {
+  type AddressAutocompleteSelection,
+} from '@/components/address-autocomplete';
 import {
   AiCategoryChip,
   AiTriagePendingSkeleton,
@@ -100,6 +103,11 @@ type AddressOption = {
   lat: number | null;
   lon: number | null;
   source: 'supabase' | 'nominatim';
+  sourceSystem?: 'OSM';
+  sourceRecordId?: string;
+  addressLevel?: 'BUILDING';
+  datasetVersion?: string;
+  normalizationVersion?: string;
   confidence?: number;
 };
 
@@ -215,13 +223,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [unitSearch, setUnitSearch] = useState('');
 
   const [name, setName] = useState(data.currentUser.full_name);
-  const [address, setAddress] = useState('');
+  const [savedName, setSavedName] = useState(data.currentUser.full_name);
   const [addressQuery, setAddressQuery] = useState('');
-  const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
-  const [addressSource, setAddressSource] = useState<'supabase' | 'nominatim' | null>(null);
-  const [addressError, setAddressError] = useState('');
-  const [isAddressLoading, setIsAddressLoading] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState<AddressOption | null>(null);
+  const [addressDirty, setAddressDirty] = useState(false);
   const [floor, setFloor] = useState('');
   const [door, setDoor] = useState('');
   const [profileSaveError, setProfileSaveError] = useState('');
@@ -438,15 +443,16 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   useEffect(() => {
     fetch('/api/user/reference-address')
       .then(r => r.ok ? r.json() : null)
-      .then((data: { address?: { display_name: string; lat: number; lon: number; street?: string | null; house_number?: string | null; city?: string | null; district?: string | null; postcode?: string | null; floor?: string | null; door?: string | null; source?: string } | null } | null) => {
+      .then((data: { address?: { display_name: string; lat: number | null; lon: number | null; street?: string | null; house_number?: string | null; city?: string | null; district?: string | null; postcode?: string | null; floor?: string | null; door?: string | null; source?: string; registry_system?: string | null; registry_canonical_address_id?: string | null; registry_source_record_id?: string | null; registry_dataset_version?: string | null; registry_normalization_version?: string | null; registry_confidence?: number | null } | null } | null) => {
         const addr = data?.address;
         if (!addr) {
           setAddressEditMode(true);
           return;
         }
         const opt: AddressOption = {
-          id: `saved:${addr.display_name}`,
+          id: addr.registry_canonical_address_id ?? `saved:${addr.display_name}`,
           label: addr.display_name,
+          countryCode: addr.registry_system === 'OSM' ? 'HU' : undefined,
           lat: addr.lat,
           lon: addr.lon,
           street: addr.street ?? undefined,
@@ -455,70 +461,37 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           district: addr.district ?? undefined,
           postcode: addr.postcode ?? undefined,
           source: (addr.source === 'supabase' ? 'supabase' : 'nominatim') as 'supabase' | 'nominatim',
+          sourceSystem: addr.registry_system === 'OSM' ? 'OSM' : undefined,
+          sourceRecordId: addr.registry_source_record_id ?? undefined,
+          addressLevel: addr.registry_canonical_address_id ? 'BUILDING' : undefined,
+          datasetVersion: addr.registry_dataset_version ?? undefined,
+          normalizationVersion: addr.registry_normalization_version ?? undefined,
+          confidence: addr.registry_confidence ?? undefined,
         };
         setSelectedAddress(opt);
-        setAddress(addr.display_name);
+        setAddressQuery(addr.display_name);
         if (addr.floor) setFloor(addr.floor);
         if (addr.door) setDoor(addr.door);
+        setAddressDirty(false);
         // addressEditMode stays false → compact locked state
       })
       .catch(() => setAddressEditMode(true));
   }, []);
 
-  useEffect(() => {
-    if (!addressEditMode || !addressQuery || addressQuery.length < 3) {
-      setAddressOptions([]);
-      setAddressSource(null);
-      setAddressError('');
-      return;
-    }
-
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      setIsAddressLoading(true);
-      setAddressError('');
-
-      try {
-        const response = await fetch(`/api/location/autocomplete?q=${encodeURIComponent(addressQuery)}`, {
-          method: 'GET',
-          signal: controller.signal
-        });
-
-        const payload = await response.json();
-
-        if (!response.ok) {
-          setAddressError(payload?.message || 'Címkeresés most nem elérhető.');
-          setAddressOptions([]);
-          setAddressSource(null);
-          return;
-        }
-
-        // v0.7.14 — `suggestions` is now an array of AddressOption objects (was string[])
-        const raw = Array.isArray(payload.suggestions) ? payload.suggestions : [];
-        // Backward-compat guard: if some legacy caller returns strings, normalize to objects
-        const normalized: AddressOption[] = raw.map((item: AddressOption | string, idx: number) =>
-          typeof item === 'string'
-            ? { id: `legacy:${idx}:${item}`, label: item, lat: null, lon: null, source: 'supabase' as const }
-            : item
-        );
-        setAddressOptions(normalized);
-        setAddressSource(payload.source ?? null);
-      } catch {
-        if (!controller.signal.aborted) {
-          setAddressError('Címkeresés hiba történt.');
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setIsAddressLoading(false);
-        }
-      }
-    }, 350);
-
-    return () => {
-      controller.abort();
-      clearTimeout(timer);
-    };
-  }, [addressQuery, addressEditMode]);
+  const profileRegistrySelection: AddressAutocompleteSelection | null =
+    selectedAddress?.sourceSystem === 'OSM'
+      && selectedAddress.countryCode === 'HU'
+      && Boolean(selectedAddress.postcode)
+      && Boolean(selectedAddress.settlement)
+      && Boolean(selectedAddress.street)
+      && Boolean(selectedAddress.houseNumber)
+      && selectedAddress.addressLevel === 'BUILDING'
+      && Boolean(selectedAddress.sourceRecordId)
+      && Boolean(selectedAddress.datasetVersion)
+      && Boolean(selectedAddress.normalizationVersion)
+      && typeof selectedAddress.confidence === 'number'
+      ? selectedAddress as AddressAutocompleteSelection
+      : null;
 
   const visibleTickets = useMemo(() => {
     if (ticketFilter === 'osszes') {
@@ -869,29 +842,16 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   event.preventDefault();
                   setProfileSaveError('');
 
-                  let saveOk = true;
-
-                  // Mentjük a nevet a profiles táblába
-                  if (name.trim()) {
-                    try {
-                      const nameRes = await fetch('/api/user/profile', {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ full_name: name.trim() }),
-                      });
-                      if (!nameRes.ok) {
-                        saveOk = false;
-                        const payload = await nameRes.json().catch(() => ({}));
-                        setProfileSaveError(payload?.message || 'A név mentése nem sikerült.');
-                      }
-                    } catch {
-                      saveOk = false;
-                      setProfileSaveError('Hálózati hiba — a név mentése nem sikerült.');
-                    }
+                  if (addressDirty && !selectedAddress) {
+                    setProfileSaveError('Válassz ki egy épületszintű címet a találati listából.');
+                    return;
                   }
 
-                  // Ha van kiválasztott cím, mentsük el a Supabase-be
-                  if (saveOk && selectedAddress && selectedAddress.lat !== null && selectedAddress.lon !== null) {
+                  let saveOk = true;
+
+                  // A címet mentjük először, és csak akkor, ha valóban változott.
+                  // Így egy egyszerű névmódosítás nem függ a GeoData szolgáltatástól.
+                  if (addressDirty && selectedAddress) {
                     try {
                       const res = await fetch('/api/user/reference-address', {
                         method: 'POST',
@@ -908,20 +868,43 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                           floor: floor || null,
                           door: door || null,
                           source: selectedAddress.source,
+                          registry_canonical_address_id:
+                            selectedAddress.sourceSystem === 'OSM' ? selectedAddress.id : null,
                         }),
                       });
                       if (!res.ok) {
                         saveOk = false;
-                        const payload = await res.json().catch(() => ({}));
                         if (res.status === 401) {
                           setProfileSaveError('A cím mentéséhez bejelentkezés szükséges.');
                         } else {
-                          setProfileSaveError(payload?.message || 'A cím mentése nem sikerült.');
+                          setProfileSaveError('A cím mentése nem sikerült. Próbáld újra később.');
                         }
+                      } else {
+                        setAddressDirty(false);
                       }
                     } catch {
                       saveOk = false;
                       setProfileSaveError('Hálózati hiba — a cím mentése nem sikerült.');
+                    }
+                  }
+
+                  // A nevet csak tényleges módosításkor írjuk, a cím sikeres mentése után.
+                  if (saveOk && name.trim() && name.trim() !== savedName.trim()) {
+                    try {
+                      const nameRes = await fetch('/api/user/profile', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ full_name: name.trim() }),
+                      });
+                      if (!nameRes.ok) {
+                        saveOk = false;
+                        setProfileSaveError('A név mentése nem sikerült.');
+                      } else {
+                        setSavedName(name.trim());
+                      }
+                    } catch {
+                      saveOk = false;
+                      setProfileSaveError('Hálózati hiba — a név mentése nem sikerült.');
                     }
                   }
 
@@ -954,61 +937,53 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       </button>
                     </div>
                   ) : (
-                    <>
-                      <input
-                        className="input-base"
-                        placeholder="Kezdj el címet írni (pl. Budapest Gidófalvy Lajos utca 9)"
-                        value={addressQuery}
-                        onChange={(e) => {
-                          setAddressQuery(e.target.value);
-                          setAddress(e.target.value);
-                          setSelectedAddress(null);
+                    <div className="space-y-3">
+                      <AddressAutocomplete
+                        id="profile-reference-address"
+                        label="Pontos cím"
+                        query={addressQuery}
+                        selection={profileRegistrySelection}
+                        manualMode={false}
+                        allowManual={false}
+                        showAttribution={false}
+                        onQueryChange={(value) => {
+                          setAddressQuery(value);
+                          setAddressDirty(true);
                         }}
+                        onSelectionChange={(value) => {
+                          setSelectedAddress(value ? { ...value, source: 'supabase' } : null);
+                          setAddressDirty(true);
+                        }}
+                        onManualModeChange={() => undefined}
                       />
-                      {isAddressLoading ? <p className="mt-2 text-xs text-slate-500">Címek keresése...</p> : null}
-                      {addressError ? <p className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300">{addressError}</p> : null}
-                      {addressOptions.length > 0 ? (
-                        <ul className="mt-3 space-y-1 rounded-xl border border-white/10 bg-ink-panel p-2 shadow-overlay">
-                          {addressOptions.map((option) => (
-                            <li key={option.id}>
-                              <button
-                                className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-300 hover:bg-white/[0.05] hover:text-brand-300"
-                                type="button"
-                                onClick={() => {
-                                  setAddress(option.label);
-                                  setAddressQuery(option.label);
-                                  setSelectedAddress(option);
-                                  setAddressOptions([]);
-                                  setAddressEditMode(false);
-                                }}
-                              >
-                                <span className="truncate">{option.label}</span>
-                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${option.source === 'supabase' ? 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/25' : 'bg-sky-500/10 text-sky-300 ring-1 ring-sky-500/25'}`}>
-                                  {option.source === 'supabase' ? 'GeoData' : 'OSM'}
-                                </span>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-                      {addressSource ? (
-                        <p className="mt-2 text-[10px] uppercase tracking-wider text-slate-400">
-                          Forrás: {addressSource === 'supabase' ? 'PanelLakó GeoData' : 'OpenStreetMap (Nominatim)'}
-                        </p>
-                      ) : null}
                       {selectedAddress ? (
-                        <div className="mt-3 space-y-2">
-                          <p className="text-xs text-slate-400">Kiválasztott cím: <span className="font-semibold text-slate-300">{selectedAddress.label}</span></p>
+                        <div className="space-y-2">
+                          {selectedAddress.lat === null || selectedAddress.lon === null ? (
+                            <p className="text-xs font-medium text-amber-300">
+                              A cím menthető; a térképi koordináták feldolgozása még folyamatban van.
+                            </p>
+                          ) : null}
                           <div className="grid gap-2 md:grid-cols-2">
-                            <input className="input-base" placeholder="Emelet (opcionális)" value={floor} onChange={(e) => setFloor(e.target.value)} />
-                            <input className="input-base" placeholder="Ajtó (opcionális)" value={door} onChange={(e) => setDoor(e.target.value)} />
+                            <input className="input-base" placeholder="Emelet (opcionális)" value={floor} onChange={(e) => { setFloor(e.target.value); setAddressDirty(true); }} />
+                            <input className="input-base" placeholder="Ajtó (opcionális)" value={door} onChange={(e) => { setDoor(e.target.value); setAddressDirty(true); }} />
                           </div>
                         </div>
-                      ) : address ? (
-                        <p className="mt-2 text-xs text-slate-400">Kiválasztott cím: {address}</p>
                       ) : null}
-                    </>
+                    </div>
                   )}
+                  {selectedAddress ? (
+                    <p className="mt-2 text-[10px] text-slate-400">
+                      Forrás: {selectedAddress.sourceSystem === 'OSM' ? 'közös GeoData címjegyzék · ' : ''}
+                      <a
+                        href="https://www.openstreetmap.org/copyright"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-semibold text-brand-300 underline underline-offset-2 hover:text-brand-200"
+                      >
+                        © OpenStreetMap contributors
+                      </a>
+                    </p>
+                  ) : null}
                 </div>
 
                 <button className="btn-primary">Profil mentése</button>

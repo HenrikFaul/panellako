@@ -21,7 +21,7 @@ Vercel-ready Next.js + Supabase alkalmazás társasházi működéshez.
 - Next.js 14 (App Router, TypeScript)
 - Tailwind CSS
 - Supabase (Auth + PostgreSQL)
-- AWS Location Service címkeresés server-side proxy route-on keresztül
+- Közös GeoData Address Registry címkeresés OSM/Geofabrik adatforrással, server-side proxy route-on keresztül
 - Vercel deploy kompatibilis
 
 ## 1) Telepítés
@@ -38,13 +38,14 @@ NEXT_PUBLIC_SUPABASE_URL=https://wzromwxpjlyrqbdiapep.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 NEXT_PUBLIC_SITE_URL=https://panellako.vercel.app
 
-AWS_LOCATION_API_KEY=...
-AWS_LOCATION_REGION=eu-central-1
+GEODATA_ADDRESS_API_URL=https://webtools-fdgy.vercel.app
+GEODATA_ADDRESS_API_TOKEN=...
 ```
 
-> Fontos: Next.js-ben a böngésző csak `NEXT_PUBLIC_*` env változókat lát. Az AWS Location kulcsot ezért nem a client komponens olvassa, hanem az `app/api/location/autocomplete/route.ts` server-side proxy. Vercelben a kulcsot `AWS_LOCATION_API_KEY` néven add meg Production és Preview környezetre, majd redeploy.
-
-> Ha régebben már `VITE_AWS_LOCATION_API_KEY` / `VITE_AWS_LOCATION_REGION` néven vetted fel Vercelben, a server route fallbackként azt is felismeri, de az ajánlott név az `AWS_LOCATION_*`.
+> Fontos: a GeoData read token kizárólag a szerveroldali
+> `app/api/location/autocomplete/route.ts` és a közösségi onboarding-feloldás
+> számára elérhető. A GeoData service-role kulcsa nem kerülhet a PanelLakóba.
+> Tenant- és személyes adat nem kerül a közös címadatbázisba.
 
 > Ha nincs Supabase kulcs, az app mock adatokkal és demo űrlap-mentéssel fut.
 
@@ -72,7 +73,8 @@ A séma tartalmazza:
 ## 5) Fő route-ok
 - `/` – dashboard és ügykezelés
 - `/login` – magic link bejelentkezés
-- `/api/location/autocomplete?q=...` – AWS Location server-side proxy
+- `/api/location/autocomplete?q=...` – közös GeoData Address Registry adapter
+- `/api/onboarding/community-requests` – hitelesített, szerveroldalon újra feloldott cím-snapshot beküldése
 
 ## 6) Vercel deploy
 1. Push GitHub-ra.
@@ -80,8 +82,8 @@ A séma tartalmazza:
 3. Állítsd be env változókat:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `AWS_LOCATION_API_KEY`
-   - `AWS_LOCATION_REGION`
+   - `GEODATA_ADDRESS_API_URL`
+   - `GEODATA_ADDRESS_API_TOKEN`
 4. Deploy vagy redeploy.
 
 ## 7) Következő javasolt kör
