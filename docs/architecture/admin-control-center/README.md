@@ -131,7 +131,7 @@ Aktuális bizonyítási határ:
   csatlakozott, külső Chrome-kapcsolat nem volt elérhető;
 - hosted read-only smoke, release identity és production deploy: **NOT_RUN / HOLD**;
 - a `20260830140000` production Supabase migráció alkalmazása: **NOT_RUN / HOLD**;
-- v0.10.8 commit és push: **NOT_RUN**.
+- v0.10.8 implementációs commit és feature-branch push: **PASS — `a0f9eb3`**.
 
 Az aktuális fájl- és szerződéstérkép az
  [implementációs ütemtervben](./05-implementation-roadmap-and-contracts.md#21-v0108-aktualis-implementacios-terkep),

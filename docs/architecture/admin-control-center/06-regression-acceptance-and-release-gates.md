@@ -232,7 +232,7 @@ break-glass/limited módot mutathat; nem eshet vissza közvetlen legacy írásra
 | Hosted admin smoke és release identity | **NOT_RUN / HOLD** |
 | Production Supabase `20260830130000` + `20260830140000` migráció | **NOT_RUN / HOLD** |
 | Production deploy és alias | **NOT_RUN / HOLD** |
-| v0.10.8 commit és push | **NOT_RUN** |
+| v0.10.8 implementációs commit és feature-branch push | **PASS — `a0f9eb3`** |
 
 ## 9. Definition of Done
 

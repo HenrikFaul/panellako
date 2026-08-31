@@ -117,7 +117,7 @@ QA `HOLD`/`NOT_RUN`, nem hallgatólagos siker.
   **PASS**;
 - lokális auth-határ HTTP-smoke: **PASS — 307 / 200 / 401 / 401**;
 - browser, hosted, production Supabase apply és deploy: **NOT_RUN / HOLD**;
-- v0.10.8 commit/push: **NOT_RUN**.
+- v0.10.8 implementációs commit és feature-branch push: **PASS — `a0f9eb3`**.
 
 A v0.10.7 korábbi teljes-suite/build PASS történeti bizonyíték; nem szabad a
 v0.10.8 új authority migráció automatikus bizonyítékaként újrahasználni.

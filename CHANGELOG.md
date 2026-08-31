@@ -104,7 +104,8 @@
   kapcsolat nem volt elérhető.
 - Production Supabase `20260830130000` + `20260830140000` migráció, production
   deploy, release identity és alias: **NOT_RUN / HOLD**.
-- v0.10.8 commit és push: **NOT_RUN**.
+- v0.10.8 implementációs commit és feature-branch push: **PASS** —
+  `a0f9eb3` a `codex/platform-admin-control-center` ágon.
 
 ### Authority hardening lezárása
 - Az approval/support terminális decision replay a quota-fogyasztás előtt tér
