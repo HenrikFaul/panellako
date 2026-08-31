@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
-import SuperadminClient from '@/components/superadmin-client';
+import { SuperadminAuthorityGate } from '@/components/superadmin-authority-provider';
+import { getPlatformAuthorityContext } from '@/lib/superadmin/operator-authority';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 };
 
 export default async function SuperadminPage() {
-  const authed = await isSuperadminAuthenticated();
-  if (!authed) redirect('/superadmin/login');
+  const context = await getPlatformAuthorityContext();
+  if (!context.authenticated) redirect('/superadmin/login');
 
-  return <SuperadminClient />;
+  return <SuperadminAuthorityGate initialContext={context} />;
 }

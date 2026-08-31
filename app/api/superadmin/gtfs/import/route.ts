@@ -1,15 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'node:crypto';
-import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
 import { BoundedJsonError, readBoundedJson } from '@/lib/http/bounded-json';
 import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  adminJson,
+  hasJsonContentType,
+  isSameOriginAdminRequest,
+  normalizeAdminReason,
+  UUID_PATTERN,
+} from '@/lib/superadmin/http';
+import { requirePlatformMutation } from '@/lib/superadmin/operator-authority';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 // ─── Supabase client ──────────────────────────────────────────────────────────
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const MAX_BATCH_ROWS = 500;
 const MAX_ROW_FIELDS = 64;
@@ -32,30 +38,7 @@ const FILE_TYPES = new Set([
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function json(body: Record<string, unknown>, status = 200): NextResponse {
-  return NextResponse.json(body, {
-    status,
-    headers: { 'Cache-Control': 'private, no-store' },
-  });
-}
-
-function isSameOrigin(request: NextRequest): boolean {
-  const origin = request.headers.get('origin');
-  const host = request.headers.get('host')?.trim()
-    || request.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
-  const fetchSite = request.headers.get('sec-fetch-site');
-  if (!origin || !host || (fetchSite && fetchSite !== 'same-origin')) return false;
-
-  try {
-    const parsed = new URL(origin);
-    return (
-      (parsed.protocol === 'https:' || parsed.protocol === 'http:')
-      && !parsed.username
-      && !parsed.password
-      && parsed.host.toLowerCase() === host.toLowerCase()
-    );
-  } catch {
-    return false;
-  }
+  return adminJson(body, status);
 }
 
 function isGtfsRow(value: unknown): value is Record<string, string> {
@@ -297,11 +280,15 @@ function transformRows(fileType: string, rows: unknown[]): TransformResult {
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
-  if (!(await isSuperadminAuthenticated())) {
-    return json({ error: 'UNAUTHORIZED' }, 401);
+  const authority = await requirePlatformMutation('platform.jobs.run');
+  if (!authority.ok) {
+    return json({
+      error: authority.errorCode,
+      ...(authority.stepUpHref ? { stepUpHref: authority.stepUpHref } : {}),
+    }, authority.status);
   }
-  if (!isSameOrigin(request)) return json({ error: 'ORIGIN_NOT_ALLOWED' }, 403);
-  if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) {
+  if (!isSameOriginAdminRequest(request)) return json({ error: 'ORIGIN_NOT_ALLOWED' }, 403);
+  if (!hasJsonContentType(request)) {
     return json({ error: 'UNSUPPORTED_MEDIA_TYPE' }, 415);
   }
 
@@ -319,7 +306,7 @@ export async function POST(request: NextRequest) {
     return json({ error: 'INVALID_GTFS_IMPORT_REQUEST' }, 400);
   }
   const body = parsedBody as Record<string, unknown>;
-  if (Object.keys(body).some(key => !['fileType', 'rows', 'batchId', 'idempotencyKey'].includes(key))) {
+  if (Object.keys(body).some(key => !['fileType', 'rows', 'batchId', 'idempotencyKey', 'reason'].includes(key))) {
     return json({ error: 'INVALID_GTFS_IMPORT_REQUEST' }, 400);
   }
 
@@ -327,11 +314,17 @@ export async function POST(request: NextRequest) {
   const rows = body.rows;
   const batchId = typeof body.batchId === 'string' ? body.batchId : '';
   const idempotencyKey = typeof body.idempotencyKey === 'string' ? body.idempotencyKey : '';
+  const reason = normalizeAdminReason(body.reason);
   if (!FILE_TYPES.has(fileType) || !Array.isArray(rows) || !UUID_PATTERN.test(batchId)) {
     return json({ error: 'INVALID_GTFS_IMPORT_REQUEST' }, 400);
   }
   if (!UUID_PATTERN.test(idempotencyKey)) {
     return json({ error: 'IDEMPOTENCY_KEY_REQUIRED' }, 400);
+  }
+  if (!reason) return json({ error: 'PLATFORM_REASON_REQUIRED' }, 400);
+  const actor = authority.context.operatorProfileId;
+  if (!actor || !UUID_PATTERN.test(actor)) {
+    return json({ error: 'PLATFORM_AUTHORITY_UNAVAILABLE' }, 503);
   }
   if (rows.length > MAX_BATCH_ROWS) {
     return json({ error: 'GTFS_BATCH_LIMIT_EXCEEDED' }, 400);
@@ -360,7 +353,6 @@ export async function POST(request: NextRequest) {
     return json({ error: 'GTFS_IMPORT_UNAVAILABLE' }, 503);
   }
 
-  const actor = process.env.SUPERADMIN_EMAIL?.trim().toLowerCase() || 'superadmin';
   // The current command contract owns the global lock for one 500-row batch.
   // A file is deliberately not claimed as atomically locked across all batches.
   const commandJobId = `gtfs_import:${fileType}:${batchId}`;
@@ -379,6 +371,7 @@ export async function POST(request: NextRequest) {
         batch_id: batchId,
         batch_digest: batchDigest,
         batch_rows: rows.length,
+        reason,
       },
     });
     beginData = begin.data;

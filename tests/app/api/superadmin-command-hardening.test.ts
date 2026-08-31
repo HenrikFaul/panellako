@@ -9,8 +9,11 @@ describe('superadmin command hardening invariants', () => {
     const route = source('app/api/superadmin/jobs/run/route.ts');
 
     expect(route).toContain("import { createAdminClient } from '@/lib/supabase/admin'");
-    expect(route).toContain('isSameOrigin(request)');
+    expect(route).toContain("requirePlatformMutation('platform.jobs.run')");
+    expect(route).toContain('isSameOriginAdminRequest(request)');
     expect(route).toContain('readBoundedJson(request, 8 * 1024)');
+    expect(route).toContain('normalizeAdminReason(body.reason)');
+    expect(route).toContain('authority.context.operatorProfileId');
     expect(route).toContain("rpc('begin_platform_job_command'");
     expect(route).toContain("rpc('complete_platform_job_command'");
     expect(route).toContain("const PLATFORM_MUTATION_TARGET = 'platform:mutations'");
@@ -22,6 +25,7 @@ describe('superadmin command hardening invariants', () => {
     expect(route).toContain("headers: secret ? { Authorization: `Bearer ${secret}` } : undefined");
     expect(route).not.toContain('NEXT_PUBLIC_SUPABASE_ANON_KEY');
     expect(route).not.toContain('NEXT_SUPABASE_SERVICE_ROLE_KEY');
+    expect(route).not.toContain('process.env.SUPERADMIN_EMAIL');
     expect(route).not.toContain('&secret=');
 
     const client = source('components/superadmin-client.tsx');
@@ -30,9 +34,11 @@ describe('superadmin command hardening invariants', () => {
     expect(client).toContain('acquireAdminRequestKey(requestScope)');
     expect(client).toContain('if (isTerminalAdminCommandResponse(body)) releaseAdminRequestKey(requestScope)');
     expect(client).toContain('Megerősítés: indítás');
+    expect(client).toContain('JSON.stringify({ job: jobId, idempotencyKey, reason })');
     expect(osmClient).toContain('acquireAdminRequestKey(requestScope)');
     expect(osmClient).toContain('if (isTerminalAdminCommandResponse(body)) releaseAdminRequestKey(requestScope)');
     expect(osmClient).toContain('Megerősítés: egész ország');
+    expect(osmClient).toContain('reason: normalizedReason');
     expect(gtfsClient.match(/acquireAdminRequestKey\(/g)).toHaveLength(4);
     expect(gtfsClient.match(/releaseAdminRequestKey\(/g)).toHaveLength(4);
     expect(gtfsClient).toContain('acquireAdminRequestKey(batchIdScope)');
@@ -43,6 +49,10 @@ describe('superadmin command hardening invariants', () => {
     expect(gtfsClient).toContain('isTerminalAdminCommandResponse(d1)');
     expect(gtfsClient).toContain('isTerminalAdminCommandResponse(d2)');
     expect(gtfsClient).toContain('Megerősítés: befejezés');
+    expect(gtfsClient).toContain('reason: normalizedReason');
+    expect(route).toContain("commandStatus: status");
+    expect(route).toContain("ok: status === 'ok'");
+    expect(route).toContain("status === 'partial' ? 207");
   });
 
   it('requires an audited confirmation without returning SQL or provider errors', () => {
@@ -51,7 +61,11 @@ describe('superadmin command hardening invariants', () => {
 
     expect(route).toContain("const APPLY_CONFIRMATION = 'APPLY_PENDING_MIGRATIONS'");
     expect(route).toContain('isSameOrigin(request)');
-    expect(route).toContain('readBoundedJson(request, 2 * 1024)');
+    expect(route).toContain('readBoundedJson(request, 8 * 1024)');
+    expect(route).toContain("requirePlatformMutation('platform.migrations.apply')");
+    expect(route).toContain("'create_platform_command_approval'");
+    expect(route).toContain("'authorize_platform_action'");
+    expect(route).toContain('migration_sql_sha256');
     expect(route).toContain("'begin_platform_job_command'");
     expect(route).toContain("'complete_platform_job_command'");
     expect(route).toContain('PLATFORM_JOB_COMMAND_CONTRACT_VERSION');

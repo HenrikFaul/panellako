@@ -1,8 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
+import { NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 import { readBoundedJson, BoundedJsonError } from '@/lib/http/bounded-json';
 import { MAP_THEME_IDS, type MapThemeId } from '@/lib/map-theme';
+import {
+  adminJson,
+  hasJsonContentType,
+  isSameOriginAdminRequest,
+  normalizeAdminReason,
+  UUID_PATTERN,
+} from '@/lib/superadmin/http';
+import {
+  getDatabasePlatformPayloadDigest,
+  hasPlatformCapability,
+  platformAuthorityErrorCode,
+  requirePlatformMutation,
+  requirePlatformRead,
+} from '@/lib/superadmin/operator-authority';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,47 +31,29 @@ interface BkkRateLimits {
   cells_per_run: number;
 }
 
-function json(body: Record<string, unknown>, status = 200) {
-  return NextResponse.json(body, {
-    status,
-    headers: { 'Cache-Control': 'private, no-store' },
-  });
-}
-
-function isSameOrigin(request: NextRequest): boolean {
-  const origin = request.headers.get('origin');
-  const host = request.headers.get('host')?.trim()
-    || request.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
-  const fetchSite = request.headers.get('sec-fetch-site');
-  if (!origin || !host || (fetchSite && fetchSite !== 'same-origin')) return false;
-
-  try {
-    const parsed = new URL(origin);
-    return (
-      (parsed.protocol === 'https:' || parsed.protocol === 'http:')
-      && !parsed.username
-      && !parsed.password
-      && parsed.host.toLowerCase() === host.toLowerCase()
-    );
-  } catch {
-    return false;
-  }
-}
-
 function finiteInteger(value: unknown, minimum: number, maximum: number): number | null {
   if (typeof value !== 'number' || !Number.isInteger(value)) return null;
   if (value < minimum || value > maximum) return null;
   return value;
 }
 
-function validateSetting(input: unknown): { key: AllowedSettingKey; value: unknown } | null {
+function validateSetting(input: unknown): {
+  key: AllowedSettingKey;
+  value: Record<string, unknown>;
+  reason: string;
+  idempotencyKey: string;
+} | null {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
   const record = input as Record<string, unknown>;
+  if (Object.keys(record).some(key => !['key', 'value', 'reason', 'idempotencyKey'].includes(key))) return null;
+  const reason = normalizeAdminReason(record.reason);
+  const idempotencyKey = typeof record.idempotencyKey === 'string' ? record.idempotencyKey.trim().toLowerCase() : '';
+  if (!reason || !UUID_PATTERN.test(idempotencyKey)) return null;
   if (record.key === 'map_theme') {
     if (!record.value || typeof record.value !== 'object' || Array.isArray(record.value)) return null;
     const id = (record.value as Record<string, unknown>).id;
     if (typeof id !== 'string' || !MAP_THEME_IDS.includes(id as MapThemeId)) return null;
-    return { key: 'map_theme', value: { id } };
+    return { key: 'map_theme', value: { id }, reason, idempotencyKey };
   }
 
   if (record.key === 'bkk_rate_limits') {
@@ -70,15 +66,17 @@ function validateSetting(input: unknown): { key: AllowedSettingKey; value: unkno
       cells_per_run: finiteInteger(value.cells_per_run, 0, 3) ?? -1,
     };
     if (Object.values(normalized).some(item => item < 0)) return null;
-    return { key: 'bkk_rate_limits', value: normalized };
+    return { key: 'bkk_rate_limits', value: { ...normalized }, reason, idempotencyKey };
   }
 
   return null;
 }
 
 export async function GET() {
-  if (!(await isSuperadminAuthenticated())) {
-    return json({ error: 'UNAUTHORIZED' }, 401);
+  const authority = await requirePlatformRead('platform.settings.read');
+  const mayManage = hasPlatformCapability(authority.context, 'platform.settings.manage');
+  if (!authority.ok && !mayManage) {
+    return adminJson({ error: authority.errorCode }, authority.status);
   }
 
   try {
@@ -88,82 +86,81 @@ export async function GET() {
       .select('key, value, updated_at')
       .in('key', [...ALLOWED_SETTING_KEYS])
       .order('key');
-    if (error) return json({ error: 'SETTINGS_UNAVAILABLE' }, 503);
-    return json({ settings: data ?? [] });
+    if (error) return adminJson({ error: 'SETTINGS_UNAVAILABLE' }, 503);
+    return adminJson({ settings: data ?? [] });
   } catch {
-    return json({ error: 'SETTINGS_UNAVAILABLE' }, 503);
+    return adminJson({ error: 'SETTINGS_UNAVAILABLE' }, 503);
   }
 }
 
 export async function PATCH(request: NextRequest) {
-  if (!(await isSuperadminAuthenticated())) {
-    return json({ error: 'UNAUTHORIZED' }, 401);
+  const authority = await requirePlatformMutation('platform.settings.manage');
+  if (!authority.ok) {
+    return adminJson({
+      error: authority.errorCode,
+      ...(authority.stepUpHref ? { stepUpHref: authority.stepUpHref } : {}),
+    }, authority.status);
   }
-  if (!isSameOrigin(request)) {
-    return json({ error: 'ORIGIN_NOT_ALLOWED' }, 403);
-  }
-  if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) {
-    return json({ error: 'UNSUPPORTED_MEDIA_TYPE' }, 415);
-  }
+  if (!isSameOriginAdminRequest(request)) return adminJson({ error: 'ADMIN_SAME_ORIGIN_REQUIRED' }, 403);
+  if (!hasJsonContentType(request)) return adminJson({ error: 'ADMIN_JSON_REQUIRED' }, 415);
 
   let body: unknown;
   try {
     body = await readBoundedJson(request, MAX_BODY_BYTES);
   } catch (error) {
     if (error instanceof BoundedJsonError && error.code === 'REQUEST_TOO_LARGE') {
-      return json({ error: 'REQUEST_TOO_LARGE' }, 413);
+      return adminJson({ error: 'REQUEST_TOO_LARGE' }, 413);
     }
-    return json({ error: 'INVALID_JSON' }, 400);
+    return adminJson({ error: 'INVALID_JSON' }, 400);
   }
 
   const setting = validateSetting(body);
-  if (!setting) return json({ error: 'INVALID_SETTING' }, 400);
+  if (!setting) return adminJson({ error: 'PLATFORM_SETTING_INPUT_INVALID' }, 400);
 
-  let supabase: ReturnType<typeof createAdminClient>;
   try {
-    supabase = createAdminClient();
-  } catch {
-    return json({ error: 'SETTINGS_UNAVAILABLE' }, 503);
-  }
-
-  const { data: before, error: beforeError } = await supabase
-    .from('platform_settings')
-    .select('value')
-    .eq('key', setting.key)
-    .maybeSingle();
-  if (beforeError) return json({ error: 'SETTINGS_UNAVAILABLE' }, 503);
-
-  const updatedAt = new Date().toISOString();
-  const { error: updateError } = await supabase
-    .from('platform_settings')
-    .upsert({ key: setting.key, value: setting.value, updated_at: updatedAt });
-  if (updateError) return json({ error: 'SETTING_UPDATE_FAILED' }, 500);
-
-  const actor = process.env.SUPERADMIN_EMAIL?.trim().toLowerCase() || 'superadmin';
-  const { error: auditError } = await supabase.from('platform_audit_events').insert({
-    actor_id: actor,
-    action: 'superadmin.setting.update',
-    target_type: 'platform_setting',
-    target_id: setting.key,
-    payload: { before: before?.value ?? null, after: setting.value },
-  });
-
-  if (auditError) {
-    let rollbackError: unknown = null;
-    if (before) {
-      const rollback = await supabase.from('platform_settings').upsert({
-        key: setting.key,
-        value: before.value,
-        updated_at: updatedAt,
-      });
-      rollbackError = rollback.error;
-    } else {
-      const rollback = await supabase.from('platform_settings').delete().eq('key', setting.key);
-      rollbackError = rollback.error;
+    const supabase = createClient();
+    const digest = await getDatabasePlatformPayloadDigest(supabase, {
+      key: setting.key,
+      value: setting.value,
+    });
+    if (!digest.digest) {
+      return adminJson({ error: digest.errorCode ?? 'PLATFORM_DIGEST_UNAVAILABLE' }, 503);
     }
-    if (rollbackError) console.error('[platform-admin] setting rollback failed', { key: setting.key });
-    return json({ error: 'SETTING_AUDIT_FAILED' }, 500);
+    const { data, error } = await supabase.rpc('update_platform_setting', {
+      p_key: setting.key,
+      p_value: setting.value,
+      p_reason: setting.reason,
+      p_idempotency_key: setting.idempotencyKey,
+      p_expected_payload_digest: digest.digest,
+    });
+    if (error) {
+      const errorCode = platformAuthorityErrorCode(error, 'PLATFORM_SETTING_UPDATE_FAILED');
+      const status = errorCode === 'MFA_STEP_UP_REQUIRED'
+        ? 428
+        : errorCode === 'PLATFORM_SETTING_NO_CHANGE' || errorCode === 'IDEMPOTENCY_PAYLOAD_MISMATCH' || errorCode === 'PLATFORM_PAYLOAD_DIGEST_MISMATCH'
+          ? 409
+          : errorCode === 'PLATFORM_SETTING_INPUT_INVALID'
+            ? 400
+            : errorCode === 'PLATFORM_OPERATOR_REQUIRED' || errorCode === 'PLATFORM_CAPABILITY_DENIED'
+              ? 403
+              : 503;
+      return adminJson({
+        error: errorCode,
+        ...(errorCode === 'MFA_STEP_UP_REQUIRED'
+          ? { stepUpHref: '/account/security?next=%2Fsuperadmin' }
+          : {}),
+      }, status);
+    }
+    if (!data || typeof data !== 'object' || Array.isArray(data) || data.outcome !== 'updated' || data.key !== setting.key) {
+      return adminJson({ error: 'PLATFORM_SETTING_UPDATE_FAILED' }, 502);
+    }
+    return adminJson({
+      ok: true,
+      key: setting.key,
+      value: setting.value,
+      replayed: data.replayed === true,
+    });
+  } catch {
+    return adminJson({ error: 'PLATFORM_SETTING_UPDATE_FAILED' }, 503);
   }
-
-  return json({ ok: true, key: setting.key });
 }

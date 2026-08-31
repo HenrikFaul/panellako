@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { BoundedJsonError, readBoundedJson } from '@/lib/http/bounded-json';
 import { ENVIRONMENT_JOB_SECRET_HEADER } from '@/lib/authorization/environment-scope';
+import {
+  adminJson,
+  hasJsonContentType,
+  isSameOriginAdminRequest,
+  normalizeAdminReason,
+  UUID_PATTERN,
+} from '@/lib/superadmin/http';
+import { requirePlatformMutation } from '@/lib/superadmin/operator-authority';
 import {
   HU_BBOX,
   renderHungaryNdviTiled,
@@ -13,7 +20,6 @@ import {
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const JOB_LEASE_TTL_SECONDS = 15 * 60;
 const PLATFORM_MUTATION_TARGET = 'platform:mutations';
 const SENSITIVE_JOB_FIELD = /(authorization|cookie|secret|token|password|credential|api[_-]?key|recipient|email|phone|command|error|message|detail|reason|sample|sql|query|url|header|attempt)/i;
@@ -32,6 +38,13 @@ const SAFE_JOB_ERROR_CODES = new Set([
   'JOB_ALREADY_SUBMITTED',
   'JOB_IDEMPOTENCY_CONFLICT',
   'JOB_EXECUTION_FAILED',
+  'OSM_IMPORT_PARTIAL',
+  'AUTH_REQUIRED',
+  'PLATFORM_OPERATOR_REQUIRED',
+  'PLATFORM_CAPABILITY_DENIED',
+  'MFA_STEP_UP_REQUIRED',
+  'PLATFORM_AUTHORITY_UNAVAILABLE',
+  'PLATFORM_REASON_REQUIRED',
 ]);
 
 type JobStatus = 'ok' | 'error' | 'partial';
@@ -169,30 +182,7 @@ function createServiceClient() {
 }
 
 function json(body: object, status = 200): NextResponse {
-  return NextResponse.json(body, {
-    status,
-    headers: { 'Cache-Control': 'private, no-store' },
-  });
-}
-
-function isSameOrigin(request: NextRequest): boolean {
-  const origin = request.headers.get('origin');
-  const host = request.headers.get('host')?.trim()
-    || request.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
-  const fetchSite = request.headers.get('sec-fetch-site');
-  if (!origin || !host || (fetchSite && fetchSite !== 'same-origin')) return false;
-
-  try {
-    const parsed = new URL(origin);
-    return (
-      (parsed.protocol === 'https:' || parsed.protocol === 'http:')
-      && !parsed.username
-      && !parsed.password
-      && parsed.host.toLowerCase() === host.toLowerCase()
-    );
-  } catch {
-    return false;
-  }
+  return adminJson(body as Record<string, unknown>, status);
 }
 
 function environmentRefreshHeaders(): HeadersInit {
@@ -371,7 +361,8 @@ async function logEnd(
 
 function safeJobErrorCode(raw: unknown, status: number): string {
   if (typeof raw === 'string' && SAFE_JOB_ERROR_CODES.has(raw)) return raw;
-  if (status === 401) return 'UNAUTHORIZED';
+  if (status === 401) return 'AUTH_REQUIRED';
+  if (status === 428) return 'MFA_STEP_UP_REQUIRED';
   if (status === 403) return 'ORIGIN_NOT_ALLOWED';
   if (status === 400 || status === 415 || status === 413) return 'INVALID_JOB_REQUEST';
   if (status === 409) return 'JOB_ALREADY_RUNNING';
@@ -398,6 +389,13 @@ async function sanitizeJobResponse(
     : {};
   body.ok = response.ok && raw.ok !== false;
   body.requestId = context.idempotencyKey;
+  if (
+    response.status === 428
+    && typeof raw.stepUpHref === 'string'
+    && raw.stepUpHref.startsWith('/account/security?')
+  ) {
+    body.stepUpHref = raw.stepUpHref;
+  }
   if (!response.ok || raw.ok === false) {
     body.error = safeJobErrorCode(raw.error, response.status);
   }
@@ -586,12 +584,16 @@ out;`;
 }
 
 async function executeJobRequest(request: NextRequest) {
-  if (!(await isSuperadminAuthenticated())) {
-    return json({ error: 'UNAUTHORIZED' }, 401);
+  const authority = await requirePlatformMutation('platform.jobs.run');
+  if (!authority.ok) {
+    return json({
+      error: authority.errorCode,
+      ...(authority.stepUpHref ? { stepUpHref: authority.stepUpHref } : {}),
+    }, authority.status);
   }
 
-  if (!isSameOrigin(request)) return json({ error: 'ORIGIN_NOT_ALLOWED' }, 403);
-  if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) {
+  if (!isSameOriginAdminRequest(request)) return json({ error: 'ORIGIN_NOT_ALLOWED' }, 403);
+  if (!hasJsonContentType(request)) {
     return json({ error: 'UNSUPPORTED_MEDIA_TYPE' }, 415);
   }
 
@@ -608,8 +610,8 @@ async function executeJobRequest(request: NextRequest) {
     return json({ error: 'INVALID_JOB_REQUEST' }, 400);
   }
 
-  const body = parsedBody as { job?: unknown; county?: unknown; idempotencyKey?: unknown };
-  if (Object.keys(body).some(key => !['job', 'county', 'idempotencyKey'].includes(key))) {
+  const body = parsedBody as { job?: unknown; county?: unknown; idempotencyKey?: unknown; reason?: unknown };
+  if (Object.keys(body).some(key => !['job', 'county', 'idempotencyKey', 'reason'].includes(key))) {
     return json({ error: 'INVALID_JOB_REQUEST' }, 400);
   }
   if (typeof body.job !== 'string' || body.job.length > 80) {
@@ -621,15 +623,22 @@ async function executeJobRequest(request: NextRequest) {
   if (typeof body.idempotencyKey !== 'string' || !UUID_PATTERN.test(body.idempotencyKey)) {
     return json({ error: 'IDEMPOTENCY_KEY_REQUIRED' }, 400);
   }
+  const reason = normalizeAdminReason(body.reason);
+  if (!reason) return json({ error: 'PLATFORM_REASON_REQUIRED' }, 400);
+  const actor = authority.context.operatorProfileId;
+  if (!actor || !UUID_PATTERN.test(actor)) {
+    return json({ error: 'PLATFORM_AUTHORITY_UNAVAILABLE' }, 503);
+  }
 
   const executionContext = jobExecutionStorage.getStore();
   if (!executionContext) return json({ error: 'JOB_GUARD_UNAVAILABLE' }, 503);
   executionContext.idempotencyKey = body.idempotencyKey;
-  executionContext.actor = process.env.SUPERADMIN_EMAIL?.trim().toLowerCase() || 'superadmin';
+  executionContext.actor = actor;
   const { job } = body;
   executionContext.requestPayload = {
     job,
     ...(typeof body.county === 'string' ? { county: body.county } : {}),
+    reason,
   };
 
   if (job === 'bkk_full_sync') {
@@ -2075,9 +2084,24 @@ out center 20000;`;
 
       const failed = results.filter(r => !r.ok);
       const status = failed.length === 0 ? 'ok' : (failed.length < counties.length ? 'partial' : 'error');
-      const result = { totalImported, counties: results, failedCount: failed.length };
+      const result = {
+        totalImported,
+        counties: results,
+        failedCount: failed.length,
+        failedCounties: failed.map(item => item.county),
+      };
       await logEnd(logId, status, result);
-      return NextResponse.json({ ok: status !== 'error', job, result, ranAt: new Date().toISOString() }, { status: status === 'error' ? 500 : 200 });
+      return NextResponse.json(
+        {
+          ok: status === 'ok',
+          commandStatus: status,
+          job,
+          result,
+          ...(status === 'partial' ? { error: 'OSM_IMPORT_PARTIAL' } : {}),
+          ranAt: new Date().toISOString(),
+        },
+        { status: status === 'ok' ? 200 : status === 'partial' ? 207 : 500 },
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       await logEnd(logId, 'error', { error: message });
@@ -2117,7 +2141,7 @@ export async function POST(request: NextRequest) {
       }
       if (error instanceof JobCommandReplay) {
         return json({
-          ok: error.commandStatus !== 'error',
+          ok: error.commandStatus === 'ok',
           replayed: true,
           job: error.jobId,
           commandStatus: error.commandStatus,

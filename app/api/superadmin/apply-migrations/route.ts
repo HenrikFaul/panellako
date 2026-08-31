@@ -11,11 +11,18 @@
  *
  * Raw SQL and provider errors are deliberately never returned to the browser.
  */
+import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient as createAuthenticatedClient } from '@/lib/supabase/server';
 import { BoundedJsonError, readBoundedJson } from '@/lib/http/bounded-json';
+import { normalizeAdminReason } from '@/lib/superadmin/http';
+import {
+  getDatabasePlatformPayloadDigest,
+  platformAuthorityErrorCode,
+  requirePlatformMutation,
+} from '@/lib/superadmin/operator-authority';
 import {
   PLATFORM_JOB_COMMAND_CONTRACT_VERSION,
   PLATFORM_JOB_COMMAND_SQL,
@@ -28,6 +35,8 @@ const APPLY_CONFIRMATION = 'APPLY_PENDING_MIGRATIONS';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PLATFORM_MUTATION_TARGET = 'platform:mutations';
 const MIGRATION_LEASE_SECONDS = 15 * 60;
+const MIGRATION_APPROVAL_TTL = '10 minutes';
+const MIGRATION_HEAD = '20260830140000_platform_operator_authority';
 
 function json(body: object, status = 200): NextResponse {
   return NextResponse.json(body, {
@@ -257,6 +266,29 @@ ON CONFLICT (feature_key) DO NOTHING;
   },
 ];
 
+function migrationApprovalPayload(reason: string) {
+  return {
+    confirmation: APPLY_CONFIRMATION,
+    migration_head: MIGRATION_HEAD,
+    migration_names: MIGRATIONS.map(migration => migration.name),
+    migration_sql_sha256: Object.fromEntries(MIGRATIONS.map(migration => [
+      migration.name,
+      `sha256:${createHash('sha256').update(migration.sql, 'utf8').digest('hex')}`,
+    ])),
+    reason,
+  };
+}
+
+function migrationAuthorityStatus(errorCode: string): number {
+  if (errorCode === 'AUTH_REQUIRED') return 401;
+  if (errorCode === 'MFA_STEP_UP_REQUIRED') return 428;
+  if (errorCode.includes('NOT_FOUND')) return 404;
+  if (errorCode.includes('DENIED') || errorCode.includes('FORBIDDEN') || errorCode.includes('MISMATCH')) return 403;
+  if (errorCode.includes('INVALID') || errorCode.includes('DIGEST')) return 400;
+  if (errorCode.includes('ALREADY') || errorCode.includes('CONFLICT') || errorCode.includes('EXPIRED')) return 409;
+  return 422;
+}
+
 // ─── Idempotency checks ───────────────────────────────────────────────────────
 
 async function isMigrationApplied(supabase: SupabaseClient, name: string): Promise<boolean> {
@@ -351,8 +383,12 @@ async function tryApplySql(
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
-  if (!(await isSuperadminAuthenticated())) {
-    return json({ error: 'UNAUTHORIZED' }, 401);
+  const authority = await requirePlatformMutation('platform.migrations.apply');
+  if (!authority.ok) {
+    return json({
+      error: authority.errorCode,
+      ...(authority.stepUpHref ? { stepUpHref: authority.stepUpHref } : {}),
+    }, authority.status);
   }
   if (!isSameOrigin(request)) return json({ error: 'ORIGIN_NOT_ALLOWED' }, 403);
   if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) {
@@ -361,7 +397,7 @@ export async function POST(request: NextRequest) {
 
   let parsedBody: unknown;
   try {
-    parsedBody = await readBoundedJson(request, 2 * 1024);
+    parsedBody = await readBoundedJson(request, 8 * 1024);
   } catch (error) {
     if (error instanceof BoundedJsonError && error.code === 'REQUEST_TOO_LARGE') {
       return json({ error: 'REQUEST_TOO_LARGE' }, 413);
@@ -376,20 +412,87 @@ export async function POST(request: NextRequest) {
     return json({ error: 'CONFIRMATION_REQUIRED' }, 400);
   }
   const body = parsedBody as Record<string, unknown>;
-  if (Object.keys(body).some(key => !['confirmation', 'idempotencyKey'].includes(key))) {
+  if (Object.keys(body).some(key => !['action', 'confirmation', 'reason', 'idempotencyKey', 'approvalId'].includes(key))) {
     return json({ error: 'INVALID_MIGRATION_REQUEST' }, 400);
   }
-  if (body.confirmation !== APPLY_CONFIRMATION) {
+  if ((body.action !== 'request' && body.action !== 'execute') || body.confirmation !== APPLY_CONFIRMATION) {
     return json({ error: 'CONFIRMATION_REQUIRED' }, 400);
   }
   if (typeof body.idempotencyKey !== 'string' || !UUID_PATTERN.test(body.idempotencyKey)) {
     return json({ error: 'IDEMPOTENCY_KEY_REQUIRED' }, 400);
   }
+  const reason = normalizeAdminReason(body.reason);
+  if (!reason) return json({ error: 'MIGRATION_REASON_REQUIRED' }, 400);
   const idempotencyKey = body.idempotencyKey;
+  const approvalPayload = migrationApprovalPayload(reason);
+  const authenticatedClient = createAuthenticatedClient();
+
+  if (body.action === 'request') {
+    if ('approvalId' in body) return json({ error: 'INVALID_MIGRATION_REQUEST' }, 400);
+    const { data, error } = await authenticatedClient.rpc('create_platform_command_approval', {
+      p_capability_key: 'platform.migrations.apply',
+      p_action_key: 'platform.migrations.apply',
+      p_target_type: 'migration_chain',
+      p_target_id: MIGRATION_HEAD,
+      p_request_payload: approvalPayload,
+      p_reason: reason,
+      p_idempotency_key: idempotencyKey,
+      p_ttl: MIGRATION_APPROVAL_TTL,
+    });
+    if (error) {
+      const errorCode = platformAuthorityErrorCode(error, 'PLATFORM_MIGRATION_APPROVAL_FAILED');
+      return json({
+        error: errorCode,
+        ...(errorCode === 'MFA_STEP_UP_REQUIRED'
+          ? { stepUpHref: '/account/security?next=%2Fsuperadmin' }
+          : {}),
+      }, migrationAuthorityStatus(errorCode));
+    }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      return json({ error: 'PLATFORM_MIGRATION_APPROVAL_FAILED' }, 502);
+    }
+    return json({ ok: true, approvalPending: true, result: data, migrationHead: MIGRATION_HEAD });
+  }
+
+  if (typeof body.approvalId !== 'string' || !UUID_PATTERN.test(body.approvalId)) {
+    return json({ error: 'MIGRATION_APPROVAL_REQUIRED' }, 400);
+  }
+
+  const expectedDigest = await getDatabasePlatformPayloadDigest(authenticatedClient, approvalPayload);
+  if (!expectedDigest.digest) {
+    return json({ error: expectedDigest.errorCode ?? 'PLATFORM_DIGEST_UNAVAILABLE' }, 503);
+  }
+  const { data: authorization, error: authorizationError } = await authenticatedClient.rpc(
+    'authorize_platform_action',
+    {
+      p_approval_id: body.approvalId,
+      p_action_key: 'platform.migrations.apply',
+      p_payload: approvalPayload,
+      p_consumption_idempotency_key: idempotencyKey,
+    },
+  );
+  if (authorizationError) {
+    const errorCode = platformAuthorityErrorCode(authorizationError, 'PLATFORM_MIGRATION_AUTHORIZATION_FAILED');
+    return json({
+      error: errorCode,
+      ...(errorCode === 'MFA_STEP_UP_REQUIRED'
+        ? { stepUpHref: '/account/security?next=%2Fsuperadmin' }
+        : {}),
+    }, migrationAuthorityStatus(errorCode));
+  }
+  if (
+    !authorization
+    || typeof authorization !== 'object'
+    || Array.isArray(authorization)
+    || (authorization.outcome !== 'authorized' && authorization.outcome !== 'replayed')
+    || authorization.approval_id !== body.approvalId
+    || authorization.payload_digest !== expectedDigest.digest
+  ) {
+    return json({ error: 'PLATFORM_MIGRATION_AUTHORIZATION_FAILED' }, 502);
+  }
 
   const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').trim();
-  const serviceKey  = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim();
-
+  const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim();
   if (!supabaseUrl || !serviceKey) {
     return json({ error: 'MIGRATION_EXECUTOR_UNAVAILABLE' }, 503);
   }
@@ -401,7 +504,8 @@ export async function POST(request: NextRequest) {
     return json({ error: 'MIGRATION_EXECUTOR_UNAVAILABLE' }, 503);
   }
 
-  const actor = process.env.SUPERADMIN_EMAIL?.trim().toLowerCase() || 'superadmin';
+  const actor = authority.context.operatorProfileId;
+  if (!actor) return json({ error: 'PLATFORM_OPERATOR_REQUIRED' }, 403);
 
   // The immutable audit table is itself one of the legacy bootstrap migrations.
   // Establish it before requiring the first audit write, otherwise a database
@@ -442,8 +546,11 @@ export async function POST(request: NextRequest) {
       p_actor_id: actor,
       p_lease_seconds: MIGRATION_LEASE_SECONDS,
       p_start_payload: {
+        approval_id: body.approvalId,
+        migration_head: MIGRATION_HEAD,
         migration_count: MIGRATIONS.length,
         migration_names: MIGRATIONS.map(migration => migration.name),
+        reason,
       },
     },
   );
@@ -473,6 +580,7 @@ export async function POST(request: NextRequest) {
       commandStatus,
       result: safeResult,
       requestId: idempotencyKey,
+      approvalId: body.approvalId,
     }, commandStatus === 'ok' ? 200 : 422);
   }
   if (command.outcome === 'already_submitted') {
@@ -560,5 +668,5 @@ export async function POST(request: NextRequest) {
     return json({ ok: false, error: 'MIGRATION_AUDIT_INCOMPLETE', requestId: idempotencyKey, results }, 500);
   }
 
-  return json({ ok: allOk, requestId: idempotencyKey, results }, allOk ? 200 : 422);
+  return json({ ok: allOk, requestId: idempotencyKey, approvalId: body.approvalId, results }, allOk ? 200 : 422);
 }

@@ -6,8 +6,8 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 const RELEASE_START = '20260828120000';
-const RELEASE_END = '20260830120000';
-const RELEASE_COUNT = 18;
+const RELEASE_END = '20260830140000';
+const RELEASE_COUNT = 20;
 const MAX_PITR_AGE_SECONDS = 2 * 60 * 60;
 const MAX_BACKUP_AGE_SECONDS = 36 * 60 * 60;
 const MAX_FUTURE_SKEW_SECONDS = 5 * 60;
@@ -67,6 +67,12 @@ export function loadManifest(file) {
   if (JSON.stringify(filesInRange) !== JSON.stringify(entries.map((entry) => entry.file))) {
     fail('Manifest is not the exact on-disk migration set in the release range.');
   }
+  const filesAfterRelease = readdirSync(resolve('supabase/migrations'))
+    .filter((name) => /^\d{14}_.+\.sql$/.test(name))
+    .filter((name) => name.slice(0, 14) > RELEASE_END);
+  if (filesAfterRelease.length > 0) {
+    fail(`On-disk migration history exceeds the immutable release head ${RELEASE_END}.`);
+  }
   return entries;
 }
 
@@ -95,6 +101,9 @@ export function validateReleaseState(entries, migrationList, dryRun, expect) {
     const remote = typeof row?.remote === 'string' ? row.remote : '';
     if ((local && !LEGACY_OR_TIMESTAMP_VERSION.test(local)) || (remote && !LEGACY_OR_TIMESTAMP_VERSION.test(remote))) {
       fail('Migration list contains a malformed version.');
+    }
+    if ((local.length === 14 && local > RELEASE_END) || (remote.length === 14 && remote > RELEASE_END)) {
+      fail(`Migration history exceeds the immutable release head ${RELEASE_END}.`);
     }
     if (!local && remote) fail(`Remote-only migration history detected at ${remote}.`);
     if (local && remote && local !== remote) fail(`Migration history mismatch: ${local} != ${remote}.`);

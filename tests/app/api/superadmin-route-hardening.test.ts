@@ -2,16 +2,27 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 const mocks = vi.hoisted(() => ({
-  authenticated: vi.fn(),
+  requirePlatformRead: vi.fn(),
+  requirePlatformMutation: vi.fn(),
+  digest: vi.fn(),
+  authorityErrorCode: vi.fn(),
   createAdminClient: vi.fn(),
+  createServerClient: vi.fn(),
 }));
 
-vi.mock('@/lib/superadmin-auth', () => ({
-  isSuperadminAuthenticated: mocks.authenticated,
+vi.mock('@/lib/superadmin/operator-authority', () => ({
+  requirePlatformRead: mocks.requirePlatformRead,
+  requirePlatformMutation: mocks.requirePlatformMutation,
+  getDatabasePlatformPayloadDigest: mocks.digest,
+  platformAuthorityErrorCode: mocks.authorityErrorCode,
 }));
 
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: mocks.createAdminClient,
+}));
+
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: mocks.createServerClient,
 }));
 
 import { GET as getHealth } from '@/app/api/superadmin/health/route';
@@ -34,7 +45,23 @@ function settingsRequest(body: unknown, origin = 'https://panellako.hu') {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllEnvs();
-  mocks.authenticated.mockResolvedValue(true);
+  const context = {
+    authenticated: true,
+    mode: 'operator',
+    operatorProfileId: '11111111-1111-4111-8111-111111111111',
+    operatorEmail: 'operator@panellako.hu',
+    assuranceLevel: 'aal2',
+    roleKeys: ['PLATFORM_ADMIN'],
+    capabilityKeys: ['platform.health.read', 'platform.jobs.read', 'platform.settings.manage'],
+    authorityValidUntil: null,
+    activeSupportSessions: [],
+    canBootstrap: false,
+    breakGlassExpiresAt: null,
+  };
+  mocks.requirePlatformRead.mockResolvedValue({ ok: true, context, status: 403, errorCode: 'PLATFORM_CAPABILITY_DENIED' });
+  mocks.requirePlatformMutation.mockResolvedValue({ ok: true, context, status: 403, errorCode: 'PLATFORM_CAPABILITY_DENIED' });
+  mocks.digest.mockResolvedValue({ digest: `sha256:${'a'.repeat(64)}`, errorCode: null });
+  mocks.authorityErrorCode.mockReturnValue('PLATFORM_SETTING_UPDATE_FAILED');
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://project.supabase.co');
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'public-anon-value');
   vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'private-service-value');
@@ -43,11 +70,17 @@ beforeEach(() => {
 
 describe('superadmin health hardening', () => {
   it('authenticates before creating the service client', async () => {
-    mocks.authenticated.mockResolvedValue(false);
+    mocks.requirePlatformRead.mockResolvedValue({
+      ok: false,
+      context: { mode: 'none' },
+      status: 401,
+      errorCode: 'AUTH_REQUIRED',
+    });
 
     const response = await getHealth();
 
     expect(response.status).toBe(401);
+    expect(mocks.requirePlatformRead).toHaveBeenCalledWith('platform.health.read');
     expect(mocks.createAdminClient).not.toHaveBeenCalled();
   });
 
@@ -83,7 +116,12 @@ describe('superadmin health hardening', () => {
 describe('superadmin settings hardening', () => {
   it('rejects cross-origin and unknown setting writes before database access', async () => {
     const crossOrigin = await patchSettings(settingsRequest(
-      { key: 'map_theme', value: { id: 'light' } },
+      {
+        key: 'map_theme',
+        value: { id: 'light' },
+        reason: 'Térkép-kontraszt ellenőrzött módosítása.',
+        idempotencyKey: '22222222-2222-4222-8222-222222222222',
+      },
       'https://attacker.example',
     ));
     expect(crossOrigin.status).toBe(403);
@@ -91,23 +129,20 @@ describe('superadmin settings hardening', () => {
     const unknown = await patchSettings(settingsRequest({
       key: 'service_role_key',
       value: 'attacker-controlled',
+      reason: 'Ismeretlen beállítás elutasításának tesztje.',
+      idempotencyKey: '22222222-2222-4222-8222-222222222222',
     }));
     expect(unknown.status).toBe(400);
-    expect(mocks.createAdminClient).not.toHaveBeenCalled();
+    expect(mocks.createServerClient).not.toHaveBeenCalled();
   });
 
-  it('validates, persists and audits an allowlisted setting', async () => {
-    const maybeSingle = vi.fn().mockResolvedValue({ data: { value: { id: 'nature' } }, error: null });
-    const upsert = vi.fn().mockResolvedValue({ error: null });
-    const insert = vi.fn().mockResolvedValue({ error: null });
-    const from = vi.fn((table: string) => {
-      if (table === 'platform_audit_events') return { insert };
-      return {
-        select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle })) })),
-        upsert,
-      };
+  it('validates and persists an allowlisted setting through the authenticated atomic RPC', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { outcome: 'updated', key: 'bkk_rate_limits', replayed: false },
+      error: null,
     });
-    mocks.createAdminClient.mockReturnValue({ from });
+    const client = { rpc };
+    mocks.createServerClient.mockReturnValue(client);
 
     const response = await patchSettings(settingsRequest({
       key: 'bkk_rate_limits',
@@ -117,38 +152,35 @@ describe('superadmin settings hardening', () => {
         retry_wait_ms: 90_000,
         cells_per_run: 0,
       },
+      reason: 'BKK terheléskorlát auditált módosítása.',
+      idempotencyKey: '33333333-3333-4333-8333-333333333333',
     }));
 
     expect(response.status).toBe(200);
-    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ key: 'bkk_rate_limits' }));
-    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
-      actor_id: 'admin@panellako.hu',
-      action: 'superadmin.setting.update',
-      target_id: 'bkk_rate_limits',
+    expect(mocks.digest).toHaveBeenCalledWith(client, expect.objectContaining({ key: 'bkk_rate_limits' }));
+    expect(rpc).toHaveBeenCalledWith('update_platform_setting', expect.objectContaining({
+      p_key: 'bkk_rate_limits',
+      p_reason: 'BKK terheléskorlát auditált módosítása.',
+      p_idempotency_key: '33333333-3333-4333-8333-333333333333',
     }));
+    expect(mocks.createAdminClient).not.toHaveBeenCalled();
   });
 
-  it('reports audit failure and restores the previous setting', async () => {
-    const maybeSingle = vi.fn().mockResolvedValue({ data: { value: { id: 'nature' } }, error: null });
-    const upsert = vi.fn().mockResolvedValue({ error: null });
-    const insert = vi.fn().mockResolvedValue({ error: { code: 'AUDIT_WRITE_FAILED' } });
-    const from = vi.fn((table: string) => {
-      if (table === 'platform_audit_events') return { insert };
-      return {
-        select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle })) })),
-        upsert,
-      };
-    });
-    mocks.createAdminClient.mockReturnValue({ from });
+  it('fails closed when the atomic database authority RPC rejects the write', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: { code: 'P0001' } });
+    mocks.createServerClient.mockReturnValue({ rpc });
 
     const response = await patchSettings(settingsRequest({
       key: 'map_theme',
       value: { id: 'minimal' },
+      reason: 'Térképtéma auditált módosítási próbája.',
+      idempotencyKey: '44444444-4444-4444-8444-444444444444',
     }));
 
-    expect(response.status).toBe(500);
-    expect(await response.json()).toEqual({ error: 'SETTING_AUDIT_FAILED' });
-    expect(upsert).toHaveBeenCalledTimes(2);
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: 'PLATFORM_SETTING_UPDATE_FAILED' });
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(mocks.createAdminClient).not.toHaveBeenCalled();
   });
 });
 

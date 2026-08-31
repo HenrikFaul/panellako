@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 const mocks = vi.hoisted(() => ({
-  authenticated: vi.fn(),
+  requirePlatformMutation: vi.fn(),
   createAdminClient: vi.fn(),
   rpc: vi.fn(),
 }));
 
-vi.mock('@/lib/superadmin-auth', () => ({
-  isSuperadminAuthenticated: mocks.authenticated,
+vi.mock('@/lib/superadmin/operator-authority', () => ({
+  requirePlatformMutation: mocks.requirePlatformMutation,
 }));
 
 vi.mock('@/lib/supabase/admin', () => ({
@@ -23,7 +23,13 @@ vi.mock('@/lib/ndvi-mosaic', () => ({
 
 import { POST } from '@/app/api/superadmin/jobs/run/route';
 
-function jobRequest(idempotencyKey = '11111111-1111-4111-8111-111111111111') {
+const ACTOR_ID = '44444444-4444-4444-8444-444444444444';
+const REASON = 'BKK épület és megálló kapcsolatok kézi újraszámítása.';
+
+function jobRequest(
+  idempotencyKey = '11111111-1111-4111-8111-111111111111',
+  reason: string | null = REASON,
+) {
   return new NextRequest('https://panellako.hu/api/superadmin/jobs/run', {
     method: 'POST',
     headers: {
@@ -32,7 +38,7 @@ function jobRequest(idempotencyKey = '11111111-1111-4111-8111-111111111111') {
       Origin: 'https://panellako.hu',
       'Sec-Fetch-Site': 'same-origin',
     },
-    body: JSON.stringify({ job: 'bkk_building_stops', idempotencyKey }),
+    body: JSON.stringify({ job: 'bkk_building_stops', idempotencyKey, ...(reason ? { reason } : {}) }),
   });
 }
 
@@ -51,9 +57,11 @@ function startedCommand() {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllEnvs();
-  mocks.authenticated.mockResolvedValue(true);
+  mocks.requirePlatformMutation.mockResolvedValue({
+    ok: true,
+    context: { mode: 'operator', operatorProfileId: ACTOR_ID, assuranceLevel: 'aal2' },
+  });
   mocks.createAdminClient.mockReturnValue({ rpc: mocks.rpc });
-  vi.stubEnv('SUPERADMIN_EMAIL', 'Admin@PanelLako.HU');
   vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://panellako.hu');
 });
 
@@ -81,13 +89,40 @@ describe('superadmin job command runtime guard', () => {
       p_command_kind: 'job',
       p_target_key: 'platform:mutations',
       p_lease_seconds: 900,
-      p_start_payload: { job: 'bkk_building_stops' },
+      p_actor_id: ACTOR_ID,
+      p_start_payload: { job: 'bkk_building_stops', reason: REASON },
     }));
     expect(mocks.rpc).toHaveBeenNthCalledWith(2, 'complete_platform_job_command', expect.objectContaining({
       p_status: 'ok',
-      p_actor_id: 'admin@panellako.hu',
+      p_actor_id: ACTOR_ID,
     }));
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('requires named AAL2 authority and a reason before starting a command', async () => {
+    mocks.requirePlatformMutation.mockResolvedValue({
+      ok: false,
+      status: 428,
+      errorCode: 'MFA_STEP_UP_REQUIRED',
+      stepUpHref: '/account/security?next=%2Fsuperadmin',
+      context: { mode: 'operator', operatorProfileId: ACTOR_ID, assuranceLevel: 'aal1' },
+    });
+    const stepUp = await POST(jobRequest());
+    expect(stepUp.status).toBe(428);
+    expect(await stepUp.json()).toMatchObject({
+      ok: false,
+      error: 'MFA_STEP_UP_REQUIRED',
+      stepUpHref: '/account/security?next=%2Fsuperadmin',
+    });
+
+    mocks.requirePlatformMutation.mockResolvedValue({
+      ok: true,
+      context: { mode: 'operator', operatorProfileId: ACTOR_ID, assuranceLevel: 'aal2' },
+    });
+    const missingReason = await POST(jobRequest(undefined, null));
+    expect(missingReason.status).toBe(400);
+    expect(await missingReason.json()).toMatchObject({ ok: false, error: 'PLATFORM_REASON_REQUIRED' });
+    expect(mocks.createAdminClient).not.toHaveBeenCalled();
   });
 
   it('replays a completed receipt without executing the job again', async () => {

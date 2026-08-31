@@ -33,8 +33,8 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       SUPABASE_CLI_VERSION: 2.116.0
-      MIGRATION_MANIFEST: .github/migration-manifests/20260830120000_multitenancy-release.sha256
-      EXPECTED_MIGRATION_VERSION: "20260830120000"
+      MIGRATION_MANIFEST: .github/migration-manifests/20260830140000_platform-admin-release.sha256
+      EXPECTED_MIGRATION_VERSION: "20260830140000"
 
     steps:
       - name: Checkout the requested revision

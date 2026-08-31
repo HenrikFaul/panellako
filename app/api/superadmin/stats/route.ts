@@ -1,15 +1,8 @@
-import { NextResponse } from 'next/server';
-import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { adminJson } from '@/lib/superadmin/http';
+import { requirePlatformRead } from '@/lib/superadmin/operator-authority';
 
 export const dynamic = 'force-dynamic';
-
-function json(body: Record<string, unknown>, status = 200) {
-  return NextResponse.json(body, {
-    status,
-    headers: { 'Cache-Control': 'private, no-store' },
-  });
-}
 
 const TABLE_SPECS: Array<{ name: string; tsCol: string | null; label: string; group?: string }> = [
   // ── Transit (élő adatok) ────────────────────────────────────────────────────
@@ -70,15 +63,14 @@ async function getTableStat(
 }
 
 export async function GET() {
-  if (!(await isSuperadminAuthenticated())) {
-    return json({ error: 'UNAUTHORIZED' }, 401);
-  }
+  const authority = await requirePlatformRead('platform.overview.read');
+  if (!authority.ok) return adminJson({ error: authority.errorCode }, authority.status);
 
   let supabase: ReturnType<typeof createAdminClient>;
   try {
     supabase = createAdminClient();
   } catch {
-    return json({ error: 'STATS_UNAVAILABLE' }, 503);
+    return adminJson({ error: 'STATS_UNAVAILABLE' }, 503);
   }
 
   const tables = await Promise.all(
@@ -92,5 +84,5 @@ export async function GET() {
     }))),
   );
 
-  return json({ tables, fetchedAt: new Date().toISOString() });
+  return adminJson({ tables, fetchedAt: new Date().toISOString() });
 }

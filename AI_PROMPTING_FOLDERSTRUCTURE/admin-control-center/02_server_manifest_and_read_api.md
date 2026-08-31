@@ -1,5 +1,8 @@
 # 02 — Typed manifest, safe DTO és aggregált read API
 
+**Állapot:** v0.10.8 repository-szinten implementálva; production/hosted
+bizonyítás külön HOLD.
+
 ## Feladat
 
 Implementáld a server-only admin manifestet és a
@@ -8,12 +11,15 @@ Implementáld a server-only admin manifestet és a
 ## Scope
 
 - típusos modul-, integráció- és job-katalógus;
+- capability, scope, criticality, timeout, freshness, probeKind, sideEffect,
+  runbook és safe deep-link egyetlen server-only source-ban;
 - schema version és determinisztikus fingerprint;
 - platform KPI collectorok;
 - attention deriváció;
 - integráció/config health;
 - minimalizált audit projection;
 - release identity;
+- külön web/backend release identity és `match | mismatch | unknown | error`;
 - részleges hiba és timeout;
 - route/auth/security tesztek.
 
@@ -29,8 +35,15 @@ Implementáld a server-only admin manifestet és a
 
 Használd a
 `docs/architecture/admin-control-center/05-implementation-roadmap-and-contracts.md`
-safe DTO-ját. Minden section külön `ok | degraded | unavailable | unknown`
+safe DTO-ját. A canonical manifest a `lib/superadmin/manifest.ts`, a DTO és safe
+backward-compatible normalizálás a `lib/superadmin/control-center.ts`. Minden
+section külön `healthy | attention | degraded | unavailable`
 állapotot ad. A részleges hiba nem dobhatja el a sibling eredményeket.
+
+A collectorok explicit timeouttal és poolkímélő concurrency limittel futnak. A
+KPI DTO `freshnessState` és `collectorState`, az attention DTO determinisztikus
+`kind/state/time/owner/source`, az integráció DTO runtime/freshness/latency/probe,
+az audit DTO explicit outcome/target/support/recovery mezőt ad.
 
 ## Biztonság
 

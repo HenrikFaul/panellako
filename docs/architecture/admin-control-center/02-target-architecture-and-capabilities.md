@@ -55,50 +55,67 @@ engedélyezett =
 
 A kliensoldali tab- vagy gombrejtés nem authorization kontroll.
 
-## 3. Javasolt platform capability katalógus
+## 3. v0.10.8 platform capability katalógus
 
-| Capability | Scope | Kockázat | v1 |
-|---|---|---:|---:|
-| `platform.overview.read` | platform | alacsony | igen |
-| `platform.health.read` | platform | alacsony | igen |
-| `platform.release.read` | platform | alacsony | igen |
-| `platform.integrations.read` | platform | alacsony | igen |
-| `platform.audit.read` | platform | közepes | igen |
-| `platform.users.read` | platform | közepes | meglévő |
-| `platform.users.manage` | platform | magas | meglévő, hardeninggel |
-| `platform.features.read` | platform | alacsony | meglévő |
-| `platform.features.manage` | platform | magas | meglévő, auditált |
-| `platform.communities.review` | platform/workspace | magas | meglévő |
-| `platform.jobs.read` | platform | alacsony | meglévő |
-| `platform.jobs.run` | platform | magas | meglévő, későbbi command kapu |
-| `platform.integrations.test` | platform | közepes/magas | korlátozott |
-| `platform.settings.manage` | platform | magas | meglévő, allowlisttel |
-| `platform.support.request` | workspace/agency | magas | később |
-| `platform.support.approve` | platform | kritikus | később |
-| `platform.audit.export` | platform | magas | később |
-| `platform.release.attest` | platform | kritikus | később |
+| Capability | Scope | DB risk class | v0.10.8 állapot |
+|---|---|---:|---|
+| `platform.overview.read` | platform | R0 | named read |
+| `platform.health.read` | platform | R0 | named read |
+| `platform.release.read` | platform | R0 | named read |
+| `platform.integrations.read` | platform | R0 | named read, bounded preset diagnostics |
+| `platform.audit.read` | platform | R1 | named, minimalizált read |
+| `platform.users.read_masked` | platform | R1 | bounded, maszkolt read |
+| `platform.users.manage_trial` | platform | R3 | AAL2 + authenticated RPC |
+| `platform.features.read` | platform | R0 | named read |
+| `platform.features.manage` | platform | R3 | AAL2 + authenticated RPC |
+| `platform.communities.read` | platform | R0 | seedelt read capability; a jelenlegi community route a szigorúbb `platform.communities.review` capabilityt kéri |
+| `platform.communities.review` | platform/workspace | R3 | AAL2 + authenticated atomic RPC |
+| `platform.jobs.read` | platform | R0 | named read |
+| `platform.jobs.run` | platform | R2 | AAL2 + command v2 |
+| `platform.settings.read` | platform | R0 | named read |
+| `platform.settings.manage` | platform | R2 | AAL2 + authenticated RPC |
+| `platform.migrations.read` | platform | R0 | named read |
+| `platform.migrations.apply` | platform | R4 | AAL2 + exact-payload four-eyes approval |
+| `platform.operators.manage` | platform | R4 | AAL2 + exact-payload four-eyes approval |
+| `platform.approvals.decide` | platform | R3 | AAL2, self-approval deny |
+| `platform.support.request` | workspace/agency | R3 | scoped lifecycle |
+| `platform.support.approve` | platform | R3 | külön approver + AAL2 |
+| `platform.support.revoke` | workspace/agency | R3 | idempotens revoke |
+| `platform.release.attest` | platform | R4 | AAL2 + exact-payload four-eyes approval |
 
-## 4. Operátori szerepek célmodellje
+## 4. Operátori szerepek v0.10.8 seedmodellje
 
 | Szerep | Tipikus capability | Nem kapja meg automatikusan |
 |---|---|---|
-| `PLATFORM_OBSERVER` | overview, health, release | PII, mutáció |
-| `SUPPORT_OPERATOR` | observer + maszkolt userkeresés + support request | közvetlen tenantírás |
+| `PLATFORM_OBSERVER` | overview, health, release, integrations, settings/features/community/migration read | PII, mutáció |
+| `SUPPORT_OPERATOR` | overview read, maszkolt userkeresés, support request/revoke | az observer többi read capabilityje és közvetlen tenantírás |
 | `COMMUNITY_REVIEWER` | közösségi kérelmek kezelése | feature/billing/job admin |
 | `INTEGRATION_OPERATOR` | integráció- és jobállapot, engedélyezett futtatás | user/tenant tartalom |
-| `SECURITY_OPERATOR` | audit, incidens és approval | üzleti tartalom kezelése |
+| `SECURITY_OPERATOR` | overview/audit/migration read, operator-, approval-, support- és release-governance | üzleti tartalom kezelése |
 | `PLATFORM_ADMIN` | teljes katalógus, kockázati kapukkal | kapuk megkerülése |
 
-A v1 a meglévő superadmin sessiont használja kompatibilitási adapterként, de a
-szerveroldali manifest már konkrét capabilityhez köti az egyes modulokat. Ez
-előkészíti a névre szóló operátori identity későbbi bevezetését.
+A v0.10.8 névre szóló Supabase Auth profilt és időben érvényes operátori
+assignmentet használ. A szerveroldali authority a DB-ből kapott role/capability
+contextet ellenőrzi. A meglévő HMAC superadmin session kizárólag átmeneti,
+read-only break-glass adapter: mutációt, AAL2-t vagy approvalt nem helyettesít.
+
+A táblázat a v0.10.8 aktív, seedelt capabilityket és a tényleges route-határt
+együtt mutatja; a seed önmagában nem jelent végrehajtási jogot. A closure során
+a route nélküli `platform.users.manage` seed és a nem seedelt
+`platform.integrations.test` TypeScript-union érték eltávolításra került. A
+későbbi `platform.audit.export` nem v0.10.8 aktív capability. Így a release-ben
+maradt manifest/migráció/route capability-katalógus zárt, a route pedig továbbra
+is külön server-side authorityt ellenőriz.
 
 ## 5. Modularchitektúra
 
 ```mermaid
 flowchart LR
     UI[/superadmin shell] --> API[/api/superadmin/control-center]
-    API --> AUTH[Superadmin auth adapter]
+    UI --> GOV[/api/superadmin/governance]
+    API --> AUTH[Named operator authority]
+    GOV --> AUTH
+    AUTH --> BREAK[Read-only break-glass adapter]
     API --> MANIFEST[Typed admin manifest]
     API --> KPI[KPI collectors]
     API --> HEALTH[Integration health collectors]
@@ -114,7 +131,7 @@ flowchart LR
 
 ### Typed admin manifest
 
-Egyetlen szerveroldali katalógus írja le:
+A `lib/superadmin/manifest.ts` egyetlen server-only katalógusban írja le:
 
 - modulazonosító, cím i18n-kulcs és kategória;
 - szükséges capability és scope;
@@ -125,6 +142,10 @@ Egyetlen szerveroldali katalógus írja le:
 - támogatott állapotok;
 - biztonságos deep link;
 - contract schema version és determinisztikus fingerprint.
+
+A `lib/superadmin/control-center.ts` a publikus DTO-t és a backward-compatible,
+fail-closed normalizálást tartalmazza; a collectorok nem tarthatnak fenn második,
+eltérő modul-/integráció-/job-katalógust.
 
 ### Collector szabály
 
@@ -157,7 +178,11 @@ Az összesített oldal `overallStatus` értéke a legsúlyosabb kötelező rész
 
 - Platform KPI csak aggregált számot ad, nem kever tenantlistát a dashboardba.
 - Workspace drill-down előtt a cél scope explicit kiválasztása szükséges.
-- Egy request pontosan egy aktív workspace/agency support scope-pal futhat.
+- Egy support authorization pontosan egy aktív workspace vagy agency scope-ra,
+  allowlisted capabilityre és access mode-ra érvényes.
 - Scope-váltás törli a kliens cache-ét és invalidálja a függőben lévő válaszokat.
 - Cross-tenant export nem része a v1-nek.
 - A workspace-admin jelenlegi capability és RLS logikája változatlan marad.
+- A v0.10.8 az authorization primitive-et és governance lifecycle-t szállítja;
+  általános tenantadatot olvasó/író support-action consumer még nincs lezárva,
+  ezért support sessionből nem következik automatikus tenant-hozzáférés.

@@ -1,17 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
+import { NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { adminJson } from '@/lib/superadmin/http';
+import { requirePlatformRead } from '@/lib/superadmin/operator-authority';
 
 export const dynamic = 'force-dynamic';
 
 const SENSITIVE_FIELD = /(authorization|cookie|secret|token|password|credential|api[_-]?key|recipient|email|phone|command|sql|error|message|detail)/i;
-
-function json(body: Record<string, unknown>, status = 200) {
-  return NextResponse.json(body, {
-    status,
-    headers: { 'Cache-Control': 'private, no-store' },
-  });
-}
 
 function safeResult(value: unknown, depth = 0): unknown {
   if (depth > 4) return '[truncated]';
@@ -31,18 +25,17 @@ function safeResult(value: unknown, depth = 0): unknown {
 }
 
 export async function GET(request: NextRequest) {
-  if (!(await isSuperadminAuthenticated())) {
-    return json({ error: 'UNAUTHORIZED' }, 401);
-  }
+  const authority = await requirePlatformRead('platform.jobs.read');
+  if (!authority.ok) return adminJson({ error: authority.errorCode }, authority.status);
 
   const requestedLimit = Number(request.nextUrl.searchParams.get('limit') ?? '30');
   if (!Number.isSafeInteger(requestedLimit) || requestedLimit < 1) {
-    return json({ error: 'INVALID_LIMIT' }, 400);
+    return adminJson({ error: 'INVALID_LIMIT' }, 400);
   }
   const limit = Math.min(requestedLimit, 100);
   const rawJobId = request.nextUrl.searchParams.get('job')?.trim();
   if (rawJobId && !/^[a-z0-9_-]{1,80}$/i.test(rawJobId)) {
-    return json({ error: 'INVALID_JOB' }, 400);
+    return adminJson({ error: 'INVALID_JOB' }, 400);
   }
 
   try {
@@ -56,14 +49,14 @@ export async function GET(request: NextRequest) {
     if (rawJobId) query = query.eq('job_id', rawJobId);
 
     const { data, error } = await query;
-    if (error) return json({ error: 'JOB_LOGS_UNAVAILABLE' }, 503);
+    if (error) return adminJson({ error: 'JOB_LOGS_UNAVAILABLE' }, 503);
     const logs = (data ?? []).map(row => ({
       ...row,
       triggered_by: row.triggered_by ? 'operator' : 'system',
       result: safeResult(row.result),
     }));
-    return json({ logs });
+    return adminJson({ logs });
   } catch {
-    return json({ error: 'JOB_LOGS_UNAVAILABLE' }, 503);
+    return adminJson({ error: 'JOB_LOGS_UNAVAILABLE' }, 503);
   }
 }

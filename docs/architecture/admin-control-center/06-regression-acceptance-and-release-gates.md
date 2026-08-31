@@ -4,11 +4,12 @@
 
 | Terület | Megőrzendő működés | v1 bizonyítás |
 |---|---|---|
-| Auth | `/superadmin/login`, session cookie, logout | auth route/unit teszt |
+| Auth/authority | Supabase operator context, bootstrap, read-only break-glass, logout | authority route/unit + DB canary |
 | Overview legacy | settings, stats, health, job napló | karakterizáció + integráció |
-| Users | listázás és meglévő admin akciók | komponens/API teszt |
-| Features | feature list és módosítás | komponens/API + audit teszt |
-| Community requests | listázás és review lifecycle | meglévő teszt + negatív scope |
+| Users | maszkolt/bounded listázás és próbaidő módosítás | komponens/API + authenticated RPC teszt |
+| Features | feature list és módosítás | komponens/API + authenticated RPC/audit teszt |
+| Community requests | listázás, review és duplicate-resolution lifecycle | named read + authenticated AAL2/digest/receipt RPC teszt |
+| Governance | role/assignment, approval, support session és release attestation | route/UI + DB state-machine canary |
 | Jobs | összes jelenlegi job indítható, ismételt/kollidáló futás fail-closed | manifest teljesség + route/state-machine teszt |
 | OSM import | komponens és API elérhető | render/wiring teszt |
 | GTFS import | komponens és API elérhető, post-chain részhiba nem lesz hamis siker, batch guard megmarad | render/wiring + kétlépéses hiba + route contract teszt |
@@ -29,6 +30,13 @@
    cookie vagy provider stack trace.
 5. Az admin response `Cache-Control: no-store`.
 6. Mutáció same-origin és bounded JSON kapu nélkül nem futhat.
+7. Read csak named capabilityvel vagy read-only legacy break-glass módban
+   engedhető; mutation kizárólag named operátornak, konkrét capabilityvel és
+   AAL2-vel.
+8. A végleges trial/feature/setting RPC authenticated user sessionnel fut, és
+   DB-ben is újraellenőrzi a capabilityt és maximum 15 perces AAL2-t.
+9. Break-glass, kliens által küldött actor/capability, vagy service-role direct
+   trial/feature/setting write nem adhat sikeres operátori receiptet.
 
 ### Partial failure
 
@@ -60,6 +68,9 @@
    üres tér vagy túl széles sor.
 9. Billentyűzettel elérhető minden tab és akció; focus látható.
 10. Státusz nem csak színnel kommunikált; AA kontraszt igazolt.
+11. Authority, users, features és governance felület loading/error/retry,
+    reason és MFA step-up állapotot ad; session-stabil idempotencyt csak az azt
+    fogadó szerződésnél kér. No-op vagy hiba nem jelenhet meg hamis sikerként.
 
 ## 4. Biztonsági negatív tesztek
 
@@ -85,6 +96,25 @@
   fölötti batch, hibás mező és hiányzó idempotency key esetén nem ír adatot;
 - a GTFS globális lock egyetlen batchre vonatkozik; a teszt és a dokumentáció
   sem állít teljes fájl-lockot vagy fájlszintű atomi importot.
+- legacy break-glass mutation minden hardeningolt route-on deny;
+- hiányzó capability és AAL1 stabil deny/`MFA_STEP_UP_REQUIRED` választ ad;
+- first-operator bootstrap második futása, nem konfigurált profil vagy már létező
+  assignment mellett deny;
+- approval self-decision, expired/stale/digest-mismatch és más actionre történő
+  consumption deny; exact retry ugyanazt a receiptet adja;
+- operator assignment overlap, self-revoke és utolsó aktív platformadmin revoke
+  deny;
+- support self-approval, scope mismatch, lejárt/revoked session access és
+  terminális reaktiválás deny; maximum TTL 60 perc;
+- release attestation exact approval nélkül vagy eltérő artifact/manifest/
+  migration payload mellett deny;
+- trial/feature/setting direct write guard deny, azonos payload retry replay,
+  eltérő payload ugyanazzal a keyjel conflict és no-op stabil eredmény;
+- community review/duplicate-resolution self-review, stale state, invalid
+  evidence, digest mismatch és same-key/different-payload deny; exact retry nem
+  duplikál state change-et vagy auditot;
+- audit/support-event/release-attestation UPDATE/DELETE triggerrel tiltott; az
+  operációs `service_role` auditjoga csak SELECT/INSERT.
 
 ## 5. Kiadási bizonyítékszintek
 
@@ -128,6 +158,21 @@ Egy alacsonyabb szint PASS-a nem nevezhető magasabb szint bizonyítékának.
   UPDATE/DELETE/TRUNCATE tiltott;
 - két-tenant izoláció;
 - fixture cleanup exact nulla maradvánnyal.
+- `20260830140000_platform_operator_authority.sql` forward apply + teljes
+  reapply PostgreSQL 18-on;
+- role/capability seed, context, AAL2, receipt/quota, approval, assignment,
+  support lifecycle, release attestation és trial/feature/setting RPC runtime
+  canary;
+- a rollback-only runtime canary kétszer egymás után is ugyanazzal az eredménnyel
+  fut, fixture-maradvány nélkül.
+- a 20 fájlos `20260830140000_platform-admin-release.sha256` byte-pontos
+  manifestje, range/count ellenőrzése, folytonos pending suffix és clean
+  post-deploy contract; a `140000` fölötti local/remote head fail-closed;
+- production verifier read-back a release 88/88 public function nevére és
+  `prokind` értékére, a kritikus `130000` command/`140000` authority RPC-k exact
+  signature-jére, pozitív/negatív `authenticated`/`service_role`/`anon` grantokra,
+  release-kritikus public/private táblákra, kijelölt capability-seed párokra és
+  private-helper privilege lockra.
 
 ### Browser
 
@@ -160,27 +205,34 @@ hosted kiadási identity a várt commitot mutatja.
 ### Rollback
 
 Az új overview feature flaggel vagy route-level fallbackkel kivezethető úgy,
-hogy a legacy tabok és modulok megmaradnak. A v0.10.7 command/audit migrációja
-forward-only: audit/history vagy command rekord nem törölhető rollback címén,
-és sémahiba csak újabb forward-fix migrációval javítható. A globális lock
-feloldását nem kézi rekordtörlés, hanem a tranzakciós completion vagy a
-legfeljebb 15 perces lease-expiry végzi.
+hogy a legacy tabok és modulok megmaradnak. A v0.10.7 command/audit és a v0.10.8
+operator-authority migráció forward-only: audit/history, assignment, approval,
+support-event, attestation vagy command rekord nem törölhető rollback címén, és
+sémahiba csak újabb forward-fix migrációval javítható. A globális lock feloldását
+nem kézi rekordtörlés, hanem a tranzakciós completion vagy a legfeljebb 15 perces
+lease-expiry végzi. Production migráció hiányában az alkalmazás csak read-only
+break-glass/limited módot mutathat; nem eshet vissza közvetlen legacy írásra.
 
 ## 8. Aktuális bizonyítási pillanatkép
 
 | Kapu | Állapot |
 |---|---|
-| Célzott admin command/GTFS Vitest | **PASS — 7 fájl / 36 teszt** |
+| Fókuszált settings/community/migration/command/users/features/control-center Vitest | **PASS — 45/45 teszt** |
 | TypeScript (`npx tsc --noEmit`) | **PASS** |
-| Izolált PostgreSQL 18.4 migration + command state machine + kétszeres reapply | **PASS — v2 replay/conflict/lock/log/audit-grant canary** |
-| Teljes Vitest | **PASS — 73 fájl / 478 teszt** |
-| ESLint | **PASS — 0 warning, 0 error** |
-| Production build | **PASS — 73/73 statikus oldal** |
-| `git diff --check` és tiltott admin UI-copy scan | **PASS** |
-| Végleges hitelesített browser QA | **NOT_RUN / HOLD** — az in-app Browser webview nem tudott csatlakozni |
+| Operator-authority statikus migrációs suite | **PASS — 17/17 teszt** |
+| Izolált PostgreSQL 18 v0.10.8 authority migration első apply + teljes reapply | **PASS** |
+| Rollback-only operator/approval/support/attestation/community mutation runtime canary | **PASS — 2/2 egymást követő futás** |
+| 20 fájlos migration-release manifest és friss workflow contract | **PASS — 8/8 célzott release teszt; authority SHA-256 `45B00B09…ED2C99`** |
+| v0.10.8 teljes Vitest | **PASS — 88 tesztfájl / 577 teszt, 69,78 s** |
+| v0.10.8 ESLint | **PASS — 0 warning, 0 error** |
+| v0.10.8 production build | **PASS — 73/73 statikus oldal** |
+| v0.10.8 új admin UI-copy scan | **PASS** |
+| Lokális auth-határ HTTP-smoke | **PASS — 307 / 200 / 401 / 401** |
+| Végleges hitelesített browser QA | **NOT_RUN / HOLD — webview attach hiba, Chrome-kapcsolat nem elérhető** |
 | Hosted admin smoke és release identity | **NOT_RUN / HOLD** |
-| Production Supabase migráció | **NOT_RUN / HOLD** |
+| Production Supabase `20260830130000` + `20260830140000` migráció | **NOT_RUN / HOLD** |
 | Production deploy és alias | **NOT_RUN / HOLD** |
+| v0.10.8 commit és push | **NOT_RUN** |
 
 ## 9. Definition of Done
 
@@ -190,5 +242,5 @@ legfeljebb 15 perces lease-expiry végzi.
 - HU/EN és accessibility kapu PASS;
 - release identity fail-visible;
 - changelog, versioning, marketing value és coding lesson frissítve;
-- commit és push a megfelelő `codex/` feature branchre;
+- publication esetén commit és push a megfelelő `codex/` feature branchre;
 - production állítás csak külön production bizonyítékkal.

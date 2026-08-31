@@ -12,8 +12,8 @@ diagnosztika és settings funkciók megmaradnak.
 1. `AGENTS.md`
 2. `.governance/controller.md`
 3. `.governance/agent_execution_rules.md`
-4. `.governance/codingLessonsLearnt.md` helyett a repository gyökerében lévő
-   `codingLessonsLearnt.md`
+4. `.governance/codingLessonsLearnt.md`, majd szükség esetén a repository
+   gyökerében lévő történeti `codingLessonsLearnt.md`
 5. `.governance/ui_ux_rules.md`
 6. `.governance/roles_permissions.md`
 7. `CHANGELOG.md` és a legfrissebb versioning artefaktum
@@ -38,11 +38,16 @@ CodeGraph-indexelt repositoryban minden kódfeltárás CodeGraph-pal indul.
 - Privilegizált admin adatlekérés soha nem eshet vissza anon kulcsra.
 - Secret érték, prefix, suffix, hossz, token, cookie és raw provider/DB hiba nem
   kerülhet böngésző DTO-ba vagy UI-ba.
-- Minden új vagy ebben a körben módosított admin mutáció szerveroldali
-  auth/capability rechecket és auditot kap. Ez nem állítás az összes érintetlen
+- A v0.10.8-ban hardeningolt users trial, feature, settings, community review,
+  job, migration, GTFS batch és governance mutation route szerveroldali named
+  auth/capability kaput kap. A végleges trial/feature/setting és governance RPC
+  authenticated sessionnel újraellenőriz. Ez nem állítás az összes érintetlen
   legacy route kész hardeningjéről.
-- Magas kockázatú művelethez AAL2, indok, idempotencia; kritikus művelethez
-  külön jóváhagyás is kell.
+- Magas kockázatú művelethez AAL2 és indok; durable request/execute/revoke
+  parancshoz idempotencia; kritikus művelethez külön jóváhagyás is kell. Az
+  approval- és support-döntés row-lockkal védett single-decision DB-átmenet,
+  külön idempotency key nélkül, terminális ismétléskor quota-fogyasztás nélküli
+  determinisztikus already-decided válasszal.
 - A platformauditnak nincs clear/edit/delete kliens- vagy API-funkciója; a
   command v2 sémában a `service_role` is csak SELECT/INSERT jogot kap, az
   UPDATE/DELETE/TRUNCATE visszavont.
@@ -52,6 +57,10 @@ CodeGraph-indexelt repositoryban minden kódfeltárás CodeGraph-pal indul.
 - A GTFS import globális lockja egy legfeljebb 500 soros batchre vonatkozik,
   nem teljes fájlra. Fájl-szintű atomikusságot külön bizonyíték nélkül tilos
   állítani.
+- Production DB release csak a végleges 20 fájlos, byte-pontos
+  `20260830140000_platform-admin-release.sha256` manifest, folytonos pending
+  suffix, clean post-deploy state és public/private authority verifier PASS után
+  állítható. A manifestet a final migration hash előtt tilos késznek nevezni.
 - Minden új user-facing string HU és EN resource key.
 - User tabváltás push state, system auth redirect replace.
 - Daylight design, WCAG AA, 375 és 1440 px ellenőrzés.
@@ -61,6 +70,13 @@ CodeGraph-indexelt repositoryban minden kódfeltárás CodeGraph-pal indul.
 
 ## v1 határ
 
-A prompt 01–04 és 06 adja a v1-et. A prompt 05 célarchitektúra és csak akkor
-implementálható, ha névre szóló operator identity, AAL2 és adatbázis authority
-rendelkezésre áll.
+A prompt 01–06 repository-szintű v0.10.8 implementációja elkészült. A prompt 05
+named operator, AAL2, approval, support lifecycle és release-attestation plane-je
+a `20260830140000_platform_operator_authority.sql` forward migrációban és a
+governance UI/API-ban megvalósult. Az általános tenant support-action consumer,
+audit export, worker/outbox, külső IdP/session-risk policy és tenantoldali support
+banner későbbi enterprise scope.
+
+A production Supabase migráció, hitelesített hosted két-operátoros/four-eyes
+canary, browser QA és deploy továbbra is **NOT_RUN / HOLD**; a lokális migrációs
+és tesztbizonyíték nem helyettesíti ezeket.

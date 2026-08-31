@@ -18,18 +18,28 @@ felületi elérhetőség változatlan maradjon.
 9. diagnosztika/import SSRF, timeout és response-size korlát;
 10. migration futtatás elkülönítése magas kockázatú legacy funkcióként.
 
-## v0.10.7 bizonyított hardening-scope
+## v0.10.8 bizonyított hardening-scope
 
 Késznek csak az alábbi célzott szelet nevezhető:
 
+- `PATCH /api/superadmin/users/:id`;
+- `PATCH /api/superadmin/features/:id`;
 - `PATCH /api/superadmin/settings`;
+- `PATCH|POST /api/superadmin/community-requests` authenticated atomic review/
+  duplicate-resolution RPC;
 - `POST /api/superadmin/jobs/run`;
 - `POST /api/superadmin/apply-migrations`;
-- `POST /api/superadmin/gtfs/import`, kizárólag batch-szinten.
+- `POST /api/superadmin/gtfs/import`, kizárólag batch-szinten;
+- `POST /api/superadmin/governance/action`.
 
-Ez nem általános állítás minden korábbi users/features/community/import/
-diagnostics mutáció hardeningjéről. Az érintetlen legacy route-okat külön kell
-feltárni, módosítani és bizonyítani.
+Named read capabilityt kapott a control-center, audit, health, stats, settings,
+job log, users, features, community requests, OSM count és a konkrét
+`diagnostics/curl` preset route. A diagnostics route csak fix allowlisted célokat,
+timeoutot, redirect/SSRF- és response-size korlátot használ.
+
+Ez nem általános állítás minden korábbi community/import/diagnostics vagy más
+legacy admin route hardeningjéről. Az érintetlen route-okat külön kell feltárni,
+módosítani és bizonyítani.
 
 ## Audit
 
@@ -37,6 +47,9 @@ feltárni, módosítani és bizonyítani.
 - A command v2 migráció a `service_role` számára is csak `SELECT` és `INSERT`
   auditjogot enged, az `UPDATE`, `DELETE` és `TRUNCATE` jogot visszavonja.
   Ez nem abszolút immutabilitási állítás DB-owner/superuser ellen.
+- A v0.10.8 append-only triggerrel is tiltja az audit-, support-event- és
+  release-attestation sorok UPDATE/DELETE módosítását; a `service_role` az utóbbi
+  két history táblán is csak SELECT/INSERT jogot kap.
 - Actor kizárólag verified sessionből.
 - Target és scope szerveroldalon feloldva.
 - Reason és idempotency key kötelező, ahol releváns.
@@ -83,9 +96,13 @@ visszaolvasható állapotot mutat.
 
 ## AAL2 határ
 
-Ha a jelenlegi env-backed session nem tud AAL2-t bizonyítani, új R2/R3 commandot
-ne tegyél élesben elérhetővé. Dokumentáld HOLD-ként; a meglévő akciót csak a
-felhasználó által kért kompatibilitási határig tartsd meg.
+A legacy env-backed/HMAC session kizárólag read-only break-glass. A v0.10.8
+mutation route named Supabase operátort, konkrét capabilityt és AAL2-t követel;
+a protected authenticated DB-RPC maximum 15 perces friss AAL2-t újraellenőriz.
+Az operátori grant/revoke, migration apply és release attestation exact-payload
+four-eyes approval nélkül nem hajtható végre. A user trial, feature és setting
+RPC AAL2/capability/reason/idempotency + atomi audit kaput használ, de nem
+állítható rá four-eyes approval.
 
 ## Tesztek
 

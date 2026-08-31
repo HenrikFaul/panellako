@@ -1,26 +1,16 @@
-import { NextResponse } from 'next/server';
-import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { adminJson } from '@/lib/superadmin/http';
+import { requirePlatformRead } from '@/lib/superadmin/operator-authority';
 
 export const dynamic = 'force-dynamic';
-
-const PRIVATE_NO_STORE = 'private, no-store';
-
-function json(body: Record<string, unknown>, status = 200) {
-  return NextResponse.json(body, {
-    status,
-    headers: { 'Cache-Control': PRIVATE_NO_STORE },
-  });
-}
 
 function configured(value: string | undefined): { set: boolean } {
   return { set: Boolean(value?.trim()) };
 }
 
 export async function GET() {
-  if (!(await isSuperadminAuthenticated())) {
-    return json({ error: 'UNAUTHORIZED' }, 401);
-  }
+  const authority = await requirePlatformRead('platform.health.read');
+  if (!authority.ok) return adminJson({ error: authority.errorCode }, authority.status);
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
@@ -49,7 +39,7 @@ export async function GET() {
       .from('buildings')
       .select('*', { count: 'exact', head: true });
 
-    return json({
+    return adminJson({
       envVars,
       keyAnalysis,
       supabaseTests: [{
@@ -60,6 +50,6 @@ export async function GET() {
       checkedAt: new Date().toISOString(),
     });
   } catch {
-    return json({ error: 'HEALTH_UNAVAILABLE' }, 503);
+    return adminJson({ error: 'HEALTH_UNAVAILABLE' }, 503);
   }
 }

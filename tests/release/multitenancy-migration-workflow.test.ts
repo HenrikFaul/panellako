@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 const workflow = readFileSync('.github/workflows/db-migrate.yml', 'utf8');
 const verifier = readFileSync('scripts/verify-production-multitenancy.sh', 'utf8');
 const validator = readFileSync('scripts/validate-migration-release.mjs', 'utf8');
-const manifestPath = '.github/migration-manifests/20260830120000_multitenancy-release.sha256';
+const manifestPath = '.github/migration-manifests/20260830140000_platform-admin-release.sha256';
 const manifestLines = readFileSync(manifestPath, 'utf8').trim().split(/\r?\n/);
 const manifestEntries = manifestLines.map((line) => {
   const match = /^([0-9a-f]{64}) \*(supabase\/migrations\/(\d{14})_.+\.sql)$/.exec(line);
@@ -39,10 +39,10 @@ function writeFixture(name: string, value: unknown) {
 }
 
 describe('production migration release workflow contract', () => {
-  it('pins the exact 18-file release manifest to the current migration bytes', () => {
-    expect(manifestEntries).toHaveLength(18);
+  it('pins the exact 20-file release manifest to the current migration bytes', () => {
+    expect(manifestEntries).toHaveLength(20);
     expect(manifestEntries[0]?.version).toBe('20260828120000');
-    expect(manifestEntries.at(-1)?.version).toBe('20260830120000');
+    expect(manifestEntries.at(-1)?.version).toBe('20260830140000');
     for (const entry of manifestEntries) {
       const actual = createHash('sha256').update(readFileSync(entry.path)).digest('hex');
       expect(actual, entry.path).toBe(entry.hash);
@@ -67,6 +67,22 @@ describe('production migration release workflow contract', () => {
     expect(workflow).toContain('actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6');
     expect(workflow).toMatch(/supabase@2\.116\.0 link \\\n\s+--project-ref "\$\{PANELLAKO_PROJECT_REF\}" \\\n\s+--password "\$\{SUPABASE_DB_PASSWORD\}"/);
     expect(workflow.indexOf('supabase@2.116.0 link')).toBeLessThan(workflow.indexOf('migration list --linked'));
+  });
+
+  it('read-backs every public function name created by the immutable release', () => {
+    const createdFunctionNames = new Set<string>();
+    for (const entry of manifestEntries) {
+      const sql = readFileSync(entry.path, 'utf8');
+      for (const match of sql.matchAll(/^\s*create\s+(?:or\s+replace\s+)?function\s+public\.([a-zA-Z0-9_]+)\s*\(/gim)) {
+        createdFunctionNames.add(match[1]);
+      }
+    }
+
+    expect(createdFunctionNames.size).toBe(88);
+    const missingFromVerifier = [...createdFunctionNames]
+      .filter(name => !new RegExp(`\\('${name}',\\s*'\\d{14}'\\)`).test(verifier))
+      .sort();
+    expect(missingFromVerifier).toEqual([]);
   });
 
   it('uses only pinned ledger-aware CLI deployment with machine-readable pre/post evidence', () => {
@@ -169,6 +185,17 @@ describe('production migration release workflow contract', () => {
       'state', '--manifest', manifestPath, '--migration-list', malformedList,
       '--dry-run', cleanDryRun, '--expect', 'clean',
     ])).toThrow(/malformed version/);
+
+    const laterAppliedMigration = writeFixture('later-applied.json', {
+      migrations: [
+        ...manifestEntries.map((entry) => ({ local: entry.version, remote: entry.version, time: '' })),
+        { local: '20260901000000', remote: '20260901000000', time: '' },
+      ],
+    });
+    expect(() => runValidator([
+      'state', '--manifest', manifestPath, '--migration-list', laterAppliedMigration,
+      '--dry-run', cleanDryRun, '--expect', 'clean',
+    ])).toThrow(/exceeds the immutable release head/);
   });
 
   it('keeps raw Management API SQL read-only and isolated to the verifier', () => {
@@ -180,8 +207,8 @@ describe('production migration release workflow contract', () => {
     expect(verifier).not.toContain('jq .');
   });
 
-  it('extends the progressive 1200-1500 verifier through the address registry closure', () => {
-    expect(verifier).toContain('EXPECTED_MIGRATION_VERSION="${EXPECTED_MIGRATION_VERSION:-20260830120000}"');
+  it('extends the progressive verifier through the platform authority closure', () => {
+    expect(verifier).toContain('EXPECTED_MIGRATION_VERSION="${EXPECTED_MIGRATION_VERSION:-20260830140000}"');
     for (const contract of [
       'workspace_person_relationship_commands',
       'unit_relationship_status_events',
@@ -200,13 +227,43 @@ describe('production migration release workflow contract', () => {
       'consume_community_request_quota',
       'upsert_user_reference_address_v2',
       'create_community_creation_request_v2',
+      'platform_job_commands',
+      'platform_operator_roles',
+      'platform_operator_action_receipts',
+      'get_platform_operator_context',
+      'create_platform_command_approval',
+      'authorize_platform_action',
+      'update_platform_user_trial',
+      'update_platform_feature',
+      'update_platform_setting',
+      'resolve_platform_community_address_candidate',
+      'review_platform_community_creation_request',
     ]) expect(verifier).toContain(contract);
-    expect(verifier).toContain("('20260830120000')");
+    expect(verifier).toContain("('20260830140000')");
     expect(verifier).toContain('address_command_privileges_ok');
     expect(verifier).toContain("has_function_privilege('anon', commands.legacy_community_request, 'EXECUTE')");
     expect(verifier).toContain("has_function_privilege('authenticated', commands.community_request_v2, 'EXECUTE')");
     expect(verifier).toContain("has_function_privilege('service_role', commands.community_request_v2, 'EXECUTE')");
     expect(verifier).toContain('prevent_untrusted_reference_registry_provenance');
     expect(verifier).toContain('prevent_community_address_snapshot_change');
+    expect(verifier).toContain('platform_authority_contract_ok');
+    expect(verifier).toContain('platform_private_helpers_locked_ok');
+    expect(verifier).toContain('platform_command_privileges_ok');
+    expect(verifier).toContain('platform_authority_rpc_contract');
+    expect(verifier).toContain("WHEN 'authenticated' THEN");
+    expect(verifier).toContain("WHEN 'service_role' THEN");
+    expect(verifier).toContain("has_function_privilege('authenticated', p.oid, 'EXECUTE')");
+    expect(verifier).toContain("has_function_privilege('service_role', p.oid, 'EXECUTE')");
+    expect(verifier).toContain("NOT has_function_privilege('anon', p.oid, 'EXECUTE')");
+    expect(verifier).toContain("capability_key = 'platform.features.read'");
+    expect(verifier).toContain("capability_key = 'platform.users.read_masked'");
+    expect(verifier).toContain("p.prokind = 'f'");
+    for (const contract of [
+      'activate_approved_community_creation_request',
+      'accept_workspace_staff_invitation',
+      'cast_vote',
+      'replace_document_audience',
+      'review_community_creation_request',
+    ]) expect(verifier).toContain(contract);
   });
 });

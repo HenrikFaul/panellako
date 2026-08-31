@@ -72,3 +72,78 @@ Minden receipt tesztelje külön az azonos payload replayt és az eltérő paylo
 conflictet. Batch importnál a dokumentáció és a teszt nevezze meg a lock valódi
 határát; batch-lockból tilos fájl-lockot vagy teljes import-atomikusságot
 következtetni.
+
+## ➕ APPEND — 2026-08-30 Named operator authority és admin governance
+
+### [LESSON-ADMIN-123]: A közös admin cookie nem operátori authority
+
+**Context**: A v0.10.7 HMAC superadmin munkamenete megőrizte a legacy funkciók
+elérhetőségét, de közös env-identityként nem bizonyított névre szóló operátort,
+role-t, capabilityt vagy friss MFA-t.
+
+**Problem**: Ha a route a cookie vagy egy elrejtett UI-tab alapján enged mutációt,
+az actor attribution hamis, a capability csak dekoráció, és egy break-glass
+credential állandó platformadmin joggá válik. A route-szintű AAL2 check önmagában
+szintén kevés, mert közvetlen vagy eltérő kliens megkerülheti.
+
+**Fix**: A primary authority Supabase Auth profilhoz kötött, időben érvényes
+operator assignmentből és role → capability katalógusból származik. A legacy
+HMAC session kizárólag read-only break-glass. Mutation előtt a route named
+capabilityt és AAL2-t kér. A trial/feature/setting/community és app-facing
+governance RPC a saját DB-s authority-szerződését és maximum 15 perces friss
+AAL2-t újraellenőrzi; a job/GTFS és post-approval migration út a v0.10.7
+service-role command plane-re lép tovább. A bootstrap csak üres registry,
+verified konfigurált profil és service-role RPC mellett nyitható.
+
+**Prevention**: Minden új admin route tesztelje külön a no-session, break-glass,
+hiányzó capability, AAL1 és AAL2 ágakat. UI-gombrejtés, env-email vagy service-
+role direct write soha nem számít authorizationnek. A manifest capability neve,
+route-checkje és migrációs seedje egyetlen closure gate-ben egyezzen.
+
+### [LESSON-ADMIN-124]: Az approval és az idempotencia csak canonical payloadhoz kötve biztonságos
+
+**Context**: Operátori grant/revoke, migration apply és release attestation
+esetén a jóváhagyónak pontosan ugyanazt a műveletet kell engedélyeznie, amelyet a
+kezdeményező később végrehajt.
+
+**Problem**: Csupán actionnévre, célazonosítóra vagy kliens által számított hashre
+támaszkodva a payload az approval után megváltozhat. Új retry-kulcs duplikált
+mellékhatást okozhat, egy receipt pedig eltérő payloadot játszhat vissza. A
+service-role audit UPDATE/DELETE joga és a közvetlen üzleti táblawrite gyengíti
+az elszámoltathatóságot akkor is, ha az API látszólag auditál.
+
+**Fix**: A DB canonical JSON SHA-256 digestet számol, az approval a teljes
+payloadot és digestet tárolja, lejár, egyszer használható, és initiator ≠ approver.
+Végrehajtáskor az authority, AAL2, action, cél, payload és digest újraellenőrződik.
+A trial/feature/setting mutation durable receiptet, payload-conflictet, no-op
+eredményt és atomi auditot ad; közvetlen táblawrite triggerrel tiltott. Az audit,
+support-event és release-attestation append-only triggerrel védett, a
+`service_role` operációs joga csak SELECT/INSERT.
+
+**Prevention**: Minden idempotency-bearing, állapotváltoztató protected RPC
+kapjon exact-retry és same-key/different-payload negatív tesztet. A decision
+RPC-knél row-lock és already-decided viselkedést kell tesztelni. Approvalnál
+külön tesztelendő a self-approval, expiry, digest drift, más action/cél és double
+consume. Az „append-only” állítás mindig
+nevezze meg a kliens/API, GRANT/REVOKE és trigger szintet; DB-owner/superuser
+ellen külön kontroll nélkül ne állítson abszolút immutabilitást.
+
+### [LESSON-ADMIN-125]: A governance lifecycle nem azonos a tenant support végrehajtással
+
+**Context**: A support session sémája, request/approve/revoke folyamata és exact
+scope authorization primitive-je önmagában is jelentős control-plane alap.
+
+**Problem**: Könnyű ebből azt állítani, hogy teljes impersonation vagy minden
+tenant action dual attributionje elkészült, miközben egyetlen domain consumer
+sem használja még a sessiont. Ugyanez a túlállítás jelent meg korábban batch-
+lock és teljes fájl-lock összekeverésekor.
+
+**Fix**: A dokumentáció külön kezeli a governance lifecycle-t, az authorization
+primitive-et és a tényleges tenant consumer integrációt. A v0.10.8 csak az első
+kettőt állítja késznek; általános consumer, tenant banner és hosted két-tenant
+canary HOLD. A GTFS lock továbbra is pontosan egy, legfeljebb 500 soros batchre
+vonatkozik.
+
+**Prevention**: Minden biztonsági claim nevezze meg a route-ot, RPC-t, scope-ot,
+lockhatárt és futtatott bizonyítékszintet. Repository/izolált PostgreSQL PASS nem
+hosted, production vagy tenant-E2E bizonyíték.

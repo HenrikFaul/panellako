@@ -1,14 +1,18 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
+import { createClient as createAuthenticatedClient } from '@/lib/supabase/server';
+import {
+  getDatabasePlatformPayloadDigest,
+  platformAuthorityErrorCode,
+  requirePlatformMutation,
+  requirePlatformRead,
+} from '@/lib/superadmin/operator-authority';
 
 export const dynamic = 'force-dynamic';
 
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 100;
 const MAX_BODY_BYTES = 24 * 1024;
-const REVIEW_RATE_LIMIT = 20;
-const REVIEW_RATE_WINDOW_MS = 60_000;
 
 const REQUEST_STATUSES = new Set([
   'PENDING_VERIFICATION',
@@ -47,13 +51,6 @@ interface ReviewBody {
   duplicateResolution?: unknown;
 }
 
-interface RateEntry {
-  count: number;
-  resetAt: number;
-}
-
-const reviewRateLimits = new Map<string, RateEntry>();
-
 function json(body: Record<string, unknown>, status = 200, headers?: HeadersInit) {
   return NextResponse.json(body, {
     status,
@@ -72,12 +69,7 @@ function serviceClient() {
     throw new Error('Superadmin data service is not configured');
   }
 
-  return createClient(url, serviceKey, { auth: { persistSession: false } });
-}
-
-function normalizedReviewerActor(): string | null {
-  const email = (process.env.SUPERADMIN_EMAIL ?? '').trim().toLowerCase();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+  return createServiceClient(url, serviceKey, { auth: { persistSession: false } });
 }
 
 function isSameOrigin(request: NextRequest): boolean {
@@ -101,30 +93,25 @@ function isSameOrigin(request: NextRequest): boolean {
   }
 }
 
-function rateLimitKey(request: NextRequest, reviewer: string): string {
-  const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return `${reviewer}|${forwardedFor || 'unknown'}`;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function consumeReviewRateLimit(key: string): { allowed: boolean; retryAfter: number } {
-  const now = Date.now();
-  const current = reviewRateLimits.get(key);
-
-  if (!current || current.resetAt <= now) {
-    reviewRateLimits.set(key, { count: 1, resetAt: now + REVIEW_RATE_WINDOW_MS });
-  } else if (current.count >= REVIEW_RATE_LIMIT) {
-    return { allowed: false, retryAfter: Math.max(1, Math.ceil((current.resetAt - now) / 1000)) };
-  } else {
-    current.count += 1;
-  }
-
-  if (reviewRateLimits.size > 250) {
-    for (const [entryKey, entry] of reviewRateLimits) {
-      if (entry.resetAt <= now) reviewRateLimits.delete(entryKey);
-    }
-  }
-
-  return { allowed: true, retryAfter: 0 };
+function mutationErrorStatus(errorCode: string): number {
+  if (errorCode === 'AUTH_REQUIRED') return 401;
+  if (errorCode === 'MFA_STEP_UP_REQUIRED') return 428;
+  if (
+    errorCode === 'PLATFORM_OPERATOR_REQUIRED'
+    || errorCode === 'PLATFORM_OPERATOR_PROFILE_INVALID'
+    || errorCode === 'PLATFORM_CAPABILITY_DENIED'
+  ) return 403;
+  if (errorCode === 'PLATFORM_RATE_LIMITED') return 429;
+  if (
+    errorCode === 'DUPLICATE_RESOLUTION_INVALID'
+    || errorCode === 'COMMUNITY_REVIEW_INPUT_INVALID'
+    || errorCode === 'EVIDENCE_REFERENCE_INVALID'
+  ) return 400;
+  return 409;
 }
 
 function parseLimit(raw: string | null): number | null {
@@ -355,8 +342,9 @@ function parseDuplicateResolutionBody(value: unknown):
 }
 
 export async function GET(request: NextRequest) {
-  if (!(await isSuperadminAuthenticated())) {
-    return json({ error: 'Unauthorized' }, 401);
+  const authority = await requirePlatformRead('platform.communities.read');
+  if (!authority.ok) {
+    return json({ error: authority.errorCode }, authority.status);
   }
 
   const candidateFor = request.nextUrl.searchParams.get('candidate_for')?.trim().toLowerCase() ?? '';
@@ -403,25 +391,15 @@ export async function GET(request: NextRequest) {
 }
 
 async function review(request: NextRequest) {
-  if (!(await isSuperadminAuthenticated())) {
-    return json({ error: 'Unauthorized' }, 401);
+  const authority = await requirePlatformMutation('platform.communities.review');
+  if (!authority.ok) {
+    return json({
+      error: authority.errorCode,
+      ...(authority.stepUpHref ? { stepUpHref: authority.stepUpHref } : {}),
+    }, authority.status);
   }
   if (!isSameOrigin(request)) {
     return json({ error: 'Forbidden' }, 403);
-  }
-
-  const reviewerActor = normalizedReviewerActor();
-  if (!reviewerActor) {
-    return json({ error: 'Review service is not configured' }, 503);
-  }
-
-  const rate = consumeReviewRateLimit(rateLimitKey(request, reviewerActor));
-  if (!rate.allowed) {
-    return json(
-      { error: 'Too many review requests' },
-      429,
-      { 'Retry-After': String(rate.retryAfter) },
-    );
   }
 
   const declaredLength = Number(request.headers.get('content-length') ?? '0');
@@ -456,29 +434,55 @@ async function review(request: NextRequest) {
   }
 
   try {
-    const supabase = serviceClient();
+    const authenticatedClient = createAuthenticatedClient();
     if (duplicateBody) {
       const evidence = duplicateBody.duplicateResolution === 'NOT_DUPLICATE'
         ? { duplicate_override_reference: duplicateBody.evidenceReference }
         : { link_existing_reference: duplicateBody.evidenceReference };
-      const { data, error } = await supabase.rpc('resolve_community_address_candidate', {
+      const payload = {
+        request_id: duplicateBody.requestId,
+        candidate_address_id: duplicateBody.candidateAddressId,
+        resolution: duplicateBody.duplicateResolution,
+        reason: duplicateBody.reason,
+        evidence_refs: evidence,
+      };
+      const digest = await getDatabasePlatformPayloadDigest(authenticatedClient, payload);
+      if (!digest.digest) {
+        return json({ error: digest.errorCode ?? 'PLATFORM_DIGEST_UNAVAILABLE' }, 503);
+      }
+      const { data, error } = await authenticatedClient.rpc('resolve_platform_community_address_candidate', {
         p_request_id: duplicateBody.requestId,
         p_candidate_address_id: duplicateBody.candidateAddressId,
         p_resolution: duplicateBody.duplicateResolution,
         p_resolution_reason: duplicateBody.reason,
         p_evidence_refs: evidence,
-        p_reviewer_actor: reviewerActor,
         p_idempotency_key: duplicateBody.idempotencyKey,
+        p_expected_payload_digest: digest.digest,
       });
       if (error) {
         console.error('[community-review] address resolution failed', { code: error.code ?? 'UNKNOWN' });
-        return json({ error: 'Unable to resolve address candidate' }, 409);
+        const errorCode = platformAuthorityErrorCode(error, 'COMMUNITY_ADDRESS_RESOLUTION_FAILED');
+        return json({
+          error: errorCode,
+          ...(errorCode === 'MFA_STEP_UP_REQUIRED'
+            ? { stepUpHref: '/account/security?next=%2Fsuperadmin' }
+            : {}),
+        }, mutationErrorStatus(errorCode));
       }
-      return json({ ok: true, resolution: Array.isArray(data) ? data[0] ?? null : data ?? null });
+      if (
+        !isRecord(data)
+        || data.outcome !== 'resolved'
+        || data.request_id !== duplicateBody.requestId
+        || data.candidate_address_id !== duplicateBody.candidateAddressId
+      ) {
+        return json({ error: 'COMMUNITY_ADDRESS_RESOLUTION_FAILED' }, 502);
+      }
+      return json({ ok: true, resolution: data });
     }
 
     if (!body) return json({ error: 'Invalid review request' }, 400);
-    const { data: target, error: targetError } = await supabase
+    const readClient = serviceClient();
+    const { data: target, error: targetError } = await readClient
       .from('community_creation_requests')
       .select('id, governance_mode, legal_form')
       .eq('id', body.requestId)
@@ -497,27 +501,47 @@ async function review(request: NextRequest) {
       return json({ error: 'Approval evidence is incomplete' }, 400);
     }
 
-    const { data, error } = await supabase.rpc('review_community_creation_request', {
+    const evidence = reviewEvidenceObject(
+      body.decision,
+      body.verificationMethod,
+      String(target.legal_form ?? ''),
+      body.evidenceRefs,
+    );
+    const payload = {
+      request_id: body.requestId,
+      decision: body.decision,
+      reason: body.reason,
+      verification_method: body.verificationMethod,
+      evidence_refs: evidence,
+    };
+    const digest = await getDatabasePlatformPayloadDigest(authenticatedClient, payload);
+    if (!digest.digest) {
+      return json({ error: digest.errorCode ?? 'PLATFORM_DIGEST_UNAVAILABLE' }, 503);
+    }
+    const { data, error } = await authenticatedClient.rpc('review_platform_community_creation_request', {
       p_request_id: body.requestId,
       p_decision: body.decision,
       p_review_reason: body.reason,
       p_verification_method: body.verificationMethod,
-      p_evidence_refs: reviewEvidenceObject(
-        body.decision,
-        body.verificationMethod,
-        String(target.legal_form ?? ''),
-        body.evidenceRefs,
-      ),
-      p_reviewer_actor: reviewerActor,
+      p_evidence_refs: evidence,
       p_idempotency_key: body.idempotencyKey,
+      p_expected_payload_digest: digest.digest,
     });
 
     if (error) {
       console.error('[community-review] review failed', { code: error.code ?? 'UNKNOWN' });
-      return json({ error: 'Unable to review community request' }, 409);
+      const errorCode = platformAuthorityErrorCode(error, 'COMMUNITY_REVIEW_FAILED');
+      return json({
+        error: errorCode,
+        ...(errorCode === 'MFA_STEP_UP_REQUIRED'
+          ? { stepUpHref: '/account/security?next=%2Fsuperadmin' }
+          : {}),
+      }, mutationErrorStatus(errorCode));
     }
-
-    return json({ ok: true, review: Array.isArray(data) ? data[0] ?? null : data ?? null });
+    if (!isRecord(data) || data.outcome !== 'reviewed' || data.request_id !== body.requestId) {
+      return json({ error: 'COMMUNITY_REVIEW_FAILED' }, 502);
+    }
+    return json({ ok: true, review: data });
   } catch {
     return json({ error: 'Unable to review community request' }, 500);
   }

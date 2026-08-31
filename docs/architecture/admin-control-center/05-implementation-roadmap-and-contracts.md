@@ -11,27 +11,36 @@ jöhetnek új commandok.
 Az alábbi rész előbb az aktuális megvalósítást rögzíti, majd megőrzi az eredeti
 fázistervet és annak további, még nyitott kapuit.
 
-### 2.1. v0.10.7 aktuális implementációs térkép
+### 2.1. v0.10.8 aktuális implementációs térkép
 
-Az alábbi fájlok a v1 kód-szintű megvalósítását adják. A felsorolás nem
-production bizonyíték: a célzott admin-, izolált adatbázis- és teljes lokális
-automatizált kapuk PASS, a végleges hitelesített browser és hosted/production
-kapu pedig HOLD, amíg a külön ellenőrzési és deploy-bizonyíték el nem készül.
+Az alábbi fájlok a read plane v0.10.7 alapját és a v0.10.8 named authority/
+governance/mutation lezárását adják. A felsorolás repository-állapot, nem
+production bizonyíték: a fókuszált tesztek, TypeScript, lint, production build és
+izolált PostgreSQL kapuk PASS; a hitelesített browser és a hosted/production kapu
+külön bizonyítást igényel.
 
 | Felelősség | Megvalósítás |
 |---|---|
-| Közös DTO, integrációkatalógus, schema-verzió és determinisztikus fingerprint | `lib/superadmin/control-center.ts` |
+| Közös DTO, safe backward-compatible normalizálás és schema-verzió | `lib/superadmin/control-center.ts` |
+| Canonical typed modul/integráció/job manifest és determinisztikus fingerprint | `lib/superadmin/manifest.ts` |
 | Safe collectorok, részleges hiba, KPI/attention/integráció/audit/release projekció | `lib/superadmin/control-center-server.ts` |
 | Aggregált, `no-store` platform snapshot | `app/api/superadmin/control-center/route.ts` |
 | Minimalizált, lapozható audit read endpoint | `app/api/superadmin/audit/route.ts` |
 | Világos, reszponzív, részpanelhibát kezelő overview | `components/superadmin-control-center.tsx` |
 | Meglévő superadmin shell, tab URL-állapot és legacy funkciók megtartása | `components/superadmin-client.tsx` |
+| Named operator authority, read-only break-glass, AAL2 és authenticated digest helper | `lib/superadmin/operator-authority.ts`, `components/superadmin-authority-provider.tsx` |
+| Közös same-origin, bounded JSON, reason, UUID és no-store HTTP contract | `lib/superadmin/http.ts`, `lib/superadmin/request-integrity.ts` |
+| Operátori context/bootstrap API | `app/api/superadmin/operator/context/route.ts` |
+| Governance read/action API és capability-aware UI | `app/api/superadmin/governance/route.ts`, `app/api/superadmin/governance/action/route.ts`, `components/superadmin-governance.tsx` |
+| Maszkolt, bounded user read és atomi trial mutation | `app/api/superadmin/users/route.ts`, `app/api/superadmin/users/[id]/route.ts`, `components/superadmin-users-tab.tsx` |
+| Feature read és atomi feature mutation | `app/api/superadmin/features/route.ts`, `app/api/superadmin/features/[id]/route.ts`, `components/superadmin-features-tab.tsx` |
 | Safe health/stats/settings/job/migration route-ok | `app/api/superadmin/health/route.ts`, `stats/route.ts`, `settings/route.ts`, `jobs/logs/route.ts`, `jobs/run/route.ts`, `apply-migrations/route.ts` |
 | Batch-szintű GTFS import guard és receipt replay | `app/api/superadmin/gtfs/import/route.ts`, `components/superadmin-gtfs-import.tsx` |
 | Command-contract beágyazott SQL és kliensoldali retry-kulcs | `lib/superadmin/platform-job-command-sql.ts`, `lib/superadmin/idempotency-client.ts` |
 | Atomikus command/log/audit állapotgép és globális mutation lock | `supabase/migrations/20260830130000_platform_admin_job_commands.sql` |
+| Operator role/capability, approval, support, receipt/quota, attestation és célzott atomi mutation RPC | `supabase/migrations/20260830140000_platform_operator_authority.sql` |
 | Magyar és angol UI-copy | `src/i18n/resources/hu.ts`, `src/i18n/resources/en.ts` |
-| Route-, hardening-, command- és UI-regresszió | `tests/app/api/superadmin-*.test.ts`, `tests/lib/superadmin-idempotency-client.test.ts`, `tests/ui/superadmin-control-center.test.tsx`, `tests/ui/superadmin-gtfs-import.test.tsx` |
+| Route-, authority-, hardening-, DB runtime- és UI-regresszió | `tests/app/api/superadmin-*.test.ts`, `tests/lib/superadmin-*.test.ts`, `tests/supabase/platform-operator-authority*.{ts,sql}`, `tests/ui/superadmin-*.test.tsx` |
 
 Megvalósított viselkedési határ:
 
@@ -59,9 +68,17 @@ Megvalósított viselkedési határ:
    teljes fájl-lock vagy fájlszintű atomikussági állítás.
 9. A GTFS utófeldolgozási lánc mindkét lépés válaszszerződését ellenőrzi, és a
    második lépés hibáját a manuális és ZIP-import felé is továbbadja.
-10. Általános impersonation, support session, névre szóló capability és
-   AAL2/four-eyes approval registry továbbra is későbbi, külön biztonsági
-   szelet.
+10. A named operator route-ok DB-ből oldott capabilityt kérnek; a legacy HMAC
+    session csak read-only break-glass, platformmutációt nem enged.
+11. A user trial, feature és setting végleges írása authenticated RPC-ben,
+    maximum 15 perces AAL2-, reason-, payload-digest-, idempotency-, quota- és
+    auditkapuval történik; közvetlen táblamódosítást trigger tilt.
+12. Az operátori grant/revoke, migration apply és release attestation exact
+    canonical payloadhoz kötött, időkorlátos, egyszer használható four-eyes
+    approvalt kér. A trial/feature/setting RPC-re nem állítunk ilyen approvalt.
+13. A support lifecycle request/approve/reject/revoke/expire és exact-scope
+    authorization primitive elkészült. Általános tenant support-action consumer,
+    impersonation és tenantoldali banner továbbra is külön enterprise szelet.
 
 ### Fázis 0 — baseline és karakterizáció
 
@@ -74,14 +91,16 @@ Megvalósított viselkedési határ:
 Kilépési kapu: a jelenlegi viselkedés tesztekkel pinelt, az idegen dirty worktree
 érintetlen.
 
-### Fázis 1 — typed manifest és server-only alapok
+### Fázis 1 — typed manifest és server-only alapok — elkészült
 
-Tervezett új modulok:
+Megvalósított modulok:
 
-- `lib/superadmin/control-center.ts` — modul/integráció/job manifest és DTO;
-- `lib/superadmin/service-client.ts` vagy a meglévő
-  `lib/supabase/admin.ts` kiterjesztése — kizárólag service-role, anon fallback nélkül;
-- `lib/superadmin/safe-diagnostics.ts` — státusz-, hiba- és metadata-normalizálás;
+- `lib/superadmin/manifest.ts` — modul/integráció/job authority és runtime metadata;
+- `lib/superadmin/control-center.ts` — DTO és safe backward-compatible normalizálás;
+- `lib/superadmin/control-center-server.ts` — bounded collectorok, explicit
+  timeout és poolkímélő concurrency;
+- meglévő `lib/supabase/admin.ts` — canonical service-role read/admin kliens,
+  anon fallback nélkül;
 - manifest contract version + determinisztikus fingerprint.
 
 Kapu:
@@ -92,7 +111,7 @@ Kapu:
 - minden modul i18n-kulcsa mindkét locale-ban létezik;
 - semmilyen secret metadata nem része a public DTO-nak.
 
-### Fázis 2 — aggregált read API
+### Fázis 2 — aggregált read API — elkészült
 
 Tervezett route:
 
@@ -115,28 +134,47 @@ Javasolt response:
 ```json
 {
   "schemaVersion": "panellako.admin-control-center.v1",
+  "manifestFingerprint": "sha256:...",
   "generatedAt": "2026-08-30T12:00:00.000Z",
   "overallStatus": "degraded",
-  "manifestFingerprint": "sha256:...",
+  "summary": {
+    "workspaces": 12,
+    "buildings": 15,
+    "units": 860,
+    "profiles": 1240,
+    "agencies": 3
+  },
+  "kpis": [
+    {
+      "id": "active_workspaces",
+      "value": 12,
+      "status": "healthy",
+      "freshnessAt": "2026-08-30T12:00:00.000Z",
+      "freshnessState": "fresh",
+      "collectorState": "ok",
+      "source": "workspaces"
+    }
+  ],
+  "attention": [],
+  "integrations": [],
   "release": {
     "status": "unknown",
-    "webSha": null,
-    "backendSha": null,
-    "deployedAt": null
+    "web": { "surface": "web", "state": "known", "version": "0.10.8" },
+    "backend": { "surface": "backend", "state": "unknown" },
+    "identityStatus": "unknown"
   },
-  "sections": {
-    "kpis": { "status": "ok", "items": [] },
-    "attention": { "status": "ok", "items": [] },
-    "integrations": { "status": "degraded", "items": [], "issues": [] },
-    "audit": { "status": "unavailable", "items": [], "issues": [] }
-  }
+  "recentAudit": [],
+  "sections": [
+    { "id": "database", "status": "healthy" },
+    { "id": "audit", "status": "unavailable", "message": "SOURCE_UNAVAILABLE" }
+  ]
 }
 ```
 
 Az `issues` csak stabil kódot és biztonságos, lokalizálható paramétert tartalmaz.
 Nyers `error.message` nem része a response-nak.
 
-### Fázis 3 — új default overview UI
+### Fázis 3 — új default overview UI — elkészült
 
 Tervezett komponensek:
 
@@ -156,23 +194,34 @@ Kötelező:
 - WCAG állapotjelzés;
 - 375 és 1440 px ellenőrzés.
 
-### Fázis 4 — meglévő route-ok hardeningje
+### Fázis 4 — célzott meglévő route-ok hardeningje — v0.10.8 szelet elkészült
 
 Prioritás:
 
-1. `health`: secret prefix/hossz és kulcselemzés eltávolítása;
-2. `stats` és `settings`: anon fallback megszüntetése;
-3. `settings`: kulcs- és payload-allowlist, same-origin, bounded JSON, audit;
-4. jobs: stabil job manifest, idempotencia/concurrency, explicit partial állapot;
-5. users/features/community: raw DB hiba helyett stabil error code;
-6. diagnostics/import: input allowlist, timeout, SSRF-védelem és audit; ebből a
-   v0.10.7 csak a GTFS batch route same-origin/bounded/idempotens/globális-lock
-   szeletét állítja késznek, nem minden legacy import- vagy diagnostics route-ot;
-7. `apply-migrations`: külön R3/R4 kapu vagy későbbi kivezetés a release pipeline javára.
+1. `health`, `stats`, `control-center`, `audit`, job log, settings GET, community
+   GET, users/features GET, diagnostics és OSM count: named read capability,
+   canonical admin read kliens, stabil safe error és `no-store` response;
+2. `users/:id`, `features/:id`, `settings`: same-origin, bounded JSON, strict
+   schema/allowlist, reason/idempotency, named AAL2 route és authenticated atomic
+   mutation RPC;
+3. jobs: canonical manifest, command-v2 payload receipt, idempotencia, globális
+   single-flight, 15 perces lease és explicit partial/stale állapot;
+4. community review és duplicate-resolution: named
+   `platform.communities.review`, AAL2, DB-digest, durable receipt/quota és atomi
+   platform/domain audit authenticated RPC-ben; ebből nem következik minden
+   community legacy RPC vagy tábla általános újrahardeningje;
+5. `diagnostics/curl`: kizárólag fix, allowlisted preset, timeout, redirect/SSRF-
+   és response-size védelem; ez nem szabad URL-futtató és nem általános
+   diagnostics állítás;
+6. GTFS import: same-origin, bounded, idempotens, globális lockkal védett maximum
+   500 soros batch; nem teljes fájl-lock;
+7. `apply-migrations`: named AAL2 és exact-payload four-eyes approval, azután a
+   v0.10.7 command state machine; hosszú távon továbbra is release pipeline-ba
+   helyezhető.
 
 A hardening nem változtathatja meg a normál sikeres workflow-kat.
 
-### Fázis 5 — command és approval plane
+### Fázis 5 — command, authority és approval plane — lokálisan implementált
 
 A v0.10.7-ben elkészült a minimális végrehajtás-koordináció:
 
@@ -184,17 +233,24 @@ A v0.10.7-ben elkészült a minimális végrehajtás-koordináció:
 - atomikus command + joblog + audit state machine;
 - service-role-only RPC és RLS-határ.
 
-Későbbi bővítés:
+A v0.10.8 ezt kiegészíti:
 
-- névre szóló operátori identity;
-- AAL2 step-up;
-- négy-szem approval;
-- support session;
-- audit export;
-- runbook és immutable receipt;
-- outbox/worker a hosszú műveletekhez.
+- névre szóló Supabase Auth operátori identity és időbeli assignment;
+- role → capability context, read-only break-glass kompatibilitás;
+- maximum 15 perces AAL2 újraellenőrzés a protected DB-RPC-kben;
+- canonical payload-digesthez kötött, lejáró és egyszer használható approval;
+- four-eyes operátori grant/revoke, migration apply és release attestation;
+- maximum 60 perces, exact workspace/agency scope-ú support lifecycle;
+- durable idempotency receipt az idempotency-bearing mutation RPC-knél és
+  per-operator action quota a védett műveleteknél; a decision RPC-k receipt key
+  nélkül, row-lockkal működnek, a support authorization szerződése pedig külön;
+- append-only audit/support-event/release-attestation trigger;
+- atomi user trial, feature és setting mutation RPC közvetlen write guarddal.
 
-Ez nem v1 szállítási feltétel.
+Későbbi enterprise bővítés marad az audit export, a hosszú műveletek
+outbox/workere, külső IdP/session-risk policy, automatizált support expiry
+scheduler, általános tenant support-action consumer és tenantoldali aktív-session
+banner. Ezek hiánya nem változtatható production PASS állítássá.
 
 ## 3. KPI collector szerződés
 
@@ -202,7 +258,8 @@ Minden KPI:
 
 ```text
 id, labelKey, value|null, unit, status,
-freshnessAt|null, source, drillDownHref|null
+freshnessAt|null, freshnessState, collectorState,
+source, drillDownHref|null
 ```
 
 Szabályok:
@@ -237,12 +294,12 @@ Az inbox determinisztikus szabályokból épül. Példák:
 | Feltétel | Severity | Elem |
 |---|---|---|
 | release mismatch | critical | release |
-| kritikus integration missing | high | integration |
-| job `running` túl a stale küszöbön | high | job |
-| job `partial`/`failed` 24 órán belül | medium/high | job |
-| függő community request SLA közelében | medium | request |
-| audit collector unavailable | high | security |
-| nem kritikus cache stale | low | data freshness |
+| kritikus integration missing | critical | integration |
+| job `running` túl a stale küszöbön | warning | job |
+| job `partial`/`failed` 24 órán belül | warning/critical | job |
+| függő community request | warning | request |
+| audit collector unavailable | critical | security |
+| nem kritikus cache stale | info | data freshness |
 
 Ugyanaz a forrásesemény stabil attention ID-t kap, így refresh nem duplikálja.
 
@@ -263,7 +320,9 @@ A szerver:
 - az ismeretlen actiont generikus lokalizálható címkére képezi;
 - legfeljebb kis, fix elemszámot ad az overview-nak.
 
-A teljes audit oldal később keyset paginationt használ `(created_at, id)` szerint.
+A külön audit endpoint bounded, `(created_at, id)` cursor-alapú keyset lapozást
+és ugyanazt az explicit, redaktált projekciót használja; raw metadata nem része a
+DTO-nak.
 
 ## 7. Release identity
 
@@ -308,16 +367,64 @@ Ez a migráció:
 Az izolált PostgreSQL 18.4 első apply, kétszeres teljes reapply, v2 receipt
 replay, payload-conflict, globális lock, kompozit logfrissítés és audit
 least-privilege canary PASS.
-A production Supabase alkalmazás **NOT_RUN / HOLD**.
 
-További új séma akkor indokolt, ha:
+A v0.10.8 második forward-only migrációja:
+`20260830140000_platform_operator_authority.sql`.
 
-- névre szóló operator role/capability;
-- command/approval;
-- support session;
-- release attestation ledger;
-- tartós attention ownership/SLA
+Ez a migráció:
 
-kerül szállításra. Ezek külön, forward-only migrációt, RLS-t és runtime canaryt
-igényelnek; a mostani minimális command registry nem jelent AAL2- vagy
-four-eyes approval megvalósítást.
+- létrehozza a role/capability/assignment, action quota/receipt, approval,
+  support session/event és release-attestation táblákat;
+- seedeli a hat operátori szerepet és az aktuális named capabilityket;
+- canonical JSON SHA-256 digestet és UTC időnormalizálást használ az exact
+  payload identityhez;
+- authenticated context/digest, approval, assignment, support és attestation
+  RPC-ket ad; a bootstrap és support expiry kizárólag service-role;
+- az app-facing authenticated mutation RPC-kben a saját DB-authority szerződést
+  és maximum 15 perces AAL2-t ellenőriz; a support revoke requester/approver-
+  vagy-capability szabályt használ, a command plane route-gate után service-role;
+- tiltja az önjóváhagyást, approval payload driftet, approval újrafelhasználást,
+  assignment overlapet, ön-visszavonást, utolsó aktív admin elvesztését,
+  support scope-eszkalációt és terminális session reaktiválását;
+- atomi, auditált user trial, feature és setting mutation RPC-t ad durable
+  receipt/quota és közvetlen write-guard mellett;
+- atomi community review és duplicate-resolution RPC-t ad DB-oldali digest,
+  durable receipt/quota, self-review tiltás és domain/platform audit mellett;
+- append-only triggerrel védi az audit-, support-event- és attestation sorokat,
+  miközben a `service_role` operációs auditjoga SELECT/INSERT marad.
+
+A decision RPC-k a terminális sor ellenőrzését az action quota fogyasztása előtt
+végzik, ezért determinisztikus already-decided választ adnak új quota-terhelés
+nélkül. Az `authorize_platform_action` replayje nem ír új authorization auditot,
+a support-döntés lazy-expiry és maintenance-expiry ága pedig egyaránt support-
+eventet és platformauditot ír.
+
+Az authority statikus suite 17/17 PASS. PostgreSQL 18 első apply + teljes reapply
+PASS, az aktuális community authority ágakat, stabil decision replayt, egyszeri
+authorization auditot és egységes support-expiry auditot is tartalmazó rollback-
+only runtime canary két egymást követő futása PASS.
+
+A production migration workflow a
+`.github/migration-manifests/20260830140000_platform-admin-release.sha256`
+manifestet használja. A validator pontosan 20, `20260828120000` és
+`20260830140000` közötti fájlt, byte-pontos SHA-256 egyezést és folytonos pending
+suffixet vár; seed/role apply és a `140000` fölötti local/remote release head
+tiltott. A production verifier a release 88/88 public function nevét és
+`prokind` értékét, a kritikus `130000` command és `140000` authority RPC-k exact
+signature-jét, pozitív/negatív `authenticated`/`service_role`/`anon` grantjait,
+a release-kritikus public/private táblákat, kijelölt capability-seed párokat és
+private-helper privilege lockot ellenőriz. A végleges byte-hashokat tartalmazó
+20 fájlos manifest elkészült. A végleges authority migráció SHA-256 értéke
+`45B00B09CAFFC8AF50B2ECB21C3B0789684E4039D859CAF120FF5C0972ED2C99`, amely
+egyezik a manifest bejegyzésével; a célzott release-workflow contract suite
+**PASS — 8/8 teszt**. Ez a lokális supply-chain szerződést bizonyítja, nem a
+production migráció alkalmazását vagy read-backjét.
+
+Mind a `20260830130000`, mind a `20260830140000` production Supabase alkalmazása
+**NOT_RUN / HOLD** ebben a kiadási körben. A lokális PostgreSQL bizonyíték nem
+production migration ledger, hosted két-operátoros/four-eyes canary vagy deploy.
+
+További séma csak a tartós attention ownership/SLA, audit export vagy outbox/
+worker szállításakor indokolt. Az általános tenant support-action consumerhez
+elsősorban route/RLS/runtime integráció és két-tenant canary szükséges; az
+authority tábla létezése önmagában nem production hozzáférési bizonyíték.

@@ -5,12 +5,12 @@ import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  authenticated: vi.fn(),
+  requirePlatformMutation: vi.fn(),
   createAdminClient: vi.fn(),
 }));
 
-vi.mock('@/lib/superadmin-auth', () => ({
-  isSuperadminAuthenticated: mocks.authenticated,
+vi.mock('@/lib/superadmin/operator-authority', () => ({
+  requirePlatformMutation: mocks.requirePlatformMutation,
 }));
 
 vi.mock('@/lib/supabase/admin', () => ({
@@ -22,6 +22,8 @@ import { POST } from '@/app/api/superadmin/gtfs/import/route';
 const BATCH_ID = '11111111-1111-4111-8111-111111111111';
 const IDEMPOTENCY_KEY = '22222222-2222-4222-8222-222222222222';
 const COMMAND_ID = '33333333-3333-4333-8333-333333333333';
+const ACTOR_ID = '44444444-4444-4444-8444-444444444444';
+const REASON = 'BKK GTFS adatállomány kézi frissítése.';
 
 type AdminClientOptions = {
   begin?: Record<string, unknown>;
@@ -84,6 +86,7 @@ function payload(rows: unknown[] = [{
     rows,
     batchId: BATCH_ID,
     idempotencyKey: IDEMPOTENCY_KEY,
+    reason: REASON,
   };
 }
 
@@ -97,7 +100,10 @@ function digestFor(input: ReturnType<typeof payload>): string {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.authenticated.mockResolvedValue(true);
+  mocks.requirePlatformMutation.mockResolvedValue({
+    ok: true,
+    context: { mode: 'operator', operatorProfileId: ACTOR_ID, assuranceLevel: 'aal2' },
+  });
   mocks.createAdminClient.mockReturnValue(adminClient());
 });
 
@@ -113,7 +119,34 @@ describe('superadmin GTFS batch import', () => {
     expect(source).not.toContain('NEXT_PUBLIC_SUPABASE_ANON_KEY');
     expect(source).not.toContain('NEXT_SUPABASE_SERVICE_ROLE_KEY');
     expect(source).not.toContain('process.env.SUPABASE_URL');
+    expect(source).not.toContain('process.env.SUPERADMIN_EMAIL');
     expect(source).not.toContain("from('platform_job_commands')");
+    expect(source).toContain("requirePlatformMutation('platform.jobs.run')");
+  });
+
+  it('requires a named AAL2 operator and a bounded reason before creating the admin client', async () => {
+    mocks.requirePlatformMutation.mockResolvedValue({
+      ok: false,
+      status: 428,
+      errorCode: 'MFA_STEP_UP_REQUIRED',
+      stepUpHref: '/account/security?next=%2Fsuperadmin',
+      context: { mode: 'operator', operatorProfileId: ACTOR_ID, assuranceLevel: 'aal1' },
+    });
+    const stepUp = await POST(request(payload()));
+    expect(stepUp.status).toBe(428);
+    expect(await stepUp.json()).toEqual({
+      error: 'MFA_STEP_UP_REQUIRED',
+      stepUpHref: '/account/security?next=%2Fsuperadmin',
+    });
+
+    mocks.requirePlatformMutation.mockResolvedValue({
+      ok: true,
+      context: { mode: 'operator', operatorProfileId: ACTOR_ID, assuranceLevel: 'aal2' },
+    });
+    const missingReason = await POST(request({ ...payload(), reason: undefined }));
+    expect(missingReason.status).toBe(400);
+    expect(await missingReason.json()).toEqual({ error: 'PLATFORM_REASON_REQUIRED' });
+    expect(mocks.createAdminClient).not.toHaveBeenCalled();
   });
 
   it('rejects cross-origin and oversized requests before constructing the admin client', async () => {
@@ -154,18 +187,20 @@ describe('superadmin GTFS batch import', () => {
       p_job_id: `gtfs_import:feed_info:${BATCH_ID}`,
       p_target_key: 'platform:mutations',
       p_idempotency_key: IDEMPOTENCY_KEY,
-      p_actor_id: 'superadmin',
+      p_actor_id: ACTOR_ID,
       p_lease_seconds: 900,
       p_start_payload: {
         file_type: 'feed_info',
         batch_id: BATCH_ID,
         batch_digest: batchDigest,
         batch_rows: 1,
+        reason: REASON,
       },
     });
     expect(client.upsert).toHaveBeenCalledTimes(1);
     expect(client.rpc).toHaveBeenNthCalledWith(2, 'complete_platform_job_command', expect.objectContaining({
       p_command_id: COMMAND_ID,
+      p_actor_id: ACTOR_ID,
       p_status: 'ok',
       p_safe_result: expect.objectContaining({
         code: 'GTFS_IMPORT_COMPLETED',

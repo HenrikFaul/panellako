@@ -14,6 +14,21 @@ vi.mock('@/components/superadmin-diagnostics', () => ({ default: () => null }));
 vi.mock('@/components/superadmin-users-tab', () => ({ default: () => null }));
 vi.mock('@/components/superadmin-features-tab', () => ({ default: () => null }));
 vi.mock('@/components/superadmin-community-requests', () => ({ default: () => null }));
+vi.mock('@/components/superadmin-governance', () => ({ default: () => null }));
+vi.mock('@/components/superadmin-authority-context', () => ({
+  usePlatformAuthority: () => ({
+    mode: 'operator',
+    capabilityKeys: [
+      'platform.overview.read',
+      'platform.users.manage_trial',
+      'platform.features.manage',
+      'platform.communities.review',
+      'platform.jobs.run',
+      'platform.settings.manage',
+      'platform.migrations.apply',
+    ],
+  }),
+}));
 
 const snapshot: ControlCenterResponse = {
   schemaVersion: CONTROL_CENTER_SCHEMA_VERSION,
@@ -232,9 +247,98 @@ describe('SuperadminClient tab navigation', () => {
 
     fireEvent.keyDown(homeTab, { key: 'ArrowRight' });
     await flushAsyncEffects();
-    const technicalTab = screen.getByRole('tab', { name: 'Technikai eszközök' });
-    expect(technicalTab).toHaveFocus();
-    expect(technicalTab).toHaveAttribute('aria-selected', 'true');
-    expect(new URL(window.location.href).searchParams.get('tab')).toBe('operations');
+    const governanceTab = screen.getByRole('tab', { name: 'Hozzáférés és kontroll' });
+    expect(governanceTab).toHaveFocus();
+    expect(governanceTab).toHaveAttribute('aria-selected', 'true');
+    expect(new URL(window.location.href).searchParams.get('tab')).toBe('governance');
+  });
+
+  it('normalizes and renders a replayed migration receipt summary', async () => {
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === '/api/superadmin/apply-migrations' && init?.method === 'POST') {
+        return response({
+          ok: true,
+          replayed: true,
+          commandStatus: 'ok',
+          result: { ok: true, applied: 2, already_applied: 3, failed: 0 },
+        });
+      }
+      return routeFetch(input);
+    });
+
+    render(<SuperadminClient />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Technikai eszközök' }));
+    await flushAsyncEffects();
+    fireEvent.click(screen.getByRole('button', { name: 'Migrációs kérelem' }));
+    fireEvent.change(screen.getAllByLabelText('Művelet indoklása')[0], {
+      target: { value: 'Platform migráció ellenőrzött kézi alkalmazása' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Jóváhagyási kérelem küldése' }));
+
+    expect(await screen.findByText('Korábbi, azonos migrációs kérés hiteles eredménye')).toBeInTheDocument();
+    expect(screen.getByText(/Alkalmazva: 2/)).toBeInTheDocument();
+    expect(screen.getByText(/Már alkalmazva: 3/)).toBeInTheDocument();
+  });
+
+  it('keeps the unfinished KENYI placeholder visibly disabled', async () => {
+    render(<SuperadminClient />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Technikai eszközök' }));
+    await flushAsyncEffects();
+
+    const disabled = screen.getByRole('button', { name: 'Még nem elérhető' });
+    expect(disabled).toBeDisabled();
+    expect(disabled).toHaveAttribute('title', expect.stringContaining('KENYI'));
+    expect(screen.getByText(/KENYI manuális feltöltőfelülete/)).toBeInTheDocument();
+  });
+
+  it('requires an audited reason and exposes the MFA step-up action for manual jobs', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input) === '/api/superadmin/jobs/run' && init?.method === 'POST') {
+        return {
+          ok: false,
+          status: 428,
+          json: async () => ({
+            error: 'MFA_STEP_UP_REQUIRED',
+            stepUpHref: '/account/security?next=%2Fsuperadmin',
+          }),
+        } as Response;
+      }
+      return routeFetch(input);
+    });
+
+    render(<SuperadminClient />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Technikai eszközök' }));
+    await flushAsyncEffects();
+
+    expect(screen.getAllByRole('button', { name: 'Azonnali indítás' })[0]).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Indoklás'), {
+      target: { value: 'BKK kézi szinkron operátori incidenskezeléshez' },
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Azonnali indítás' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Megerősítés: indítás' }));
+
+    const stepUp = await screen.findByRole('link', { name: 'MFA megerősítése' });
+    expect(stepUp).toHaveAttribute('href', '/account/security?next=%2Fsuperadmin');
+    const mutationCall = fetchMock.mock.calls.find(call => String(call[0]) === '/api/superadmin/jobs/run');
+    expect(mutationCall).toBeDefined();
+    expect(JSON.parse(String(mutationCall?.[1]?.body))).toMatchObject({
+      job: 'bkk_full_sync',
+      reason: 'BKK kézi szinkron operátori incidenskezeléshez',
+    });
+  });
+
+  it('fails closed when settings cannot be loaded', async () => {
+    vi.mocked(fetch).mockImplementation(async input => {
+      if (String(input) === '/api/superadmin/settings') return response({ error: 'SETTINGS_UNAVAILABLE' }, false);
+      return routeFetch(input);
+    });
+
+    render(<SuperadminClient />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Technikai eszközök' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('A platformbeállítások nem tölthetők be');
+    expect(screen.getByRole('button', { name: 'Beállítások mentése' })).toBeDisabled();
   });
 });

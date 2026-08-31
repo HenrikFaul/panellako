@@ -14,15 +14,18 @@ Az adminisztrátor az első képernyőn három kérdésre kapjon választ:
 A route marad `/superadmin`. A tab az URL queryben él:
 
 ```text
-/superadmin?tab=overview
+/superadmin?tab=controlCenter
+/superadmin?tab=governance
+/superadmin?tab=operations
 /superadmin?tab=users
 /superadmin?tab=features
-/superadmin?tab=community-requests
+/superadmin?tab=communityRequests
 ```
 
-Felhasználói tabváltás push state-et használ; auth redirect replace-et. A v1
-megtartja az összes jelenlegi tabot és az overview alatti job/import/diagnosztika
-elérési utakat.
+Felhasználói tabváltás push state-et használ; auth redirect és invalid tab
+korrekció replace-et. A v0.10.8 megtartja az összes korábbi tabot és az
+operations alatti job/import/diagnosztika elérési utakat, valamint capability
+alapján mutatja a governance modult.
 
 ## 3. Áttekintés komponensrendje
 
@@ -34,6 +37,12 @@ elérési utakat.
 - manuális frissítés;
 - kijelentkezés;
 - nincs secret-, környezet- vagy userazonosító a fejlécben.
+
+A shell külön authority sávban mutatja a named operator vagy read-only
+break-glass módot, az operátori email/profil biztonságos labeljét, role-okat és
+assurance állapotot. AAL2 hiánynál explicit account-security step-up útvonal
+jelenik meg; a UI-ban elrejtett tab vagy gomb nem helyettesíti a route/DB
+authorizationt.
 
 ### 3.2. Kiadási azonosság
 
@@ -75,18 +84,18 @@ Az inbox derivált nézet, nem párhuzamos source of truth. Forrásai:
 - elavult adatforrás;
 - lejáró mandátum vagy delegáció;
 - biztonsági/authority anomália;
-- később approvalra váró high-risk command.
+- approvalra váró high-risk command.
 
 Elemmezők:
 
 ```text
-id, kind, severity, state, titleKey, detailKey,
-scopeType, safeScopeLabel, occurredAt, dueAt,
-ownerRole, actionHref, sourceStatus
+id, kind, severity, state, title, detail,
+time, owner, source, count?, href?
 ```
 
-Súlyosság: `critical | high | medium | low | info`. Az állapot nem csak színnel,
-hanem szöveggel és ikonnal is megjelenik.
+Súlyosság: `critical | warning | info`. A `kind/state/time/owner/source`
+determinisztikusan a szerveroldali forrásból képződik; az állapot nem csak
+színnel, hanem szöveggel és ikonnal is megjelenik.
 
 ### 3.5. Integrációs mátrix
 
@@ -138,6 +147,28 @@ Az új áttekintés közvetlenül elérhetővé teszi, de nem implementálja új
 - külső API diagnosztika;
 - platform settings.
 
+### 3.8. Governance
+
+Az `/superadmin?tab=governance` capability-aware modul az alábbi lokális
+control-plane folyamatokat kezeli:
+
+- operátori role/assignment katalógus és időbeli érvényesség;
+- operator grant/revoke approval request, külön approver döntés és exact-payload
+  végrehajtás;
+- workspace/agency scoped support session request, approve/reject és revoke;
+- release attestation approval és append-only triggerrel védett, durable
+  operációs attestation receipt a DB-owner/superuser caveattal;
+- reason és MFA step-up állapot minden governance mutációnál; session-stabil
+  idempotency key az azt fogadó request/execute/revoke contractoknál. Az
+  approval- és support-döntés külön idempotency kulcs helyett row-lockkal védett
+  single-decision átmenet, és a terminális állapot quota-fogyasztás előtti
+  ellenőrzésével determinisztikus already-decided választ ad ismétléskor;
+- loading, error, retry, empty és no-false-success visszajelzés.
+
+A governance tab nem általános impersonation UI. A support session tenantoldali
+consumer- és bannerintegrációja későbbi szelet; a jelenlegi felület lifecycle-t
+és scope-ot kezel, nem kerül meg tenant RLS-t.
+
 ## 4. Daylight vizuális rendszer
 
 - warm canvas: `#f4f7f4` / `#edf3ee`;
@@ -184,9 +215,11 @@ Az új áttekintés közvetlenül elérhetővé teszi, de nem implementálja új
 
 ## 7. i18n
 
-Minden új string a `superadmin.controlCenter.*` namespace-be kerül a magyar és
-angol erőforrásban ugyanabban a commitban. A manifest user-facing neveket nem
-szövegként, hanem i18n-kulcsként hordozza.
+Minden új string a megfelelő `superadmin.controlCenter.*`,
+`superadmin.authority.*`, `superadmin.governance.*`, `superadmin.users.*`,
+`superadmin.features.*` vagy `superadmin.operationsUi.*` namespace-be kerül a
+magyar és angol erőforrásban ugyanabban a változási szeletben. A manifest
+user-facing neveket nem szövegként, hanem i18n-kulcsként hordozza.
 
 Kötelező kulcscsoportok:
 

@@ -59,8 +59,9 @@ integrációs kártya csak szerver által képzett, titokmentes állapotot mutat
 
 ### PanelLakóba átvett döntés
 
-- A hosszú távú modell role → capability leképezést használ; a route minden
-  művelethez konkrét capabilityt kér.
+- A v0.10.8 authority modell role → capability leképezést használ; az ebben a
+  körben hardeningolt route minden olvasáshoz vagy mutációhoz konkrét capabilityt
+  kér. Ez nem állítás minden érintetlen legacy route-ról.
 - A figyelmet igénylő lista nem egyszerű hibajegyzék, hanem prioritással,
   felelőssel, határidővel és állapotgéppel rendelkező inbox.
 - A DTO és az audit timeline szerveroldali redakción és méretkorláton megy át.
@@ -187,6 +188,45 @@ implementációs státuszát.
 - A forward-only command-migráció izolált PostgreSQL apply/state-machine/reapply
   kapuja PASS, production Supabase alkalmazása **NOT_RUN / HOLD**.
 
+### v0.10.8 zárási térkép
+
+- A 9. baseline-rés repository- és izolált adatbázis-szinten lezárult: a
+  Supabase Auth profilhoz kötött platformoperator assignmentből és role →
+  capability katalógusból származik az authority. A legacy HMAC cookie kizárólag
+  read-only break-glass adapter; mutációt nem jogosít.
+- A `20260830140000_platform_operator_authority.sql` role-, capability-,
+  assignment-, approval-, support-session-, durable receipt/quota- és release-
+  attestation modellt ad. A high-risk DB-RPC-k maximum 15 perces friss AAL2-t és
+  indokot ellenőriznek; durable idempotency keyt az azt fogadó
+  request/execute/revoke szerződések kérnek. Az approval- és support-döntés
+  row-lockkal védett single-decision átmenet, külön idempotency key nélkül;
+  terminális ismétlésre quota-fogyasztás nélkül determinisztikus already-decided
+  választ ad.
+- Az operátori grant/revoke, migration apply és release attestation exact
+  canonical payload-digesthez kötött, egyszer használható approvalt igényel; a
+  kezdeményező és jóváhagyó nem lehet ugyanaz a profil. A user trial, feature és
+  setting célzott mutációja AAL2/capability/reason/idempotency kaput és atomi
+  auditot kapott, de nem állítunk rájuk általános four-eyes követelményt.
+- A support request/approve/reject/revoke/expire lifecycle és az exact
+  workspace/agency scope authorization primitive elkészült. Általános tenant
+  support-action consumer, impersonation vagy korlátlan platform-scope nincs
+  késznek állítva.
+- A users list maszkolt emailt és bounded keresést/lapozást ad; a users/features
+  írás authenticated RPC-re váltott közvetlen táblamódosítás helyett. A
+  settings ugyanezt az atomi mutation mintát követi.
+- A konkrét `diagnostics/curl` route fix, allowlisted preseteket, timeoutot,
+  redirect/SSRF- és response-size védelmet használ; az OSM count canonical
+  admin read. Ez nem általános legacy-route hardening állítás.
+- A read plane külön server-only typed manifestből, bounded és poolkímélő
+  collectorokból épül. KPI-, attention-, integration-, audit- és külön
+  web/backend release identity DTO-ja explicit állapotot és freshness mezőket
+  hordoz, backward-compatible safe normalizálással.
+- Az authority migráció statikus suite-je 17/17 PASS, PostgreSQL 18 első apply +
+  teljes reapply PASS, az aktuális community authority ágakat is tartalmazó
+  rollback-only runtime canary két egymást követő futása PASS. A production
+  Supabase alkalmazás és hosted bizonyítás
+  **NOT_RUN / HOLD**.
+
 ## 7. Következtetés
 
 A PanelLakóban már az audit előtt is létezett számottevő platformadmin
@@ -196,10 +236,12 @@ funkcionalitás. A választott irány nem párhuzamos admin alkalmazás, hanem:
 - biztonságos DTO-határ;
 - új alapértelmezett áttekintés;
 - fokozatos endpoint-hardening;
-- minimális, atomikus command-koordináció a meglévő kézi jobokhoz és
-  migrációkhoz;
-- később névre szóló operátori identity és teljes command/approval
-  infrastruktúra.
+- atomikus command-koordináció a meglévő kézi jobokhoz, migrációkhoz és GTFS
+  batchekhez;
+- névre szóló operátori authority, AAL2-es célzott mutációk és exact-payload
+  approval/governance infrastruktúra.
 
-Az első öt pont v0.10.7-ben kód-szinten megvalósult; a production migráció,
-hosted ellenőrzés és deploy külön HOLD kapu.
+Ezek v0.10.8-ban repository-szinten és izolált PostgreSQL-ben megvalósultak. Az
+általános tenant support-action fogyasztók, audit export, külső IdP/session-risk
+policy és tartós worker/outbox továbbra is külön enterprise szelet. A production
+migráció, hosted ellenőrzés és deploy változatlanul külön **NOT_RUN / HOLD** kapu.
