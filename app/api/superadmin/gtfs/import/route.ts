@@ -1,21 +1,115 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
+import { createHash } from 'node:crypto';
+import { BoundedJsonError, readBoundedJson } from '@/lib/http/bounded-json';
+import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  adminJson,
+  hasJsonContentType,
+  isSameOriginAdminRequest,
+  normalizeAdminReason,
+  UUID_PATTERN,
+} from '@/lib/superadmin/http';
+import { requirePlatformMutation } from '@/lib/superadmin/operator-authority';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 
 // ─── Supabase client ──────────────────────────────────────────────────────────
 
-function createServiceClient() {
-  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '').trim();
-  const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY ?? '').trim();
-  const anonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim();
-  const key = serviceKey.startsWith('eyJ') ? serviceKey : (anonKey || serviceKey);
-  if (!url || !key) throw new Error('Missing Supabase env vars');
-  return createClient(url, key, { auth: { persistSession: false } });
-}
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
+const MAX_BATCH_ROWS = 500;
+const MAX_ROW_FIELDS = 64;
+const MAX_FIELD_NAME_LENGTH = 80;
+const MAX_FIELD_VALUE_LENGTH = 32_768;
+const IMPORT_LEASE_TTL_SECONDS = 15 * 60;
+const PLATFORM_GLOBAL_MUTATION_TARGET_KEY = 'platform:mutations';
+const FILE_TYPES = new Set([
+  'stops',
+  'routes',
+  'stop_routes',
+  'feed_info',
+  'calendar_dates',
+  'pathways',
+  'shapes',
+  'translations',
+  'trips',
+]);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function json(body: Record<string, unknown>, status = 200): NextResponse {
+  return adminJson(body, status);
+}
+
+function isGtfsRow(value: unknown): value is Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const entries = Object.entries(value as Record<string, unknown>);
+  return entries.length <= MAX_ROW_FIELDS && entries.every(([key, fieldValue]) => (
+    key.length > 0
+    && key.length <= MAX_FIELD_NAME_LENGTH
+    && typeof fieldValue === 'string'
+    && fieldValue.length <= MAX_FIELD_VALUE_LENGTH
+  ));
+}
+
+type BeginCommandResult = {
+  outcome?: unknown;
+  command_id?: unknown;
+  status?: unknown;
+  safe_result?: unknown;
+};
+
+type SafeImportResult = {
+  code: 'GTFS_IMPORT_COMPLETED' | 'GTFS_IMPORT_FAILED';
+  batch_id: string;
+  batch_digest: string;
+  file_type: string;
+  imported: number;
+  skipped: number;
+};
+
+function safeImportResult(value: unknown): SafeImportResult | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const result = value as Record<string, unknown>;
+  if (
+    result.code !== 'GTFS_IMPORT_COMPLETED'
+    || typeof result.batch_id !== 'string'
+    || typeof result.batch_digest !== 'string'
+    || !/^sha256:[0-9a-f]{64}$/.test(result.batch_digest)
+    || typeof result.file_type !== 'string'
+    || !Number.isSafeInteger(result.imported)
+    || Number(result.imported) < 0
+    || !Number.isSafeInteger(result.skipped)
+    || Number(result.skipped) < 0
+  ) return null;
+  return result as SafeImportResult;
+}
+
+async function completeCommand(
+  supabase: ReturnType<typeof createAdminClient>,
+  commandId: string,
+  actor: string,
+  status: 'ok' | 'error',
+  safeResult: SafeImportResult,
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('complete_platform_job_command', {
+      p_command_id: commandId,
+      p_status: status,
+      p_safe_result: safeResult,
+      p_actor_id: actor,
+    });
+    return Boolean(
+      !error
+      && data
+      && typeof data === 'object'
+      && !Array.isArray(data)
+      && (data as Record<string, unknown>).outcome === 'completed',
+    );
+  } catch {
+    return false;
+  }
+}
 
 /** Parse a GTFS date string (YYYYMMDD) to ISO 'YYYY-MM-DD', or null if invalid. */
 function parseGtfsDate(value: unknown): string | null {
@@ -186,46 +280,201 @@ function transformRows(fileType: string, rows: unknown[]): TransformResult {
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
-  if (!(await isSuperadminAuthenticated())) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authority = await requirePlatformMutation('platform.jobs.run');
+  if (!authority.ok) {
+    return json({
+      error: authority.errorCode,
+      ...(authority.stepUpHref ? { stepUpHref: authority.stepUpHref } : {}),
+    }, authority.status);
+  }
+  if (!isSameOriginAdminRequest(request)) return json({ error: 'ORIGIN_NOT_ALLOWED' }, 403);
+  if (!hasJsonContentType(request)) {
+    return json({ error: 'UNSUPPORTED_MEDIA_TYPE' }, 415);
   }
 
-  let body: { fileType?: string; rows?: unknown[] };
+  let parsedBody: unknown;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    parsedBody = await readBoundedJson(request, MAX_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof BoundedJsonError && error.code === 'REQUEST_TOO_LARGE') {
+      return json({ error: 'REQUEST_TOO_LARGE' }, 413);
+    }
+    return json({ error: 'INVALID_JSON' }, 400);
   }
 
-  const { fileType, rows } = body;
-
-  if (!fileType || !Array.isArray(rows)) {
-    return NextResponse.json({ error: 'fileType and rows are required' }, { status: 400 });
+  if (!parsedBody || typeof parsedBody !== 'object' || Array.isArray(parsedBody)) {
+    return json({ error: 'INVALID_GTFS_IMPORT_REQUEST' }, 400);
   }
+  const body = parsedBody as Record<string, unknown>;
+  if (Object.keys(body).some(key => !['fileType', 'rows', 'batchId', 'idempotencyKey', 'reason'].includes(key))) {
+    return json({ error: 'INVALID_GTFS_IMPORT_REQUEST' }, 400);
+  }
+
+  const fileType = typeof body.fileType === 'string' ? body.fileType : '';
+  const rows = body.rows;
+  const batchId = typeof body.batchId === 'string' ? body.batchId : '';
+  const idempotencyKey = typeof body.idempotencyKey === 'string' ? body.idempotencyKey : '';
+  const reason = normalizeAdminReason(body.reason);
+  if (!FILE_TYPES.has(fileType) || !Array.isArray(rows) || !UUID_PATTERN.test(batchId)) {
+    return json({ error: 'INVALID_GTFS_IMPORT_REQUEST' }, 400);
+  }
+  if (!UUID_PATTERN.test(idempotencyKey)) {
+    return json({ error: 'IDEMPOTENCY_KEY_REQUIRED' }, 400);
+  }
+  if (!reason) return json({ error: 'PLATFORM_REASON_REQUIRED' }, 400);
+  const actor = authority.context.operatorProfileId;
+  if (!actor || !UUID_PATTERN.test(actor)) {
+    return json({ error: 'PLATFORM_AUTHORITY_UNAVAILABLE' }, 503);
+  }
+  if (rows.length > MAX_BATCH_ROWS) {
+    return json({ error: 'GTFS_BATCH_LIMIT_EXCEEDED' }, 400);
+  }
+  if (!rows.every(isGtfsRow)) {
+    return json({ error: 'INVALID_GTFS_ROWS' }, 400);
+  }
+  const batchDigest = `sha256:${createHash('sha256')
+    .update(JSON.stringify({ fileType, batchId, rows }))
+    .digest('hex')}`;
 
   let result: TransformResult;
   try {
     result = transformRows(fileType, rows);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 400 });
+  } catch {
+    return json({ error: 'INVALID_GTFS_ROWS' }, 400);
   }
 
   const { table, conflictColumns, transformed, skipped } = result;
-
-  if (transformed.length === 0) {
-    return NextResponse.json({ imported: 0, skipped });
+  let supabase: ReturnType<typeof createAdminClient>;
+  try {
+    // This is intentionally the canonical PanelLakó service-role client. There
+    // is no alternate URL/key name and no anonymous-key fallback.
+    supabase = createAdminClient();
+  } catch {
+    return json({ error: 'GTFS_IMPORT_UNAVAILABLE' }, 503);
   }
 
-  const supabase = createServiceClient();
-
-  const { error } = await supabase
-    .from(table)
-    .upsert(transformed, { onConflict: conflictColumns });
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  // The current command contract owns the global lock for one 500-row batch.
+  // A file is deliberately not claimed as atomically locked across all batches.
+  const commandJobId = `gtfs_import:${fileType}:${batchId}`;
+  let beginData: unknown;
+  let beginError: unknown;
+  try {
+    const begin = await supabase.rpc('begin_platform_job_command', {
+      p_command_kind: 'job',
+      p_job_id: commandJobId,
+      p_target_key: PLATFORM_GLOBAL_MUTATION_TARGET_KEY,
+      p_idempotency_key: idempotencyKey,
+      p_actor_id: actor,
+      p_lease_seconds: IMPORT_LEASE_TTL_SECONDS,
+      p_start_payload: {
+        file_type: fileType,
+        batch_id: batchId,
+        batch_digest: batchDigest,
+        batch_rows: rows.length,
+        reason,
+      },
+    });
+    beginData = begin.data;
+    beginError = begin.error;
+  } catch {
+    return json({ error: 'GTFS_IMPORT_GUARD_UNAVAILABLE', requestId: idempotencyKey }, 503);
+  }
+  if (beginError || !beginData || typeof beginData !== 'object' || Array.isArray(beginData)) {
+    return json({ error: 'GTFS_IMPORT_GUARD_UNAVAILABLE', requestId: idempotencyKey }, 503);
   }
 
-  return NextResponse.json({ imported: transformed.length, skipped });
+  const beginResult = beginData as BeginCommandResult;
+  if (beginResult.outcome === 'already_running') {
+    return json({ error: 'PLATFORM_MUTATION_ALREADY_RUNNING', requestId: idempotencyKey }, 409);
+  }
+  if (beginResult.outcome === 'idempotency_conflict') {
+    return json({ error: 'GTFS_IMPORT_IDEMPOTENCY_CONFLICT', requestId: idempotencyKey }, 409);
+  }
+  if (beginResult.outcome === 'replayed') {
+    const replay = beginResult.status === 'ok'
+      ? safeImportResult(beginResult.safe_result)
+      : null;
+    if (
+      replay
+      && replay.batch_id === batchId
+      && replay.batch_digest === batchDigest
+      && replay.file_type === fileType
+    ) {
+      return json({
+        imported: replay.imported,
+        skipped: replay.skipped,
+        replayed: true,
+        requestId: idempotencyKey,
+      });
+    }
+    if (beginResult.status === 'error' || beginResult.status === 'partial') {
+      return json({
+        error: 'GTFS_IMPORT_PREVIOUSLY_FAILED',
+        replayed: true,
+        requestId: idempotencyKey,
+      }, 422);
+    }
+    return json({ error: 'GTFS_IMPORT_GUARD_UNAVAILABLE', requestId: idempotencyKey }, 503);
+  }
+  if (beginResult.outcome === 'already_submitted') {
+    return json({ error: 'GTFS_IMPORT_ALREADY_SUBMITTED', requestId: idempotencyKey }, 409);
+  }
+  if (
+    beginResult.outcome !== 'started'
+    || typeof beginResult.command_id !== 'string'
+    || !UUID_PATTERN.test(beginResult.command_id)
+  ) {
+    return json({ error: 'GTFS_IMPORT_GUARD_UNAVAILABLE', requestId: idempotencyKey }, 503);
+  }
+  const commandId = beginResult.command_id;
+
+  try {
+    if (transformed.length > 0) {
+      const { error: importError } = await supabase
+        .from(table)
+        .upsert(transformed, { onConflict: conflictColumns });
+      if (importError) {
+        const completed = await completeCommand(supabase, commandId, actor, 'error', {
+          code: 'GTFS_IMPORT_FAILED',
+          batch_id: batchId,
+          batch_digest: batchDigest,
+          file_type: fileType,
+          imported: 0,
+          skipped,
+        });
+        return completed
+          ? json({ error: 'GTFS_IMPORT_FAILED', requestId: idempotencyKey }, 500)
+          : json({ error: 'GTFS_IMPORT_AUDIT_INCOMPLETE', requestId: idempotencyKey }, 500);
+      }
+    }
+
+    const safeResult: SafeImportResult = {
+      code: 'GTFS_IMPORT_COMPLETED',
+      batch_id: batchId,
+      batch_digest: batchDigest,
+      file_type: fileType,
+      imported: transformed.length,
+      skipped,
+    };
+    if (!(await completeCommand(supabase, commandId, actor, 'ok', safeResult))) {
+      return json({ error: 'GTFS_IMPORT_AUDIT_INCOMPLETE', requestId: idempotencyKey }, 500);
+    }
+    return json({
+      imported: transformed.length,
+      skipped,
+      requestId: idempotencyKey,
+    });
+  } catch {
+    const completed = await completeCommand(supabase, commandId, actor, 'error', {
+      code: 'GTFS_IMPORT_FAILED',
+      batch_id: batchId,
+      batch_digest: batchDigest,
+      file_type: fileType,
+      imported: 0,
+      skipped,
+    });
+    return completed
+      ? json({ error: 'GTFS_IMPORT_FAILED', requestId: idempotencyKey }, 500)
+      : json({ error: 'GTFS_IMPORT_AUDIT_INCOMPLETE', requestId: idempotencyKey }, 500);
+  }
 }

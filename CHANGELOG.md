@@ -1,3 +1,296 @@
+## v0.10.8 — Named platformoperator authority és admin governance plane
+**Dátum:** 2026-08-30
+**Branch:** codex/platform-admin-control-center
+
+### Cél
+- A v0.10.7 read-first control centert névre szóló, DB-ből származó
+  role/capability authorityvel, AAL2-vel és auditált governance lifecycle-lal
+  lezárni.
+- A users/features/settings és a kritikus operátori/migration/release műveletek
+  közvetlen service-role írását authenticated, idempotens adatbázis-RPC-re vagy
+  exact-payload approvalra cserélni, a meglévő adminfunkciók elvesztése nélkül.
+
+### Változások
+- Új `20260830140000_platform_operator_authority.sql` forward migráció készült
+  platformoperator role/capability/assignment, durable action receipt/quota,
+  command approval, scoped support session/event és release-attestation
+  táblákkal és RPC-kkel.
+- A production DB workflow a korábbi 18 fájlos, `20260830120000` végű készlet
+  helyett új, pontosan 20 migrációs fájlt lefedő
+  `20260830140000_platform-admin-release.sha256` manifestet vár. A validator csak
+  a manifesttel azonos, folytonos pending suffixet engedi, és a `140000` fölötti
+  local/remote headet elutasítja. A production verifier a release 88/88 public
+  function nevét/`prokind` értékét, a kritikus command/authority RPC-k exact
+  signature-jét és pozitív/negatív `authenticated`/`service_role`/`anon` grantjait,
+  továbbá a release-kritikus public/private táblákat, kijelölt capability-seed
+  párokat és private-helper privilege lockot read-backeli.
+- A végleges `20260830140000_platform_operator_authority.sql` byte-hash:
+  `45B00B09CAFFC8AF50B2ECB21C3B0789684E4039D859CAF120FF5C0972ED2C99`; ez
+  egyezik a 20 fájlos manifest bejegyzésével.
+- Hat operátori szerep és explicit named capability katalógus került a sémába.
+  A szerver a Supabase Auth profil assignmentjeiből oldja fel az authorityt; a
+  régi HMAC superadmin session csak read-only break-glass, mutációra nem
+  használható.
+- A capability-closure eltávolította a route nélküli `platform.users.manage`
+  seedet és a nem seedelt `platform.integrations.test` TypeScript-union értéket;
+  az aktív manifest/migráció/route katalógus zárt.
+- Az egyszeri első-operátor bootstrap kizárólag üres assignment-registry,
+  verified konfigurált profil és service-role RPC mellett engedett.
+- A hardeningolt mutation route-ok named capabilityt és AAL2-t kérnek. A
+  durable request/execute/revoke DB-RPC-k maximum 15 perces friss AAL2-t,
+  reasont, idempotencyt, payload-digestet, action quotát és auditot is
+  ellenőriznek. Az approval- és support-döntés row-lockkal védett
+  single-decision DB-átmenet; külön idempotency keyt nem fogad, terminális
+  ismétlésre quota-fogyasztás nélkül determinisztikus already-decided választ ad.
+- Az operátori grant/revoke, migration apply és release attestation canonical
+  payloadhoz kötött, lejáró, egyszer használható four-eyes approvalt követel;
+  self-approval és payload drift fail-closed.
+- A governance tab operátori assignmentet, approval döntést, support session
+  request/approve/reject/revoke lifecycle-t és release attestationt kezel. A
+  support scope pontosan egy workspace vagy agency, maximum 60 perces és
+  terminális állapotból nem reaktiválható.
+- A support authorization primitive elkészült, de általános tenant support-
+  action consumer, impersonation és tenantoldali aktív-session banner nincs
+  production-readyként állítva.
+- A users read bounded keresést/lapozást és maszkolt emailt ad. A user trial,
+  feature és setting módosítás authenticated RPC-ben, durable receipt replay/
+  conflict, no-op kezelés, atomi audit és direct-write trigger guard mellett
+  történik. Ezek a műveletek nem kapnak általános four-eyes állítást.
+- A community review és duplicate-address resolution service-role route-write
+  helyett authenticated RPC-ben újraellenőrzi a named capabilityt, friss AAL2-t,
+  DB-oldali digestet, receiptet/quotát, self-review tiltást és a meglévő domain
+  invariánsokat; a state change és audit egy tranzakcióban zárul.
+- A control center canonical server-only typed manifestet kapott capability,
+  scope, criticality, timeout, freshness, probeKind, sideEffect, runbook és safe
+  deep-link mezőkkel. A collectorok bounded és poolkímélő concurrencyvel futnak.
+- Az aggregált DTO explicit KPI freshness/collector state-et, determinisztikus
+  attention `kind/state/time/owner/source` mezőket, integráció runtime/freshness/
+  latency/probe metadata-t, audit outcome/target/support/recovery markert és
+  külön web/backend release identityt ad biztonságos backward compatibilityvel.
+- Named read capability került a control-center, audit, health, stats, settings,
+  job log, users, features, community request, OSM count és a konkrét bounded,
+  allowlisted `diagnostics/curl` preset route elé. Ez nem általános legacy-route
+  hardening állítás.
+- A v0.10.7 command-v2 request-payload receipt replay, globális
+  `platform:mutations` lock, maximum 15 perces lease és atomikus begin/complete/
+  expire state machine változatlanul megmaradt. A GTFS guard továbbra is
+  maximum 500 soros batchre vonatkozik, nem teljes fájlra.
+- Az audit kliens/API szinten nem módosítható. A `service_role` auditjoga csak
+  SELECT/INSERT; az új migráció append-only triggerrel is védi az audit-,
+  support-event- és release-attestation sorokat. Ez nem DB-owner/superuser
+  elleni abszolút immutabilitási állítás.
+
+### Bizonyítási állapot
+- Fókuszált settings/community/migration/command/users/features/control-center
+  Vitest: **PASS — 45/45 teszt**.
+- TypeScript (`npx tsc --noEmit`): **PASS**.
+- Operator-authority statikus migrációs suite: **PASS — 17/17 teszt**.
+- Izolált PostgreSQL 18 első apply + teljes reapply: **PASS**.
+- Rollback-only operator/approval/support/attestation/community mutation runtime
+  canary az aktuális migráción: **PASS — 2/2 egymást követő futás**.
+- A végleges byte-hashokat tartalmazó 20 fájlos migration-release manifest
+  elkészült; a célzott release-workflow contract suite: **PASS — 9/9 teszt**.
+  Ez nem production Supabase alkalmazási vagy read-back bizonyíték.
+- Teljes v0.10.8 Vitest: **PASS — 88 tesztfájl / 578 teszt, 78,03 s**.
+- TypeScript (`npm run typecheck`) és ESLint (`npm run lint`): **PASS**; az ESLint
+  nem jelzett warningot vagy hibát.
+- Production build: **PASS — 73/73 statikus oldal**. Az új admin UI-copy scan:
+  **PASS**; a találatok kizárólag i18n-hívások, PanelLakó brand és technikai
+  identifierek.
+- Lokális auth-határ HTTP-smoke: **PASS** — `/superadmin` 307 a loginra, a login
+  200, az operator-context és control-center API auth nélkül 401.
+- Hitelesített browser QA és hosted két-operátoros/four-eyes canary:
+  **NOT_RUN / HOLD**; a lokális in-app webview nem csatlakozott, külső Chrome-
+  kapcsolat nem volt elérhető.
+- Production Supabase `20260830130000` + `20260830140000` migráció, production
+  deploy, release identity és alias: **NOT_RUN / HOLD**.
+- v0.10.8 implementációs commit és feature-branch push: **PASS** —
+  `a0f9eb3` a `codex/platform-admin-control-center` ágon.
+- Az első védett DB-audit run (`33369494169`) adatbázis-művelet előtt,
+  fail-closed állt meg a hiányzó `SUPABASE_DB_PASSWORD` production secret miatt.
+  A helyreállításhoz elkészült a külön owner/main/exact-confirm kapus,
+  maszkolt `db-password-rotate.yml`; futtatása és az azt követő audit/deploy
+  ebben a pillanatképben még **NOT_RUN / HOLD**.
+
+### Authority hardening lezárása
+- Az approval/support terminális decision replay a quota-fogyasztás előtt tér
+  vissza; 61 approval- és 31 support-replay runtime canaryja PASS.
+- Az `authorize_platform_action` replay egyetlen authorization audit sort hagy,
+  a lazy és scheduleres support-expiry út pedig egyaránt support-eventet és
+  platformauditot ír; az audit-egyszeriségi canary PASS.
+
+### Dokumentáció
+- Architektúra és aktuális státusz:
+  `docs/architecture/admin-control-center/README.md` és a 01–06 fejezet.
+- Új végrehajtási prompt státusz:
+  `AI_PROMPTING_FOLDERSTRUCTURE/admin-control-center/00_INDEX.md`.
+- Implementációs jegyzőkönyv:
+  `versioning/30082604_v0.10.8_platform-operator-authority-and-admin-completion.md`.
+- Piaci érték és állításhatár:
+  `marketing/marketing_values/20260830_v0.10.8_platform-operator-authority-and-admin-completion_marketing_value.md`.
+
+---
+
+## v0.10.7 — Platformadmin Control Center és privilegizált route-hardening
+**Dátum:** 2026-08-30
+**Branch:** codex/platform-admin-control-center
+
+### Cél
+- A PanelLakó teljes platformjának technikai és adminisztratív állapotát egy
+  biztonságos, könnyen áttekinthető, világos `/superadmin` kezdőlapon összefogni.
+- A Macrovia, Effectime, Expericentre és API Workbench bevált adminmintáit a
+  PanelLakó tenant-, privacy- és release-határaihoz igazítani úgy, hogy egyetlen
+  meglévő adminfunkció se vesszen el.
+
+### Változások
+- Új, alapértelmezett platformáttekintés készült KPI-, attention-, integráció-,
+  audit- és release-panelekkel; az egyes adatforrások hibája fail-isolated,
+  részleges állapotként jelenik meg.
+- A meglévő felhasználó-, feature-, közösségikérelem-, import-, job-, setting-
+  és diagnosztikai funkciók változatlanul elérhetők; a nehéz legacy lekérések
+  csak a technikai áttekintés megnyitásakor indulnak.
+- A tabválasztás query-paraméteres deep linket, `pushState` alapú felhasználói
+  navigációt, rendszerkorrekciónál `replaceState`-et és böngésző Back/Forward
+  szinkront kapott.
+- A frontend és a backend közös schema-verziót és determinisztikus
+  manifest-fingerprintet használ; hiányzó vagy eltérő release identity nem
+  minősül automatikusan egészségesnek.
+- Új `GET /api/superadmin/control-center` és minimalizált audit read endpoint
+  készült; egyik DTO sem ad át secretet, secret-karakterisztikát, nyers SQL-t,
+  audit metadata dumpot vagy nyers providerhibát.
+- A health és stats route-ok kizárólag hitelesített service-role admin klienssel
+  olvasnak, anon fallback nélkül; a konfiguráció csak értékmentes
+  állapotjelzésként látható.
+- A settings, job és migration command route-ok same-origin, content-type,
+  bounded payload és allowlist kapukat kaptak. A settings írás auditált és
+  audit-hibánál visszagörgethető; a migration UI kétlépcsős megerősítést kér és
+  nem jelenít meg nyers SQL-t.
+- Új forward-only adatbázis-migráció készült
+  (`20260830130000_platform_admin_job_commands.sql`). A kézi jobok és a
+  migrációfuttatás közös `platform:mutations` single-flight zárat, legfeljebb
+  15 perces lease-t és atomikus `begin`/`complete`/`expire` RPC életciklust
+  használnak; a command, a partícionált jobnapló és az audit együtt zárul.
+- A böngészőlap munkamenetében stabil idempotency key védi a transport retryt
+  és az oldalfrissítést. A kulcs csak terminális, biztonságosan értelmezhető
+  válasznál szabadul fel; bizonytalan transportkimenetnél és nem terminális
+  command-/audit-/guard-hibánál ugyanaz a kulcs marad az újrapróbáláshoz.
+- A command contract `20260830130000-v2` receipt replayt ad: az idempotency key
+  mellett a normalizált `request_payload`-nak is egyeznie kell. Azonos,
+  befejezett kérés a tárolt `status` + redaktált `safe_result` receiptet kapja
+  vissza új végrehajtás nélkül; azonos kulcs és eltérő payload stabil
+  idempotency conflict.
+- A command-migráció a `service_role` auditjogát `SELECT` + `INSERT` műveletre
+  szűkíti, az `UPDATE`, `DELETE` és `TRUNCATE` jogot explicit visszavonja.
+- A job napló projekciója érzékeny és hibamezőket redaktál; az elavult
+  `running` futás külön, magas prioritású attention állapotot kap.
+- A GTFS utófeldolgozási lánc mindkét job HTTP- és szerződéses sikerét
+  ellenőrzi; a második lépés hibája többé nem jelenhet meg hamis teljes
+  sikerként a manuális vagy ZIP-import folyamatban.
+- A GTFS import route same-origin, bounded JSON, strict mező-/típuskorlát,
+  canonical service-role kliens és command-v2 replay védelmet kapott. Egy
+  command pontosan egy, legfeljebb 500 soros batch globális lockja; egy teljes
+  fájl több külön batchből áll, ezért nincs teljes fájlra kiterjedő lock vagy
+  atomi fájlimport-állítás.
+- A teljes új felület HU/EN nyelvi erőforrásból épül, világos, 375/1440 célú és
+  billentyűzetes tabnavigációra felkészített.
+
+### Bizonyítási állapot
+- Célzott admin command/GTFS Vitest: **PASS — 7 fájl, 36/36 teszt**.
+- TypeScript (`npx tsc --noEmit`): **PASS**.
+- Izolált PostgreSQL 18.4 migráció, kétszeres teljes reapply, v2 receipt replay,
+  payload-conflict, globális lock, kompozit logfrissítés és audit least-privilege
+  canary: **PASS**.
+- Teljes Vitest: **PASS — 73 fájl, 478/478 teszt**.
+- TypeScript és ESLint: **PASS — 0 warning, 0 error**.
+- Production build: **PASS — 73/73 statikus oldal**.
+- `git diff --check` és tiltott admin UI-copy scan: **PASS**.
+- Helyi hitelesített browser QA: **NOT_RUN / HOLD** a végleges körben, mert az
+  in-app Browser webview nem tudott csatlakozni; a korábbi vizuális smoke nem
+  helyettesíti a jelenlegi build hitelesített ellenőrzését.
+- Hosted read-only admin smoke, release identity, production deploy és
+  production alias: **NOT_RUN / HOLD**.
+- A forward-only Supabase migráció forrása elkészült és izolált PostgreSQL-ben
+  igazolt; a production Supabase projektre alkalmazás: **NOT_RUN / HOLD**.
+- Commit és feature-branch push: **PASS** —
+  `codex/platform-admin-control-center`, implementációs commit `62f9ddd`.
+
+### Dokumentáció
+- Architektúra és biztonsági határ:
+  `docs/architecture/admin-control-center/README.md`.
+- Implementációs jegyzőkönyv:
+  `versioning/30082603_v0.10.7_platform-admin-control-center.md`.
+- Piaci érték és állításhatár:
+  `marketing/marketing_values/20260830_v0.10.7_platform-admin-control-center_marketing_value.md`.
+
+---
+
+## v0.10.6 — Shared GeoData Address Registry és biztonságos cím-onboarding
+**Dátum:** 2026-08-30
+**Branch:** codex/shared-geodata-address
+
+### Cél
+- A már felépített GeoData/OSM címállomány megtartása és verziózott, más
+  alkalmazásokban is használható magyar épületcím-szolgáltatássá alakítása.
+- Az új közösség és a profilcím kiválasztásának autocomplete-os, kanonikus
+  címidentitásra épülő megoldása a tenant-adatbázisok összekeverése nélkül.
+
+### Változások
+- Külön WebTools Address Registry API v1 készült suggest, resolve és reverse
+  műveletekkel, aktuális normalizált UUID-val, append-only OSM source-lineage
+  feloldással, OSM-attribúcióval, bounded KNN-kereséssel, timeouttal és
+  reapply-biztos least-privilege grantokkal.
+- A PanelLakó új, akadálymentes cím-comboboxot használ az onboardingban és a
+  profilban; a mentés szerveroldalon újra feloldott kanonikus UUID-ból történik.
+- A címsnapshot, provenance, alias, idempotencia és quota adatbázisban
+  auditálható; a cím kiválasztása semmilyen tenant- vagy adminjogot nem ad.
+- A legacy community-request RPC a háromfázisú, regressziómentes cutover első
+  szakaszában kizárólag `authenticated` kompatibilitási jogot tart meg;
+  `PUBLIC` és `anon` tiltott. A végleges authenticated revoke külön closure
+  migráció, csak a v2 hosted onboarding smoke után.
+- Canonical UUID-váltáskor a régi registry identity időben lezárul, az új lesz
+  aktív ugyanazon helyi címen, az idempotencia pedig a stabil OSM source-lineage
+  alapján változatlan marad.
+- A consumer token current/previous modellel rotálható; az OSM importer az új
+  Supabase secret-key formátumot Bearer-visszaélés nélkül kezeli.
+- A korábban követett `.env` fájlok kikerülnek az indexből; a history miatt a
+  magas jogosultságú credentialek rotációja külön production release-gate.
+- A Stripe- és push-kliensek csak valódi kéréskor inicializálódnak; egy
+  billing/push secret nélküli Preview-környezet ezért már nem állítja le az
+  egész Next.js buildet, az érintett szolgáltatás pedig fail-closed választ ad.
+
+### Bizonyítási állapot
+- Panel címes céltesztek: **PASS — 9 fájl, 89/89 teszt**.
+- Panel teljes regresszió: **PASS — 63 fájl, 425/425 teszt**.
+- Panel TypeScript és production build: **PASS — 73/73 statikus oldal**.
+- Panel PostgreSQL 18 apply/reapply és két-user runtime canary: **PASS**.
+- WebTools tesztek: **PASS — 38/38**; TypeScript és production build: **PASS**.
+- WebTools PostgreSQL 18 apply/reapply: **PASS**; `anon` csak a három bounded
+  read RPC-t futtathatja, `PUBLIC` és `authenticated` nem.
+- GitHub branch publikálás: **PASS** — mindkét implementációs ág originre tolva.
+- Vercel konfiguráció: **PASS** — a shared Address Registry URL/token és a
+  provider read/admin változónevei titkosított Preview + Production értékként
+  jelen vannak.
+- Vercel Preview: **PASS** — PanelLakó `dpl_6M2tsqDmCiZ7wUUgB3T3ABJCfXrn`
+  `Ready`; onboarding auth redirect 307, címproxy anonymous deny 401. A
+  WebTools provider Preview szintén `Ready`.
+- GitHub production migration audit: **HOLD** — a fail-closed workflow
+  `33314153183` még adatbázis-művelet előtt megállt, mert a production
+  `SUPABASE_DB_PASSWORD` secret hiányzik.
+- Panel cutover closure: **HOLD** — előbb a kompatibilis 3012 séma, utána a v2
+  alkalmazás és hosted smoke, végül külön legacy-RPC closure migráció szükséges.
+- Production corpus/p95, Supabase migration/rebuild, hosted deploy/smoke és
+  történeti credential-rotáció: **HOLD**, külön release-bizonyítékig.
+
+### Dokumentáció
+- Részletes architektúra:
+  `docs/architecture/multitenancy/14-shared-address-registry-v0.10.6.md`.
+- Verziójegyzőkönyv:
+  `versioning/30082602_v0.10.6_shared-geodata-address-registry.md`.
+- Piaci érték és állításhatár:
+  `marketing/marketing_values/20260830_v0.10.6_shared-geodata-address-registry_marketing_value.md`.
+
+---
+
 ## v0.10.5 — Google OAuth production runtime hardening
 **Dátum:** 2026-08-30
 **Branch:** codex/google-oauth-production-closure

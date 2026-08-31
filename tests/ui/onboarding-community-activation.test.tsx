@@ -44,6 +44,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
 
 describe('Onboarding community activation', () => {
@@ -85,5 +86,42 @@ describe('Onboarding community activation', () => {
 
     expect(await screen.findByText('Napfény Lakóközösség')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Közösség biztonságos aktiválása/i })).not.toBeInTheDocument();
+  });
+
+  it('requires an explicit registry selection unless the user chooses manual review', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: 'PENDING_VERIFICATION' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<OnboardingClient />);
+    fireEvent.click(screen.getByRole('button', { name: /Új közösséget kezdeményezek/i }));
+
+    fireEvent.change(screen.getByLabelText('Közösség neve'), { target: { value: 'Mintaház Társasház' } });
+    fireEvent.change(screen.getByLabelText('Pontos cím'), { target: { value: '9999 Mintafalu, Ismeretlen utca 2.' } });
+    fireEvent.change(screen.getByLabelText('Albetétek száma'), { target: { value: '4' } });
+    fireEvent.click(screen.getByRole('button', { name: /Ellenőrzési kérelem küldése/i }));
+
+    expect(await screen.findByText(/Válassz címet a találatok közül/i)).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/api/onboarding/community-requests',
+      expect.anything(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nem találom a címemet' }));
+    fireEvent.click(screen.getByRole('button', { name: /Ellenőrzési kérelem küldése/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/onboarding/community-requests',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
+    const requestBody = JSON.parse(String(fetchMock.mock.calls.find((call) => call[0] === '/api/onboarding/community-requests')?.[1]?.body));
+    expect(requestBody.address).toEqual({
+      mode: 'manual',
+      formattedAddress: '9999 Mintafalu, Ismeretlen utca 2.',
+    });
   });
 });

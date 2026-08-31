@@ -14,12 +14,6 @@ interface SendBody {
   targetRole?: 'all' | 'lako' | 'manager';
 }
 
-webpush.setVapidDetails(
-  'mailto:info@panellako.hu',
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '',
-  process.env.VAPID_PRIVATE_KEY ?? ''
-);
-
 export async function POST(request: NextRequest) {
   let body: SendBody;
   try {
@@ -91,6 +85,23 @@ export async function POST(request: NextRequest) {
 
   if (!subscriptions || subscriptions.length === 0) {
     return NextResponse.json({ sent: 0, failed: 0 });
+  }
+
+  const vapidPublicKey = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '').trim();
+  const vapidPrivateKey = (process.env.VAPID_PRIVATE_KEY ?? '').trim();
+  const vapidSubject = (process.env.VAPID_SUBJECT ?? 'mailto:info@panellako.hu').trim();
+  if (!vapidPublicKey || !vapidPrivateKey || !vapidSubject) {
+    return NextResponse.json({ error: 'Push delivery service is not configured' }, { status: 503 });
+  }
+
+  try {
+    // Configure only when a request actually has recipients. Import-time
+    // initialization made unrelated builds fail in environments where push is
+    // intentionally disabled (for example, isolated Preview deployments).
+    webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+  } catch {
+    console.error('[push/send] invalid VAPID configuration');
+    return NextResponse.json({ error: 'Push delivery service is not configured' }, { status: 503 });
   }
 
   const payload = JSON.stringify({

@@ -1,6 +1,12 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useI18n } from '@/src/i18n/useI18n';
+import {
+  acquireAdminRequestKey,
+  isTerminalAdminCommandResponse,
+  releaseAdminRequestKey,
+} from '@/lib/superadmin/idempotency-client';
 
 const COUNTIES = [
   { name: 'Budapest',    bbox: [47.35, 18.87, 47.62, 19.34] as const },
@@ -34,10 +40,20 @@ type ImportResult = {
   ranAt?: string;
 };
 
-type RowCount = { count: number | null; loading: boolean };
+type RowCount = { count: number | null; loading: boolean; unavailable: boolean };
 
-export default function SuperadminOsmImport() {
-  const [rowCount, setRowCount] = useState<RowCount>({ count: null, loading: false });
+type AllImportResult = {
+  ok: boolean;
+  commandStatus?: 'ok' | 'partial' | 'error';
+  totalImported?: number;
+  failedCount?: number;
+  failedCounties?: string[];
+  error?: string;
+};
+
+export default function SuperadminOsmImport({ canMutate = true }: { canMutate?: boolean }) {
+  const { t } = useI18n();
+  const [rowCount, setRowCount] = useState<RowCount>({ count: null, loading: false, unavailable: false });
   const [phase1Running, setPhase1Running] = useState(false);
   const [phase1Result, setPhase1Result] = useState<ImportResult | null>(null);
   const [countyRunning, setCountyRunning] = useState<string | null>(null);
@@ -45,113 +61,249 @@ export default function SuperadminOsmImport() {
   const [indexFixRunning, setIndexFixRunning] = useState(false);
   const [indexFixResult, setIndexFixResult] = useState<{ ok: boolean; method?: string; error?: string } | null>(null);
   const [allRunning, setAllRunning] = useState(false);
-  const [allResult, setAllResult] = useState<{ ok: boolean; totalImported?: number; failedCount?: number; error?: string } | null>(null);
+  const [allResult, setAllResult] = useState<AllImportResult | null>(null);
+  const [armedAction, setArmedAction] = useState<string | null>(null);
+  const [operationReason, setOperationReason] = useState('');
+  const [stepUpHref, setStepUpHref] = useState<string | null>(null);
+  const rowCountRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const anyImportRunning = phase1Running || indexFixRunning || allRunning || countyRunning !== null;
+  const normalizedReason = operationReason.trim();
+  const reasonValid = normalizedReason.length >= 10 && normalizedReason.length <= 1_000;
+
+  function captureStepUp(status: number, body: { stepUpHref?: unknown } | null): void {
+    if (
+      status === 428
+      && typeof body?.stepUpHref === 'string'
+      && body.stepUpHref.startsWith('/account/security?')
+    ) {
+      setStepUpHref(body.stepUpHref);
+    }
+  }
 
   const loadRowCount = useCallback(() => {
-    setRowCount(rc => ({ ...rc, loading: true }));
+    setRowCount(rc => ({ ...rc, loading: true, unavailable: false }));
     fetch('/api/superadmin/osm-addresses-count')
-      .then(r => r.json())
-      .then((d: { count?: number }) => setRowCount({ count: d.count ?? null, loading: false }))
-      .catch(() => setRowCount({ count: null, loading: false }));
+      .then(async r => {
+        const body = await r.json().catch(() => null) as { count?: number } | null;
+        if (!r.ok || typeof body?.count !== 'number') throw new Error('OSM_ADDRESS_COUNT_UNAVAILABLE');
+        setRowCount({ count: body.count, loading: false, unavailable: false });
+      })
+      .catch(() => setRowCount({ count: null, loading: false, unavailable: true }));
   }, []);
 
-  useEffect(() => { loadRowCount(); }, [loadRowCount]);
+  useEffect(() => {
+    loadRowCount();
+    return () => {
+      if (rowCountRefreshTimer.current) clearTimeout(rowCountRefreshTimer.current);
+    };
+  }, [loadRowCount]);
+
+  const scheduleRowCountRefresh = useCallback(() => {
+    if (rowCountRefreshTimer.current) clearTimeout(rowCountRefreshTimer.current);
+    rowCountRefreshTimer.current = setTimeout(() => {
+      rowCountRefreshTimer.current = null;
+      loadRowCount();
+    }, 500);
+  }, [loadRowCount]);
 
   async function runIndexFix() {
+    if (!canMutate) return;
+    if (!reasonValid) return;
+    setArmedAction(null);
+    setStepUpHref(null);
     setIndexFixRunning(true);
     setIndexFixResult(null);
+    const requestScope = 'job:osm_fix_index';
     try {
       const res = await fetch('/api/superadmin/jobs/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job: 'osm_fix_index' }),
+        body: JSON.stringify({ job: 'osm_fix_index', idempotencyKey: acquireAdminRequestKey(requestScope), reason: normalizedReason }),
       });
-      const body = await res.json() as { ok: boolean; result?: { ok: boolean; method?: string; error?: string }; error?: string };
+      const body = await res.json() as { ok: boolean; result?: { ok: boolean; method?: string; error?: string }; error?: string; stepUpHref?: string };
+      if (isTerminalAdminCommandResponse(body)) releaseAdminRequestKey(requestScope);
+      captureStepUp(res.status, body);
       setIndexFixResult({ ok: body.ok, method: body.result?.method, error: body.result?.error ?? body.error });
-    } catch (e) {
-      setIndexFixResult({ ok: false, error: String(e) });
+    } catch {
+      setIndexFixResult({ ok: false, error: 'JOB_REQUEST_FAILED' });
     } finally {
       setIndexFixRunning(false);
     }
   }
 
   async function runPhase1() {
+    if (!canMutate) return;
+    if (!reasonValid) return;
+    setArmedAction(null);
+    setStepUpHref(null);
     setPhase1Running(true);
     setPhase1Result(null);
+    const requestScope = 'job:osm_addresses_import_phase1';
     try {
       const res = await fetch('/api/superadmin/jobs/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job: 'osm_addresses_import_phase1' }),
+        body: JSON.stringify({ job: 'osm_addresses_import_phase1', idempotencyKey: acquireAdminRequestKey(requestScope), reason: normalizedReason }),
       });
-      const body = await res.json() as { ok: boolean; result?: ImportResult; error?: string };
+      const body = await res.json() as { ok: boolean; result?: ImportResult; error?: string; stepUpHref?: string };
+      if (isTerminalAdminCommandResponse(body)) releaseAdminRequestKey(requestScope);
+      captureStepUp(res.status, body);
       setPhase1Result({ ok: body.ok, ...(body.result ?? {}), error: body.error });
-    } catch (e) {
-      setPhase1Result({ ok: false, error: String(e) });
+    } catch {
+      setPhase1Result({ ok: false, error: 'JOB_REQUEST_FAILED' });
     } finally {
       setPhase1Running(false);
-      setTimeout(loadRowCount, 500);
+      scheduleRowCountRefresh();
     }
   }
 
   async function runAllCounties() {
+    if (!canMutate) return;
+    if (!reasonValid) return;
+    setArmedAction(null);
+    setStepUpHref(null);
     setAllRunning(true);
     setAllResult(null);
+    const requestScope = 'job:osm_addresses_import_all';
     try {
       const res = await fetch('/api/superadmin/jobs/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job: 'osm_addresses_import_all' }),
+        body: JSON.stringify({ job: 'osm_addresses_import_all', idempotencyKey: acquireAdminRequestKey(requestScope), reason: normalizedReason }),
       });
-      const body = await res.json() as { ok: boolean; result?: { totalImported?: number; failedCount?: number }; error?: string };
-      setAllResult({ ok: body.ok, totalImported: body.result?.totalImported, failedCount: body.result?.failedCount, error: body.error });
-    } catch (e) {
-      setAllResult({ ok: false, error: String(e) });
+      const body = await res.json().catch(() => null) as {
+        ok?: boolean;
+        commandStatus?: 'ok' | 'partial' | 'error';
+        result?: {
+          totalImported?: number;
+          failedCount?: number;
+          failedCounties?: string[];
+          counties?: Array<{ county: string; ok: boolean; imported?: number; skipped?: number; error?: string }>;
+        };
+        error?: string;
+        stepUpHref?: string;
+      } | null;
+      if (isTerminalAdminCommandResponse(body)) releaseAdminRequestKey(requestScope);
+      captureStepUp(res.status, body);
+      const failedCounties = body?.result?.failedCounties ?? body?.result?.counties?.filter(item => !item.ok).map(item => item.county) ?? [];
+      if (body?.result?.counties) {
+        setCountyResults(previous => {
+          const next = { ...previous };
+          for (const county of body.result!.counties!) {
+            next[county.county] = {
+              ok: county.ok,
+              imported: county.imported,
+              skipped: county.skipped,
+              error: county.error,
+            };
+          }
+          return next;
+        });
+      }
+      setAllResult({
+        ok: res.ok && body?.ok === true,
+        commandStatus: body?.commandStatus,
+        totalImported: body?.result?.totalImported,
+        failedCount: body?.result?.failedCount,
+        failedCounties,
+        error: body?.error ?? (!res.ok ? 'JOB_REQUEST_FAILED' : undefined),
+      });
+    } catch {
+      setAllResult({ ok: false, error: 'JOB_REQUEST_FAILED' });
     } finally {
       setAllRunning(false);
-      setTimeout(loadRowCount, 500);
+      scheduleRowCountRefresh();
     }
   }
 
   async function runCounty(county: string) {
+    if (!canMutate) return;
+    if (!reasonValid) return;
+    setArmedAction(null);
+    setStepUpHref(null);
     setCountyRunning(county);
+    const requestScope = `job:osm_addresses_import_phase2_county:${county}`;
     try {
       const res = await fetch('/api/superadmin/jobs/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job: 'osm_addresses_import_phase2_county', county }),
+        body: JSON.stringify({
+          job: 'osm_addresses_import_phase2_county',
+          county,
+          idempotencyKey: acquireAdminRequestKey(requestScope),
+          reason: normalizedReason,
+        }),
       });
-      const body = await res.json() as { ok: boolean; result?: ImportResult; error?: string };
+      const body = await res.json() as { ok: boolean; result?: ImportResult; error?: string; stepUpHref?: string };
+      if (isTerminalAdminCommandResponse(body)) releaseAdminRequestKey(requestScope);
+      captureStepUp(res.status, body);
       setCountyResults(prev => ({ ...prev, [county]: { ok: body.ok, ...(body.result ?? {}), error: body.error } }));
-    } catch (e) {
-      setCountyResults(prev => ({ ...prev, [county]: { ok: false, error: String(e) } }));
+    } catch {
+      setCountyResults(prev => ({ ...prev, [county]: { ok: false, error: 'JOB_REQUEST_FAILED' } }));
     } finally {
       setCountyRunning(null);
-      setTimeout(loadRowCount, 500);
+      scheduleRowCountRefresh();
     }
   }
 
   return (
-    <section className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
+    <section className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5" aria-labelledby="osm-import-title">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-100">OSM Cím-adatbázis import</h2>
+          <h2 id="osm-import-title" className="text-lg font-semibold text-slate-100">{t('superadmin.osm.title')}</h2>
           <p className="text-xs text-slate-500">
-            Magyar OSM cím-adatok importálása a Panellako Supabase projektbe (<code className="text-[10px]">public.osm_addresses</code>).
-            Az autocomplete ebből az adatból dolgozik.
+            {t('superadmin.osm.description')} (<code className="text-[10px]">public.osm_addresses</code>).
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-semibold tabular-nums text-slate-300">
-            {rowCount.loading ? 'Töltés…' : rowCount.count === null ? '— sor' : `${rowCount.count.toLocaleString('en-US')} sor`}
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold tabular-nums ${rowCount.unavailable ? 'bg-rose-50 text-rose-800 ring-1 ring-rose-200' : 'bg-white/[0.06] text-slate-300'}`}
+            role={rowCount.unavailable ? 'alert' : 'status'}
+            aria-live="polite"
+          >
+            {rowCount.loading
+              ? t('superadmin.osm.countLoading')
+              : rowCount.unavailable
+                ? t('superadmin.osm.countUnavailable')
+                : `${rowCount.count?.toLocaleString('en-US') ?? 0} ${t('superadmin.osm.rows')}`}
           </span>
           <button
+            type="button"
             onClick={loadRowCount}
             disabled={rowCount.loading}
+            aria-label={t('superadmin.osm.retryCount')}
             className="rounded-lg border border-white/10 px-2 py-1.5 text-xs text-slate-400 hover:bg-white/[0.08] disabled:opacity-50"
           >↻</button>
         </div>
       </div>
+
+      <div className="mb-4">
+        <label htmlFor="osm-operation-reason" className="block text-xs font-semibold text-slate-200">{t('superadmin.governance.reason')}</label>
+        <textarea
+          id="osm-operation-reason"
+          value={operationReason}
+          disabled={!canMutate}
+          onChange={event => {
+            setOperationReason(event.target.value);
+            setArmedAction(null);
+          }}
+          minLength={10}
+          maxLength={1_000}
+          rows={2}
+          aria-describedby="osm-operation-reason-hint"
+          className="mt-1 w-full resize-y rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+          placeholder={t('superadmin.operationsUi.reasonRequired')}
+        />
+        <span id="osm-operation-reason-hint" className="mt-1 block text-[11px] text-slate-500">
+          {t('superadmin.operationsUi.reasonRequired')}
+        </span>
+      </div>
+      {stepUpHref && (
+        <p role="alert" className="mb-4 rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-200">
+          {t('agency.errors.mfaRequired')}{' '}
+          <a href={stepUpHref} className="underline">{t('superadmin.authority.stepUp')}</a>
+        </p>
+      )}
 
       {/* Index fix — must run before any import if upsert fails */}
       <div className="mb-4 rounded-xl border border-rose-500/25 bg-rose-500/10 p-3 flex flex-wrap items-center justify-between gap-3">
@@ -165,11 +317,11 @@ export default function SuperadminOsmImport() {
           )}
         </div>
         <button
-          onClick={runIndexFix}
-          disabled={indexFixRunning || phase1Running || countyRunning !== null}
+          onClick={() => armedAction === 'index' ? runIndexFix() : setArmedAction('index')}
+          disabled={!canMutate || anyImportRunning || !reasonValid}
           className="shrink-0 rounded-lg bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-300 ring-1 ring-rose-500/25 hover:bg-rose-500/20 disabled:opacity-50"
         >
-          {indexFixRunning ? 'Fut…' : 'Index javítás'}
+          {indexFixRunning ? 'Fut…' : armedAction === 'index' ? 'Megerősítés: javítás' : 'Index javítás'}
         </button>
       </div>
 
@@ -182,11 +334,11 @@ export default function SuperadminOsmImport() {
             <p className="mt-1 text-[11px] text-slate-500">Forrás: Overpass API · Cél: Panellako <code className="text-[10px]">wzromwxpjlyrqbdiapep</code></p>
           </div>
           <button
-            onClick={runPhase1}
-            disabled={phase1Running || countyRunning !== null}
+            onClick={() => armedAction === 'phase1' ? runPhase1() : setArmedAction('phase1')}
+            disabled={!canMutate || anyImportRunning || !reasonValid}
             className="shrink-0 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-ink-base hover:bg-brand-400 disabled:opacity-50"
           >
-            {phase1Running ? 'Fut…' : 'Indítás'}
+            {phase1Running ? 'Fut…' : armedAction === 'phase1' ? 'Megerősítés: indítás' : 'Indítás'}
           </button>
         </div>
         {phase1Result && (
@@ -207,20 +359,40 @@ export default function SuperadminOsmImport() {
               <code className="text-[10px]">addr:housenumber</code> + <code className="text-[10px]">addr:street</code> — limit nélkül, minden cím.
               Megye: 2–4 perc. Egész ország: 40–80 perc (szerver futtatja végig).
             </p>
-            {allResult && (
-              <p className={`mt-1 text-xs font-semibold ${allResult.ok ? 'text-emerald-300' : 'text-rose-300'}`}>
-                {allResult.ok
-                  ? `✓ Kész — ${allResult.totalImported?.toLocaleString('en-US') ?? '?'} sor importálva`
-                  : `✗ Hiba: ${allResult.error ?? `${allResult.failedCount} megye sikertelen`}`}
-              </p>
-            )}
+            {allResult && (() => {
+              const partial = allResult.commandStatus === 'partial' || (allResult.failedCount ?? 0) > 0;
+              return (
+                <div
+                  className={`mt-2 rounded-lg border px-3 py-2 text-xs font-semibold ${
+                    allResult.ok
+                      ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300'
+                      : partial
+                        ? 'border-amber-400/40 bg-amber-400/10 text-amber-200'
+                        : 'border-rose-500/25 bg-rose-500/10 text-rose-300'
+                  }`}
+                  role={allResult.ok ? 'status' : 'alert'}
+                  aria-live="polite"
+                >
+                  <p>
+                    {allResult.ok
+                      ? `✓ ${t('superadmin.osm.complete')} — ${allResult.totalImported?.toLocaleString('en-US') ?? '?'} ${t('superadmin.osm.rowsImported')}`
+                      : partial
+                        ? `⚠ ${t('superadmin.osm.partial')} — ${allResult.failedCount ?? allResult.failedCounties?.length ?? '?'} ${t('superadmin.osm.countiesFailed')}`
+                        : `✗ ${t('superadmin.osm.failed')}: ${allResult.error ?? 'JOB_REQUEST_FAILED'}`}
+                  </p>
+                  {partial && allResult.failedCounties && allResult.failedCounties.length > 0 && (
+                    <p className="mt-1 font-normal">{t('superadmin.osm.retryHint')}: {allResult.failedCounties.join(', ')}</p>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           <button
-            onClick={runAllCounties}
-            disabled={allRunning || countyRunning !== null || phase1Running || indexFixRunning}
+            onClick={() => armedAction === 'all' ? runAllCounties() : setArmedAction('all')}
+            disabled={!canMutate || anyImportRunning || !reasonValid}
             className="shrink-0 rounded-lg bg-brand-500 px-5 py-2 text-sm font-semibold text-ink-base hover:bg-brand-400 disabled:opacity-50"
           >
-            {allRunning ? 'Fut… (kérlek várj)' : 'Egész ország'}
+            {allRunning ? 'Fut… (kérlek várj)' : armedAction === 'all' ? 'Megerősítés: egész ország' : 'Egész ország'}
           </button>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -239,15 +411,21 @@ export default function SuperadminOsmImport() {
                   )}
                 </div>
                 <button
-                  onClick={() => runCounty(c.name)}
-                  disabled={countyRunning !== null || phase1Running}
+                  onClick={() => armedAction === `county:${c.name}`
+                    ? runCounty(c.name)
+                    : setArmedAction(`county:${c.name}`)}
+                  disabled={!canMutate || anyImportRunning || !reasonValid}
                   className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
                     countyRunning === c.name
                       ? 'bg-amber-500/20 text-amber-200 ring-1 ring-amber-500/25'
                       : 'bg-amber-500/10 text-amber-300 ring-1 ring-amber-500/25 hover:bg-amber-500/20'
                   }`}
                 >
-                  {countyRunning === c.name ? 'Fut…' : r?.ok ? 'Újra' : 'Import'}
+                  {countyRunning === c.name
+                    ? 'Fut…'
+                    : armedAction === `county:${c.name}`
+                      ? 'Megerősítés'
+                      : r?.ok ? 'Újra' : 'Import'}
                 </button>
               </div>
             );

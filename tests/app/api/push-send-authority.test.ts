@@ -135,4 +135,52 @@ describe('tenant-authoritative push send route', () => {
     expect(mocks.from).not.toHaveBeenCalledWith('workspace_memberships');
     expect(mocks.from).not.toHaveBeenCalledWith('role_assignments');
   });
+
+  it('keeps builds and empty-recipient requests independent from optional VAPID configuration', async () => {
+    const response = await POST(request());
+
+    expect(response.status).toBe(200);
+    expect(mocks.setVapidDetails).not.toHaveBeenCalled();
+    expect(mocks.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it('fails only the delivery request when subscriptions exist but VAPID is not configured', async () => {
+    mocks.subscriptionIn.mockResolvedValue({
+      data: [{ endpoint: 'https://push.example.test/subscription', p256dh: 'p256dh', auth: 'auth' }],
+      error: null,
+    });
+    vi.stubEnv('NEXT_PUBLIC_VAPID_PUBLIC_KEY', '');
+    vi.stubEnv('VAPID_PRIVATE_KEY', '');
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      error: 'Push delivery service is not configured',
+    });
+    expect(mocks.setVapidDetails).not.toHaveBeenCalled();
+    expect(mocks.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it('configures web-push lazily before sending to a real subscription', async () => {
+    mocks.subscriptionIn.mockResolvedValue({
+      data: [{ endpoint: 'https://push.example.test/subscription', p256dh: 'p256dh', auth: 'auth' }],
+      error: null,
+    });
+    mocks.sendNotification.mockResolvedValue(undefined);
+    vi.stubEnv('NEXT_PUBLIC_VAPID_PUBLIC_KEY', 'public-vapid-key');
+    vi.stubEnv('VAPID_PRIVATE_KEY', 'private-vapid-key');
+    vi.stubEnv('VAPID_SUBJECT', 'mailto:push@example.test');
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ sent: 1, failed: 0 });
+    expect(mocks.setVapidDetails).toHaveBeenCalledWith(
+      'mailto:push@example.test',
+      'public-vapid-key',
+      'private-vapid-key',
+    );
+    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+  });
 });

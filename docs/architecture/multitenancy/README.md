@@ -53,6 +53,7 @@ bizonyítékkal zárult; a részleteket a v0.10.5 verziójegyzőkönyv tartalmaz
 11. [v0.10.1 platform-review és kérelmezői MFA-aktiválás](./11-community-review-and-activation-v0.10.1.md)
 12. [v0.10.1 operatív multitenancy-lezárás](./12-operational-multitenancy-closure-v0.10.1.md)
 13. [v0.10.4 Google Auth, lakónyilvántartás és authorization hardening](./13-google-auth-and-resident-registry-v0.10.4.md)
+14. [v0.10.6 közös GeoData Address Registry és biztonságos cím-onboarding](./14-shared-address-registry-v0.10.6.md)
 
 ## A három külön rendszerhatár
 

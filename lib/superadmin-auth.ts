@@ -6,6 +6,12 @@ const SESSION_VERSION = 'v2';
 const SESSION_TTL_SEC = 60 * 60; // 1h absolute session for the high-risk platform console
 const CLOCK_SKEW_SEC = 60;
 
+export interface LegacySuperadminSession {
+  email: string;
+  issuedAtSec: number;
+  expSec: number;
+}
+
 function getSecret(): string {
   const secret = process.env.SUPERADMIN_SESSION_SECRET;
   if (!secret?.trim()) {
@@ -35,7 +41,7 @@ function encodeSession(email: string, issuedAtSec: number, expSec: number): stri
   return `${payload}|${sign(payload)}`;
 }
 
-function decodeSession(raw: string): { email: string; issuedAtSec: number; expSec: number } | null {
+function decodeSession(raw: string): LegacySuperadminSession | null {
   const parts = raw.split('|');
   if (parts.length !== 5) return null;
   const [version, rawEmail, issuedAtStr, expStr, sig] = parts;
@@ -94,14 +100,23 @@ export async function clearSuperadminSession(): Promise<void> {
 }
 
 export async function isSuperadminAuthenticated(): Promise<boolean> {
+  return (await getLegacySuperadminSession()) !== null;
+}
+
+/**
+ * Returns the verified legacy operator identity without granting any capability.
+ * The platform authority layer treats this shared credential as read-only
+ * break-glass access; named write authority comes from Supabase Auth instead.
+ */
+export async function getLegacySuperadminSession(): Promise<LegacySuperadminSession | null> {
   try {
     const configured = getSuperadminCreds();
     const store = await cookies();
     const raw = store.get(COOKIE_NAME)?.value;
-    if (!raw) return false;
+    if (!raw) return null;
     const session = decodeSession(raw);
-    return session !== null && session.email === configured.email;
+    return session !== null && session.email === configured.email ? session : null;
   } catch {
-    return false;
+    return null;
   }
 }

@@ -18,6 +18,7 @@ import {
   cancelMyJoinRequest,
   resubmitMyJoinRequestEvidence,
 } from '@/app/actions/workspace-admin';
+import AddressAutocomplete, { type AddressAutocompleteSelection } from '@/components/address-autocomplete';
 import { useI18n } from '@/src/i18n/useI18n';
 import { createClient, hasSupabaseConfig } from '@/lib/supabase/browser';
 
@@ -455,6 +456,8 @@ export default function OnboardingClient() {
 
   const [communityName, setCommunityName] = useState('');
   const [formattedAddress, setFormattedAddress] = useState('');
+  const [selectedCommunityAddress, setSelectedCommunityAddress] = useState<AddressAutocompleteSelection | null>(null);
+  const [manualAddressMode, setManualAddressMode] = useState(false);
   const [legalForm, setLegalForm] = useState<LegalForm>('CONDOMINIUM');
   const [unitCount, setUnitCount] = useState('');
   const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('REPRESENTATIVE_MANAGED');
@@ -757,8 +760,12 @@ export default function OnboardingClient() {
     setCreationNotice(null);
 
     const parsedUnitCount = Number(unitCount);
-    if (communityName.trim().length < 2 || formattedAddress.trim().length < 5) {
+    if (communityName.trim().length < 3 || formattedAddress.trim().length < 5) {
       setCreationNotice({ tone: 'error', message: 'Add meg a közösség nevét és pontos címét.' });
+      return;
+    }
+    if (!manualAddressMode && !selectedCommunityAddress) {
+      setCreationNotice({ tone: 'error', message: t('onboarding.addressSearch.selectionRequired') });
       return;
     }
     if (!Number.isInteger(parsedUnitCount) || parsedUnitCount < 1 || parsedUnitCount > 5000) {
@@ -772,33 +779,45 @@ export default function OnboardingClient() {
 
     const payload = {
       communityName: communityName.trim(),
-      formattedAddress: formattedAddress.trim(),
       legalForm,
       unitCount: parsedUnitCount,
       governanceMode,
+      address: manualAddressMode
+        ? { mode: 'manual' as const, formattedAddress: formattedAddress.trim() }
+        : { mode: 'registry' as const, canonicalAddressId: selectedCommunityAddress!.id },
     };
     const idempotencyKey = keyForAttempt(creationAttempt, JSON.stringify(payload));
     setCreationLoading(true);
     try {
-      const supabase = createClient();
-      const { error } = await supabase.rpc('create_community_creation_request', {
-        p_community_name: payload.communityName,
-        p_formatted_address: payload.formattedAddress,
-        p_legal_form: payload.legalForm,
-        p_unit_count: payload.unitCount,
-        p_governance_mode: payload.governanceMode,
-        p_idempotency_key: idempotencyKey,
+      const response = await fetch('/api/onboarding/community-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ ...payload, idempotencyKey }),
       });
-
-      if (error) {
+      const result = await response.json() as { error?: string; message?: string };
+      if (!response.ok) {
+        const localizedMessage = result.error === 'ADDRESS_SELECTION_INVALID'
+          ? t('onboarding.addressSearch.invalidSelection')
+          : result.error === 'ADDRESS_REGISTRY_UNAVAILABLE'
+            ? t('onboarding.addressSearch.unavailable')
+            : result.error === 'COMMUNITY_ALREADY_EXISTS'
+              ? t('onboarding.communityAlreadyExists')
+              : result.error === 'SYSTEM_UPDATE_REQUIRED'
+                ? t('onboarding.updateRequired')
+                : t('onboarding.creationSubmitFailed');
         setCreationNotice({
           tone: 'error',
-          message: rpcErrorMessage(error, 'A kérelmet most nem sikerült beküldeni. Azonos adatokkal biztonságosan újrapróbálhatod.'),
+          message: localizedMessage,
         });
         return;
       }
 
       creationAttempt.current = null;
+      setCommunityName('');
+      setFormattedAddress('');
+      setSelectedCommunityAddress(null);
+      setManualAddressMode(false);
+      setUnitCount('');
       setCreationNotice({
         tone: 'success',
         message: 'Az új közösség ellenőrzési kérelmét rögzítettük. Ez még nem hozott létre workspace-et, tagságot vagy adminjogot.',
@@ -1127,12 +1146,19 @@ export default function OnboardingClient() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="community-name" className="mb-1.5 block text-sm font-semibold text-slate-700">Közösség neve</label>
-                <input id="community-name" type="text" required minLength={2} maxLength={200} value={communityName} onChange={(event) => setCommunityName(event.target.value)} className="input-base min-h-11" placeholder="Például: Gidófalvy Lajos utca 9." />
+                <input id="community-name" type="text" required minLength={3} maxLength={200} value={communityName} onChange={(event) => setCommunityName(event.target.value)} className="input-base min-h-11" placeholder="Például: Gidófalvy Lajos utca 9." />
               </div>
-              <div>
-                <label htmlFor="community-address" className="mb-1.5 block text-sm font-semibold text-slate-700">Pontos cím</label>
-                <input id="community-address" type="text" required minLength={5} maxLength={300} autoComplete="street-address" value={formattedAddress} onChange={(event) => setFormattedAddress(event.target.value)} className="input-base min-h-11" placeholder="Irányítószám, település, közterület, házszám" />
-              </div>
+              <AddressAutocomplete
+                id="community-address"
+                label={t('onboarding.addressSearch.label')}
+                query={formattedAddress}
+                selection={selectedCommunityAddress}
+                manualMode={manualAddressMode}
+                disabled={creationLoading}
+                onQueryChange={setFormattedAddress}
+                onSelectionChange={setSelectedCommunityAddress}
+                onManualModeChange={setManualAddressMode}
+              />
               <div>
                 <label htmlFor="legal-form" className="mb-1.5 block text-sm font-semibold text-slate-700">Jogi forma</label>
                 <select id="legal-form" value={legalForm} onChange={(event) => setLegalForm(event.target.value as LegalForm)} className="input-base min-h-11">

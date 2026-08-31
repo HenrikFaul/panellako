@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Stripe from 'stripe';
 import {
   authorizationMessage,
   requireAuthenticatedUser,
   requireWorkspaceCapability,
 } from '@/lib/authorization/guards';
+import { getStripeClient } from '@/lib/stripe/server';
 export const dynamic = 'force-dynamic';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-04-22.dahlia',
-  typescript: true
-});
 
 export async function POST(request: NextRequest) {
   let body: { buildingId?: string };
@@ -36,6 +31,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: authorizationMessage(error) }, { status: 403 });
   }
   const { supabase } = auth;
+
+  const stripe = getStripeClient();
+  if (!stripe) {
+    return NextResponse.json(
+      { error: 'A fizetési szolgáltatás átmenetileg nem érhető el.' },
+      { status: 503 },
+    );
+  }
 
   const { data: subscription } = await supabase
     .from('subscriptions')

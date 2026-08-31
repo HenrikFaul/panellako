@@ -1388,6 +1388,13 @@ brand: { 500: 'oklch(0.714 0.145 181 / <alpha-value>)' }
 **Problem**: `let lat = building.lat ?? 47.5278845;` után az `if (!lat) { geocode... }` ág SOHA nem fut le (a default truthy), így a koordináta nélküli épületek némán Budapest-középpont adatait kapták.
 **Fix**: A default fallbackot csak a geokódolási kísérlet UTÁN szabad alkalmazni; DB-író ágon `.is('lat', null)` guard a konkurens felülírás ellen.
 
+### [LESSON-RELEASE-005] DB-first/app-first RPC cutoverhez kompatibilitási fázis kell
+- **Dátum**: 2026-08-30
+- **Érintett fájlok**: `supabase/migrations/20260830120000_shared_geodata_address_registry.sql`, `app/api/onboarding/community-requests/route.ts`, `components/onboarding-client.tsx`
+- **Gyökérok**: A régi éles kliens a browser-callable v1 RPC-t használja, az új kliens pedig egy csak service-role számára elérhető v2 RPC-t. Ha ugyanaz a migráció létrehozza a v2 parancsot és azonnal visszavonja a v1 authenticated jogát, DB-first esetén a régi kliens, app-first esetén az új kliens áll le.
+- **Javítás**: Három fázis: kompatibilis séma ideiglenes authenticated v1 granttal; v2 alkalmazás + hosted smoke; külön closure migráció a v1 jog végleges visszavonására.
+- **Megelőzés**: Jogosultság- vagy API-signature cutovernél mindig készíts N/N+1 kompatibilitási mátrixot. Az add és a remove lépés nem kerülhet ugyanabba a production pending suffixbe, ha az alkalmazásdeploy külön tranzakció.
+
 ---
 
 ## ➕ APPEND — 2026-08-27 Demo hozzáférés megbízhatósági tanulságok
@@ -1587,3 +1594,31 @@ brand: { 500: 'oklch(0.714 0.145 181 / <alpha-value>)' }
 **Problem**: Egyetlen azonnali canary hamis negatív release-eredményt és szükségtelen rollbacket okozott volna, noha a konfiguráció helyes volt és néhány másodpercen belül propagálódott.
 **Fix**: Kizárólag a pontos `400` + `validation_failed` + `Unsupported provider: provider is not enabled` átmeneti válasz kapott legfeljebb 12, öt másodperces próbát. Minden más státusz, hibakód, célhost- vagy scope-eltérés továbbra is azonnal fail-closed; a sikeres production futás az első retry után PASS lett.
 **Prevention**: Control-plane változás után a runtime-canary legyen időben korlátos és hibaalakra szűkített; általános retry soha ne fedjen el hibás credentialt, redirectet, scope-ot vagy idegen célhostot.
+
+---
+
+## ➕ APPEND — 2026-08-30 Shared Address Registry tanulságok
+
+### [LESSON-ADDRESS-117]: A címválasztás kliensadata nem megbízható provenance
+**Context**: A felhasználó autocomplete-tal választ egy magyar épületcímet, majd közösségi vagy profilrekordot ment.
+**Problem**: A böngésző a kanonikus UUID mellett tetszőleges formázott címet, koordinátát, forrásazonosítót vagy confidence értéket küldhet. Ha a szerver ezeket átveszi, a „registry-verified” jelölés hamisítható.
+**Fix**: A kliens csak az opaque UUID-t küldi; minden magasabb bizalmi szintű mentés előtt a PanelLakó szervere a közös registryből újra feloldja, szigorúan normalizálja és kizárólag service-only RPC-vel írja a snapshotot. Az OSM-találat `SOURCE_MATCHED`, nem jogi ellenőrzés.
+**Prevention**: Külső referencia-adat kiválasztásánál a kliens legyen keresőfelület, ne authority; mentés előtt mindig szerveroldali re-resolution és contract validation történjen.
+
+### [LESSON-ADDRESS-118]: A régi kanonikus UUID feloldása explicit lineage szerződés
+**Context**: Egy OSM rekord normalizált címalakja változhat, miközben korábbi kérelmek a régi determinisztikus UUID-t őrzik.
+**Problem**: Ha a provider némán egy másik UUID-jú rekordot ad vissza, a fogyasztó vagy elutasítja, vagy ellenőrizetlen redirectet fogad el. A két oldal külön-külön PASS tesztje mellett az integráció mégis hibás lehet.
+**Fix**: A resolve envelope külön közli a kért és a feloldott UUID-t, az `EXACT` vagy `LINEAGE_REDIRECT` típust és a forrásrekord-azonosítót. A PanelLakó csak belsőleg konzisztens, UUID- és source-egyező redirectet fogad el, majd a jelenlegi kanonikus azonosítót tárolja.
+**Prevention**: Stabil azonosító migrációjánál a redirect ne HTTP- vagy adatbázis-mellékhatás legyen; legyen verziózott, géppel ellenőrizhető közös kontraktus és cross-repo regresszióteszt.
+
+### [LESSON-SECURITY-119]: Grant-csökkentésnél az előző explicit role grantot is vissza kell vonni
+**Context**: Egy korábbi migration az address consumer RPC-ket `authenticated` szerepkörnek is megadta, az új terv már csak `anon` read-plane-t akart.
+**Problem**: A `REVOKE ... FROM PUBLIC` nem törli az explicit `authenticated` grantot, ezért egy migration reapply után a régi kerülőút észrevétlenül megmarad.
+**Fix**: Minden consumer és legacy RPC signature-exact módon előbb `PUBLIC`, `anon`, `authenticated` szerepkörtől revoke-ot kap, majd csak a szükséges role kap új grantot. Statikus és valódi `SET ROLE` runtime canary ellenőrzi.
+**Prevention**: Jogosultságszűkítő migrationt mindig korábbi állapotból is futtass újra; ne csak tiszta adatbázison ellenőrizd a végső privilege-mátrixot.
+
+### [LESSON-TOOLING-120]: A Vercel link által hozzáadott `.env*` az `.env.example` fájlt is elrejti
+**Context**: A lokális repositoryt a már létező Vercel projekthez kellett kapcsolni a production konfiguráció ellenőrzéséhez.
+**Problem**: A CLI által hozzáadott általános `.env*` ignore minta a titokmentes `.env.example` fájlt is ignorálta volna, így a release-ből eltűnik a szükséges konfigurációs szerződés.
+**Fix**: Csak `.env`, `.env.local` és `.env.*.local` marad ignorálva, explicit `!.env.example` kivétellel ahol szükséges. A valódi `.env` Git-indexből kikerül, de lokálisan megmarad.
+**Prevention**: Minden link/pull parancs után ellenőrizd a `.gitignore` diffet és külön a `git status --short .env.example` eredményét.

@@ -1,145 +1,232 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { isSuperadminAuthenticated } from '@/lib/superadmin-auth';
-import dns from 'node:dns/promises';
 import type { LookupAddress } from 'node:dns';
+import dns from 'node:dns/promises';
 import net from 'node:net';
+import { NextRequest, NextResponse } from 'next/server';
+import { BoundedJsonError, readBoundedJson } from '@/lib/http/bounded-json';
+import {
+  adminJson,
+  hasJsonContentType,
+  isSameOriginAdminRequest,
+} from '@/lib/superadmin/http';
+import { requirePlatformRead } from '@/lib/superadmin/operator-authority';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
-// Superadmin HTTP runner — execute an arbitrary HTTP request from the
-// Vercel serverless environment and return the full response. Useful for
-// diagnosing whether upstream APIs (Overpass mirrors, Open-Meteo,
-// Supabase REST, etc.) are reachable from this deployment.
-//
-// SECURITY:
-//  - superadmin authentication required (cookie-based session)
-//  - request hostname must resolve to public IPs only (SSRF guard against
-//    Vercel internal infrastructure, cloud metadata services, RFC1918,
-//    loopback, link-local, IPv6 ULA/link-local)
-//  - response body capped at 512 KB
-//  - response truncated for display if larger than 32 KB
-//  - max 30 s total
-//  - method limited to GET/POST/PUT/PATCH/DELETE/HEAD
+type DiagnosticMethod = 'GET' | 'HEAD' | 'POST';
 
-interface RunRequest {
-  url:        string;
-  method?:    string;
-  headers?:   Record<string, string>;
-  body?:      string;
-  timeoutMs?: number;
+interface DiagnosticPreset {
+  url: string | ((request: NextRequest) => string);
+  method: DiagnosticMethod;
+  headers?: Readonly<Record<string, string>>;
+  body?: string;
+  timeoutMs: number;
+  allowedHosts?: readonly string[];
 }
 
 interface RunResponse {
-  ok:          boolean;
-  status:      number | null;
-  statusText:  string | null;
-  elapsedMs:   number;
-  url:         string;
-  finalUrl:    string | null;
-  redirected:  boolean;
+  ok: boolean;
+  presetId: string;
+  status: number | null;
+  statusText: string | null;
+  elapsedMs: number;
+  finalUrl: string | null;
+  redirected: boolean;
   contentType: string | null;
   responseHeaders: Record<string, string>;
-  bodyBytes:   number;
-  bodyText:    string;
+  bodyBytes: number;
+  bodyText: string;
   bodyTruncated: boolean;
-  error:       string | null;
+  error: string | null;
 }
 
-const MAX_BODY_BYTES        = 512 * 1024;   // 512 KB hard cap
-const MAX_DISPLAY_BYTES     =  32 * 1024;   // truncate to 32 KB for the UI
-const MAX_TIMEOUT_MS        = 25_000;       // a bit under maxDuration=30s
-const DEFAULT_TIMEOUT_MS    = 10_000;
-const ALLOWED_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD']);
+const OVERPASS_TINY = '[out:json][timeout:5];node[amenity=pharmacy](around:200,47.5278845,19.0705657);out qt 1;';
+const USER_AGENT = 'panellako-superadmin-diag/2.0 (info@panellako.hu)';
+const MAX_REQUEST_BYTES = 4 * 1024;
+const MAX_BODY_BYTES = 512 * 1024;
+const MAX_DISPLAY_BYTES = 32 * 1024;
+const MAX_TIMEOUT_MS = 25_000;
+const MAX_REDIRECT_HOPS = 3;
+const SAFE_RESPONSE_HEADERS = new Set(['content-type', 'content-length', 'cache-control', 'etag', 'last-modified', 'retry-after']);
+const FORBIDDEN_OUTBOUND_HEADER = /^(authorization|cookie|proxy-authorization|x-api-key)$/i;
+
+const DIAGNOSTIC_PRESETS: Readonly<Record<string, DiagnosticPreset>> = Object.freeze({
+  'overpass-kumi': {
+    url: 'https://overpass.kumi.systems/api/interpreter',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `data=${encodeURIComponent(OVERPASS_TINY)}`,
+    timeoutMs: 9_000,
+  },
+  'overpass-api-de': {
+    url: 'https://overpass-api.de/api/interpreter',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `data=${encodeURIComponent(OVERPASS_TINY)}`,
+    timeoutMs: 9_000,
+  },
+  'overpass-fr': {
+    url: 'https://overpass.openstreetmap.fr/api/interpreter',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `data=${encodeURIComponent(OVERPASS_TINY)}`,
+    timeoutMs: 9_000,
+  },
+  'overpass-lz4': {
+    url: 'https://lz4.overpass-api.de/api/interpreter',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `data=${encodeURIComponent(OVERPASS_TINY)}`,
+    timeoutMs: 9_000,
+  },
+  'gibs-ndvi': {
+    url: 'https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=MODIS_Terra_NDVI_8Day&STYLES=&CRS=EPSG:4326&BBOX=45.7,16.0,48.6,22.9&WIDTH=1024&HEIGHT=430&FORMAT=image/png&TRANSPARENT=TRUE&TIME=2024-09-22',
+    method: 'GET',
+    timeoutMs: 20_000,
+  },
+  'earth-search': {
+    url: 'https://earth-search.aws.element84.com/v1/search',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      collections: ['sentinel-2-l2a'],
+      intersects: { type: 'Point', coordinates: [19.0705657, 47.5278845] },
+      limit: 1,
+    }),
+    timeoutMs: 15_000,
+  },
+  'open-meteo': {
+    url: 'https://api.open-meteo.com/v1/forecast?latitude=47.5279&longitude=19.0706&current=temperature_2m',
+    method: 'GET',
+    timeoutMs: 5_000,
+  },
+  'open-meteo-aq': {
+    url: 'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=47.5279&longitude=19.0706&current=pm2_5,pm10',
+    method: 'GET',
+    timeoutMs: 5_000,
+  },
+  'self-diag': {
+    url: request => `${request.nextUrl.origin}/api/environment/diagnostics`,
+    method: 'GET',
+    timeoutMs: 20_000,
+  },
+  pvgis: {
+    url: 'https://re.jrc.ec.europa.eu/api/v5_2/PVcalc?lat=47.5279&lon=19.0706&peakpower=1&loss=14&pvtechchoice=crystSi&outputformat=json',
+    method: 'GET',
+    timeoutMs: 15_000,
+  },
+  titiler: {
+    url: 'https://titiler.xyz/cog/point/19.0706,47.5279?url=https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/33/U/XP/2024/9/S2A_33UXP_20240920_0_L2A/B08.tif',
+    method: 'GET',
+    timeoutMs: 15_000,
+  },
+});
+
+function json(body: unknown, status = 200): NextResponse {
+  return adminJson(body as Record<string, unknown>, status);
+}
 
 function isPrivateIPv4(ip: string): boolean {
-  const parts = ip.split('.').map(n => parseInt(n, 10));
-  if (parts.length !== 4 || parts.some(p => Number.isNaN(p) || p < 0 || p > 255)) return true;
+  const parts = ip.split('.').map(value => Number.parseInt(value, 10));
+  if (parts.length !== 4 || parts.some(value => !Number.isInteger(value) || value < 0 || value > 255)) return true;
   const [a, b] = parts;
-  if (a === 10)                                        return true;   // 10.0.0.0/8
-  if (a === 172 && b >= 16 && b <= 31)                 return true;   // 172.16.0.0/12
-  if (a === 192 && b === 168)                          return true;   // 192.168.0.0/16
-  if (a === 127)                                       return true;   // 127.0.0.0/8 loopback
-  if (a === 169 && b === 254)                          return true;   // 169.254.0.0/16 link-local + cloud metadata
-  if (a === 100 && b >= 64 && b <= 127)                return true;   // 100.64.0.0/10 CGNAT
-  if (a === 0)                                         return true;   // 0.0.0.0/8
-  if (a >= 224)                                        return true;   // multicast + reserved
+  if (a === 0 || a === 10 || a === 127) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 100 && b >= 64 && b <= 127) return true;
+  if (a >= 224) return true;
   return false;
 }
 
 function isPrivateIPv6(ip: string): boolean {
   const lower = ip.toLowerCase();
-  if (lower === '::1')                  return true;   // loopback
-  if (lower === '::')                   return true;   // unspecified
-  if (lower.startsWith('fe8') || lower.startsWith('fe9') || lower.startsWith('fea') || lower.startsWith('feb')) return true;  // link-local fe80::/10
-  if (lower.startsWith('fc') || lower.startsWith('fd')) return true;  // ULA fc00::/7
-  if (lower.startsWith('ff'))           return true;   // multicast
-  // IPv4-mapped (::ffff:a.b.c.d) — re-check the v4 portion
+  if (lower === '::1' || lower === '::') return true;
+  if (/^fe[89ab]/.test(lower) || lower.startsWith('fc') || lower.startsWith('fd') || lower.startsWith('ff')) return true;
   const v4Mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-  if (v4Mapped) return isPrivateIPv4(v4Mapped[1]);
-  return false;
+  return v4Mapped ? isPrivateIPv4(v4Mapped[1]) : false;
 }
 
-async function ssrfGuard(targetUrl: URL): Promise<{ ok: true } | { ok: false; reason: string }> {
-  const host = targetUrl.hostname.replace(/^\[|\]$/g, '');
-  // Reject obviously dangerous strings outright
-  if (!host || host === 'localhost' || host.endsWith('.localhost')) {
-    return { ok: false, reason: `Host '${host}' is forbidden (localhost)` };
-  }
-  if (host.endsWith('.internal') || host.endsWith('.local') || host.endsWith('.vercel.run')) {
-    return { ok: false, reason: `Host suffix forbidden: '${host}'` };
-  }
-  // If host is already an IP literal, check it directly
-  if (net.isIPv4(host)) {
-    if (isPrivateIPv4(host)) return { ok: false, reason: `Private IPv4 address ${host}` };
-    return { ok: true };
-  }
-  if (net.isIPv6(host)) {
-    if (isPrivateIPv6(host)) return { ok: false, reason: `Private IPv6 address ${host}` };
-    return { ok: true };
-  }
-  // Resolve hostname; reject if ANY resolved address is private
-  let addrs: LookupAddress[];
+async function ssrfGuard(target: URL): Promise<boolean> {
+  const host = target.hostname.replace(/^\[|\]$/g, '');
+  if (
+    !host
+    || host === 'localhost'
+    || host.endsWith('.localhost')
+    || host.endsWith('.internal')
+    || host.endsWith('.local')
+    || host.endsWith('.vercel.run')
+  ) return false;
+  if (net.isIPv4(host)) return !isPrivateIPv4(host);
+  if (net.isIPv6(host)) return !isPrivateIPv6(host);
+
+  let addresses: LookupAddress[];
   try {
-    addrs = await dns.lookup(host, { all: true });
-  } catch (err) {
-    return { ok: false, reason: `DNS lookup failed for '${host}': ${err instanceof Error ? err.message : String(err)}` };
+    addresses = await dns.lookup(host, { all: true });
+  } catch {
+    return false;
   }
-  for (const a of addrs) {
-    if (a.family === 4 && isPrivateIPv4(a.address)) {
-      return { ok: false, reason: `Host '${host}' resolves to private IPv4 ${a.address}` };
+  return addresses.length > 0 && addresses.every(address => (
+    address.family === 4 ? !isPrivateIPv4(address.address) : !isPrivateIPv6(address.address)
+  ));
+}
+
+function allowedHostsFor(preset: DiagnosticPreset, initialTarget: URL): Set<string> {
+  return new Set((preset.allowedHosts ?? [initialTarget.hostname]).map(host => host.toLowerCase()));
+}
+
+async function validateTarget(target: URL, allowedHosts: Set<string>): Promise<boolean> {
+  return (
+    target.protocol === 'https:'
+    && !target.username
+    && !target.password
+    && allowedHosts.has(target.hostname.toLowerCase())
+    && await ssrfGuard(target)
+  );
+}
+
+function presetHeaders(preset: DiagnosticPreset): Record<string, string> {
+  const headers: Record<string, string> = { 'User-Agent': USER_AGENT };
+  for (const [key, value] of Object.entries(preset.headers ?? {})) {
+    if (FORBIDDEN_OUTBOUND_HEADER.test(key)) continue;
+    headers[key] = value;
+  }
+  return headers;
+}
+
+function redactText(value: string): string {
+  return value
+    .replace(/\bBearer\s+[A-Za-z0-9._~+/-]+=*/gi, 'Bearer [redacted]')
+    .replace(/((?:authorization|cookie|set-cookie|api[_-]?key|token|secret|password)\s*[=:]\s*)[^\s,;"}]+/gi, '$1[redacted]')
+    .replace(/("(?:authorization|cookie|set-cookie|api[_-]?key|token|secret|password)"\s*:\s*")[^"]*(")/gi, '$1[redacted]$2');
+}
+
+function redactUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    url.hash = '';
+    for (const key of Array.from(url.searchParams.keys())) {
+      if (/(authorization|cookie|api[_-]?key|token|secret|password|signature|credential)/i.test(key)) {
+        url.searchParams.set(key, '[redacted]');
+      }
     }
-    if (a.family === 6 && isPrivateIPv6(a.address)) {
-      return { ok: false, reason: `Host '${host}' resolves to private IPv6 ${a.address}` };
-    }
+    return url.toString();
+  } catch {
+    return '';
   }
-  return { ok: true };
 }
 
-function sanitizeHeaders(input: Record<string, string> | undefined): Record<string, string> {
-  if (!input) return {};
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(input)) {
-    const key = k.trim();
-    // Forbid headers that could be used to bypass / forge identity
-    if (/^host$/i.test(key))                                    continue;
-    if (/^cookie$/i.test(key))                                  continue;  // don't leak our cookies
-    if (/^authorization$/i.test(key) && typeof v === 'string' && v.length > 4000) continue;
-    if (typeof v !== 'string')                                  continue;
-    if (key.length === 0 || key.length > 200 || v.length > 4000) continue;
-    out[key] = v;
-  }
-  return out;
+function snapshotHeaders(headers: Headers): Record<string, string> {
+  const safe: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    const normalized = key.toLowerCase();
+    if (SAFE_RESPONSE_HEADERS.has(normalized)) safe[normalized] = redactText(value);
+  });
+  return safe;
 }
 
-function snapshotHeaders(h: Headers): Record<string, string> {
-  const out: Record<string, string> = {};
-  h.forEach((v, k) => { out[k] = v; });
-  return out;
-}
-
-async function readBodyCapped(res: Response, cap: number): Promise<{ text: string; bytes: number; truncated: boolean }> {
-  const reader = res.body?.getReader();
+async function readBodyCapped(response: Response): Promise<{ text: string; bytes: number; truncated: boolean }> {
+  const reader = response.body?.getReader();
   if (!reader) return { text: '', bytes: 0, truncated: false };
   const chunks: Uint8Array[] = [];
   let bytes = 0;
@@ -147,121 +234,169 @@ async function readBodyCapped(res: Response, cap: number): Promise<{ text: strin
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    if (value) {
-      if (bytes + value.length > cap) {
-        const room = Math.max(0, cap - bytes);
-        if (room > 0) chunks.push(value.subarray(0, room));
-        bytes += room;
-        truncated = true;
-        try { await reader.cancel(); } catch { /* noop */ }
-        break;
-      }
-      chunks.push(value);
-      bytes += value.length;
+    if (bytes + value.byteLength > MAX_BODY_BYTES) {
+      const remaining = Math.max(0, MAX_BODY_BYTES - bytes);
+      if (remaining > 0) chunks.push(value.slice(0, remaining));
+      bytes += remaining;
+      truncated = true;
+      await reader.cancel();
+      break;
     }
+    chunks.push(value);
+    bytes += value.byteLength;
   }
-  // Combine chunks into one Uint8Array
-  const buf = new Uint8Array(bytes);
-  let off = 0;
-  for (const c of chunks) { buf.set(c, off); off += c.length; }
-  const text = new TextDecoder('utf-8', { fatal: false }).decode(buf);
-  return { text, bytes, truncated };
+  const buffer = new Uint8Array(bytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    buffer.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return {
+    text: new TextDecoder('utf-8', { fatal: false }).decode(buffer),
+    bytes,
+    truncated,
+  };
 }
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
-  if (!(await isSuperadminAuthenticated())) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  let payload: RunRequest;
-  try {
-    payload = await req.json() as RunRequest;
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-  }
-
-  if (!payload?.url || typeof payload.url !== 'string') {
-    return NextResponse.json({ error: 'Missing "url"' }, { status: 400 });
-  }
-
-  let target: URL;
-  try {
-    target = new URL(payload.url);
-  } catch {
-    return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
-  }
-  if (target.protocol !== 'http:' && target.protocol !== 'https:') {
-    return NextResponse.json({ error: `Protocol '${target.protocol}' not allowed (only http/https)` }, { status: 400 });
-  }
-
-  const method = (payload.method ?? 'GET').toUpperCase();
-  if (!ALLOWED_METHODS.has(method)) {
-    return NextResponse.json({ error: `Method '${method}' not allowed` }, { status: 400 });
-  }
-
-  const ssrf = await ssrfGuard(target);
-  if (!ssrf.ok) {
-    return NextResponse.json({ error: `SSRF guard: ${ssrf.reason}` }, { status: 400 });
-  }
-
-  const timeoutMs = Math.min(Math.max(500, payload.timeoutMs ?? DEFAULT_TIMEOUT_MS), MAX_TIMEOUT_MS);
-  const headers = sanitizeHeaders(payload.headers);
-  if (!('User-Agent' in headers) && !('user-agent' in headers)) {
-    headers['User-Agent'] = 'panellako-superadmin-diag/1.0';
-  }
-
-  const init: RequestInit = {
-    method,
-    headers,
-    signal: AbortSignal.timeout(timeoutMs),
-    redirect: 'follow',
+function failedResponse(
+  presetId: string,
+  startedAt: number,
+  error: string,
+  overrides: Partial<RunResponse> = {},
+): RunResponse {
+  return {
+    ok: false,
+    presetId,
+    status: null,
+    statusText: null,
+    elapsedMs: Date.now() - startedAt,
+    finalUrl: null,
+    redirected: false,
+    contentType: null,
+    responseHeaders: {},
+    bodyBytes: 0,
+    bodyText: '',
+    bodyTruncated: false,
+    error,
+    ...overrides,
   };
-  if (payload.body !== undefined && method !== 'GET' && method !== 'HEAD') {
-    init.body = payload.body;
-  }
+}
 
-  const t0 = Date.now();
-  let result: RunResponse;
-  try {
-    const res = await fetch(target.toString(), init);
-    const body = method === 'HEAD'
+async function fetchPreset(
+  request: NextRequest,
+  presetId: string,
+  preset: DiagnosticPreset,
+): Promise<RunResponse> {
+  const initialTarget = new URL(typeof preset.url === 'function' ? preset.url(request) : preset.url);
+  const allowedHosts = allowedHostsFor(preset, initialTarget);
+  let target = initialTarget;
+  let redirectCount = 0;
+  const startedAt = Date.now();
+  const signal = AbortSignal.timeout(Math.min(preset.timeoutMs, MAX_TIMEOUT_MS));
+
+  while (true) {
+    if (!(await validateTarget(target, allowedHosts))) {
+      return failedResponse(presetId, startedAt, 'DIAGNOSTIC_TARGET_BLOCKED', { redirected: redirectCount > 0 });
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(target.toString(), {
+        method: preset.method,
+        headers: presetHeaders(preset),
+        body: preset.method === 'POST' ? preset.body : undefined,
+        redirect: 'manual',
+        signal,
+      });
+    } catch {
+      return failedResponse(presetId, startedAt, 'DIAGNOSTIC_FETCH_FAILED', { redirected: redirectCount > 0 });
+    }
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location');
+      const base = {
+        status: response.status,
+        statusText: response.statusText || null,
+        finalUrl: redactUrl(target.toString()),
+        redirected: redirectCount > 0,
+        responseHeaders: snapshotHeaders(response.headers),
+      };
+      if (!location || redirectCount >= MAX_REDIRECT_HOPS) {
+        return failedResponse(
+          presetId,
+          startedAt,
+          location ? 'DIAGNOSTIC_REDIRECT_LIMIT' : 'DIAGNOSTIC_REDIRECT_INVALID',
+          base,
+        );
+      }
+      let nextTarget: URL;
+      try {
+        nextTarget = new URL(location, target);
+      } catch {
+        return failedResponse(presetId, startedAt, 'DIAGNOSTIC_REDIRECT_INVALID', base);
+      }
+      if (!(await validateTarget(nextTarget, allowedHosts))) {
+        return failedResponse(presetId, startedAt, 'DIAGNOSTIC_REDIRECT_BLOCKED', { ...base, redirected: true });
+      }
+      target = nextTarget;
+      redirectCount += 1;
+      continue;
+    }
+
+    const body = preset.method === 'HEAD'
       ? { text: '', bytes: 0, truncated: false }
-      : await readBodyCapped(res, MAX_BODY_BYTES);
-    const displayText = body.text.length > MAX_DISPLAY_BYTES
-      ? body.text.slice(0, MAX_DISPLAY_BYTES)
-      : body.text;
-    result = {
-      ok:              res.ok,
-      status:          res.status,
-      statusText:      res.statusText || null,
-      elapsedMs:       Date.now() - t0,
-      url:             target.toString(),
-      finalUrl:        res.url,
-      redirected:      res.redirected,
-      contentType:     res.headers.get('content-type'),
-      responseHeaders: snapshotHeaders(res.headers),
-      bodyBytes:       body.bytes,
-      bodyText:        displayText,
-      bodyTruncated:   body.truncated || body.text.length > MAX_DISPLAY_BYTES,
-      error:           null,
-    };
-  } catch (err) {
-    result = {
-      ok:              false,
-      status:          null,
-      statusText:      null,
-      elapsedMs:       Date.now() - t0,
-      url:             target.toString(),
-      finalUrl:        null,
-      redirected:      false,
-      contentType:     null,
-      responseHeaders: {},
-      bodyBytes:       0,
-      bodyText:        '',
-      bodyTruncated:   false,
-      error:           err instanceof Error ? `${err.name}: ${err.message}` : String(err),
+      : await readBodyCapped(response);
+    const redactedBody = redactText(body.text);
+    return {
+      ok: response.ok,
+      presetId,
+      status: response.status,
+      statusText: response.statusText || null,
+      elapsedMs: Date.now() - startedAt,
+      finalUrl: redactUrl(target.toString()),
+      redirected: redirectCount > 0,
+      contentType: response.headers.get('content-type'),
+      responseHeaders: snapshotHeaders(response.headers),
+      bodyBytes: body.bytes,
+      bodyText: redactedBody.slice(0, MAX_DISPLAY_BYTES),
+      bodyTruncated: body.truncated || redactedBody.length > MAX_DISPLAY_BYTES,
+      error: response.ok ? null : 'DIAGNOSTIC_UPSTREAM_ERROR',
     };
   }
+}
 
-  return NextResponse.json(result);
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  const authority = await requirePlatformRead('platform.integrations.read');
+  if (!authority.ok) return json({ error: authority.errorCode }, authority.status);
+  if (!isSameOriginAdminRequest(request)) return json({ error: 'ORIGIN_NOT_ALLOWED' }, 403);
+  if (!hasJsonContentType(request)) {
+    return json({ error: 'UNSUPPORTED_MEDIA_TYPE' }, 415);
+  }
+
+  let parsedBody: unknown;
+  try {
+    parsedBody = await readBoundedJson(request, MAX_REQUEST_BYTES);
+  } catch (error) {
+    if (error instanceof BoundedJsonError && error.code === 'REQUEST_TOO_LARGE') {
+      return json({ error: 'REQUEST_TOO_LARGE' }, 413);
+    }
+    return json({ error: 'INVALID_JSON' }, 400);
+  }
+  if (!parsedBody || typeof parsedBody !== 'object' || Array.isArray(parsedBody)) {
+    return json({ error: 'INVALID_PRESET_REQUEST' }, 400);
+  }
+  const record = parsedBody as Record<string, unknown>;
+  const keys = Object.keys(record);
+  const presetId = record.presetId;
+  if (keys.length !== 1 || typeof presetId !== 'string' || !/^[a-z0-9-]{1,64}$/.test(presetId)) {
+    return json({ error: 'INVALID_PRESET_REQUEST' }, 400);
+  }
+  const preset = DIAGNOSTIC_PRESETS[presetId];
+  if (!preset) return json({ error: 'DIAGNOSTIC_PRESET_NOT_FOUND' }, 404);
+
+  try {
+    return json(await fetchPreset(request, presetId, preset));
+  } catch {
+    return json(failedResponse(presetId, Date.now(), 'DIAGNOSTIC_FETCH_FAILED'));
+  }
 }
