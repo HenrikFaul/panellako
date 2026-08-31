@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, it } from 'vitest';
 
 const workflow = readFileSync('.github/workflows/db-migrate.yml', 'utf8');
+const passwordRotationWorkflow = readFileSync('.github/workflows/db-password-rotate.yml', 'utf8');
 const verifier = readFileSync('scripts/verify-production-multitenancy.sh', 'utf8');
 const validator = readFileSync('scripts/validate-migration-release.mjs', 'utf8');
 const manifestPath = '.github/migration-manifests/20260830140000_platform-admin-release.sha256';
@@ -39,6 +40,23 @@ function writeFixture(name: string, value: unknown) {
 }
 
 describe('production migration release workflow contract', () => {
+  it('keeps database password rotation owner-only, main-only, serialized, and secret-safe', () => {
+    expect(passwordRotationWorkflow).toContain('group: panellako-production-db-migration');
+    expect(passwordRotationWorkflow).toContain('refs/heads/main');
+    expect(passwordRotationWorkflow).toContain('${GITHUB_ACTOR}" != "HenrikFaul');
+    expect(passwordRotationWorkflow).toContain('ROTATE:PANELLAKO-DB-PASSWORD');
+    expect(passwordRotationWorkflow).toContain('PANELLAKO_PROJECT_REF: wzromwxpjlyrqbdiapep');
+    expect(passwordRotationWorkflow).toContain('SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}');
+    expect(passwordRotationWorkflow).toContain('::add-mask::${SUPABASE_DB_PASSWORD}');
+    expect(passwordRotationWorkflow).toContain('/database/password');
+    expect(passwordRotationWorkflow).toContain('--request PATCH');
+    expect(passwordRotationWorkflow).toContain('--data-binary "@${REQUEST_BODY}"');
+    expect(passwordRotationWorkflow).not.toContain('echo "${SUPABASE_DB_PASSWORD}"');
+    expect(passwordRotationWorkflow).not.toContain('set -x');
+    expect(passwordRotationWorkflow).toContain('supabase@2.116.0 link');
+    expect(passwordRotationWorkflow).toContain('migration list --linked --output-format json');
+  });
+
   it('pins the exact 20-file release manifest to the current migration bytes', () => {
     expect(manifestEntries).toHaveLength(20);
     expect(manifestEntries[0]?.version).toBe('20260828120000');

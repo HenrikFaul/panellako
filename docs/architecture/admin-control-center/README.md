@@ -121,8 +121,8 @@ Aktuális bizonyítási határ:
 - izolált operator/approval/support/attestation/community mutation runtime
   canary az aktuális migráción: **PASS — 2/2 egymást követő futás**;
 - a végleges 20 fájlos migration-release manifest byte-pontos hashokkal elkészült;
-  a célzott release-workflow contract suite: **PASS — 8/8 teszt**;
-- v0.10.8 teljes Vitest: **PASS — 88 tesztfájl / 577 teszt, 69,78 s**;
+  a célzott release-workflow contract suite: **PASS — 9/9 teszt**;
+- v0.10.8 teljes Vitest: **PASS — 88 tesztfájl / 578 teszt, 78,03 s**;
 - v0.10.8 production build: **PASS — 73/73 statikus oldal**; új admin UI-copy
   scan: **PASS**;
 - lokális auth-határ HTTP-smoke: **PASS** — admin redirect/login és auth nélküli

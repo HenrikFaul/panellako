@@ -89,9 +89,9 @@
 - Rollback-only operator/approval/support/attestation/community mutation runtime
   canary az aktuális migráción: **PASS — 2/2 egymást követő futás**.
 - A végleges byte-hashokat tartalmazó 20 fájlos migration-release manifest
-  elkészült; a célzott release-workflow contract suite: **PASS — 8/8 teszt**.
+  elkészült; a célzott release-workflow contract suite: **PASS — 9/9 teszt**.
   Ez nem production Supabase alkalmazási vagy read-back bizonyíték.
-- Teljes v0.10.8 Vitest: **PASS — 88 tesztfájl / 577 teszt, 69,78 s**.
+- Teljes v0.10.8 Vitest: **PASS — 88 tesztfájl / 578 teszt, 78,03 s**.
 - TypeScript (`npm run typecheck`) és ESLint (`npm run lint`): **PASS**; az ESLint
   nem jelzett warningot vagy hibát.
 - Production build: **PASS — 73/73 statikus oldal**. Az új admin UI-copy scan:
@@ -106,6 +106,11 @@
   deploy, release identity és alias: **NOT_RUN / HOLD**.
 - v0.10.8 implementációs commit és feature-branch push: **PASS** —
   `a0f9eb3` a `codex/platform-admin-control-center` ágon.
+- Az első védett DB-audit run (`33369494169`) adatbázis-művelet előtt,
+  fail-closed állt meg a hiányzó `SUPABASE_DB_PASSWORD` production secret miatt.
+  A helyreállításhoz elkészült a külön owner/main/exact-confirm kapus,
+  maszkolt `db-password-rotate.yml`; futtatása és az azt követő audit/deploy
+  ebben a pillanatképben még **NOT_RUN / HOLD**.
 
 ### Authority hardening lezárása
 - Az approval/support terminális decision replay a quota-fogyasztás előtt tér

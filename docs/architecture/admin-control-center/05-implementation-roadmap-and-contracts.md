@@ -417,7 +417,7 @@ private-helper privilege lockot ellenőriz. A végleges byte-hashokat tartalmaz�
 20 fájlos manifest elkészült. A végleges authority migráció SHA-256 értéke
 `45B00B09CAFFC8AF50B2ECB21C3B0789684E4039D859CAF120FF5C0972ED2C99`, amely
 egyezik a manifest bejegyzésével; a célzott release-workflow contract suite
-**PASS — 8/8 teszt**. Ez a lokális supply-chain szerződést bizonyítja, nem a
+**PASS — 9/9 teszt**. Ez a lokális supply-chain szerződést bizonyítja, nem a
 production migráció alkalmazását vagy read-backjét.
 
 Mind a `20260830130000`, mind a `20260830140000` production Supabase alkalmazása

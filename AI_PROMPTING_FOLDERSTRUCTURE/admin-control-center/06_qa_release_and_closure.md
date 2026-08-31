@@ -110,14 +110,18 @@ QA `HOLD`/`NOT_RUN`, nem hallgatólagos siker.
 - runtime canary: **PASS — 2/2 egymást követő, community authorityt, stabil
   decision replayt és audit-egyszeriséget is fedő futás**;
 - 20 fájlos migration-release manifest és friss workflow contract:
-  **PASS — 8/8 célzott release teszt**; az authority migráció SHA-256 értéke
+  **PASS — 9/9 célzott release teszt**; az authority migráció SHA-256 értéke
   `45B00B09CAFFC8AF50B2ECB21C3B0789684E4039D859CAF120FF5C0972ED2C99`;
-- teljes v0.10.8 Vitest: **PASS — 88 tesztfájl / 577 teszt, 69,78 s**;
+- teljes v0.10.8 Vitest: **PASS — 88 tesztfájl / 578 teszt, 78,03 s**;
 - production build: **PASS — 73/73 statikus oldal**; új admin UI-copy scan:
   **PASS**;
 - lokális auth-határ HTTP-smoke: **PASS — 307 / 200 / 401 / 401**;
 - browser, hosted, production Supabase apply és deploy: **NOT_RUN / HOLD**;
 - v0.10.8 implementációs commit és feature-branch push: **PASS — `a0f9eb3`**.
+- az első DB-audit run (`33369494169`) DB-művelet előtt, fail-closed megállt
+  a hiányzó production DB-password secreten;
+- a külön DB-password rotation workflow owner/main/exact-confirm, secret-mask és
+  bounded CLI read-back contractja implementált; runtime futása **NOT_RUN / HOLD**.
 
 A v0.10.7 korábbi teljes-suite/build PASS történeti bizonyíték; nem szabad a
 v0.10.8 új authority migráció automatikus bizonyítékaként újrahasználni.

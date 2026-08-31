@@ -222,8 +222,8 @@ break-glass/limited módot mutathat; nem eshet vissza közvetlen legacy írásra
 | Operator-authority statikus migrációs suite | **PASS — 17/17 teszt** |
 | Izolált PostgreSQL 18 v0.10.8 authority migration első apply + teljes reapply | **PASS** |
 | Rollback-only operator/approval/support/attestation/community mutation runtime canary | **PASS — 2/2 egymást követő futás** |
-| 20 fájlos migration-release manifest és friss workflow contract | **PASS — 8/8 célzott release teszt; authority SHA-256 `45B00B09…ED2C99`** |
-| v0.10.8 teljes Vitest | **PASS — 88 tesztfájl / 577 teszt, 69,78 s** |
+| 20 fájlos migration-release manifest és friss workflow contract | **PASS — 9/9 célzott release teszt; authority SHA-256 `45B00B09…ED2C99`** |
+| v0.10.8 teljes Vitest | **PASS — 88 tesztfájl / 578 teszt, 78,03 s** |
 | v0.10.8 ESLint | **PASS — 0 warning, 0 error** |
 | v0.10.8 production build | **PASS — 73/73 statikus oldal** |
 | v0.10.8 új admin UI-copy scan | **PASS** |
@@ -233,6 +233,8 @@ break-glass/limited módot mutathat; nem eshet vissza közvetlen legacy írásra
 | Production Supabase `20260830130000` + `20260830140000` migráció | **NOT_RUN / HOLD** |
 | Production deploy és alias | **NOT_RUN / HOLD** |
 | v0.10.8 implementációs commit és feature-branch push | **PASS — `a0f9eb3`** |
+| Első védett DB audit | **HOLD — `33369494169`, hiányzó DB-password secret; DB-művelet nem indult** |
+| Védett DB-password rotation workflow contract | **PASS — owner/main/exact-confirm, mask, bounded verify; runtime NOT_RUN** |
 
 ## 9. Definition of Done
 
